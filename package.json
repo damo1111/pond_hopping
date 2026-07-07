@@ -1,8 +1,8 @@
 {
-  "name": "not-that-cvnvrd",
+  "name": "pond-hopping",
   "private": true,
   "version": "0.1.0",
-  "description": "NOT THAT CVNVRD — mini gap year travel companion, Mar–Jul 2026",
+  "description": "Pond Hopping — travel logs for David + husband, starting with the mini gap year",
   "type": "module",
   "scripts": {
     "dev": "vite",

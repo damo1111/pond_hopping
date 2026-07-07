@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
       manifest: {
-        name: 'NOT THAT CVNVRD',
-        short_name: 'CVNVRD',
-        description: 'Mini gap year travel companion — Mar–Jul 2026',
+        name: 'POND HOPPING',
+        short_name: 'Pond Hopping',
+        description: 'Travel logs — starting with the mini gap year, Mar–Jul 2026',
         theme_color: '#0A0A0A',
         background_color: '#0A0A0A',
         display: 'standalone',

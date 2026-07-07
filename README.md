@@ -1,6 +1,6 @@
-# NOT THAT CVNVRD
+# POND HOPPING
 
-A personal mini gap year travel app — six trips across Asia and beyond, March–July 2026. Dark, editorial, PWA-installable. One user (David), shareable with friends.
+Travel logs for David + husband — starting with the mini gap year (six trips across Asia and beyond, March–July 2026), built to hold all future travel. Dark, editorial, duck-branded, PWA-installable.
 
 Merged from two earlier apps:
 - **asia_runs** — the China/Japan running log (its GPS run data now lives in the `runs` table)

@@ -81,15 +81,19 @@ export default function App() {
     <TripContext.Provider value={ctx}>
       {booting && (
         <div className={`boot${bootLeaving ? ' leaving' : ''}`}>
-          <div className="boot-title">NOT THAT CVNVRD</div>
-          <div className="boot-sub">mini gap year · mar–jul 2026</div>
+          <img className="boot-duck" src="/duck.svg" alt="" />
+          <div className="boot-title">POND HOPPING</div>
+          <div className="boot-sub">travel logs · est. mar 2026</div>
         </div>
       )}
 
       <div className="app">
         <header className="app-header">
-          <div className="app-title">NOT THAT CVNVRD</div>
-          <div className="app-subtitle">six trips · mar–jul 2026</div>
+          <img className="header-duck" src="/duck.svg" alt="" />
+          <div>
+            <div className="app-title">POND HOPPING</div>
+            <div className="app-subtitle">mini gap year · mar–jul 2026</div>
+          </div>
         </header>
 
         <nav className="tab-bar">

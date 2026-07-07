@@ -1,6 +1,6 @@
-# NOT THAT CVNVRD — Mini Gap Year App
+# POND HOPPING — Travel Logs
 
-A personal travel web app covering a mini gap year across six trips, March–July 2026. Built for one user (David), dark and editorial in aesthetic, PWA-installable, shareable with friends. Think a private travel magazine with live data and maps — geek-grade on the flight data, clean and cool everywhere else.
+A travel log web app for David + husband — starting with the mini gap year (six trips, March–July 2026), built to hold all future travel. Dark and editorial in aesthetic, duck-branded (the beret duck logo, a nod to the China/Japan research trips), PWA-installable, shareable with friends. Think a private travel magazine with live data and maps — geek-grade on the flight data, clean and cool everywhere else.
 
 ## Tech stack
 

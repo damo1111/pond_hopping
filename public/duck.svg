@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="96" fill="#E9E4DB"/><g transform="translate(51,41) scale(0.82)"><g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Beret duck — Pond Hopping mark -->
+  <g>
     <!-- legs -->
     <path d="M232 392 L222 448 L186 462" fill="none" stroke="#101010" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M300 396 L306 452 L342 460" fill="none" stroke="#101010" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
@@ -43,4 +45,4 @@
              C 174 330, 172 316, 180 306 Z"
           fill="#3F9B48"/>
   </g>
-</g></svg>
+</svg>
