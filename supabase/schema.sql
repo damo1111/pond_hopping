@@ -153,6 +153,8 @@ select
   (select coalesce(sum(c.amount_aud), 0) from public.costs c where c.trip_id = t.id) as total_aud
 from public.trips t;
 
+alter view public.trip_meta set (security_invoker = true);
+
 -- ── RLS ───────────────────────────────────────────────────────
 -- Single-user personal app, client-only via the anon key (a key
 -- decision in CLAUDE.md). RLS is enabled with permissive anon
