@@ -685,3 +685,305 @@ button {
   font-family: var(--font-mono);
   color: var(--accent);
 }
+
+/* ── Trips card grid ───────────────────────────────────────── */
+
+.trips-grid {
+  padding: 16px 14px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .trips-grid { grid-template-columns: 1fr 1fr; }
+}
+
+.trip-card {
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  padding: 0;
+  transition: border-color 0.15s;
+}
+
+.trip-card.active {
+  border-color: var(--accent);
+}
+
+.trip-cover img {
+  display: block;
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.trip-card-body {
+  padding: 15px 17px 16px;
+}
+
+.trip-flags {
+  font-size: 15px;
+  margin-bottom: 5px;
+}
+
+.trip-card-title {
+  font-weight: 300;
+  font-size: 19px;
+}
+
+.trip-card-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.trip-card-dates {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-top: 8px;
+}
+
+.trip-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.stat-pill {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text);
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.stat-pill.muted {
+  color: var(--text-muted);
+}
+
+.trip-filter-note {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* ── Journal ───────────────────────────────────────────────── */
+
+.journal-tab {
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.journal-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.journal-entry {
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 13px 15px;
+  box-shadow: var(--shadow);
+}
+
+.journal-entry.open {
+  border-color: var(--accent-dim);
+}
+
+.je-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.je-mood { font-size: 15px; }
+.je-day { color: var(--accent); }
+.je-city { margin-left: auto; }
+
+.je-title {
+  font-weight: 400;
+  font-size: 15px;
+  margin-top: 6px;
+}
+
+.je-note {
+  font-weight: 300;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  margin-top: 5px;
+  white-space: pre-wrap;
+}
+
+.je-note.clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.je-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.je-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.journal-add-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px dashed var(--accent-dim);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.journal-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  box-shadow: var(--shadow);
+}
+
+.journal-form input,
+.journal-form select,
+.journal-form textarea {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 9px 11px;
+  width: 100%;
+}
+
+.jf-row {
+  display: flex;
+  gap: 8px;
+}
+
+.jf-moods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.jf-mood {
+  font-size: 17px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 4px 7px;
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.jf-mood.active {
+  filter: none;
+  opacity: 1;
+  border-color: var(--accent-dim);
+  background: var(--accent-bg);
+}
+
+.jf-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.jf-cancel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  padding: 10px 12px;
+}
+
+.jf-save {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #fff;
+  background: var(--accent);
+  border: 0;
+  border-radius: 9px;
+  padding: 10px 16px;
+}
+
+.jf-save:disabled {
+  opacity: 0.5;
+}
+
+/* ── Map tab filters ───────────────────────────────────────── */
+
+.map-filters {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 500;
+  display: flex;
+  gap: 6px;
+}
+
+.map-chip {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 12px;
+  box-shadow: var(--shadow);
+}
+
+.map-chip.active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent);
+}

@@ -81,14 +81,14 @@ Typography: Raleway for headings and body (weight 300 for large text), Space Mon
 ### 3. World tab (the wow screen) — ✅ DONE
 `src/tabs/WorldTab.jsx`. Full-bleed light (voyager) Leaflet map (`.tab-panel.full` removes panel padding). Routes deduped by dep-arr segment (repeat sectors like MEL-SYD share one line whose popup lists every flight on it), animated in departure order via a rAF sequence hook (~420ms draw + 110ms pause each). Gold dashed great circles, white airport dots with city popups, floating "mission briefing" stats card (flights · km · airports). Respects `selectedTrip`.
 
-### 4. Trips tab
-Card grid, one card per trip: title, dates, countries (flag emojis), cover photo if set, flight count, total spend AUD. Tapping a trip sets `selectedTrip` (already in TripContext) — Journal, Map and Costs filter to it.
+### 4. Trips tab — ✅ DONE
+`src/tabs/TripsTab.jsx` (replaced the Session-1 TripsShell stub). Card grid (2-col ≥640px): flags, title, subtitle, date range, stat pills (✈ flights · 🏃 runs · 📔 journal days · A$ spend when >0), optional cover photo. Tap toggles `selectedTrip`; active card shows a gold border + "filtering other tabs · tap to clear" note (first stab at the filter-visibility UX debt).
 
-### 5. Journal tab
-Entries grouped by trip (flat if filtered). Each: day number, city, title, mood emoji, note preview; tap to expand. Add-entry form at top — date, city, title, note, mood picker, tags. Store to Supabase.
+### 5. Journal tab — ✅ DONE
+`src/tabs/JournalTab.jsx`. Entries grouped by trip (flat when filtered), each row: mood emoji, DAY n, date, city, title, 2-line clamped note → tap to expand full note + tags. "+ new entry" opens the add form (trip select, date, city, title, note, 12-emoji mood picker, comma tags); day_number auto-computed from the trip start date; inserts to Supabase and reloads.
 
-### 6. Map tab
-Dark Leaflet map. `map_pins` for selected trip (or all). Toggle: all pins · hotels · runs · highlights. `runs` table has full GPS polylines (draw with their stored `color`, green markers). Journey polyline connecting journal entry coordinates in date order.
+### 6. Map tab — ✅ DONE
+`src/tabs/MapTab.jsx`. Full-bleed voyager map (shares `.world-wrap`/`.tab-panel.full`). Filter chips: All · Hotels · Runs · Highlights. GPS run polylines in their stored colours with green start dots + distance/pace popups; pins coloured by kind (hotel gold, run green, highlight red, place muted); faint dashed ink journey line through journal entries in date order (All view). Map remounts on filter/trip change to refit bounds (react-leaflet only applies `bounds` at mount).
 
 ### 7. Costs tab
 Total spend per trip by category (Food / Transport / Shopping / Hotel / Activity / Flight / Other). Running total in AUD. Add-cost form: description, amount, currency (AUD/KRW/HKD/JPY/CNY/USD/GBP), category, city. Auto-convert to AUD using static FX rates (live fetch is a bonus). CSS bar chart per category — no chart library.

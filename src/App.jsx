@@ -1,9 +1,11 @@
 import { createContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import Placeholder from './tabs/Placeholder.jsx'
-import TripsShell from './tabs/TripsShell.jsx'
+import TripsTab from './tabs/TripsTab.jsx'
 import FlightsTab from './tabs/FlightsTab.jsx'
 import WorldTab from './tabs/WorldTab.jsx'
+import JournalTab from './tabs/JournalTab.jsx'
+import MapTab from './tabs/MapTab.jsx'
 import InstallChip from './components/InstallChip.jsx'
 
 export const TripContext = createContext({
@@ -100,14 +102,18 @@ export default function App() {
           <InstallChip />
         </header>
 
-        <main className={`tab-panel${activeTab === 'world' ? ' full' : ''}`}>
+        <main className={`tab-panel${activeTab === 'world' || activeTab === 'map' ? ' full' : ''}`}>
           {loadError && <div className="error-note">supabase: {loadError}</div>}
           {activeTab === 'world' ? (
             <WorldTab />
           ) : activeTab === 'trips' ? (
-            <TripsShell />
+            <TripsTab />
           ) : activeTab === 'flights' ? (
             <FlightsTab />
+          ) : activeTab === 'journal' ? (
+            <JournalTab />
+          ) : activeTab === 'map' ? (
+            <MapTab />
           ) : (
             <Placeholder
               code={SESSION_NOTES[activeTab][0]}
