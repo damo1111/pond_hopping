@@ -52,6 +52,7 @@ function fmtRange(t) {
 export default function WorldTab() {
   const { tripMeta, selectedTrip, setSelectedTrip } = useContext(TripContext)
   const [flights, setFlights] = useState(null)
+  const [covers, setCovers] = useState({})
 
   useEffect(() => {
     let alive = true
@@ -60,6 +61,17 @@ export default function WorldTab() {
       .select('flight_number,airline,trip_id,dep_airport,dep_city,dep_lat,dep_lon,arr_airport,arr_city,arr_lat,arr_lon,dep_time,distance_km')
       .order('dep_time', { ascending: true })
       .then(({ data }) => alive && setFlights(data ?? []))
+    supabase
+      .from('photo_cache')
+      .select('trip_id,urls,status')
+      .then(({ data }) => {
+        if (!alive) return
+        const byTrip = {}
+        for (const row of data ?? []) {
+          if (row.status === 'ok' && row.urls?.[0]) byTrip[row.trip_id] = row.urls[0]
+        }
+        setCovers(byTrip)
+      })
     return () => {
       alive = false
     }
@@ -172,6 +184,11 @@ export default function WorldTab() {
               className={`wt-card${active ? ' active' : ''}`}
               onClick={() => setSelectedTrip(active ? null : t.slug)}
             >
+              {covers[t.id] && (
+                <span className="wt-cover">
+                  <img src={`${covers[t.id]}=w400-h220-c`} alt="" loading="lazy" />
+                </span>
+              )}
               <span className="wt-flags">{t.countries?.join(' ')}</span>
               <span className="wt-title">{t.title}</span>
               <span className="wt-dates">{fmtRange(t)}</span>

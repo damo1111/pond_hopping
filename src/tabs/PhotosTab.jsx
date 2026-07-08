@@ -87,6 +87,7 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
 export default function PhotosTab() {
   const { tripMeta, selectedTrip } = useContext(TripContext)
   const [photos, setPhotos] = useState(null)
+  const [covers, setCovers] = useState({})
   const [reload, setReload] = useState(0)
   const [lightbox, setLightbox] = useState(null)
 
@@ -97,6 +98,17 @@ export default function PhotosTab() {
       .select('*')
       .order('taken_on', { ascending: true })
       .then(({ data }) => alive && setPhotos(data ?? []))
+    supabase
+      .from('photo_cache')
+      .select('trip_id,urls,status')
+      .then(({ data }) => {
+        if (!alive) return
+        const byTrip = {}
+        for (const row of data ?? []) {
+          if (row.status === 'ok' && row.urls?.[0]) byTrip[row.trip_id] = row.urls[0]
+        }
+        setCovers(byTrip)
+      })
     return () => {
       alive = false
     }
@@ -117,6 +129,11 @@ export default function PhotosTab() {
 
       {albums.map((t) => (
         <a key={t.slug} className="album-card" href={t.photos_url} target="_blank" rel="noreferrer">
+          {covers[t.id] && (
+            <span className="album-cover">
+              <img src={`${covers[t.id]}=w800-h450-c`} alt="" loading="lazy" />
+            </span>
+          )}
           <span className="album-flags">{t.countries?.join(' ')}</span>
           <span className="album-title">{t.title} — Google Photos</span>
           <span className="album-open">Open album →</span>
