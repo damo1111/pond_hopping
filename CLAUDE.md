@@ -68,8 +68,8 @@ Flights are NOT seeded yet — they arrive as SQL inserts (FR24 export + registr
 
 ## Remaining build order — each tab is a session
 
-### 2. Flights tab (hero feature)
-Fetch all flights joined with `aircraft_types`. Group by trip (trip title as section header). Build a `FlightCard` component: aircraft photo fetched lazily on expand from `https://api.planespotters.net/pub/photos/reg/{REGISTRATION}`, animated great-circle path on a Leaflet map, cabin/seat/config details, FR24 link. If no registration: "Add registration to load aircraft photo."
+### 2. Flights tab (hero feature) — ✅ DONE
+`src/tabs/FlightsTab.jsx` + `src/components/FlightCard.jsx`. Fetches flights joined with `aircraft_types`, groups by trip (ordered via `tripMeta`, filtered by `selectedTrip`). FlightCard: collapsed route summary; on expand lazily fetches the Planespotters photo (`src/lib/planespotters.js`, cached), draws the animated great-circle arc on a dark Leaflet mini-map, and shows the cabin/seat/config/times/duration grid + FR24 link. Graceful states for missing registration / no photo. Leaflet CSS imported in `main.jsx`; `MapContainer` needs an initial `center`+`zoom` (learned the hard way — omitting it throws a Leaflet projection error).
 
 ### 3. World tab (the wow screen)
 Full-bleed dark Leaflet map. Animate all great-circle flight routes in sequence — draw each route one after another with a short pause. Rose dashed lines, circle markers at airports. Tap route/marker → popup with flight number, route, date. Opening screen — make it feel like a mission briefing.

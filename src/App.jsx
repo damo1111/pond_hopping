@@ -2,6 +2,7 @@ import { createContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import Placeholder from './tabs/Placeholder.jsx'
 import TripsShell from './tabs/TripsShell.jsx'
+import FlightsTab from './tabs/FlightsTab.jsx'
 import InstallChip from './components/InstallChip.jsx'
 
 export const TripContext = createContext({
@@ -102,6 +103,8 @@ export default function App() {
           {loadError && <div className="error-note">supabase: {loadError}</div>}
           {activeTab === 'trips' ? (
             <TripsShell />
+          ) : activeTab === 'flights' ? (
+            <FlightsTab />
           ) : (
             <Placeholder
               code={SESSION_NOTES[activeTab][0]}
