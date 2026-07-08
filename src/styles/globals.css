@@ -412,6 +412,24 @@ button {
   text-transform: uppercase;
 }
 
+.cost-lock-icon {
+  font-size: 34px;
+  opacity: 0.7;
+}
+
+.cost-lock-btn {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 10px 20px;
+}
+
 .placeholder-note {
   font-family: var(--font-display);
   font-weight: 300;
@@ -855,34 +873,6 @@ button {
 .globe-tip b {
   font-weight: 600;
   color: #D4AF37;
-}
-
-.world-brief {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 500;
-  background: var(--glass-bg);
-  backdrop-filter: saturate(140%) blur(10px);
-  -webkit-backdrop-filter: saturate(140%) blur(10px);
-  border: var(--glass-border);
-  border-radius: 14px;
-  padding: 9px 13px;
-  box-shadow: var(--glass-shadow);
-}
-
-.wb-title {
-  font-weight: 300;
-  font-size: 14px;
-  margin-bottom: 2px;
-}
-
-.wb-stats {
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
 }
 
 .world-pop {
@@ -1801,6 +1791,16 @@ button {
   padding: 6px 12px;
   overflow-x: auto;
   scrollbar-width: none;
+  animation: trips-scroll-hint 1.4s ease-out 0.8s 1;
+}
+
+/* Nudges the strip once on load so it reads as horizontally scrollable
+   rather than a fixed row of 3 cards. */
+@keyframes trips-scroll-hint {
+  0%, 100% { transform: translateX(0); }
+  35% { transform: translateX(-22px); }
+  60% { transform: translateX(6px); }
+  80% { transform: translateX(-10px); }
 }
 
 .world-trips::-webkit-scrollbar { display: none; }

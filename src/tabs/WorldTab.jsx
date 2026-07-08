@@ -37,10 +37,36 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 }
 
+// Rough centroid from a GeoJSON country feature's largest ring (biggest
+// landmass) so labels for countries with far-flung overseas territories
+// (France, etc.) land on the mainland, not somewhere in the ocean between.
+function countryCentroid(geometry) {
+  let rings = []
+  if (geometry.type === 'Polygon') rings = [geometry.coordinates[0]]
+  else if (geometry.type === 'MultiPolygon') rings = geometry.coordinates.map((p) => p[0])
+  if (!rings.length) return null
+  const largest = rings.reduce((a, b) => (b.length > a.length ? b : a))
+  let x = 0
+  let y = 0
+  for (const [lon, lat] of largest) {
+    x += lon
+    y += lat
+  }
+  return [y / largest.length, x / largest.length]
+}
+
+// Only label countries actually near this trip data — showing all ~180
+// countries on the globe would bury the ones that matter.
+const LABEL_FOCUS_DEG = 18
+function nearAny(point, others) {
+  return others.some((o) => Math.abs(point[0] - o[0]) < LABEL_FOCUS_DEG && Math.abs(point[1] - o[1]) < LABEL_FOCUS_DEG)
+}
+
 export default function WorldTab() {
   const { tripMeta, selectedTrip, setSelectedTrip } = useContext(TripContext)
   const [flights, setFlights] = useState(null)
   const [covers, setCovers] = useState({})
+  const [countries, setCountries] = useState(null)
   const globeEl = useRef()
   const [dims, setDims] = useState({ width: 360, height: 600 })
   // A callback ref (not useRef + an empty-deps effect) — inside a
@@ -73,6 +99,17 @@ export default function WorldTab() {
   }, [])
 
   useEffect(() => {
+    let alive = true
+    fetch('/globe/countries.geojson')
+      .then((r) => r.json())
+      .then((geo) => alive && setCountries(geo.features))
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  useEffect(() => {
     if (!wrapEl) return
     const measure = () => {
       const { width, height } = wrapEl.getBoundingClientRect()
@@ -87,14 +124,12 @@ export default function WorldTab() {
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
 
   // Dedupe flights into route segments (repeat sectors share one arc).
-  const { segments, airports, stats } = useMemo(() => {
+  const { segments, airports } = useMemo(() => {
     const segs = new Map()
     const apts = new Map()
-    let km = 0
     for (const f of flights ?? []) {
       if (selectedTrip && tripsById.get(f.trip_id)?.slug !== selectedTrip) continue
       if (f.dep_lat == null || f.arr_lat == null) continue
-      km += f.distance_km || 0
       const key = `${f.dep_airport}-${f.arr_airport}`
       if (!segs.has(key)) {
         segs.set(key, {
@@ -110,12 +145,7 @@ export default function WorldTab() {
       if (!apts.has(f.dep_airport)) apts.set(f.dep_airport, { code: f.dep_airport, city: f.dep_city, pos: [f.dep_lat, f.dep_lon] })
       if (!apts.has(f.arr_airport)) apts.set(f.arr_airport, { code: f.arr_airport, city: f.arr_city, pos: [f.arr_lat, f.arr_lon] })
     }
-    const flightCount = [...segs.values()].reduce((s, x) => s + x.flights.length, 0)
-    return {
-      segments: [...segs.values()],
-      airports: [...apts.values()],
-      stats: { flights: flightCount, km, airports: apts.size },
-    }
+    return { segments: [...segs.values()], airports: [...apts.values()] }
   }, [flights, selectedTrip, tripsById])
 
   // Fly to the selection (or back to the overview) and toggle ambient
@@ -154,6 +184,27 @@ export default function WorldTab() {
   }))
 
   const pointsData = airports.map((a) => ({ lat: a.pos[0], lng: a.pos[1], code: a.code, city: a.city }))
+
+  // Country labels only where they're actually near an airport in view
+  // (otherwise all ~180 countries would clutter the globe), and skipped
+  // where a city label already sits almost on top of them (e.g. a small
+  // country whose centroid lands right on its own capital's airport) —
+  // the city name is the more useful of the two there.
+  const airportPts = airports.map((a) => a.pos)
+  const CITY_SUPPRESS_DEG = 5
+  const countryLabels = (countries ?? [])
+    .map((f) => {
+      const c = countryCentroid(f.geometry)
+      return c ? { kind: 'country', lat: c[0], lng: c[1], text: f.properties.NAME } : null
+    })
+    .filter(
+      (d) =>
+        d &&
+        nearAny([d.lat, d.lng], airportPts) &&
+        !airportPts.some((p) => Math.abs(d.lat - p[0]) < CITY_SUPPRESS_DEG && Math.abs(d.lng - p[1]) < CITY_SUPPRESS_DEG)
+    )
+  const cityLabels = airports.map((a) => ({ kind: 'city', lat: a.pos[0], lng: a.pos[1], text: a.city }))
+  const labelsData = [...countryLabels, ...cityLabels]
 
   return (
     <div className="world-wrap globe-wrap" ref={wrapRef}>
@@ -195,6 +246,15 @@ export default function WorldTab() {
         pointAltitude={0.01}
         pointsMerge
         pointLabel={(d) => `<div class="globe-tip"><b>${escapeHtml(d.code)}</b><br/>${escapeHtml(d.city)}</div>`}
+        labelsData={labelsData}
+        labelLat={(d) => d.lat}
+        labelLng={(d) => d.lng}
+        labelText={(d) => d.text}
+        labelSize={(d) => (d.kind === 'country' ? 1.1 : 0.95)}
+        labelColor={(d) => (d.kind === 'country' ? 'rgba(245, 242, 235, 0.55)' : 'rgba(245, 242, 235, 0.9)')}
+        labelDotRadius={(d) => (d.kind === 'country' ? 0 : 0.22)}
+        labelAltitude={0.01}
+        labelResolution={2}
         onGlobeReady={() => {
           const controls = globeEl.current.controls()
           controls.autoRotate = !selectedTrip
@@ -228,15 +288,6 @@ export default function WorldTab() {
             </button>
           )
         })}
-      </div>
-
-      <div className="world-brief">
-        <div className="wb-title">
-          {selectedTrip ? tripsById.get([...tripsById.keys()].find((id) => tripsById.get(id)?.slug === selectedTrip))?.title ?? 'mission' : 'the digital nomad life'}
-        </div>
-        <div className="wb-stats">
-          {stats.flights} flights · {stats.km.toLocaleString()} km · {stats.airports} airports
-        </div>
       </div>
     </div>
   )

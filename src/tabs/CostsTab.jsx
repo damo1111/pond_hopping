@@ -101,6 +101,10 @@ export default function CostsTab() {
   const { tripMeta, selectedTrip } = useContext(TripContext)
   const [costs, setCosts] = useState(null)
   const [reload, setReload] = useState(0)
+  // Costs are dollar figures — hidden by default so the app is safe to
+  // show off/share before real per-recipient permissions exist. Resets
+  // every time you land back on this tab.
+  const [unlocked, setUnlocked] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -117,6 +121,21 @@ export default function CostsTab() {
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
 
   if (!costs) return <div className="tab-loading">loading costs…</div>
+
+  if (!unlocked) {
+    return (
+      <div className="costs-tab">
+        <div className="placeholder cost-lock">
+          <div className="cost-lock-icon">🔒</div>
+          <div className="placeholder-code">costs</div>
+          <div className="placeholder-note">Private for now — hidden by default so this is safe to share around.</div>
+          <button className="cost-lock-btn" onClick={() => setUnlocked(true)}>
+            show costs
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const visible = costs.filter((c) => !selectedTrip || tripsById.get(c.trip_id)?.slug === selectedTrip)
   const total = visible.reduce((s, c) => s + Number(c.amount_aud || 0), 0)
