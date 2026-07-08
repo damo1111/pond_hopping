@@ -113,7 +113,6 @@ export default function App() {
             <span className="app-title-thin">Pond</span>
             <span className="app-title-bold">Hopping</span>
           </div>
-          <div className="boot-sub">travel logs · est. mar 2026</div>
         </div>
       )}
 
@@ -125,7 +124,6 @@ export default function App() {
               <span className="app-title-thin">Pond</span>
               <span className="app-title-bold">Hopping</span>
             </div>
-            <div className="app-subtitle">adventures of a digital nomad</div>
           </div>
           <InstallChip />
         </header>

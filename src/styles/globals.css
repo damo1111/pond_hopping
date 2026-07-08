@@ -82,7 +82,7 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+  padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
 }
 
 .app-header > div {
@@ -195,9 +195,10 @@ button {
   height: 38px;
   object-fit: contain;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--accent-dim);
   border-radius: 11px;
   padding: 2px;
+  box-shadow: 0 0 0 3px var(--accent-bg), var(--shadow);
 }
 
 .boot-duck {
@@ -214,7 +215,7 @@ button {
 
 .app-title {
   font-family: var(--font-brand);
-  font-size: 19px;
+  font-size: 22px;
   line-height: 1;
   letter-spacing: 0.01em;
   text-transform: uppercase;
@@ -381,14 +382,6 @@ button {
   font-family: var(--font-brand);
   font-size: 26px;
   letter-spacing: 0.01em;
-  text-transform: uppercase;
-}
-
-.boot-sub {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.3em;
-  color: var(--text-muted);
   text-transform: uppercase;
 }
 
