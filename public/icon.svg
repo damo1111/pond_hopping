@@ -14,33 +14,33 @@
              C 308 404, 240 414, 192 392
              C 138 366, 108 310, 118 262 Z"
           fill="#101010"/>
-    <!-- beak: pointed wedge, slightly down-tilted -->
+    <!-- beak: rounded gold wedge, slightly open -->
     <path d="M394 178
-             C 424 164, 458 168, 476 186
-             C 480 190, 478 196, 470 200
-             C 444 212, 412 212, 394 204
-             C 388 194, 388 186, 394 178 Z"
-          fill="#3F9B48"/>
-    <path d="M400 200 C 424 208, 450 206, 466 198" fill="none" stroke="#101010" stroke-width="6" stroke-linecap="round"/>
-    <circle cx="428" cy="182" r="5" fill="#101010"/>
+             C 424 164, 460 168, 478 188
+             C 483 194, 481 201, 472 205
+             C 446 216, 412 214, 394 205
+             C 388 195, 388 186, 394 178 Z"
+          fill="#CFA43A"/>
+    <path d="M400 201 C 424 209, 452 207, 468 199" fill="none" stroke="#101010" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="430" cy="183" r="5" fill="#101010"/>
     <!-- eye: white with side pupil, flat annoyed lid -->
     <ellipse cx="352" cy="180" rx="25" ry="21" fill="#F4F1EA"/>
     <circle cx="365" cy="184" r="9" fill="#101010"/>
     <path d="M326 166 L 380 160" stroke="#101010" stroke-width="11" stroke-linecap="round"/>
-    <!-- beret: flatter, tilted, hugging the brow -->
-    <path d="M262 140
-             C 252 104, 296 70, 344 72
-             C 390 74, 422 98, 418 122
-             C 416 136, 398 144, 374 146
-             C 330 152, 284 156, 262 140 Z"
-          fill="#3F9B48"/>
-    <path d="M330 70 C 324 54, 340 44, 352 52 C 362 60, 354 74, 342 72"
-          fill="#3F9B48"/>
+    <!-- beret: rounded gold cap, tilted back, with top nub -->
+    <path d="M264 138
+             C 250 100, 298 68, 348 70
+             C 394 72, 424 96, 420 121
+             C 417 137, 397 145, 372 147
+             C 328 153, 286 156, 264 138 Z"
+          fill="#CFA43A"/>
+    <path d="M334 68 C 327 50, 345 41, 357 50 C 367 58, 358 72, 345 70"
+          fill="#CFA43A"/>
     <!-- wing swoosh -->
     <path d="M180 306
              C 216 346, 280 358, 330 336
              C 298 378, 224 380, 184 340
              C 174 330, 172 316, 180 306 Z"
-          fill="#3F9B48"/>
+          fill="#CFA43A"/>
   </g>
 </g></svg>
