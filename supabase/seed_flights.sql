@@ -8,7 +8,7 @@ insert into public.aircraft_types (icao, name, manufacturer) values ('B763','Boe
 
 -- Real date ranges + Bangkok subtitle (from ByAir itineraries)
 update public.trips set start_date='2026-03-21', end_date='2026-03-23' where slug='sri-lanka-voyage';
-update public.trips set start_date='2026-06-15', end_date='2026-06-24' where slug='new-zealand';
+update public.trips set start_date='2026-06-15', end_date='2026-06-24', subtitle='Two status runs, a week apart · 15–17 + 22–24 Jun · MEL → SYD → WLG' where slug='new-zealand';
 update public.trips set start_date='2026-06-30', end_date='2026-07-08' where slug='south-korea';
 update public.trips set start_date='2026-04-03', end_date='2026-04-10', subtitle='MEL → KUL → Bangkok → Krabi' where slug='bangkok';
 

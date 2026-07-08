@@ -63,7 +63,7 @@ Typography: Raleway for headings and body (weight 300 for large text), Space Mon
 |------|------|-------|
 | `sri-lanka-voyage` | The Voyage — Sri Lanka → Melbourne | 21–23 Mar 2026 |
 | `china-japan` | China + Japan — GZ → SHA → BJ → Tokyo | 21 May – 5 Jun 2026 |
-| `new-zealand` | NZ Tier Run | 15–24 Jun 2026 (two Wellington runs) |
+| `new-zealand` | NZ Tier Run | Two status runs a week apart: 15–17 + 22–24 Jun 2026, identical MEL→SYD→WLG routing (8 flights total, confirmed by David) |
 | `bangkok` | Bangkok | 3–10 Apr 2026 (incl. Krabi) |
 | `singapore-malaysia` | Singapore + Malaysia | 2026 TBC |
 | `south-korea` | HK + South Korea | 30 Jun – 8 Jul 2026 |
