@@ -69,13 +69,17 @@ Typography: Raleway for headings and body (weight 300 for large text), Space Mon
 
 28 flights ARE seeded (see Current state above); singapore-malaysia is the only trip without data.
 
+## Open UX debt (revisit after all tabs are built)
+
+- **Cross-tab trip filter doesn't flow right** (David, 8 Jul): selecting a trip on the Trips tab silently filters Flights (and future tabs) with no visible indicator. Needs a visible "filtered: <trip> ✕" chip and/or a clearer select→navigate flow. Revisit once all tabs exist.
+
 ## Remaining build order — each tab is a session
 
 ### 2. Flights tab (hero feature) — ✅ DONE
 `src/tabs/FlightsTab.jsx` + `src/components/FlightCard.jsx`. Fetches flights joined with `aircraft_types`, groups by trip (ordered via `tripMeta`, filtered by `selectedTrip`). FlightCard: collapsed route summary; on expand lazily fetches the Planespotters photo (`src/lib/planespotters.js`, cached), draws the animated gold great-circle arc on a light (voyager) Leaflet mini-map, and shows the cabin/seat/config/times/duration grid + FR24 link. Graceful states for missing registration / no photo. Leaflet CSS imported in `main.jsx`; `MapContainer` needs an initial `center`+`zoom` (learned the hard way — omitting it throws a Leaflet projection error).
 
-### 3. World tab (the wow screen)
-Full-bleed light (voyager) Leaflet map. Animate all great-circle flight routes in sequence — draw each route one after another with a short pause. Gold dashed lines, circle markers at airports. Tap route/marker → popup with flight number, route, date. Opening screen — make it feel like a mission briefing.
+### 3. World tab (the wow screen) — ✅ DONE
+`src/tabs/WorldTab.jsx`. Full-bleed light (voyager) Leaflet map (`.tab-panel.full` removes panel padding). Routes deduped by dep-arr segment (repeat sectors like MEL-SYD share one line whose popup lists every flight on it), animated in departure order via a rAF sequence hook (~420ms draw + 110ms pause each). Gold dashed great circles, white airport dots with city popups, floating "mission briefing" stats card (flights · km · airports). Respects `selectedTrip`.
 
 ### 4. Trips tab
 Card grid, one card per trip: title, dates, countries (flag emojis), cover photo if set, flight count, total spend AUD. Tapping a trip sets `selectedTrip` (already in TripContext) — Journal, Map and Costs filter to it.

@@ -624,3 +624,64 @@ button {
   text-transform: uppercase;
   color: var(--accent);
 }
+
+/* ── World tab (mission briefing) ──────────────────────────── */
+
+.tab-panel.full {
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+.world-wrap {
+  position: relative;
+  height: 100%;
+}
+
+.world-brief {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 500;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 13px;
+  box-shadow: var(--shadow);
+}
+
+.wb-title {
+  font-weight: 300;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.wb-stats {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.world-pop {
+  font-family: var(--font-display);
+}
+
+.world-pop-route {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.world-pop-flight {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.wp-no {
+  font-family: var(--font-mono);
+  color: var(--accent);
+}

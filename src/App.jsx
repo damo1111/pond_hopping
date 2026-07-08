@@ -3,6 +3,7 @@ import { supabase } from './lib/supabase.js'
 import Placeholder from './tabs/Placeholder.jsx'
 import TripsShell from './tabs/TripsShell.jsx'
 import FlightsTab from './tabs/FlightsTab.jsx'
+import WorldTab from './tabs/WorldTab.jsx'
 import InstallChip from './components/InstallChip.jsx'
 
 export const TripContext = createContext({
@@ -99,9 +100,11 @@ export default function App() {
           <InstallChip />
         </header>
 
-        <main className="tab-panel">
+        <main className={`tab-panel${activeTab === 'world' ? ' full' : ''}`}>
           {loadError && <div className="error-note">supabase: {loadError}</div>}
-          {activeTab === 'trips' ? (
+          {activeTab === 'world' ? (
+            <WorldTab />
+          ) : activeTab === 'trips' ? (
             <TripsShell />
           ) : activeTab === 'flights' ? (
             <FlightsTab />
