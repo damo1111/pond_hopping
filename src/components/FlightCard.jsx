@@ -5,16 +5,8 @@ import { fetchAircraftPhoto } from '../lib/planespotters.js'
 import { supabase } from '../lib/supabase.js'
 import TailFin from './TailFin.jsx'
 import FlapText from './FlapText.jsx'
+import { localTime, localDate } from '../lib/airportTz.js'
 
-function fmtDate(iso) {
-  if (!iso) return ''
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-function fmtTime(iso) {
-  if (!iso) return ''
-  // keep the flight's local time (the ISO carries its own offset)
-  return iso.slice(11, 16)
-}
 function fmtDuration(min) {
   if (!min) return ''
   const h = Math.floor(min / 60)
@@ -109,7 +101,7 @@ export default function FlightCard({ flight, aircraftType }) {
         </span>
         <span className="fh-main">
           <span className="fh-row1">
-            <FlapText className="fh-time" text={fmtTime(f.dep_time)} groupDelay={0} />
+            <FlapText className="fh-time" text={localTime(f.dep_time, f.dep_airport)} groupDelay={0} />
             <span className="fh-route">
               <FlapText text={f.dep_airport} groupDelay={200} />
               <span className="fh-arrow">→</span>
@@ -120,7 +112,7 @@ export default function FlightCard({ flight, aircraftType }) {
           <span className="fh-row2">
             {f.dep_city} — {f.arr_city}
             <span className="fh-dot">·</span>
-            {fmtDate(f.dep_time)}
+            {localDate(f.dep_time, f.dep_airport)}
             {f.distance_km ? (
               <>
                 <span className="fh-dot">·</span>
@@ -197,8 +189,8 @@ export default function FlightCard({ flight, aircraftType }) {
             <Meta label="Cabin" value={f.cabin} onSave={(v) => saveField('cabin', v)} />
             <Meta label="Seat" value={f.seat} mono onSave={(v) => saveField('seat', v)} />
             <Meta label="Config" value={f.config} mono onSave={(v) => saveField('config', v)} />
-            <Meta label="Depart" value={fmtTime(f.dep_time)} mono />
-            <Meta label="Arrive" value={fmtTime(f.arr_time)} mono />
+            <Meta label="Depart" value={localTime(f.dep_time, f.dep_airport)} mono />
+            <Meta label="Arrive" value={localTime(f.arr_time, f.arr_airport)} mono />
             <Meta label="Duration" value={fmtDuration(durationMin(f))} mono />
           </div>
 

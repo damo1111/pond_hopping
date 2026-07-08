@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker } from 'react-leaflet'
 import { supabase } from './lib/supabase.js'
 import { greatCircle } from './lib/geo.js'
+import { localDate } from './lib/airportTz.js'
 
 const fmtD = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 const fmtA = (n) => 'A$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -118,7 +119,7 @@ export default function ShareView({ slug, show }) {
                 {f.dep_airport} → {f.arr_airport}
               </span>
               <span className="share-flight-meta">
-                {f.flight_number} · {f.dep_time ? fmtD(f.dep_time) : ''}
+                {f.flight_number} · {f.dep_time ? localDate(f.dep_time, f.dep_airport) : ''}
               </span>
             </div>
           ))}
