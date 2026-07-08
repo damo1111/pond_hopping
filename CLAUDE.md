@@ -35,11 +35,21 @@ Typography: Raleway for headings and body (weight 300 for large text), Space Mon
 
 ## Current state
 
-- **Session 1 (app shell) is DONE**: boot screen, tab bar, `trip_meta` fetch, `selectedTrip` state in `TripContext`, design tokens, PWA manifest + icons.
-- **Database is live**: `supabase/schema.sql` applied as migration `cvnvrd_initial_schema`; `supabase/seed.sql` applied (6 trips, 11 aircraft types, 33 KR/HK phrases, 9 GPS runs from the old asia_runs app).
+- **Session 1 (app shell) is DONE**: boot screen (beret-duck mark), tab bar, `trip_meta` fetch, `selectedTrip` state in `TripContext`, design tokens, PWA manifest + duck icons.
+- **Database is live and populated with REAL data**:
+  - `supabase/schema.sql` applied as migration `cvnvrd_initial_schema` (+ `trip_meta_security_invoker`).
+  - `supabase/seed.sql` — 6 trips, aircraft types, 33 KR/HK phrases, 9 China/Japan GPS runs (from asia_runs).
+  - `supabase/seed_flights.sql` — **28 flights** (from ByAir MCP) across 5 trips with real flight numbers, airports, times, distances, and **6 aircraft registrations** (unlock Planespotters photos); **5 Korea/HK/Sydney GPS runs** (from Samsung Health GPX). Also sets real trip date ranges.
+- Data by trip: sri-lanka-voyage 3 flights · china-japan 6 flights + 9 runs · new-zealand 8 flights · bangkok 6 flights · south-korea 5 flights + 5 runs · singapore-malaysia empty (see below).
 - `src/lib/geo.js` has `greatCircle()` and `distanceKm()` — import wherever maps need flight paths.
-- `src/lib/supabase.js` exports the shared client (env vars in `.env`).
+- `src/lib/supabase.js` exports the shared client (baked-in publishable key + env override).
 - Tabs other than Trips render a styled placeholder (`src/tabs/Placeholder.jsx`).
+
+## Live data sources (MCP connectors)
+
+- **ByAir** — flight history (917 flights on file). Tools `byair_list_trips`, `byair_get_flight_aircraft` (tail numbers), etc. The gap-year flights are already seeded; use it for future trips.
+- **Strava** — runs with GPS streams. Alternative/cross-check to Samsung Health GPX. Names like "Tokyo Rift 🗼", "Wellington 🏃", "Seoul 🇰🇷".
+- **Google Drive** — Samsung Health GPX exports + Google Timeline `.gz` (semantic day-by-day story, still to be parsed into `journal_entries`).
 
 ## The six trips (already in DB)
 
@@ -96,13 +106,12 @@ Generate `?share=<slug>` URL. Public read-only view when param present — no au
 - **Supabase is the only backend.** No Express, no serverless functions. All reads/writes direct from the client using the anon key (RLS is permissive by design — single-user personal app).
 - **PWA out of the box.** `vite-plugin-pwa` generates manifest + service worker — don't write them manually.
 
-## Data still needed (paste as SQL inserts into Supabase — no code changes)
+## Data still needed
 
-- All flights (FR24 export CSV → inserts), with aircraft registrations
-- Sri Lanka voyage details
-- NZ, Bangkok, SG/Malaysia trip dates and key data
-- Seoul trip flights/hotels
-- `trips.cover_photo_url` and `trips.photos_url` values
+- **Journal entries** — parse the three Google Timeline `.gz` exports (in Drive folder "China · Japan · Australia Trip 2026 — Google Timeline") into `journal_entries` for the day-by-day story, enriched against runs.
+- **Singapore/Malaysia trip** — ByAir shows overlapping/duplicate April records (SIN/KUL hops plus stray long-hauls); ambiguous, needs David to confirm which segments belong before seeding.
+- **More aircraft registrations** — only 6 of 28 flights have tail numbers so far (the marquee long-hauls). `byair_get_flight_aircraft` per flight id fills the rest.
+- **Photos** — `photos` rows and `trips.cover_photo_url` / `trips.photos_url` (Google Photos album links).
 
 ## Running the app
 
