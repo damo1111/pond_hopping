@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import DayMap from '../components/DayMap.jsx'
+import PrivateNote from '../components/PrivateNote.jsx'
 
 const MOODS = ['😄', '🌅', '🏃', '🤔', '😮', '😤', '🌧️', '✈️', '🧱', '🌀', '🧵', '🌊']
 
@@ -30,6 +31,7 @@ function Entry({ e }) {
       {open && (
         <div onClick={(ev) => ev.stopPropagation()}>
           <DayMap tripId={e.trip_id} date={e.entry_date} />
+          <PrivateNote tripId={e.trip_id} date={e.entry_date} />
         </div>
       )}
       {open && e.tags?.length > 0 && (
