@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-l
 import { greatCircle } from '../lib/geo.js'
 import { fetchAircraftPhoto } from '../lib/planespotters.js'
 import { supabase } from '../lib/supabase.js'
+import TailFin from './TailFin.jsx'
 
 function fmtDate(iso) {
   if (!iso) return ''
@@ -97,8 +98,13 @@ export default function FlightCard({ flight, aircraftType }) {
       <button className="flight-head board" onClick={() => setOpen((o) => !o)}>
         <span className="fh-thumb">
           {photo === undefined && <span className="fh-thumb-skel" />}
-          {photo === null && <span className="fh-thumb-empty">✈</span>}
+          {photo === null && <TailFin airline={f.airline} size={22} />}
           {photo && <img src={photo.thumb} alt="" loading="lazy" />}
+          {photo && (
+            <span className="fh-thumb-badge">
+              <TailFin airline={f.airline} size={12} />
+            </span>
+          )}
         </span>
         <span className="fh-main">
           <span className="fh-row1">

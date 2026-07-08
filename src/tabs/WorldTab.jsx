@@ -204,7 +204,7 @@ export default function WorldTab() {
 
       <div className="world-brief">
         <div className="wb-title">
-          {selectedTrip ? tripsById.get([...tripsById.keys()].find((id) => tripsById.get(id)?.slug === selectedTrip))?.title ?? 'mission' : 'the mini gap year'}
+          {selectedTrip ? tripsById.get([...tripsById.keys()].find((id) => tripsById.get(id)?.slug === selectedTrip))?.title ?? 'mission' : 'the digital nomad life'}
         </div>
         <div className="wb-stats">
           {stats.flights} flights · {stats.km.toLocaleString()} km · {stats.airports} airports

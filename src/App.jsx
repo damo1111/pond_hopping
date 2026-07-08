@@ -119,7 +119,7 @@ export default function App() {
           <img className="header-duck" src="/duck.png" alt="" />
           <div>
             <div className="app-title">POND HOPPING</div>
-            <div className="app-subtitle">mini gap year · mar–jul 2026</div>
+            <div className="app-subtitle">adventures of a digital nomad · mar–jul 2026</div>
           </div>
           <InstallChip />
         </header>
