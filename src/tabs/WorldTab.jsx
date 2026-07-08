@@ -1,44 +1,28 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet'
+import Globe from 'react-globe.gl'
 import { supabase } from '../lib/supabase.js'
-import { greatCircle, boundsExcludingHome } from '../lib/geo.js'
+import { isInAustralia } from '../lib/geo.js'
 import { TripContext } from '../App.jsx'
 
-const GOLD = '#A8842C'
-const INK = '#1A1611'
+// One accent per trip so overlapping routes read as distinct journeys
+// instead of one dense gold tangle.
+const TRIP_COLORS = {
+  'south-korea': '#D4AF37',
+  'new-zealand': '#5FA876',
+  'china-japan': '#D9614F',
+  'singapore-malaysia': '#4FA8C9',
+  bangkok: '#E0954C',
+  'sri-lanka-voyage': '#9B7FD4',
+}
+const tripColor = (slug) => TRIP_COLORS[slug] || '#A8842C'
+
+// Default framing for the "all trips" overview — centred on the
+// Asia-Pacific cluster where 5 of 6 trips actually happened.
+const OVERVIEW_POV = { lat: -8, lng: 122, altitude: 2.3 }
 
 function fmtDate(iso) {
   if (!iso) return ''
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-}
-
-// Sequentially animates route segments: each draws in over ~drawMs,
-// then a short pause before the next. Already-drawn routes stay.
-function useSequence(segments, drawMs = 420, pauseMs = 110) {
-  const [state, setState] = useState({ done: 0, progress: 0 })
-  const raf = useRef()
-
-  useEffect(() => {
-    if (!segments.length) return
-    let done = 0
-    let start = performance.now() + 350 // beat before the briefing starts
-    const tick = (t) => {
-      if (done >= segments.length) return
-      const p = (t - start) / drawMs
-      if (p >= 1) {
-        done += 1
-        start = t + pauseMs
-        setState({ done, progress: 0 })
-      } else {
-        setState({ done, progress: Math.max(0, p) })
-      }
-      if (done < segments.length) raf.current = requestAnimationFrame(tick)
-    }
-    raf.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf.current)
-  }, [segments, drawMs, pauseMs])
-
-  return state
 }
 
 function fmtRange(t) {
@@ -49,10 +33,17 @@ function fmtRange(t) {
   return b ? `${a} – ${b}` : a
 }
 
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
+
 export default function WorldTab() {
   const { tripMeta, selectedTrip, setSelectedTrip } = useContext(TripContext)
   const [flights, setFlights] = useState(null)
   const [covers, setCovers] = useState({})
+  const globeEl = useRef()
+  const wrapRef = useRef()
+  const [dims, setDims] = useState({ width: 360, height: 600 })
 
   useEffect(() => {
     let alive = true
@@ -77,9 +68,20 @@ export default function WorldTab() {
     }
   }, [])
 
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      if (width > 0 && height > 0) setDims({ width, height })
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
 
-  // Dedupe flights into route segments (repeat sectors share one line).
+  // Dedupe flights into route segments (repeat sectors share one arc).
   const { segments, airports, stats } = useMemo(() => {
     const segs = new Map()
     const apts = new Map()
@@ -94,9 +96,8 @@ export default function WorldTab() {
           key,
           from: [f.dep_lat, f.dep_lon],
           to: [f.arr_lat, f.arr_lon],
-          path: greatCircle([f.dep_lat, f.dep_lon], [f.arr_lat, f.arr_lon], 72),
           label: `${f.dep_airport} → ${f.arr_airport}`,
-          km: f.distance_km,
+          tripSlug: tripsById.get(f.trip_id)?.slug,
           flights: [],
         })
       }
@@ -112,68 +113,90 @@ export default function WorldTab() {
     }
   }, [flights, selectedTrip, tripsById])
 
-  const seq = useSequence(segments)
+  // Fly to the selection (or back to the overview) and toggle ambient
+  // auto-rotate — spinning while idle, still while inspecting a trip.
+  useEffect(() => {
+    const g = globeEl.current
+    if (!g) return
+    const controls = g.controls()
+    if (selectedTrip) {
+      controls.autoRotate = false
+      const pts = segments.flatMap((s) => [s.from, s.to])
+      const away = pts.filter((p) => !isInAustralia(p))
+      const source = away.length ? away : pts
+      if (source.length) {
+        const lat = source.reduce((s, p) => s + p[0], 0) / source.length
+        const lng = source.reduce((s, p) => s + p[1], 0) / source.length
+        g.pointOfView({ lat, lng, altitude: 1.1 }, 1200)
+      }
+    } else {
+      controls.autoRotate = true
+      controls.autoRotateSpeed = 0.35
+      g.pointOfView(OVERVIEW_POV, 1200)
+    }
+  }, [selectedTrip, segments])
 
   if (!flights) return <div className="tab-loading">loading the world…</div>
 
-  // Every route touches home (Australia) at one end — fitting to that too
-  // zooms out to fit the ocean crossing instead of the trip itself.
-  const bounds = boundsExcludingHome(segments.flatMap((s) => [s.from, s.to])) ?? [[-40, 100], [45, 155]]
+  const arcsData = segments.map((s) => ({
+    startLat: s.from[0],
+    startLng: s.from[1],
+    endLat: s.to[0],
+    endLng: s.to[1],
+    color: tripColor(s.tripSlug),
+    label: s.label,
+    flights: s.flights,
+  }))
+
+  const pointsData = airports.map((a) => ({ lat: a.pos[0], lng: a.pos[1], code: a.code, city: a.city }))
 
   return (
-    <div className="world-wrap">
-      <MapContainer
-        key={selectedTrip || 'all'} /* remount on selection: refit bounds + replay animation */
-        bounds={bounds}
-        boundsOptions={{ padding: [34, 34] }}
-        zoomControl={false}
-        attributionControl={false}
-        worldCopyJump
-        style={{ height: '100%', width: '100%', background: '#EDE9DF' }}
-      >
-        <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" subdomains="abcd" />
-
-        {segments.map((seg, i) => {
-          if (i > seq.done) return null
-          const pts =
-            i < seq.done ? seg.path : seg.path.slice(0, Math.max(2, Math.round(seq.progress * seg.path.length)))
-          return (
-            <Polyline
-              key={seg.key}
-              positions={pts}
-              pathOptions={{ color: GOLD, weight: 2, dashArray: '5 7', opacity: 0.9 }}
-            >
-              <Popup>
-                <div className="world-pop">
-                  <div className="world-pop-route">{seg.label}</div>
-                  {seg.flights.map((f, j) => (
-                    <div key={j} className="world-pop-flight">
-                      <span className="wp-no">{f.flight_number}</span> · {fmtDate(f.dep_time)}
-                      {tripsById.get(f.trip_id) ? ` · ${tripsById.get(f.trip_id).title}` : ''}
-                    </div>
-                  ))}
-                </div>
-              </Popup>
-            </Polyline>
-          )
-        })}
-
-        {airports.map((a) => (
-          <CircleMarker
-            key={a.code}
-            center={a.pos}
-            radius={4}
-            pathOptions={{ color: INK, fillColor: '#FFFFFF', fillOpacity: 1, weight: 1.5 }}
-          >
-            <Popup>
-              <div className="world-pop">
-                <div className="world-pop-route">{a.code}</div>
-                <div className="world-pop-flight">{a.city}</div>
-              </div>
-            </Popup>
-          </CircleMarker>
-        ))}
-      </MapContainer>
+    <div className="world-wrap globe-wrap" ref={wrapRef}>
+      <Globe
+        ref={globeEl}
+        width={dims.width}
+        height={dims.height}
+        backgroundColor="rgba(0,0,0,0)"
+        globeImageUrl="/globe/earth-dark.jpg"
+        showAtmosphere
+        atmosphereColor="#A8842C"
+        atmosphereAltitude={0.18}
+        arcsData={arcsData}
+        arcStartLat={(d) => d.startLat}
+        arcStartLng={(d) => d.startLng}
+        arcEndLat={(d) => d.endLat}
+        arcEndLng={(d) => d.endLng}
+        arcColor={(d) => d.color}
+        arcStroke={0.5}
+        arcDashLength={0.4}
+        arcDashGap={0.25}
+        arcDashAnimateTime={4000}
+        arcsTransitionDuration={400}
+        arcLabel={(d) =>
+          `<div class="globe-tip"><b>${escapeHtml(d.label)}</b>${d.flights
+            .map(
+              (f) =>
+                `<br/>${escapeHtml(f.flight_number)} · ${escapeHtml(fmtDate(f.dep_time))}${
+                  tripsById.get(f.trip_id) ? ` · ${escapeHtml(tripsById.get(f.trip_id).title)}` : ''
+                }`
+            )
+            .join('')}</div>`
+        }
+        pointsData={pointsData}
+        pointLat={(d) => d.lat}
+        pointLng={(d) => d.lng}
+        pointColor={() => '#F5F2EB'}
+        pointRadius={0.35}
+        pointAltitude={0.01}
+        pointsMerge
+        pointLabel={(d) => `<div class="globe-tip"><b>${escapeHtml(d.code)}</b><br/>${escapeHtml(d.city)}</div>`}
+        onGlobeReady={() => {
+          const controls = globeEl.current.controls()
+          controls.autoRotate = !selectedTrip
+          controls.autoRotateSpeed = 0.35
+          globeEl.current.pointOfView(OVERVIEW_POV, 0)
+        }}
+      />
 
       <div className="world-trips">
         {tripMeta.map((t) => {

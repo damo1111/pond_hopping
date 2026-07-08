@@ -1,8 +1,7 @@
-import { createContext, useEffect, useMemo, useState } from 'react'
+import { createContext, lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import Placeholder from './tabs/Placeholder.jsx'
 import FlightsTab from './tabs/FlightsTab.jsx'
-import WorldTab from './tabs/WorldTab.jsx'
 import JournalTab from './tabs/JournalTab.jsx'
 import MapTab from './tabs/MapTab.jsx'
 import CurrencyTab from './tabs/CurrencyTab.jsx'
@@ -12,6 +11,10 @@ import CostsTab from './tabs/CostsTab.jsx'
 import ShareTab from './tabs/ShareTab.jsx'
 import ShareView from './ShareView.jsx'
 import InstallChip from './components/InstallChip.jsx'
+
+// The 3D globe pulls in three.js — only the Home tab needs it, so it's
+// code-split into its own chunk instead of bloating everyone's first load.
+const WorldTab = lazy(() => import('./tabs/WorldTab.jsx'))
 
 export const TripContext = createContext({
   tripMeta: [],
@@ -160,7 +163,9 @@ export default function App() {
         <main className={`tab-panel${activeTab === 'world' || activeTab === 'map' ? ' full' : ''}`}>
           {loadError && <div className="error-note">supabase: {loadError}</div>}
           {activeTab === 'world' ? (
-            <WorldTab />
+            <Suspense fallback={<div className="tab-loading">loading the world…</div>}>
+              <WorldTab />
+            </Suspense>
           ) : activeTab === 'flights' ? (
             <FlightsTab />
           ) : activeTab === 'journal' ? (

@@ -832,6 +832,30 @@ button {
   height: 100%;
 }
 
+/* World tab only — the 3D globe needs a dark backdrop to read properly;
+   the Map tab's flat Leaflet view stays on the light theme as normal. */
+.globe-wrap {
+  background: radial-gradient(ellipse at 50% 30%, #2a241c 0%, #171310 55%, #100d0a 100%);
+  overflow: hidden;
+}
+
+.globe-tip {
+  font-family: var(--font-display);
+  font-size: 12px;
+  line-height: 1.5;
+  color: #F5F2EB;
+  background: rgba(23, 19, 14, 0.92);
+  border: 1px solid rgba(245, 242, 235, 0.18);
+  border-radius: 8px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.globe-tip b {
+  font-weight: 600;
+  color: #D4AF37;
+}
+
 .world-brief {
   position: absolute;
   top: 12px;
