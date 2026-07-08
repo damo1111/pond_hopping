@@ -100,6 +100,10 @@ Generate `?share=<slug>` URL. Public read-only view when param present — no au
 
 ## Key decisions — don't second-guess these
 
+- **Navigation is the app-family bottom nav** (blueprint §3): fixed bottom bar, emoji icons greyscale→colour on active, restyled dark + rose. This supersedes the brief's original top tab-bar idea (David's call). Tabs + emojis are defined in `src/App.jsx` `TABS`.
+- **Logo is the real CΛNΛRD artwork** — `public/duck.png` (gold glitter beret, transparent, auto-cropped from David's file). PWA icons (`icon-192/512.png`) are the duck on a beige rounded badge. No more placeholder vector.
+- **PWA hardened per blueprint** — iOS standalone meta tags, manifest `start_url=/?source=pwa`, `vercel.json` headers. `InstallChip` component (`src/components/`) gives the install prompt + iOS add-to-home-screen sheet.
+- **Push notifications: skipped** (David's call) — keeps the Supabase-only/no-serverless rule intact. The install chip is the useful PWA bit; push can be added later via a Supabase Edge Function if wanted.
 - **No Tailwind.** CSS variables only, in `src/styles/globals.css`.
 - **No file uploads.** Photos are URLs. No S3, no Supabase storage.
 - **Leaflet not Mapbox.** Dark CartoDB tiles, no API key.

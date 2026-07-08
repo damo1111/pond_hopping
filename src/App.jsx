@@ -2,6 +2,7 @@ import { createContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import Placeholder from './tabs/Placeholder.jsx'
 import TripsShell from './tabs/TripsShell.jsx'
+import InstallChip from './components/InstallChip.jsx'
 
 export const TripContext = createContext({
   tripMeta: [],
@@ -10,16 +11,16 @@ export const TripContext = createContext({
 })
 
 const TABS = [
-  { id: 'world',    label: 'World' },
-  { id: 'trips',    label: 'Trips' },
-  { id: 'flights',  label: 'Flights' },
-  { id: 'journal',  label: 'Journal' },
-  { id: 'map',      label: 'Map' },
-  { id: 'costs',    label: 'Costs' },
-  { id: 'photos',   label: 'Photos' },
-  { id: 'currency', label: 'Currency' },
-  { id: 'phrases',  label: 'Phrases' },
-  { id: 'share',    label: 'Share' },
+  { id: 'world',    label: 'World',    icon: '🌏' },
+  { id: 'trips',    label: 'Trips',    icon: '🧳' },
+  { id: 'flights',  label: 'Flights',  icon: '✈️' },
+  { id: 'journal',  label: 'Journal',  icon: '📔' },
+  { id: 'map',      label: 'Map',      icon: '🗺️' },
+  { id: 'costs',    label: 'Costs',    icon: '💰' },
+  { id: 'photos',   label: 'Photos',   icon: '📷' },
+  { id: 'currency', label: 'Currency', icon: '💱' },
+  { id: 'phrases',  label: 'Phrases',  icon: '💬' },
+  { id: 'share',    label: 'Share',    icon: '🔗' },
 ]
 
 const SESSION_NOTES = {
@@ -81,7 +82,7 @@ export default function App() {
     <TripContext.Provider value={ctx}>
       {booting && (
         <div className={`boot${bootLeaving ? ' leaving' : ''}`}>
-          <img className="boot-duck" src="/duck.svg" alt="" />
+          <img className="boot-duck" src="/duck.png" alt="" />
           <div className="boot-title">POND HOPPING</div>
           <div className="boot-sub">travel logs · est. mar 2026</div>
         </div>
@@ -89,24 +90,13 @@ export default function App() {
 
       <div className="app">
         <header className="app-header">
-          <img className="header-duck" src="/duck.svg" alt="" />
+          <img className="header-duck" src="/duck.png" alt="" />
           <div>
             <div className="app-title">POND HOPPING</div>
             <div className="app-subtitle">mini gap year · mar–jul 2026</div>
           </div>
+          <InstallChip />
         </header>
-
-        <nav className="tab-bar">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              className={`tab${activeTab === tab.id ? ' active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
 
         <main className="tab-panel">
           {loadError && <div className="error-note">supabase: {loadError}</div>}
@@ -119,6 +109,19 @@ export default function App() {
             />
           )}
         </main>
+
+        <nav className="bottomnav">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              className={`navitem${activeTab === tab.id ? ' active' : ''}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <span className="navitem-i">{tab.icon}</span>
+              <span className="navitem-l">{tab.label}</span>
+            </button>
+          ))}
+        </nav>
       </div>
     </TripContext.Provider>
   )

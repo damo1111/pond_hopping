@@ -75,19 +75,124 @@ button {
   padding: calc(env(safe-area-inset-top) + 18px) 20px 0;
 }
 
-.header-duck {
-  width: 34px;
-  height: 34px;
-  background: #E9E4DB;
+.app-header > div {
+  flex: 1;
+}
+
+/* ── Install chip + iOS sheet ──────────────────────────────── */
+
+.install-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.ios-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.ios-sheet {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  width: 100%;
+  max-width: 440px;
+  border-radius: 22px 22px 0 0;
+  padding: 18px 22px calc(20px + env(safe-area-inset-bottom));
+}
+
+.ios-sheet-grip {
+  width: 38px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-2);
+  margin: 0 auto 16px;
+}
+
+.ios-sheet-title {
+  font-weight: 300;
+  font-size: 18px;
+  margin-bottom: 5px;
+}
+
+.ios-sheet-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.ios-sheet-steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.ios-sheet-steps li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.ios-step-n {
+  flex: none;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ios-sheet-done {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--accent);
+  border: 0;
+  border-radius: 13px;
+  padding: 14px;
+}
+
+.header-duck {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  background: #E9E4DB;
+  border-radius: 11px;
   padding: 4px;
 }
 
 .boot-duck {
-  width: 92px;
-  height: 92px;
+  width: 104px;
+  height: 104px;
+  object-fit: contain;
   background: #E9E4DB;
-  border-radius: 50%;
+  border-radius: 26px;
   padding: 12px;
   margin-bottom: 6px;
 }
@@ -110,52 +215,79 @@ button {
   text-transform: uppercase;
 }
 
-/* ── Tab bar ───────────────────────────────────────────────── */
-
-.tab-bar {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  padding: 14px 12px 0;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.tab-bar::-webkit-scrollbar {
-  display: none;
-}
-
-.tab {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: 8px 10px 10px;
-  white-space: nowrap;
-  transition: color 0.15s;
-}
-
-.tab:hover {
-  color: var(--text);
-}
-
-.tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-}
-
 /* ── Main panel ────────────────────────────────────────────── */
 
 .tab-panel {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: env(safe-area-inset-bottom);
+  /* clear the fixed bottom nav */
+  padding-bottom: calc(70px + env(safe-area-inset-bottom));
+}
+
+/* ── Bottom nav (app-family signature: greyscale → colour) ─── */
+
+.bottomnav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 720px;
+  z-index: 9000;
+  display: flex;
+  gap: 2px;
+  padding: 7px 6px calc(7px + env(safe-area-inset-bottom));
+  background: rgba(10, 10, 10, 0.86);
+  backdrop-filter: saturate(160%) blur(14px);
+  -webkit-backdrop-filter: saturate(160%) blur(14px);
+  border-top: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bottomnav::-webkit-scrollbar {
+  display: none;
+}
+
+.navitem {
+  flex: 1 0 auto;
+  min-width: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border: 0;
+  background: none;
+  padding: 4px 2px;
+  border-radius: 12px;
+  color: var(--text-muted);
+  transition: color 0.15s;
+}
+
+/* emoji icons are greyscale + dim at rest … */
+.navitem-i {
+  font-size: 20px;
+  line-height: 1;
+  filter: grayscale(1);
+  opacity: 0.45;
+  transition: filter 0.15s, opacity 0.15s;
+}
+
+.navitem-l {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* … and spring to full colour + full opacity when active. */
+.navitem.active {
+  color: var(--accent);
+}
+
+.navitem.active .navitem-i {
+  filter: none;
+  opacity: 1;
 }
 
 /* ── Boot screen ───────────────────────────────────────────── */
