@@ -11,7 +11,7 @@ const AIRLINES = [
   { test: /all nippon|\bana\b/i, color: '#13448F', emblem: 'ana', image: '/tails/ana.png' },
   { test: /jetstar/i, color: '#FF6600', emblem: 'jetstar', image: '/tails/jetstar.webp' },
   { test: /^thai airways/i, color: '#5D3A8B', emblem: 'default', image: '/tails/thai-airways.webp' },
-  { test: /shanghai airlines/i, color: '#154889', emblem: 'shanghai' },
+  { test: /shanghai airlines/i, color: '#154889', emblem: 'shanghai', image: '/tails/shanghai-airlines.png' },
   { test: /virgin/i, color: '#DD1E3A', emblem: 'virgin', image: '/tails/virgin.webp' },
   { test: /china eastern/i, color: '#7B2029', emblem: 'china-eastern' },
 ]
