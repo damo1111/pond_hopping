@@ -518,56 +518,106 @@ button {
   border-color: var(--accent-dim);
 }
 
-.flight-head {
+/* Board-styled row — a nod to a split-flap departures board, scoped to
+   just this row (rest of the app stays on the light paper theme). */
+.flight-head.board {
   width: 100%;
   text-align: left;
-  background: none;
   border: 0;
-  padding: 14px 16px;
-  display: block;
-}
-
-.flight-route {
+  padding: 12px 14px;
   display: flex;
   align-items: center;
+  gap: 12px;
+  background: #17130e;
+}
+
+.flight-card:first-child .flight-head.board {
+  border-radius: 12px 12px 0 0;
+}
+
+.fh-thumb {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #241d14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fh-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.fh-thumb-skel {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #241d14, #2c2417, #241d14);
+}
+
+.fh-thumb-empty {
+  color: var(--accent-dim);
+  font-size: 16px;
+  opacity: 0.6;
+}
+
+.fh-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fh-row1 {
+  display: flex;
+  align-items: baseline;
   gap: 10px;
   font-family: var(--font-mono);
-  font-size: 20px;
+}
+
+.fh-time {
+  font-size: 17px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--text);
+  letter-spacing: 0.03em;
+  color: #e8c568;
+  font-variant-numeric: tabular-nums;
 }
 
-.fr-arrow {
-  color: var(--accent);
-  font-weight: 400;
-}
-
-.flight-sub {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  margin-top: 6px;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.flight-no {
-  color: var(--accent);
-}
-
-.flight-dot {
-  opacity: 0.5;
-}
-
-.flight-cities {
-  margin-top: 6px;
+.fh-route {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
-  font-weight: 300;
-  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  color: #f0ead9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fh-arrow {
+  color: #e8c568;
+  margin: 0 5px;
+}
+
+.fh-flightno {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: #e8c568;
+  white-space: nowrap;
+}
+
+.fh-row2 {
+  font-size: 11px;
+  color: #a89a7c;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fh-dot {
+  opacity: 0.6;
+  margin: 0 5px;
 }
 
 .flight-body {
@@ -656,6 +706,59 @@ button {
   font-family: var(--font-mono);
   font-size: 12px;
 }
+
+.meta-cell-add {
+  text-align: left;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 5px 7px;
+}
+
+.meta-add-cta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+
+.meta-cell-edit { min-width: 0; }
+
+.meta-edit-row {
+  display: flex;
+  gap: 5px;
+}
+
+.meta-edit-input {
+  min-width: 0;
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 5px 7px;
+  color: var(--text);
+}
+
+.meta-edit-save {
+  flex: none;
+  width: 26px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 7px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.photo-none-edit {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.photo-none-edit .meta-edit-row { width: 100%; max-width: 220px; }
 
 .fr24-link {
   font-family: var(--font-mono);
