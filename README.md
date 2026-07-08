@@ -1,6 +1,6 @@
 # POND HOPPING
 
-Travel logs for David + husband — starting with the mini gap year (six trips across Asia and beyond, March–July 2026), built to hold all future travel. Dark, editorial, duck-branded, PWA-installable.
+Travel logs for David + husband — starting with the mini gap year (six trips across Asia and beyond, March–July 2026), built to hold all future travel. Warm-paper editorial, duck-branded, PWA-installable.
 
 Merged from two earlier apps:
 - **asia_runs** — the China/Japan running log (its GPS run data now lives in the `runs` table)
@@ -10,7 +10,7 @@ Merged from two earlier apps:
 
 - React + Vite (+ `vite-plugin-pwa`)
 - Supabase (Postgres, project `cvnvrd`) — the only backend, anon key from the client
-- Leaflet + react-leaflet, dark CartoDB tiles
+- Leaflet + react-leaflet, Carto voyager light tiles
 - Planespotters.net API for aircraft photos (no key)
 - Raleway + Space Mono, CSS variables only — no Tailwind
 

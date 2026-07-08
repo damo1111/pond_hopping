@@ -1,15 +1,17 @@
 :root {
-  --bg:         #0A0A0A;
-  --surface:    #141414;
-  --surface-2:  #1A1A1A;
-  --border:     #1E1E1E;
-  --accent:     #C8A09A;   /* dusty rose — primary brand colour */
-  --accent-dim: #8B6560;
-  --accent-bg:  rgba(200, 160, 154, 0.08);
-  --text:       #F5F5F5;
-  --text-muted: #666666;
-  --green:      #5EAA7A;
-  --red:        #E05555;
+  color-scheme: light;
+  --bg:         #F5F2EB;   /* warm paper — the tone the duck was drawn on */
+  --surface:    #FFFFFF;
+  --surface-2:  #EDE9DF;
+  --border:     #E4DED1;
+  --accent:     #A8842C;   /* CΛNΛRD gold — primary brand colour */
+  --accent-dim: #D3BC77;
+  --accent-bg:  rgba(168, 132, 44, 0.10);
+  --text:       #1A1611;
+  --text-muted: #8B8375;
+  --green:      #3E7D54;
+  --red:        #C0392B;
+  --shadow: 0 1px 2px rgba(26, 22, 17, 0.03), 0 12px 28px -18px rgba(26, 22, 17, 0.18);
   --font-display: 'Raleway', sans-serif;
   --font-mono:    'Space Mono', monospace;
 }
@@ -91,14 +93,14 @@ button {
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--surface);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow);
 }
 
 .ios-sheet-overlay {
   position: fixed;
   inset: 0;
   z-index: 100000;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(26, 22, 17, 0.35);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -171,7 +173,7 @@ button {
   font-size: 12px;
   letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: var(--bg);
+  color: #fff;
   background: var(--accent);
   border: 0;
   border-radius: 13px;
@@ -182,7 +184,8 @@ button {
   width: 38px;
   height: 38px;
   object-fit: contain;
-  background: #E9E4DB;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 11px;
   padding: 4px;
 }
@@ -191,9 +194,11 @@ button {
   width: 104px;
   height: 104px;
   object-fit: contain;
-  background: #E9E4DB;
+  background: var(--surface);
+  border: 1px solid var(--border);
   border-radius: 26px;
   padding: 12px;
+  box-shadow: var(--shadow);
   margin-bottom: 6px;
 }
 
@@ -237,7 +242,7 @@ button {
   display: flex;
   gap: 2px;
   padding: 7px 6px calc(7px + env(safe-area-inset-bottom));
-  background: rgba(10, 10, 10, 0.86);
+  background: rgba(245, 242, 235, 0.92);
   backdrop-filter: saturate(160%) blur(14px);
   -webkit-backdrop-filter: saturate(160%) blur(14px);
   border-top: 1px solid var(--border);
@@ -377,6 +382,7 @@ button {
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 16px 18px;
+  box-shadow: var(--shadow);
 }
 
 .trip-row-title {
@@ -465,6 +471,7 @@ button {
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: var(--shadow);
 }
 
 .flight-card.open {

@@ -14,8 +14,8 @@ export default defineConfig({
         description: 'Travel logs — starting with the mini gap year, Mar–Jul 2026',
         start_url: '/?source=pwa',
         scope: '/',
-        theme_color: '#0A0A0A',
-        background_color: '#0A0A0A',
+        theme_color: '#F5F2EB',
+        background_color: '#F5F2EB',
         display: 'standalone',
         orientation: 'portrait',
         icons: [

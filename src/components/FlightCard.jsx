@@ -45,10 +45,10 @@ function AnimatedRoute({ from, to }) {
   const head = shown[shown.length - 1]
   return (
     <>
-      <Polyline positions={shown} pathOptions={{ color: '#C8A09A', weight: 2, dashArray: '5 7', opacity: 0.95 }} />
-      <CircleMarker center={from} radius={4} pathOptions={{ color: '#C8A09A', fillColor: '#C8A09A', fillOpacity: 1, weight: 0 }} />
-      <CircleMarker center={to} radius={4} pathOptions={{ color: '#C8A09A', fillColor: '#0A0A0A', fillOpacity: 1, weight: 2 }} />
-      {head && <CircleMarker center={head} radius={3} pathOptions={{ color: '#F5F5F5', fillColor: '#F5F5F5', fillOpacity: 1, weight: 0 }} />}
+      <Polyline positions={shown} pathOptions={{ color: '#A8842C', weight: 2, dashArray: '5 7', opacity: 0.95 }} />
+      <CircleMarker center={from} radius={4} pathOptions={{ color: '#A8842C', fillColor: '#A8842C', fillOpacity: 1, weight: 0 }} />
+      <CircleMarker center={to} radius={4} pathOptions={{ color: '#A8842C', fillColor: '#F5F2EB', fillOpacity: 1, weight: 2 }} />
+      {head && <CircleMarker center={head} radius={3} pathOptions={{ color: '#1A1611', fillColor: '#1A1611', fillOpacity: 1, weight: 0 }} />}
     </>
   )
 }
@@ -130,10 +130,10 @@ export default function FlightCard({ flight, aircraftType }) {
                 dragging={false}
                 scrollWheelZoom={false}
                 doubleClickZoom={false}
-                style={{ height: '100%', width: '100%', background: '#0A0A0A' }}
+                style={{ height: '100%', width: '100%', background: '#EDE9DF' }}
               >
                 <TileLayer
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
                   subdomains="abcd"
                 />
                 <AnimatedRoute from={from} to={to} />
