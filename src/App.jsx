@@ -9,6 +9,9 @@ import MapTab from './tabs/MapTab.jsx'
 import CurrencyTab from './tabs/CurrencyTab.jsx'
 import PhrasesTab from './tabs/PhrasesTab.jsx'
 import PhotosTab from './tabs/PhotosTab.jsx'
+import CostsTab from './tabs/CostsTab.jsx'
+import ShareTab from './tabs/ShareTab.jsx'
+import ShareView from './ShareView.jsx'
 import InstallChip from './components/InstallChip.jsx'
 
 export const TripContext = createContext({
@@ -41,6 +44,14 @@ const SESSION_NOTES = {
   phrases:  ['session 10', 'Korean + Cantonese, tap to copy.'],
   share:    ['session 11', 'Read-only share links for friends.'],
 }
+
+const SHARE_PARAMS = (() => {
+  const q = new URLSearchParams(window.location.search)
+  const slug = q.get('share')
+  if (!slug) return null
+  const show = (q.get('show') || 'journal,flights,map').split(',').filter(Boolean)
+  return { slug, show }
+})()
 
 export default function App() {
   const [booting, setBooting] = useState(true)
@@ -85,6 +96,11 @@ export default function App() {
     [tripMeta, selectedTrip]
   )
 
+  // Public read-only share page — no nav, no forms.
+  if (SHARE_PARAMS) {
+    return <ShareView slug={SHARE_PARAMS.slug} show={SHARE_PARAMS.show} />
+  }
+
   return (
     <TripContext.Provider value={ctx}>
       {booting && (
@@ -123,6 +139,10 @@ export default function App() {
             <PhrasesTab />
           ) : activeTab === 'photos' ? (
             <PhotosTab />
+          ) : activeTab === 'costs' ? (
+            <CostsTab />
+          ) : activeTab === 'share' ? (
+            <ShareTab />
           ) : (
             <Placeholder
               code={SESSION_NOTES[activeTab][0]}

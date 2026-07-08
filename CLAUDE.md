@@ -91,8 +91,8 @@ Typography: Raleway for headings and body (weight 300 for large text), Space Mon
 ### 6. Map tab — ✅ DONE
 `src/tabs/MapTab.jsx`. Full-bleed voyager map (shares `.world-wrap`/`.tab-panel.full`). Filter chips: All · Hotels · Runs · Highlights. GPS run polylines in their stored colours with green start dots + distance/pace popups; pins coloured by kind (hotel gold, run green, highlight red, place muted); faint dashed ink journey line through journal entries in date order (All view). Map remounts on filter/trip change to refit bounds (react-leaflet only applies `bounds` at mount).
 
-### 7. Costs tab
-Total spend per trip by category (Food / Transport / Shopping / Hotel / Activity / Flight / Other). Running total in AUD. Add-cost form: description, amount, currency (AUD/KRW/HKD/JPY/CNY/USD/GBP), category, city. Auto-convert to AUD using static FX rates (live fetch is a bonus). CSS bar chart per category — no chart library.
+### 7. Costs tab — ✅ DONE
+`src/tabs/CostsTab.jsx`. Running AUD total card, CSS category bar chart, per-trip totals, itemised list showing AUD + original currency. Add-cost form (trip, date, description, amount, currency, category, city) converts to AUD at static rates on entry. `supabase/seed_costs.sql` seeds the 15 documented China+Japan items from the Notion cost tracker (A$4,852 — inside the A$3.5–5k estimate).
 
 ### 8. Photos tab — ✅ DONE
 `src/tabs/PhotosTab.jsx`. Per-trip "Open album →" cards from `trips.photos_url` (china-japan has one), photo-URL grid (2-col mobile / 3-col ≥640px) with ⭐ highlight badge and fullscreen lightbox (caption/city/date), add-photo form (trip, date, URL, caption, city, reel/highlight toggles). Respects `selectedTrip`.
@@ -103,8 +103,10 @@ Total spend per trip by category (Food / Transport / Shopping / Hotel / Activity
 ### 10. Phrases tab — ✅ DONE
 `src/tabs/PhrasesTab.jsx`. 🇰🇷/🇭🇰 country toggle, search (english + romanized), category chips, tap row → copies local script to clipboard with a "copied ✓" flash. Data from the seeded `phrases` table (33 rows).
 
-### 11. Share tab
-Generate `?share=<slug>` URL. Public read-only view when param present — no auth; trip diary, itinerary, map. Toggle visible sections. Costs hidden by default.
+### 11. Share tab — ✅ DONE
+`src/tabs/ShareTab.jsx` (link minting: trip select, Diary/Itinerary/Map/Costs toggles — Costs off by default, copy + preview) and `src/ShareView.jsx` (the public page). `?share=<slug>&show=journal,flights,map` short-circuits App before the normal shell renders: duck header, trip hero, map with gold flight arcs + run tracks + pins, itinerary rows, full diary, optional costs total. Read-only, no nav, "made with pond hopping 🦆" footer.
+
+## ALL 10 TABS BUILT. Next up: the nav-flow rework (see Open UX debt), NZ + Korea journals (need a post-6-Jun Timeline export), Singapore/Malaysia trip data.
 
 ## Key decisions — don't second-guess these
 

@@ -1240,3 +1240,170 @@ button {
 .lightbox-meta { text-align: center; color: #fff; }
 .lb-caption { font-weight: 300; font-size: 15px; }
 .lb-sub { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; margin-top: 4px; }
+
+/* ── Costs ─────────────────────────────────────────────────── */
+
+.costs-tab {
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cost-total-card { text-align: center; }
+.cost-total-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cost-total {
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-top: 4px;
+}
+
+.cost-bar-row {
+  display: grid;
+  grid-template-columns: 92px 1fr 64px;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 0;
+}
+
+.cost-bar-label { font-size: 12px; white-space: nowrap; }
+.cost-bar-track { background: var(--surface-2); border-radius: 999px; height: 8px; overflow: hidden; }
+.cost-bar { background: var(--accent); height: 100%; border-radius: 999px; }
+.cost-bar-val { font-family: var(--font-mono); font-size: 11px; text-align: right; }
+
+.cost-trip-row {
+  display: flex;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 12px 15px;
+  font-size: 14px;
+  font-weight: 300;
+  box-shadow: var(--shadow);
+}
+
+.cost-items { display: flex; flex-direction: column; gap: 7px; }
+.cost-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 10px 13px;
+  box-shadow: var(--shadow);
+}
+.cost-item-icon { font-size: 15px; }
+.cost-item-desc { flex: 1; font-size: 13px; font-weight: 300; min-width: 0; }
+.cost-item-sub {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.cost-item-amt { font-family: var(--font-mono); font-size: 12px; text-align: right; }
+.cost-item-orig {
+  display: block;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+/* ── Share ─────────────────────────────────────────────────── */
+
+.share-tab { padding: 16px 14px; }
+
+.share-select {
+  width: 100%;
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 12px;
+  margin-bottom: 10px;
+}
+
+.share-sections { display: flex; gap: 7px; margin-bottom: 12px; }
+
+.share-url {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  padding: 10px 12px;
+  word-break: break-all;
+  margin-bottom: 12px;
+}
+
+.share-preview {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  align-self: center;
+  padding: 10px 12px;
+}
+
+/* ── Share view (public page) ──────────────────────────────── */
+
+.share-view {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 18px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.share-head { display: flex; align-items: center; gap: 12px; }
+.share-hero { text-align: center; padding: 18px 0 6px; }
+.share-title { font-size: 30px; font-weight: 300; margin-top: 6px; }
+
+.share-map {
+  height: 260px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.share-section { display: flex; flex-direction: column; gap: 8px; }
+
+.share-flight {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 11px 14px;
+  box-shadow: var(--shadow);
+}
+
+.share-flight-route { font-family: var(--font-mono); font-weight: 700; font-size: 14px; }
+.share-flight-meta { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+
+.share-foot {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-top: 10px;
+}
