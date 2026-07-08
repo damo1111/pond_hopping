@@ -632,6 +632,24 @@ button {
   margin: 0 5px;
 }
 
+/* Split-flap "flick" — a nod to a physical departures board. */
+.flap-char {
+  display: inline-block;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.flap-char.spin {
+  animation: flap-tick 90ms linear;
+}
+
+@keyframes flap-tick {
+  0% { transform: rotateX(0deg); }
+  45% { transform: rotateX(-90deg); }
+  55% { transform: rotateX(90deg); }
+  100% { transform: rotateX(0deg); }
+}
+
 .flight-body {
   border-top: 1px solid var(--border);
   padding: 14px 16px 16px;

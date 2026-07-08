@@ -4,6 +4,7 @@ import { greatCircle } from '../lib/geo.js'
 import { fetchAircraftPhoto } from '../lib/planespotters.js'
 import { supabase } from '../lib/supabase.js'
 import TailFin from './TailFin.jsx'
+import FlapText from './FlapText.jsx'
 
 function fmtDate(iso) {
   if (!iso) return ''
@@ -108,13 +109,13 @@ export default function FlightCard({ flight, aircraftType }) {
         </span>
         <span className="fh-main">
           <span className="fh-row1">
-            <span className="fh-time">{fmtTime(f.dep_time)}</span>
+            <FlapText className="fh-time" text={fmtTime(f.dep_time)} groupDelay={0} />
             <span className="fh-route">
-              {f.dep_airport}
+              <FlapText text={f.dep_airport} groupDelay={200} />
               <span className="fh-arrow">→</span>
-              {f.arr_airport}
+              <FlapText text={f.arr_airport} groupDelay={260} />
             </span>
-            <span className="fh-flightno">{f.flight_number}</span>
+            <FlapText className="fh-flightno" text={f.flight_number} groupDelay={420} />
           </span>
           <span className="fh-row2">
             {f.dep_city} — {f.arr_city}
