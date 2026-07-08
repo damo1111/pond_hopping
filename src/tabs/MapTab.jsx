@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
+import { boundsExcludingHome } from '../lib/geo.js'
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -56,7 +57,9 @@ export default function MapTab() {
     ...visRuns.flatMap((r) => [r.coords[0], r.coords[r.coords.length - 1]]),
     ...(filter === 'all' ? visJournal.map((e) => [e.lat, e.lon]) : []),
   ]
-  const bounds = boundsPts.length ? boundsPts : [[-40, 100], [45, 155]]
+  // Home-country pins/entries (e.g. an airport dinner in Brisbane) shouldn't
+  // pull the auto-fit back toward Australia and shrink the actual trip.
+  const bounds = boundsExcludingHome(boundsPts) ?? [[-40, 100], [45, 155]]
 
   return (
     <div className="world-wrap">

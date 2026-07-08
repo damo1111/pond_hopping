@@ -44,6 +44,23 @@ export function greatCircle(from, to, segments = 64) {
   return points
 }
 
+// Rough Australia bounding box. Every trip starts/ends at home, so letting
+// the home point drive the auto-fit squashes the actual destination — this
+// lets bounds-fitting drop home points while still rendering their routes/pins.
+export function isInAustralia([lat, lon]) {
+  return lat >= -44 && lat <= -10 && lon >= 112 && lon <= 154
+}
+
+/**
+ * Points to fit the map to, biased away from home (Australia): drops AU
+ * points from the fit unless that would leave nothing to fit on.
+ */
+export function boundsExcludingHome(points) {
+  if (!points.length) return null
+  const away = points.filter((p) => !isInAustralia(p))
+  return away.length ? away : points
+}
+
 /** Distance between two [lat, lon] points in km (haversine). */
 export function distanceKm(from, to) {
   const toRad = (d) => (d * Math.PI) / 180

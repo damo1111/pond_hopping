@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet'
 import { supabase } from '../lib/supabase.js'
-import { greatCircle } from '../lib/geo.js'
+import { greatCircle, boundsExcludingHome } from '../lib/geo.js'
 import { TripContext } from '../App.jsx'
 
 const GOLD = '#A8842C'
@@ -116,9 +116,9 @@ export default function WorldTab() {
 
   if (!flights) return <div className="tab-loading">loading the world…</div>
 
-  const bounds = segments.length
-    ? segments.flatMap((s) => [s.from, s.to])
-    : [[-40, 100], [45, 155]]
+  // Every route touches home (Australia) at one end — fitting to that too
+  // zooms out to fit the ocean crossing instead of the trip itself.
+  const bounds = boundsExcludingHome(segments.flatMap((s) => [s.from, s.to])) ?? [[-40, 100], [45, 155]]
 
   return (
     <div className="world-wrap">

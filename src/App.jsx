@@ -109,7 +109,10 @@ export default function App() {
       {booting && (
         <div className={`boot${bootLeaving ? ' leaving' : ''}`}>
           <img className="boot-duck" src="/duck.png" alt="" />
-          <div className="boot-title">POND HOPPING</div>
+          <div className="boot-title">
+            <span className="app-title-thin">Pond</span>
+            <span className="app-title-bold">Hopping</span>
+          </div>
           <div className="boot-sub">travel logs · est. mar 2026</div>
         </div>
       )}
@@ -118,7 +121,10 @@ export default function App() {
         <header className="app-header">
           <img className="header-duck" src="/duck.png" alt="" />
           <div>
-            <div className="app-title">POND HOPPING</div>
+            <div className="app-title">
+              <span className="app-title-thin">Pond</span>
+              <span className="app-title-bold">Hopping</span>
+            </div>
             <div className="app-subtitle">adventures of a digital nomad</div>
           </div>
           <InstallChip />
