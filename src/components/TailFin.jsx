@@ -1,13 +1,24 @@
 import { tailLivery } from '../lib/airlineTails.js'
 
-// Same tail silhouette, same orientation, every time — only the livery
-// (base colour + emblem) changes per airline. Hand-drawn nods to each
-// airline's real tail art (kangaroo, brushwing, kite, ribbon, peacock...),
-// not traced/embedded logo files.
+// Same silhouette/orientation for every fallback fin. Where a real tail
+// photo exists (public/tails/) that's used instead — this component just
+// picks whichever the airline has.
 const TAIL_PATH = 'M4 31 L11 2 L17 2 L15 31 Z'
 
 export default function TailFin({ airline, size = 18 }) {
-  const { color, emblem } = tailLivery(airline)
+  const { color, emblem, image } = tailLivery(airline)
+
+  if (image) {
+    return (
+      <img
+        src={image}
+        alt=""
+        className="tail-fin tail-fin-photo"
+        style={{ width: size, height: (size * 32) / 22 }}
+      />
+    )
+  }
+
   const clipId = `tailclip-${size}`
   // White/cream real-world liveries render as an outline only, so the fin
   // reads against dark thumbnails instead of showing a filled box.

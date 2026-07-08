@@ -573,6 +573,11 @@ button {
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
 }
 
+.tail-fin-photo {
+  object-fit: contain;
+  display: block;
+}
+
 .fh-main {
   min-width: 0;
   flex: 1;
