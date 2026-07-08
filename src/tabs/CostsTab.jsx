@@ -122,16 +122,15 @@ export default function CostsTab() {
 
   if (!costs) return <div className="tab-loading">loading costs…</div>
 
+  // No reveal button — fully inaccessible from the UI until real
+  // per-recipient access control is built. The data itself is untouched.
   if (!unlocked) {
     return (
       <div className="costs-tab">
         <div className="placeholder cost-lock">
           <div className="cost-lock-icon">🔒</div>
           <div className="placeholder-code">costs</div>
-          <div className="placeholder-note">Private for now — hidden by default so this is safe to share around.</div>
-          <button className="cost-lock-btn" onClick={() => setUnlocked(true)}>
-            show costs
-          </button>
+          <div className="placeholder-note">Private while access controls are being built.</div>
         </div>
       </div>
     )

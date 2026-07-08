@@ -417,19 +417,6 @@ button {
   opacity: 0.7;
 }
 
-.cost-lock-btn {
-  margin-top: 4px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-dim);
-  border-radius: 999px;
-  padding: 10px 20px;
-}
-
 .placeholder-note {
   font-family: var(--font-display);
   font-weight: 300;
