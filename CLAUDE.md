@@ -46,7 +46,7 @@ Typography: Raleway for headings and body (weight 300 for large text), Space Mon
   - `supabase/seed_china_japan_diary.sql` — the **16-day China+Japan journal** (from the Notion trip diary — the CΛNΛRD sourcing story), the Google Photos album URL on `trips.photos_url`, and **9 hotel stays as `map_pins`**.
   - `supabase/seed_timeline_journals.sql` — **Sri Lanka (3 days) + Bangkok (8 days) journals**, reconstructed from the first Timeline export (5 Mar–6 Jun; +11:00 display offset).
   - `supabase/seed_nz_korea_journals.sql` — **NZ (6 days) + Korea/HK (9 days) journals** from the FULL on-device Timeline export (Timeline.json, 5 Mar–8 Jul 2026, 3,646 segments; +10:00 display offset → convert to destination local). On-device Timeline starts 5 Mar 2026 — no pre-gap-year history exists in Google's data (older trips would come from ByAir's 917-flight archive instead).
-- Data by trip: sri-lanka-voyage 3 flights + 3 journal days · china-japan 6 flights + 9 runs + 16 journal days + 9 hotels + photos album + 15 costs · new-zealand 8 flights + 6 journal days · bangkok 6 flights + 8 journal days · south-korea 5 flights + 5 runs + 9 journal days · singapore-malaysia empty (see below). **42 journal days — every flown trip journaled.**
+- Data by trip: sri-lanka-voyage 3 flights + 3 journal days · china-japan 6 flights + 9 runs + 16 journal days + 9 hotels + photos album + 15 costs · new-zealand 8 flights + 6 journal days · bangkok 6 flights + 8 journal days · south-korea 5 flights + 5 runs + 9 journal days · singapore-malaysia 6 flights + 7 journal days. **ALL SIX TRIPS COMPLETE — 34 flights, 49 journal days.**
 - **Brand note**: the fashion brand born on this trip is **CΛNΛRD** (canard = duck = the beret-duck logo). The China/Japan trip was its sourcing leg — that's the nod behind the whole app's duck branding.
 - `src/lib/geo.js` has `greatCircle()` and `distanceKm()` — import wherever maps need flight paths.
 - `src/lib/supabase.js` exports the shared client (baked-in publishable key + env override).
@@ -66,14 +66,14 @@ Typography: Raleway for headings and body (weight 300 for large text), Space Mon
 | `china-japan` | China + Japan — GZ → SHA → BJ → Tokyo | 21 May – 5 Jun 2026 |
 | `new-zealand` | NZ Tier Run | Two status runs a week apart: 15–17 + 22–24 Jun 2026, identical MEL→SYD→WLG routing (8 flights total, confirmed by David) |
 | `bangkok` | Bangkok | 3–10 Apr 2026 (incl. Krabi) |
-| `singapore-malaysia` | Singapore + Malaysia | 2026 TBC |
+| `singapore-malaysia` | Singapore + Malaysia | 22–28 Apr 2026 · BA16/BA15 via SYD + MH to KL (GPS-resolved; the 15 Apr ByAir records were the original booking, moved a week) |
 | `south-korea` | HK + South Korea | 30 Jun – 8 Jul 2026 |
 
-28 flights ARE seeded (see Current state above); singapore-malaysia is the only trip without data.
+**All six trips complete**: 34 flights, 49 journal days, 14 runs, 9 hotels, 15 costs. `supabase/seed_singapore_malaysia.sql` holds the final trip's flights.
 
-## Open UX debt (revisit after all tabs are built)
+## UX debt — RESOLVED
 
-- **Cross-tab trip filter doesn't flow right** (David, 8 Jul): selecting a trip on the Trips tab silently filters Flights (and future tabs) with no visible indicator. Needs a visible "filtered: <trip> ✕" chip and/or a clearer select→navigate flow. Revisit once all tabs exist.
+- ~~Cross-tab trip filter doesn't flow right~~ → fixed: a global `.filter-bar` pill renders under the header on EVERY tab whenever `selectedTrip` is set — "{flags} {title} · FILTERING ALL TABS · ✕" — one tap clears. Trip cards also show their own gold-border + note state.
 
 ## Remaining build order — each tab is a session
 

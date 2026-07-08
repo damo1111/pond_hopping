@@ -1407,3 +1407,44 @@ button {
   color: var(--text-muted);
   padding-top: 10px;
 }
+
+/* ── Global trip-filter bar (visible on every tab) ─────────── */
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 10px 14px 0;
+  padding: 9px 13px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  text-align: left;
+  flex-shrink: 0;
+}
+
+.filter-bar-label {
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.filter-bar-note {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.filter-bar-x {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  padding: 0 3px;
+}

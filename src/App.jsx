@@ -121,6 +121,20 @@ export default function App() {
           <InstallChip />
         </header>
 
+        {selectedTrip && (() => {
+          const t = tripMeta.find((x) => x.slug === selectedTrip)
+          if (!t) return null
+          return (
+            <button className="filter-bar" onClick={() => setSelectedTrip(null)}>
+              <span className="filter-bar-label">
+                {t.countries?.join(' ')} {t.title}
+              </span>
+              <span className="filter-bar-note">filtering all tabs</span>
+              <span className="filter-bar-x">✕</span>
+            </button>
+          )
+        })()}
+
         <main className={`tab-panel${activeTab === 'world' || activeTab === 'map' ? ' full' : ''}`}>
           {loadError && <div className="error-note">supabase: {loadError}</div>}
           {activeTab === 'world' ? (
