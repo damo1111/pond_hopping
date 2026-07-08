@@ -6,7 +6,7 @@ const AIRLINES = [
   { test: /cathay/i, color: '#F5F2EB', emblem: 'cathay', image: '/tails/cathay-pacific.png' },
   { test: /malaysia airlines/i, color: '#FFFFFF', emblem: 'malaysia', image: '/tails/malaysia-airlines.webp' },
   { test: /british airways/i, color: '#F5F2EB', emblem: 'british-airways', image: '/tails/british-airways.webp' },
-  { test: /srilankan|sri ?lankan/i, color: '#FFFFFF', emblem: 'srilankan' },
+  { test: /srilankan|sri ?lankan/i, color: '#FFFFFF', emblem: 'srilankan', image: '/tails/srilankan.png' },
   { test: /airasia/i, color: '#FF0000', emblem: 'airasia', image: '/tails/airasia.png' },
   { test: /all nippon|\bana\b/i, color: '#13448F', emblem: 'ana', image: '/tails/ana.png' },
   { test: /jetstar/i, color: '#FF6600', emblem: 'jetstar', image: '/tails/jetstar.webp' },
