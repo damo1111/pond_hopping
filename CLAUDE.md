@@ -94,14 +94,14 @@ Typography: Raleway for headings and body (weight 300 for large text), Space Mon
 ### 7. Costs tab
 Total spend per trip by category (Food / Transport / Shopping / Hotel / Activity / Flight / Other). Running total in AUD. Add-cost form: description, amount, currency (AUD/KRW/HKD/JPY/CNY/USD/GBP), category, city. Auto-convert to AUD using static FX rates (live fetch is a bonus). CSS bar chart per category — no chart library.
 
-### 8. Photos tab
-Photos are URLs in the `photos` table. Grid — 3 cols desktop, 2 mobile. Thumbnail, caption, city, date; tap for lightbox. Filter by trip. Add-photo form: URL, caption, city, date, is_reel / is_highlight toggles. Google Photos: `trips.photos_url` renders an "Open album →" link — never embed.
+### 8. Photos tab — ✅ DONE
+`src/tabs/PhotosTab.jsx`. Per-trip "Open album →" cards from `trips.photos_url` (china-japan has one), photo-URL grid (2-col mobile / 3-col ≥640px) with ⭐ highlight badge and fullscreen lightbox (caption/city/date), add-photo form (trip, date, URL, caption, city, reel/highlight toggles). Respects `selectedTrip`.
 
-### 9. Currency tab
-AUD, KRW, HKD, JPY, CNY, USD, GBP. Try live fetch from `open.er-api.com/v6/latest/AUD` — fall back to static rates silently. Quick reference card with Seoul and HK price benchmarks.
+### 9. Currency tab — ✅ DONE
+`src/tabs/CurrencyTab.jsx`. Amount + base-currency converter across AUD/KRW/HKD/JPY/CNY/USD/GBP (tap a cell to rebase); live rates from `open.er-api.com/v6/latest/AUD` with silent static fallback ("live rates" / "static rates · offline" footer). Seoul + HK price benchmark cards with ≈AUD conversions computed off current rates.
 
-### 10. Phrases tab
-Korean and Cantonese pre-loaded from Supabase (`phrases` table, seeded). Tap phrase → copy local script to clipboard. Search + category filter + country toggle.
+### 10. Phrases tab — ✅ DONE
+`src/tabs/PhrasesTab.jsx`. 🇰🇷/🇭🇰 country toggle, search (english + romanized), category chips, tap row → copies local script to clipboard with a "copied ✓" flash. Data from the seeded `phrases` table (33 rows).
 
 ### 11. Share tab
 Generate `?share=<slug>` URL. Public read-only view when param present — no auth; trip diary, itinerary, map. Toggle visible sections. Costs hidden by default.

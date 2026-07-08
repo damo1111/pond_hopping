@@ -6,6 +6,9 @@ import FlightsTab from './tabs/FlightsTab.jsx'
 import WorldTab from './tabs/WorldTab.jsx'
 import JournalTab from './tabs/JournalTab.jsx'
 import MapTab from './tabs/MapTab.jsx'
+import CurrencyTab from './tabs/CurrencyTab.jsx'
+import PhrasesTab from './tabs/PhrasesTab.jsx'
+import PhotosTab from './tabs/PhotosTab.jsx'
 import InstallChip from './components/InstallChip.jsx'
 
 export const TripContext = createContext({
@@ -114,6 +117,12 @@ export default function App() {
             <JournalTab />
           ) : activeTab === 'map' ? (
             <MapTab />
+          ) : activeTab === 'currency' ? (
+            <CurrencyTab />
+          ) : activeTab === 'phrases' ? (
+            <PhrasesTab />
+          ) : activeTab === 'photos' ? (
+            <PhotosTab />
           ) : (
             <Placeholder
               code={SESSION_NOTES[activeTab][0]}
