@@ -11,6 +11,7 @@ import CostsTab from './tabs/CostsTab.jsx'
 import ShareTab from './tabs/ShareTab.jsx'
 import ShareView from './ShareView.jsx'
 import InstallChip from './components/InstallChip.jsx'
+import TripPicker from './components/TripPicker.jsx'
 
 // The 3D globe pulls in three.js — only the Home tab needs it, so it's
 // code-split into its own chunk instead of bloating everyone's first load.
@@ -131,19 +132,9 @@ export default function App() {
           <InstallChip />
         </header>
 
-        {selectedTrip && (() => {
-          const t = tripMeta.find((x) => x.slug === selectedTrip)
-          if (!t) return null
-          return (
-            <button className="filter-bar" onClick={() => setSelectedTrip(null)}>
-              <span className="filter-bar-label">
-                {t.countries?.join(' ')} {t.title}
-              </span>
-              <span className="filter-bar-note">filtering all tabs</span>
-              <span className="filter-bar-x">✕</span>
-            </button>
-          )
-        })()}
+        {activeTab !== 'world' && (
+          <TripPicker tripMeta={tripMeta} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
+        )}
 
         {activeTab === 'useful' && (
           <nav className="subnav">

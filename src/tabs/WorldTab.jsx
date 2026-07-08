@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import Globe from 'react-globe.gl'
 import { supabase } from '../lib/supabase.js'
 import { isInAustralia } from '../lib/geo.js'
@@ -42,8 +42,12 @@ export default function WorldTab() {
   const [flights, setFlights] = useState(null)
   const [covers, setCovers] = useState({})
   const globeEl = useRef()
-  const wrapRef = useRef()
   const [dims, setDims] = useState({ width: 360, height: 600 })
+  // A callback ref (not useRef + an empty-deps effect) — inside a
+  // React.lazy()/Suspense boundary the plain-ref effect can run before
+  // the DOM node is actually attached, silently skipping the measure.
+  const [wrapEl, setWrapEl] = useState(null)
+  const wrapRef = useCallback((node) => setWrapEl(node), [])
 
   useEffect(() => {
     let alive = true
@@ -69,15 +73,16 @@ export default function WorldTab() {
   }, [])
 
   useEffect(() => {
-    const el = wrapRef.current
-    if (!el) return
-    const ro = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect
+    if (!wrapEl) return
+    const measure = () => {
+      const { width, height } = wrapEl.getBoundingClientRect()
       if (width > 0 && height > 0) setDims({ width, height })
-    })
-    ro.observe(el)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(wrapEl)
     return () => ro.disconnect()
-  }, [])
+  }, [wrapEl])
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
 
@@ -157,7 +162,7 @@ export default function WorldTab() {
         width={dims.width}
         height={dims.height}
         backgroundColor="rgba(0,0,0,0)"
-        globeImageUrl="/globe/earth-dark.jpg"
+        globeImageUrl="/globe/earth-blue-marble.jpg"
         showAtmosphere
         atmosphereColor="#A8842C"
         atmosphereAltitude={0.18}
