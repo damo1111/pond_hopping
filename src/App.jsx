@@ -20,12 +20,16 @@ export const TripContext = createContext({
 })
 
 const TABS = [
-  { id: 'world',    label: 'World',    icon: '🌏' },
-  { id: 'flights',  label: 'Flights',  icon: '✈️' },
-  { id: 'journal',  label: 'Journal',  icon: '📔' },
-  { id: 'map',      label: 'Map',      icon: '🗺️' },
+  { id: 'world',    label: 'Home',    icon: '🌏' },
+  { id: 'flights',  label: 'Flights', icon: '✈️' },
+  { id: 'journal',  label: 'Journal', icon: '📔' },
+  { id: 'map',      label: 'Map',     icon: '🗺️' },
+  { id: 'photos',   label: 'Photos',  icon: '📷' },
+  { id: 'useful',   label: 'Useful',  icon: '🧰' },
+]
+
+const USEFUL_TABS = [
   { id: 'costs',    label: 'Costs',    icon: '💰' },
-  { id: 'photos',   label: 'Photos',   icon: '📷' },
   { id: 'currency', label: 'Currency', icon: '💱' },
   { id: 'phrases',  label: 'Phrases',  icon: '💬' },
   { id: 'share',    label: 'Share',    icon: '🔗' },
@@ -55,6 +59,7 @@ export default function App() {
   const [booting, setBooting] = useState(true)
   const [bootLeaving, setBootLeaving] = useState(false)
   const [activeTab, setActiveTab] = useState('world')
+  const [usefulTab, setUsefulTab] = useState('costs')
   const [tripMeta, setTripMeta] = useState([])
   const [loadError, setLoadError] = useState(null)
   const [selectedTrip, setSelectedTrip] = useState(null)
@@ -133,6 +138,21 @@ export default function App() {
           )
         })()}
 
+        {activeTab === 'useful' && (
+          <nav className="subnav">
+            {USEFUL_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                className={`subnavitem${usefulTab === tab.id ? ' active' : ''}`}
+                onClick={() => setUsefulTab(tab.id)}
+              >
+                <span className="subnavitem-i">{tab.icon}</span>
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        )}
+
         <main className={`tab-panel${activeTab === 'world' || activeTab === 'map' ? ' full' : ''}`}>
           {loadError && <div className="error-note">supabase: {loadError}</div>}
           {activeTab === 'world' ? (
@@ -143,16 +163,18 @@ export default function App() {
             <JournalTab />
           ) : activeTab === 'map' ? (
             <MapTab />
-          ) : activeTab === 'currency' ? (
-            <CurrencyTab />
-          ) : activeTab === 'phrases' ? (
-            <PhrasesTab />
           ) : activeTab === 'photos' ? (
             <PhotosTab />
-          ) : activeTab === 'costs' ? (
-            <CostsTab />
-          ) : activeTab === 'share' ? (
-            <ShareTab />
+          ) : activeTab === 'useful' ? (
+            usefulTab === 'currency' ? (
+              <CurrencyTab />
+            ) : usefulTab === 'phrases' ? (
+              <PhrasesTab />
+            ) : usefulTab === 'share' ? (
+              <ShareTab />
+            ) : (
+              <CostsTab />
+            )
           ) : (
             <Placeholder
               code={SESSION_NOTES[activeTab][0]}
