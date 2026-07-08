@@ -40,7 +40,9 @@ Typography: Raleway for headings and body (weight 300 for large text), Space Mon
   - `supabase/schema.sql` applied as migration `cvnvrd_initial_schema` (+ `trip_meta_security_invoker`).
   - `supabase/seed.sql` — 6 trips, aircraft types, 33 KR/HK phrases, 9 China/Japan GPS runs (from asia_runs).
   - `supabase/seed_flights.sql` — **28 flights** (from ByAir MCP) across 5 trips with real flight numbers, airports, times, distances, and **6 aircraft registrations** (unlock Planespotters photos); **5 Korea/HK/Sydney GPS runs** (from Samsung Health GPX). Also sets real trip date ranges.
-- Data by trip: sri-lanka-voyage 3 flights · china-japan 6 flights + 9 runs · new-zealand 8 flights · bangkok 6 flights · south-korea 5 flights + 5 runs · singapore-malaysia empty (see below).
+  - `supabase/seed_china_japan_diary.sql` — the **16-day China+Japan journal** (from the Notion trip diary — the CΛNΛRD sourcing story), the Google Photos album URL on `trips.photos_url`, and **9 hotel stays as `map_pins`**.
+- Data by trip: sri-lanka-voyage 3 flights · china-japan 6 flights + 9 runs + 16 journal entries + 9 hotels + photos album · new-zealand 8 flights · bangkok 6 flights · south-korea 5 flights + 5 runs · singapore-malaysia empty (see below).
+- **Brand note**: the fashion brand born on this trip is **CΛNΛRD** (canard = duck = the beret-duck logo). The China/Japan trip was its sourcing leg — that's the nod behind the whole app's duck branding.
 - `src/lib/geo.js` has `greatCircle()` and `distanceKm()` — import wherever maps need flight paths.
 - `src/lib/supabase.js` exports the shared client (baked-in publishable key + env override).
 - Tabs other than Trips render a styled placeholder (`src/tabs/Placeholder.jsx`).
