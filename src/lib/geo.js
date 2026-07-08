@@ -51,12 +51,25 @@ export function isInAustralia([lat, lon]) {
   return lat >= -44 && lat <= -10 && lon >= 112 && lon <= 154
 }
 
+// Broad Asia-Pacific box covering every trip's actual destinations. The
+// Sri Lanka voyage's Berlin/London origin leg is the one outlier outside
+// it — left in for home-view bounds, it alone forces the whole map to
+// zoom out to near-global width to fit a single flight's start point.
+function isInAsiaPacificFocus([lat, lon]) {
+  return lat >= -50 && lat <= 40 && lon >= 60 && lon <= 185
+}
+
 /**
- * Points to fit the map to, biased away from home (Australia): drops AU
- * points from the fit unless that would leave nothing to fit on.
+ * Points to fit the map to, biased away from home (Australia) and from
+ * far-flung one-off outliers (e.g. a single trip's European origin leg):
+ * drops them from the fit unless that would leave nothing to fit on.
+ * Routes/pins for dropped points still render — they just don't dictate
+ * the zoom/pan.
  */
 export function boundsExcludingHome(points) {
   if (!points.length) return null
+  const focused = points.filter((p) => !isInAustralia(p) && isInAsiaPacificFocus(p))
+  if (focused.length) return focused
   const away = points.filter((p) => !isInAustralia(p))
   return away.length ? away : points
 }

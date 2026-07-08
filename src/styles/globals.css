@@ -15,6 +15,13 @@
   --font-display: 'Raleway', sans-serif;
   --font-mono:    'Space Mono', monospace;
   --font-brand:   'Space Grotesk', sans-serif;
+
+  /* Floating "liquid glass" surfaces — frosted overlays on the map tabs
+     and the bottom nav. A diagonal sheen instead of a flat tint, plus an
+     inset top highlight so the edge catches light like a glass rim. */
+  --glass-bg: linear-gradient(165deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.6) 55%, rgba(255, 255, 255, 0.78));
+  --glass-border: 1px solid rgba(255, 255, 255, 0.55);
+  --glass-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.22);
 }
 
 * {
@@ -239,27 +246,29 @@ button {
 .tab-panel {
   flex: 1;
   overflow-y: auto;
-  /* clear the fixed bottom nav */
-  padding-bottom: calc(70px + env(safe-area-inset-bottom));
+  /* clear the floating bottom nav */
+  padding-bottom: calc(86px + env(safe-area-inset-bottom));
 }
 
-/* ── Bottom nav (app-family signature: greyscale → colour) ─── */
+/* ── Bottom nav: floating glass capsule, not an edge-to-edge bar ── */
 
 .bottomnav {
   position: fixed;
-  bottom: 0;
+  bottom: calc(12px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%);
-  width: 100%;
-  max-width: 720px;
+  width: calc(100% - 24px);
+  max-width: 640px;
   z-index: 9000;
   display: flex;
   gap: 2px;
-  padding: 7px 6px calc(7px + env(safe-area-inset-bottom));
-  background: rgba(245, 242, 235, 0.92);
-  backdrop-filter: saturate(160%) blur(14px);
-  -webkit-backdrop-filter: saturate(160%) blur(14px);
-  border-top: 1px solid var(--border);
+  padding: 7px 6px;
+  background: var(--glass-bg);
+  backdrop-filter: saturate(160%) blur(18px);
+  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  border: var(--glass-border);
+  border-radius: 22px;
+  box-shadow: var(--glass-shadow);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -586,10 +595,8 @@ button {
 /* Beats ".fh-thumb img" (object-fit: cover) on specificity so real tail
    photos never get cropped when forced into the tall thumbnail box. */
 .fh-thumb img.tail-fin-photo {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
   display: block;
   border-radius: 0;
@@ -837,13 +844,13 @@ button {
   top: 12px;
   left: 12px;
   z-index: 500;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  background: var(--glass-bg);
+  backdrop-filter: saturate(140%) blur(10px);
+  -webkit-backdrop-filter: saturate(140%) blur(10px);
+  border: var(--glass-border);
+  border-radius: 14px;
   padding: 9px 13px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--glass-shadow);
 }
 
 .wb-title {
@@ -1242,9 +1249,10 @@ button {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
-  border: 1px solid var(--border);
+  background: var(--glass-bg);
+  backdrop-filter: saturate(140%) blur(10px);
+  -webkit-backdrop-filter: saturate(140%) blur(10px);
+  border: var(--glass-border);
   border-radius: 999px;
   padding: 7px 12px;
   box-shadow: var(--shadow);

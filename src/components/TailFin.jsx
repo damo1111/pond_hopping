@@ -9,14 +9,10 @@ export default function TailFin({ airline, size = 18 }) {
   const { color, emblem, image } = tailLivery(airline)
 
   if (image) {
-    return (
-      <img
-        src={image}
-        alt=""
-        className="tail-fin tail-fin-photo"
-        style={{ width: size, height: (size * 32) / 22 }}
-      />
-    )
+    // Real tail photos are landscape crops (~1.3:1) — fill the (square)
+    // thumb box and let object-fit preserve their own aspect ratio,
+    // rather than forcing them into the fallback SVG's portrait box.
+    return <img src={image} alt="" className="tail-fin tail-fin-photo" />
   }
 
   const clipId = `tailclip-${size}`
