@@ -1,7 +1,6 @@
 import { createContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import Placeholder from './tabs/Placeholder.jsx'
-import TripsTab from './tabs/TripsTab.jsx'
 import FlightsTab from './tabs/FlightsTab.jsx'
 import WorldTab from './tabs/WorldTab.jsx'
 import JournalTab from './tabs/JournalTab.jsx'
@@ -22,7 +21,6 @@ export const TripContext = createContext({
 
 const TABS = [
   { id: 'world',    label: 'World',    icon: '🌏' },
-  { id: 'trips',    label: 'Trips',    icon: '🧳' },
   { id: 'flights',  label: 'Flights',  icon: '✈️' },
   { id: 'journal',  label: 'Journal',  icon: '📔' },
   { id: 'map',      label: 'Map',      icon: '🗺️' },
@@ -139,8 +137,6 @@ export default function App() {
           {loadError && <div className="error-note">supabase: {loadError}</div>}
           {activeTab === 'world' ? (
             <WorldTab />
-          ) : activeTab === 'trips' ? (
-            <TripsTab />
           ) : activeTab === 'flights' ? (
             <FlightsTab />
           ) : activeTab === 'journal' ? (

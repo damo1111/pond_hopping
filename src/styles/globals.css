@@ -795,6 +795,7 @@ button {
 }
 
 .journal-entry {
+  cursor: pointer;
   text-align: left;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1447,4 +1448,114 @@ button {
   font-size: 12px;
   color: var(--accent);
   padding: 0 3px;
+}
+
+/* ── World landing: trip-selector overlay ──────────────────── */
+
+.world-trips {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(74px + env(safe-area-inset-bottom));
+  z-index: 500;
+  display: flex;
+  gap: 9px;
+  padding: 6px 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.world-trips::-webkit-scrollbar { display: none; }
+
+.wt-card {
+  flex: 0 0 auto;
+  width: 172px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 11px 13px;
+  box-shadow: var(--shadow);
+  transition: border-color 0.15s, transform 0.15s;
+}
+
+.wt-card.active {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+}
+
+.wt-flags { font-size: 13px; }
+
+.wt-title {
+  font-weight: 400;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wt-dates {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.wt-stats {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Day map (inside expanded journal entries) ─────────────── */
+
+.daymap {
+  margin-top: 11px;
+}
+
+.daymap .leaflet-container {
+  height: 230px;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+}
+
+.daymap-loading {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 12px 0 4px;
+}
+
+.daymap-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-top: 8px;
+}
+
+.daymap-strip::-webkit-scrollbar { display: none; }
+
+.daymap-stop {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 4px 9px;
+  white-space: nowrap;
+}
+
+.daymap-stop-t {
+  color: var(--accent);
 }

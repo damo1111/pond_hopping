@@ -41,8 +41,16 @@ function useSequence(segments, drawMs = 420, pauseMs = 110) {
   return state
 }
 
+function fmtRange(t) {
+  if (!t.start_date) return 'dates tbc'
+  const opt = { day: 'numeric', month: 'short' }
+  const a = new Date(t.start_date).toLocaleDateString('en-GB', opt)
+  const b = t.end_date ? new Date(t.end_date).toLocaleDateString('en-GB', opt) : null
+  return b ? `${a} – ${b}` : a
+}
+
 export default function WorldTab() {
-  const { tripMeta, selectedTrip } = useContext(TripContext)
+  const { tripMeta, selectedTrip, setSelectedTrip } = useContext(TripContext)
   const [flights, setFlights] = useState(null)
 
   useEffect(() => {
@@ -103,6 +111,7 @@ export default function WorldTab() {
   return (
     <div className="world-wrap">
       <MapContainer
+        key={selectedTrip || 'all'} /* remount on selection: refit bounds + replay animation */
         bounds={bounds}
         boundsOptions={{ padding: [34, 34] }}
         zoomControl={false}
@@ -153,6 +162,28 @@ export default function WorldTab() {
           </CircleMarker>
         ))}
       </MapContainer>
+
+      <div className="world-trips">
+        {tripMeta.map((t) => {
+          const active = selectedTrip === t.slug
+          return (
+            <button
+              key={t.slug}
+              className={`wt-card${active ? ' active' : ''}`}
+              onClick={() => setSelectedTrip(active ? null : t.slug)}
+            >
+              <span className="wt-flags">{t.countries?.join(' ')}</span>
+              <span className="wt-title">{t.title}</span>
+              <span className="wt-dates">{fmtRange(t)}</span>
+              <span className="wt-stats">
+                {t.flight_count > 0 && <>✈ {t.flight_count}&nbsp;&nbsp;</>}
+                {t.run_count > 0 && <>🏃 {t.run_count}&nbsp;&nbsp;</>}
+                {t.journal_count > 0 && <>📔 {t.journal_count}</>}
+              </span>
+            </button>
+          )
+        })}
+      </div>
 
       <div className="world-brief">
         <div className="wb-title">

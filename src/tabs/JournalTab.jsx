@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
+import DayMap from '../components/DayMap.jsx'
 
 const MOODS = ['😄', '🌅', '🏃', '🤔', '😮', '😤', '🌧️', '✈️', '🧱', '🌀', '🧵', '🌊']
 
@@ -11,7 +12,13 @@ function fmtDate(d) {
 function Entry({ e }) {
   const [open, setOpen] = useState(false)
   return (
-    <button className={`journal-entry${open ? ' open' : ''}`} onClick={() => setOpen((o) => !o)}>
+    <div
+      className={`journal-entry${open ? ' open' : ''}`}
+      role="button"
+      tabIndex={0}
+      onClick={() => setOpen((o) => !o)}
+      onKeyDown={(ev) => ev.key === 'Enter' && setOpen((o) => !o)}
+    >
       <div className="je-top">
         <span className="je-mood">{e.mood || '·'}</span>
         <span className="je-day">{e.day_number ? `DAY ${e.day_number}` : ''}</span>
@@ -20,6 +27,11 @@ function Entry({ e }) {
       </div>
       <div className="je-title">{e.title}</div>
       <div className={`je-note${open ? '' : ' clamp'}`}>{e.note}</div>
+      {open && (
+        <div onClick={(ev) => ev.stopPropagation()}>
+          <DayMap tripId={e.trip_id} date={e.entry_date} />
+        </div>
+      )}
       {open && e.tags?.length > 0 && (
         <div className="je-tags">
           {e.tags.map((t) => (
@@ -27,7 +39,7 @@ function Entry({ e }) {
           ))}
         </div>
       )}
-    </button>
+    </div>
   )
 }
 

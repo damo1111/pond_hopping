@@ -71,6 +71,11 @@ Typography: Raleway for headings and body (weight 300 for large text), Space Mon
 
 **All six trips complete**: 34 flights, 49 journal days, 14 runs, 9 hotels, 15 costs. `supabase/seed_singapore_malaysia.sql` holds the final trip's flights.
 
+## Later additions (post-v1)
+
+- **Landing = World map + trip selector overlay** (David, 8 Jul): the Trips tab is GONE from the bottom nav (9 tabs). Trip selection lives on the World landing as a horizontal strip of floating cards over the map (`.world-trips` / `.wt-card` in WorldTab). Selecting remounts the map → refits + replays the route animation for that trip. The global filter-bar still shows the active selection on every tab.
+- **Day-detail maps in the Journal** (David, 8 Jul — "tap into a story and see it on a map"): new `day_tracks` table (trip_id, track_date, path jsonb, visits jsonb) holding per-day GPS traces + timed stops ETL'd from the on-device Timeline export (49 days, all six trips; times destination-local). `src/components/DayMap.jsx` renders inside an expanded journal entry: ink day-trace polyline, gold visit dots (popup: time window + duration), that day's runs overlaid in their colours, and a stops strip. ETL script pattern lives in repo history; re-run against future Timeline exports for new trips.
+
 ## UX debt — RESOLVED
 
 - ~~Cross-tab trip filter doesn't flow right~~ → fixed: a global `.filter-bar` pill renders under the header on EVERY tab whenever `selectedTrip` is set — "{flags} {title} · FILTERING ALL TABS · ✕" — one tap clears. Trip cards also show their own gold-border + note state.
