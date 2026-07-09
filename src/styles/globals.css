@@ -1596,6 +1596,8 @@ button {
   border-radius: 999px;
   padding: 7px 12px;
   box-shadow: var(--shadow);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .map-chip.active {
@@ -1750,7 +1752,14 @@ button {
   gap: 10px;
 }
 
-.ph-toggles { display: flex; gap: 6px; }
+.ph-toggles {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ph-toggles::-webkit-scrollbar { display: none; }
 
 .ph-search {
   font-family: var(--font-display);
