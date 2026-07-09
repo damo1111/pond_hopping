@@ -2293,6 +2293,13 @@ button {
   align-items: center;
   flex: none;
   vertical-align: middle;
+  /* Fixed to the width of the (common) two-flag case so a single-flag
+     trip's text still lines up with multi-flag trips underneath/above it,
+     instead of starting wherever that row's own flag count happens to
+     end. Sized for up to 2 overlapping flags — every trip today has 1
+     or 2 countries; a 3-country trip would overflow this and need a
+     wider constant. */
+  width: calc(var(--cf-size, 18px) * 1.65);
 }
 
 .cf-flag {
