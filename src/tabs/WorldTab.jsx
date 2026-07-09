@@ -269,6 +269,7 @@ export default function WorldTab() {
               )}
               <span className="wt-flags">{t.countries?.join(' ')}</span>
               <span className="wt-title">{t.title}</span>
+              {t.subtitle && <span className="wt-subtitle">{t.subtitle}</span>}
               <span className="wt-dates">{fmtRange(t)}</span>
               <span className="wt-stats">
                 {t.flight_count > 0 && <>✈ {t.flight_count}&nbsp;&nbsp;</>}

@@ -1604,6 +1604,50 @@ button {
   border-color: var(--accent);
 }
 
+.map-day-scrub {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  /* Sit above the floating bottom nav, not behind/under it. */
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  z-index: 500;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.map-day-scrub::-webkit-scrollbar {
+  display: none;
+}
+
+.map-ds-chip {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--glass-bg);
+  backdrop-filter: saturate(140%) blur(10px);
+  -webkit-backdrop-filter: saturate(140%) blur(10px);
+  border: 1px solid color-mix(in srgb, var(--map-accent, var(--gold)) 45%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.map-ds-mood {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.map-ds-day {
+  font-family: var(--font-mono);
+  font-size: 7px;
+  letter-spacing: 0.1em;
+  color: var(--map-accent, var(--text-muted));
+}
+
 /* ── Currency ──────────────────────────────────────────────── */
 
 .currency-tab {
@@ -2245,6 +2289,14 @@ button {
 .wt-title {
   font-weight: 400;
   font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wt-subtitle {
+  font-size: 10px;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

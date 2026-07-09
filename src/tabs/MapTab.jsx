@@ -1,15 +1,17 @@
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import { boundsExcludingHome } from '../lib/geo.js'
 import { thumb } from '../lib/imgTransform.js'
+import { tripColor } from '../lib/tripColors.js'
 
 const FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'hotel', label: 'Hotels' },
   { id: 'run', label: 'Runs' },
   { id: 'highlight', label: 'Highlights' },
+  { id: 'photo', label: 'Photos' },
 ]
 
 const KIND_STYLE = {
@@ -43,13 +45,19 @@ export default function MapTab() {
   const [filter, setFilter] = useState('all')
   const [drawLen, setDrawLen] = useState(0)
   const [photoDrawLen, setPhotoDrawLen] = useState(0)
+  const mapRef = useRef(null)
+  const accent = tripColor(selectedTrip)
+  const showPhotos = filter === 'all' || filter === 'photo'
 
   useEffect(() => {
     let alive = true
     Promise.all([
       supabase.from('map_pins').select('*'),
       supabase.from('runs').select('id,trip_id,label,city,distance_km,pace,color,coords,run_date'),
-      supabase.from('journal_entries').select('trip_id,entry_date,city,title,lat,lon').order('entry_date'),
+      supabase
+        .from('journal_entries')
+        .select('trip_id,entry_date,city,title,lat,lon,mood,day_number')
+        .order('entry_date'),
       supabase
         .from('photos')
         .select('id,trip_id,lat,lon,taken_at,url,caption')
@@ -98,7 +106,7 @@ export default function MapTab() {
   // carry a per-day pin, but the trail itself comes from photos.lat/lon).
   useEffect(() => {
     setPhotoDrawLen(0)
-    if (filter !== 'all' || !photos || !tripMeta.length) return
+    if (!showPhotos || !photos || !tripMeta.length) return
     const total = photos.filter((p) => inTrip(p)).length
     if (total < 2) return
     let raf
@@ -120,7 +128,11 @@ export default function MapTab() {
   const visPins = pins.filter((p) => inTrip(p) && showPinKind(p.kind))
   const visRuns = filter === 'all' || filter === 'run' ? runs.filter(inTrip) : []
   const visJournal = journal.filter((e) => inTrip(e) && e.lat != null && e.lon != null)
-  const visPhotos = filter === 'all' ? photos.filter((p) => inTrip(p)) : []
+  const visPhotos = showPhotos ? photos.filter((p) => inTrip(p)) : []
+  // One chip per day that has either a journal entry or dated photos, for
+  // the scrubber to fly the map to — keyed off journal_entries since every
+  // day (Timeline-backed or reconstructed from EXIF) has exactly one.
+  const dayChips = selectedTrip && filter === 'all' ? visJournal : []
 
   const boundsPts = [
     ...visPins.map((p) => [p.lat, p.lon]),
@@ -136,6 +148,7 @@ export default function MapTab() {
     <div className="world-wrap">
       <MapContainer
         key={`${filter}-${selectedTrip || 'all'}`} /* remount to refit bounds on filter change */
+        ref={mapRef}
         bounds={bounds}
         boundsOptions={{ padding: [30, 30] }}
         zoomControl={false}
@@ -154,40 +167,52 @@ export default function MapTab() {
 
         {/* photo-GPS trail — the route itself for trips with no Google
             Timeline export, since journal entries there only carry one
-            pin per day rather than a real path */}
-        {filter === 'all' && visPhotos.length > 1 && (
+            pin per day rather than a real path. Tinted with the selected
+            trip's own accent colour instead of a flat gold. */}
+        {showPhotos && visPhotos.length > 1 && (
           <Polyline
             positions={visPhotos.slice(0, Math.max(2, photoDrawLen)).map((p) => [p.lat, p.lon])}
-            pathOptions={{ color: '#A8842C', weight: 1.5, opacity: 0.5 }}
+            pathOptions={{ color: accent, weight: 1.5, opacity: 0.5 }}
           />
         )}
-        {filter === 'all' &&
-          visPhotos.slice(0, Math.max(2, photoDrawLen)).map((p) => (
-            <CircleMarker
-              key={`ph-${p.id}`}
-              center={[p.lat, p.lon]}
-              radius={2.5}
-              pathOptions={{ color: '#A8842C', fillColor: '#A8842C', fillOpacity: 0.8, weight: 0 }}
-            >
-              <Popup>
-                <div className="world-pop">
-                  <img
-                    src={thumb(p.url, { width: 220, height: 220 })}
-                    alt=""
-                    style={{ width: '100%', borderRadius: 6, display: 'block', marginBottom: 6 }}
-                  />
-                  <div className="world-pop-flight">
-                    {new Date(p.taken_at).toLocaleString('en-GB', {
-                      day: 'numeric',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
+        {showPhotos &&
+          visPhotos.slice(0, Math.max(2, photoDrawLen)).map((p) => {
+            const match = findJournalMatch(journal, p.trip_id, { date: p.taken_at?.slice(0, 10) })
+            return (
+              <CircleMarker
+                key={`ph-${p.id}`}
+                center={[p.lat, p.lon]}
+                radius={3.5}
+                pathOptions={{ color: accent, fillColor: accent, fillOpacity: 0.85, weight: 0 }}
+              >
+                <Popup>
+                  <div className="world-pop">
+                    <img
+                      src={thumb(p.url, { width: 220, height: 220 })}
+                      alt=""
+                      style={{ width: '100%', borderRadius: 6, display: 'block', marginBottom: 6 }}
+                    />
+                    <div className="world-pop-flight">
+                      {new Date(p.taken_at).toLocaleString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                    {match && (
+                      <button
+                        className="map-pop-jump"
+                        onClick={() => jumpToJournal(tripsById.get(p.trip_id)?.slug, match.entry_date)}
+                      >
+                        → view in journal
+                      </button>
+                    )}
                   </div>
-                </div>
-              </Popup>
-            </CircleMarker>
-          ))}
+                </Popup>
+              </CircleMarker>
+            )
+          })}
 
         {/* GPS run tracks in their stored colours */}
         {visRuns.map((r) => {
@@ -271,6 +296,21 @@ export default function MapTab() {
           </button>
         ))}
       </div>
+
+      {dayChips.length > 1 && (
+        <div className="map-day-scrub" style={{ '--map-accent': accent }}>
+          {dayChips.map((e) => (
+            <button
+              key={e.entry_date}
+              className="map-ds-chip"
+              onClick={() => mapRef.current?.flyTo([e.lat, e.lon], 13, { duration: 1.1 })}
+            >
+              <span className="map-ds-mood">{e.mood || '·'}</span>
+              <span className="map-ds-day">{e.day_number ? `D${e.day_number}` : ''}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

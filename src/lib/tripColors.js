@@ -8,6 +8,7 @@ export const TRIP_COLORS = {
   'singapore-malaysia': '#4FA8C9',
   bangkok: '#E0954C',
   'sri-lanka-voyage': '#9B7FD4',
+  'new-orleans': '#8B3A42',
 }
 
 export function tripColor(slug) {
