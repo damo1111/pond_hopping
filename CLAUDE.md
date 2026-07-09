@@ -2,6 +2,8 @@
 
 A travel log web app for David + husband — starting with the mini gap year (six trips, March–July 2026), built to hold all future travel. Warm-paper editorial in aesthetic (the tones of the CΛNΛRD duck artwork — David explicitly rejected the earlier dark look), duck-branded, PWA-installable, shareable with friends. Think a private travel magazine with live data and maps — geek-grade on the flight data, clean and cool everywhere else.
 
+**Production URL**: https://pond.moritz.life (9 Jul — moved off the default `pond-hopping.vercel.app`; David's own domain `moritz.life`, GoDaddy-registered with Gmail Workspace mail on it, is becoming a shared umbrella domain for his apps, each getting its own subdomain — `pond` for this one. DNS: `A @ → 76.76.21.21` at GoDaddy plus a per-project `CNAME pond → c5702b4ff6345d11.vercel-dns-016.com.` — nameservers stayed third-party/GoDaddy throughout, deliberately, so existing Google Workspace MX/SPF/DKIM records were never touched. `pond-hopping.vercel.app` still works too.)
+
 ## Tech stack
 
 - React + Vite
