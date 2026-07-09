@@ -7,7 +7,7 @@ A travel log web app for David + husband — starting with the mini gap year (si
 ## Tech stack
 
 - React + Vite
-- Supabase (Postgres): `https://qslksdgxoibzrisywvqk.supabase.co` (project `cvnvrd`, ap-southeast-2)
+- Supabase (Postgres): `https://qslksdgxoibzrisywvqk.supabase.co` (project renamed `pond-hopping` 9 Jul, was `cvnvrd`; id unchanged, ap-southeast-2)
 - Leaflet + react-leaflet (maps — Carto voyager light tiles, no API key)
 - Planespotters.net API (aircraft photos — free, no key, by registration)
 - Open Exchange Rates via `open.er-api.com` (currency — free, no key)
