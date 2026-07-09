@@ -1327,8 +1327,8 @@ button {
   background: linear-gradient(
     115deg,
     transparent 25%,
-    rgba(212, 175, 55, 0.16) 42%,
-    rgba(155, 127, 212, 0.16) 52%,
+    rgba(212, 175, 55, 0.11) 42%,
+    rgba(155, 127, 212, 0.11) 52%,
     transparent 70%
   );
   background-size: 260% 260%;
@@ -1405,11 +1405,18 @@ button {
   justify-content: space-between;
   gap: 8px;
   margin-top: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  /* Solid, not transparent — the animated sheen behind this card can
+     swing quite saturated, and muted grey text on top of it was
+     sometimes unreadable. This bar always sits on a flat, legible base
+     regardless of where the animation is. */
+  background: rgba(255, 255, 255, 0.82);
   font-family: var(--font-mono);
   font-size: 8px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text);
 }
 
 .ts-foot-actions {
@@ -1419,7 +1426,7 @@ button {
 }
 
 .ts-regen {
-  background: none;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 4px 8px;
