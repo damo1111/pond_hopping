@@ -13,6 +13,7 @@ import ShareView from './ShareView.jsx'
 import InstallChip from './components/InstallChip.jsx'
 import TripPicker from './components/TripPicker.jsx'
 import { tripColor } from './lib/tripColors.js'
+import { track } from './lib/analytics.js'
 
 // The 3D globe pulls in three.js — only the Home tab needs it, so it's
 // code-split into its own chunk instead of bloating everyone's first load.
@@ -73,6 +74,10 @@ export default function App() {
   const [selectedTrip, setSelectedTrip] = useState(null)
   // Deep-link from a Map pin/run into its matching Journal entry.
   const [journalJump, setJournalJump] = useState(null)
+  // Nudges toward the bottom nav right after picking a trip on Home —
+  // that's the moment people don't yet know there's more to explore.
+  const [navPulse, setNavPulse] = useState(false)
+  const [navHint, setNavHint] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -110,6 +115,37 @@ export default function App() {
   useEffect(() => {
     document.documentElement.style.setProperty('--trip-accent', tripColor(selectedTrip))
   }, [selectedTrip])
+
+  useEffect(() => {
+    track('app_open')
+  }, [])
+
+  useEffect(() => {
+    track('tab_view', { tab: activeTab })
+  }, [activeTab])
+
+  // Picking a trip on Home is the one moment people don't yet know there's
+  // more to see — pulse the bottom nav every time, and show a one-off text
+  // hint the very first time (never again after that, via localStorage).
+  useEffect(() => {
+    if (activeTab !== 'world' || !selectedTrip) return
+    track('trip_select', { trip: selectedTrip })
+    setNavPulse(true)
+    const pulseTimer = setTimeout(() => setNavPulse(false), 1800)
+
+    let hintTimer
+    if (!localStorage.getItem('ph_nav_hint_seen')) {
+      localStorage.setItem('ph_nav_hint_seen', '1')
+      setNavHint(true)
+      hintTimer = setTimeout(() => setNavHint(false), 4200)
+    }
+
+    return () => {
+      clearTimeout(pulseTimer)
+      if (hintTimer) clearTimeout(hintTimer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTrip, activeTab])
 
   function jumpToJournal(tripSlug, date) {
     setSelectedTrip(tripSlug)
@@ -209,7 +245,9 @@ export default function App() {
           )}
         </main>
 
-        <nav className="bottomnav">
+        {navHint && <div className="nav-hint">↓ explore Flights, Journal, Map &amp; Photos</div>}
+
+        <nav className={`bottomnav${navPulse ? ' pulse' : ''}`}>
           {TABS.map((tab) => (
             <button
               key={tab.id}

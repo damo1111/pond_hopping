@@ -358,6 +358,69 @@ button {
   opacity: 1;
 }
 
+/* Nudge toward Flights/Journal/Map/Photos right after picking a trip
+   on Home — the icons briefly pop full-colour with a soft glow ring. */
+.bottomnav.pulse .navitem:nth-child(2),
+.bottomnav.pulse .navitem:nth-child(3),
+.bottomnav.pulse .navitem:nth-child(4),
+.bottomnav.pulse .navitem:nth-child(5) {
+  animation: nav-pulse 1.6s ease-out;
+}
+.bottomnav.pulse .navitem:nth-child(2) { animation-delay: 0s; }
+.bottomnav.pulse .navitem:nth-child(3) { animation-delay: 0.08s; }
+.bottomnav.pulse .navitem:nth-child(4) { animation-delay: 0.16s; }
+.bottomnav.pulse .navitem:nth-child(5) { animation-delay: 0.24s; }
+
+.bottomnav.pulse .navitem:nth-child(2) .navitem-i,
+.bottomnav.pulse .navitem:nth-child(3) .navitem-i,
+.bottomnav.pulse .navitem:nth-child(4) .navitem-i,
+.bottomnav.pulse .navitem:nth-child(5) .navitem-i {
+  animation: nav-pulse-icon 1.6s ease-out;
+}
+.bottomnav.pulse .navitem:nth-child(2) .navitem-i { animation-delay: 0s; }
+.bottomnav.pulse .navitem:nth-child(3) .navitem-i { animation-delay: 0.08s; }
+.bottomnav.pulse .navitem:nth-child(4) .navitem-i { animation-delay: 0.16s; }
+.bottomnav.pulse .navitem:nth-child(5) .navitem-i { animation-delay: 0.24s; }
+
+@keyframes nav-pulse {
+  0%, 100% { transform: scale(1); box-shadow: none; }
+  35% {
+    transform: scale(1.14);
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--trip-accent, var(--gold)) 25%, transparent);
+  }
+}
+
+@keyframes nav-pulse-icon {
+  0%, 100% { filter: grayscale(1); opacity: 0.45; }
+  35% { filter: none; opacity: 1; }
+}
+
+.nav-hint {
+  position: fixed;
+  left: 50%;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  background: #1A1611;
+  color: #F5F2EB;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  padding: 8px 14px;
+  border-radius: 20px;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  z-index: 9000;
+  pointer-events: none;
+  animation: nav-hint-fade 4.2s ease forwards;
+}
+
+@keyframes nav-hint-fade {
+  0% { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  12% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  82% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(0); }
+}
+
 /* ── Boot screen ───────────────────────────────────────────── */
 
 .boot {
