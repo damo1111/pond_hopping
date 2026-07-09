@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import DayMap from '../components/DayMap.jsx'
 import DayScrubber from '../components/DayScrubber.jsx'
+import TripSummary from '../components/TripSummary.jsx'
 // PrivateNote is temporarily not rendered anywhere — the main app URL has
 // no login, so its "hidden from Share links" guarantee doesn't extend to
 // someone just browsing the app directly. Component/table untouched;
@@ -211,9 +212,12 @@ export default function JournalTab() {
     }
   }
 
+  const selectedTripId = selectedTrip ? tripMeta.find((t) => t.slug === selectedTrip)?.id : null
+
   return (
     <div className="journal-tab">
       <AddEntry tripMeta={tripMeta} selectedTrip={selectedTrip} onSaved={() => setReload((r) => r + 1)} />
+      {selectedTripId && <TripSummary tripId={selectedTripId} />}
       {selectedTrip && (
         <DayScrubber entries={visible} onJump={(id) => setScrubJump({ id, key: Date.now() })} />
       )}

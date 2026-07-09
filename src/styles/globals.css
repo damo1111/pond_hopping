@@ -1240,6 +1240,62 @@ button {
   opacity: 0.5;
 }
 
+.trip-summary {
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.ts-generate {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  padding: 4px;
+}
+
+.ts-body {
+  font-size: 13.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.ts-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ts-regen {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ts-error {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #C0392B;
+}
+
 .day-scrub {
   display: flex;
   gap: 8px;
