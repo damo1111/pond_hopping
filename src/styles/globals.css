@@ -1241,10 +1241,50 @@ button {
 }
 
 .trip-summary {
+  position: relative;
+  border-radius: 13px;
+  padding: 1.5px;
+  background: linear-gradient(115deg, #D4AF37, #9B7FD4, #4FA8C9, #D4AF37);
+  background-size: 300% 300%;
+  animation: ts-aurora 12s ease infinite;
+}
+
+.trip-summary-inner {
+  position: relative;
+  overflow: hidden;
   background: var(--accent-bg);
-  border: 1px solid var(--accent-dim);
-  border-radius: 12px;
+  border-radius: 11.5px;
   padding: 12px 14px;
+}
+
+.trip-summary-inner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 25%,
+    rgba(212, 175, 55, 0.16) 42%,
+    rgba(155, 127, 212, 0.16) 52%,
+    transparent 70%
+  );
+  background-size: 260% 260%;
+  animation: ts-sheen 7s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ts-aurora {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes ts-sheen {
+  0% { background-position: 200% 0%; }
+  100% { background-position: -60% 0%; }
+}
+
+.trip-summary-inner > * {
+  position: relative;
 }
 
 .ts-generate {
@@ -1260,22 +1300,45 @@ button {
   padding: 4px;
 }
 
+.ts-loading {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  padding: 4px;
+}
+
 .ts-body {
   font-size: 13.5px;
   line-height: 1.55;
   white-space: pre-wrap;
 }
 
+.ts-body.clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .ts-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   margin-top: 10px;
   font-family: var(--font-mono);
   font-size: 8px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.ts-foot-actions {
+  display: flex;
+  gap: 6px;
+  flex: none;
 }
 
 .ts-regen {
@@ -1288,6 +1351,7 @@ button {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .ts-error {

@@ -217,7 +217,7 @@ export default function JournalTab() {
   return (
     <div className="journal-tab">
       <AddEntry tripMeta={tripMeta} selectedTrip={selectedTrip} onSaved={() => setReload((r) => r + 1)} />
-      {selectedTripId && <TripSummary tripId={selectedTripId} />}
+      {selectedTripId && <TripSummary tripId={selectedTripId} hasEntries={visible.length > 0} />}
       {selectedTrip && (
         <DayScrubber entries={visible} onJump={(id) => setScrubJump({ id, key: Date.now() })} />
       )}
