@@ -120,6 +120,22 @@ export default function App() {
     track('app_open')
   }, [])
 
+  // A new deploy's service worker can take control at any moment,
+  // including mid-boot-animation — reloading right then looked like the
+  // header flickering in, vanishing, then "reappearing" (it was actually
+  // a whole second boot cycle from the reload). Wait until this boot has
+  // fully settled before ever acting on it.
+  useEffect(() => {
+    if (booting) return
+    if (window.__pondSwUpdatePending) {
+      window.location.reload()
+      return
+    }
+    const onUpdate = () => window.location.reload()
+    window.addEventListener('pond:sw-update', onUpdate)
+    return () => window.removeEventListener('pond:sw-update', onUpdate)
+  }, [booting])
+
   useEffect(() => {
     track('tab_view', { tab: activeTab })
   }, [activeTab])

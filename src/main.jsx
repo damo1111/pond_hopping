@@ -8,12 +8,20 @@ import './styles/globals.css'
 // deploy, but an already-open tab keeps running its old in-memory JS
 // until something reloads it — without this, a fresh deploy silently
 // doesn't show up until the user thinks to hard-refresh.
+//
+// This can fire the instant the page opens (an old SW registration
+// already installed gets superseded by whatever just deployed), which
+// used to reload immediately — including mid-boot-animation, which
+// looked like the header flickering in, vanishing, then "reappearing"
+// as the reloaded page redid its own boot from scratch. App.jsx defers
+// the actual reload until its boot sequence has settled.
 if ('serviceWorker' in navigator) {
-  let reloaded = false
+  let fired = false
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloaded) return
-    reloaded = true
-    window.location.reload()
+    if (fired) return
+    fired = true
+    window.__pondSwUpdatePending = true
+    window.dispatchEvent(new Event('pond:sw-update'))
   })
 }
 
