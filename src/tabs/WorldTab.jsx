@@ -5,6 +5,7 @@ import { isInAustralia } from '../lib/geo.js'
 import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import { coverUrl } from '../lib/imgTransform.js'
+import CountryFlags from '../components/CountryFlags.jsx'
 
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.
@@ -267,7 +268,9 @@ export default function WorldTab() {
                   <img src={coverUrl(covers[t.id], { width: 400, height: 220 })} alt="" loading="lazy" />
                 </span>
               )}
-              <span className="wt-flags">{t.countries?.join(' ')}</span>
+              <span className="wt-flags">
+                <CountryFlags countries={t.countries} size={20} />
+              </span>
               <span className="wt-title">{t.title}</span>
               {t.subtitle && <span className="wt-subtitle">{t.subtitle}</span>}
               <span className="wt-dates">{fmtRange(t)}</span>

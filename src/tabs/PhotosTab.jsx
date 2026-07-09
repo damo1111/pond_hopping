@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import { thumb, coverUrl } from '../lib/imgTransform.js'
+import CountryFlags from '../components/CountryFlags.jsx'
 
 function fmtRange(t) {
   if (!t.start_date) return 'dates tbc'
@@ -169,7 +170,9 @@ export default function PhotosTab() {
           )}
           <div className="ph-hero-overlay" />
           <div className="ph-hero-content">
-            <span className="ph-hero-flags">{heroTrip.countries?.join(' ')}</span>
+            <span className="ph-hero-flags">
+              <CountryFlags countries={heroTrip.countries} size={22} />
+            </span>
             <span className="ph-hero-title">{heroTrip.title}</span>
             <span className="ph-hero-meta">
               {fmtRange(heroTrip)} · {visible.length} photo{visible.length === 1 ? '' : 's'}
@@ -201,7 +204,9 @@ export default function PhotosTab() {
               }}
             >
               {cover}
-              <span className="album-flags">{t.countries?.join(' ')}</span>
+              <span className="album-flags">
+                <CountryFlags countries={t.countries} size={18} />
+              </span>
               <span className="album-title">{t.title}</span>
               <span className="album-open">
                 View {count} photo{count === 1 ? '' : 's'} ↓

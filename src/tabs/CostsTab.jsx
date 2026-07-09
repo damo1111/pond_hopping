@@ -1,6 +1,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
+import CountryFlags from '../components/CountryFlags.jsx'
 
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Hotel', 'Activity', 'Flight', 'Other']
 const CURRENCIES = ['AUD', 'KRW', 'HKD', 'JPY', 'CNY', 'USD', 'GBP']
@@ -185,8 +186,8 @@ export default function CostsTab() {
           </div>
           {perTrip.map(({ t, total: v }) => (
             <div key={t.slug} className="cost-trip-row">
-              <span>
-                {t.countries?.join(' ')} {t.title}
+              <span className="trip-flags-inline">
+                <CountryFlags countries={t.countries} size={15} /> {t.title}
               </span>
               <span className="cost-bar-val">{fmtA(v)}</span>
             </div>

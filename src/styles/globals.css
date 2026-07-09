@@ -2286,6 +2286,39 @@ button {
 
 .wt-flags { font-size: 13px; }
 
+/* ── Country flag badges (real SVGs, not emoji) ───────────────── */
+
+.country-flags {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  vertical-align: middle;
+}
+
+.cf-flag {
+  width: var(--cf-size, 18px);
+  height: var(--cf-size, 18px);
+  border-radius: 50%;
+  border: 1.5px solid var(--surface);
+  box-shadow: 0 0 0 0.5px rgba(26, 22, 17, 0.12);
+  background-color: var(--surface-2);
+  background-size: cover;
+  background-position: center;
+  flex: none;
+}
+
+.cf-flag + .cf-flag {
+  margin-left: calc(var(--cf-size, 18px) * -0.38);
+}
+
+/* Utility for the common "flags + trip title" text run, so the circular
+   flag badges line up on the text baseline instead of sitting high/low. */
+.trip-flags-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .wt-title {
   font-weight: 400;
   font-size: 13px;

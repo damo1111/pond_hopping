@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Polyline, CircleMarker } from 'react-leaflet'
 import { supabase } from './lib/supabase.js'
 import { greatCircle } from './lib/geo.js'
 import { localDate } from './lib/airportTz.js'
+import CountryFlags from './components/CountryFlags.jsx'
 
 const fmtD = (d) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 const fmtA = (n) => 'A$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -62,7 +63,9 @@ export default function ShareView({ slug, show }) {
       </header>
 
       <div className="share-hero">
-        <div className="trip-flags" style={{ fontSize: 22 }}>{trip.countries?.join(' ')}</div>
+        <div className="trip-flags">
+          <CountryFlags countries={trip.countries} size={26} />
+        </div>
         <h1 className="share-title">{trip.title}</h1>
         {trip.subtitle && <div className="trip-card-sub">{trip.subtitle}</div>}
         {trip.start_date && (

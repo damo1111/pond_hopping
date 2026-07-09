@@ -4,6 +4,7 @@ import { TripContext } from '../App.jsx'
 import FlightCard from '../components/FlightCard.jsx'
 import RouteStrip from '../components/RouteStrip.jsx'
 import { tripColor } from '../lib/tripColors.js'
+import CountryFlags from '../components/CountryFlags.jsx'
 
 export default function FlightsTab() {
   const { tripMeta, selectedTrip } = useContext(TripContext)
@@ -66,8 +67,8 @@ export default function FlightsTab() {
           <section key={tripId} className="flight-section" style={{ '--fsh-accent': color }}>
             <div className="flight-section-head">
               <span className="fsh-accent-dot" />
-              <span className="fsh-title">
-                {trip?.countries?.join(' ')} {trip?.title}
+              <span className="fsh-title trip-flags-inline">
+                <CountryFlags countries={trip?.countries} size={15} /> {trip?.title}
               </span>
               <span className="fsh-meta">
                 {list.length} {list.length === 1 ? 'flight' : 'flights'} · {km.toLocaleString()} km

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import CountryFlags from './CountryFlags.jsx'
 
 // Trip filter control shown on every tab except Home (which has its own
 // card carousel) — lets you pick or change the trip from anywhere,
@@ -22,8 +23,14 @@ export default function TripPicker({ tripMeta, selectedTrip, setSelectedTrip }) 
   return (
     <div className="trip-picker" ref={ref}>
       <button className="trip-picker-btn" onClick={() => setOpen((o) => !o)}>
-        <span className="trip-picker-label">
-          {current ? `${current.countries?.join(' ')} ${current.title}` : 'All trips'}
+        <span className="trip-picker-label trip-flags-inline">
+          {current ? (
+            <>
+              <CountryFlags countries={current.countries} size={16} /> {current.title}
+            </>
+          ) : (
+            'All trips'
+          )}
         </span>
         <span className={`trip-picker-caret${open ? ' open' : ''}`}>▾</span>
       </button>
@@ -41,13 +48,13 @@ export default function TripPicker({ tripMeta, selectedTrip, setSelectedTrip }) 
           {tripMeta.map((t) => (
             <button
               key={t.slug}
-              className={`trip-picker-item${selectedTrip === t.slug ? ' active' : ''}`}
+              className={`trip-picker-item trip-flags-inline${selectedTrip === t.slug ? ' active' : ''}`}
               onClick={() => {
                 setSelectedTrip(t.slug)
                 setOpen(false)
               }}
             >
-              {t.countries?.join(' ')} {t.title}
+              <CountryFlags countries={t.countries} size={16} /> {t.title}
             </button>
           ))}
         </div>

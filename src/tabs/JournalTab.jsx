@@ -4,6 +4,7 @@ import { TripContext } from '../App.jsx'
 import DayMap from '../components/DayMap.jsx'
 import DayScrubber from '../components/DayScrubber.jsx'
 import TripSummary from '../components/TripSummary.jsx'
+import CountryFlags from '../components/CountryFlags.jsx'
 // PrivateNote is temporarily not rendered anywhere — the main app URL has
 // no login, so its "hidden from Share links" guarantee doesn't extend to
 // someone just browsing the app directly. Component/table untouched;
@@ -231,8 +232,8 @@ export default function JournalTab() {
         <section key={g.trip?.slug ?? i} className="journal-group">
           {g.trip && (
             <div className="flight-section-head">
-              <span className="fsh-title">
-                {g.trip.countries?.join(' ')} {g.trip.title}
+              <span className="fsh-title trip-flags-inline">
+                <CountryFlags countries={g.trip.countries} size={15} /> {g.trip.title}
               </span>
               <span className="fsh-meta">{g.entries.length} days</span>
             </div>
