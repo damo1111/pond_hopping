@@ -14,6 +14,7 @@ const AIRLINES = [
   { test: /shanghai airlines/i, color: '#154889', emblem: 'shanghai', image: '/tails/shanghai-airlines.png' },
   { test: /virgin/i, color: '#DD1E3A', emblem: 'virgin', image: '/tails/virgin.webp' },
   { test: /china eastern/i, color: '#7B2029', emblem: 'china-eastern' },
+  { test: /delta/i, color: '#003268', emblem: 'delta' },
 ]
 
 export function tailLivery(airline) {

@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-le
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import { boundsExcludingHome } from '../lib/geo.js'
+import { thumb } from '../lib/imgTransform.js'
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -38,8 +39,10 @@ export default function MapTab() {
   const [pins, setPins] = useState(null)
   const [runs, setRuns] = useState(null)
   const [journal, setJournal] = useState(null)
+  const [photos, setPhotos] = useState(null)
   const [filter, setFilter] = useState('all')
   const [drawLen, setDrawLen] = useState(0)
+  const [photoDrawLen, setPhotoDrawLen] = useState(0)
 
   useEffect(() => {
     let alive = true
@@ -47,11 +50,17 @@ export default function MapTab() {
       supabase.from('map_pins').select('*'),
       supabase.from('runs').select('id,trip_id,label,city,distance_km,pace,color,coords,run_date'),
       supabase.from('journal_entries').select('trip_id,entry_date,city,title,lat,lon').order('entry_date'),
-    ]).then(([p, r, j]) => {
+      supabase
+        .from('photos')
+        .select('id,trip_id,lat,lon,taken_at,url,caption')
+        .not('lat', 'is', null)
+        .order('taken_at'),
+    ]).then(([p, r, j, ph]) => {
       if (!alive) return
       setPins(p.data ?? [])
       setRuns(r.data ?? [])
       setJournal(j.data ?? [])
+      setPhotos(ph.data ?? [])
     })
     return () => {
       alive = false
@@ -84,17 +93,40 @@ export default function MapTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, selectedTrip, journal, tripMeta])
 
-  if (!pins || !runs || !journal) return <div className="tab-loading">loading map…</div>
+  // Same progressive draw-on, but for the photo-GPS trail — the fallback
+  // route for trips with no Google Timeline export (journal entries still
+  // carry a per-day pin, but the trail itself comes from photos.lat/lon).
+  useEffect(() => {
+    setPhotoDrawLen(0)
+    if (filter !== 'all' || !photos || !tripMeta.length) return
+    const total = photos.filter((p) => inTrip(p)).length
+    if (total < 2) return
+    let raf
+    const start = performance.now()
+    const duration = Math.min(2200, 500 + total * 15)
+    function tick(now) {
+      const t = Math.min(1, (now - start) / duration)
+      setPhotoDrawLen(Math.max(2, Math.round(t * total)))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, selectedTrip, photos, tripMeta])
+
+  if (!pins || !runs || !journal || !photos) return <div className="tab-loading">loading map…</div>
 
   const showPinKind = (k) => filter === 'all' || filter === k
   const visPins = pins.filter((p) => inTrip(p) && showPinKind(p.kind))
   const visRuns = filter === 'all' || filter === 'run' ? runs.filter(inTrip) : []
   const visJournal = journal.filter((e) => inTrip(e) && e.lat != null && e.lon != null)
+  const visPhotos = filter === 'all' ? photos.filter((p) => inTrip(p)) : []
 
   const boundsPts = [
     ...visPins.map((p) => [p.lat, p.lon]),
     ...visRuns.flatMap((r) => [r.coords[0], r.coords[r.coords.length - 1]]),
     ...(filter === 'all' ? visJournal.map((e) => [e.lat, e.lon]) : []),
+    ...visPhotos.map((p) => [p.lat, p.lon]),
   ]
   // Home-country pins/entries (e.g. an airport dinner in Brisbane) shouldn't
   // pull the auto-fit back toward Australia and shrink the actual trip.
@@ -119,6 +151,43 @@ export default function MapTab() {
             pathOptions={{ color: '#1A1611', weight: 1, dashArray: '2 6', opacity: 0.4 }}
           />
         )}
+
+        {/* photo-GPS trail — the route itself for trips with no Google
+            Timeline export, since journal entries there only carry one
+            pin per day rather than a real path */}
+        {filter === 'all' && visPhotos.length > 1 && (
+          <Polyline
+            positions={visPhotos.slice(0, Math.max(2, photoDrawLen)).map((p) => [p.lat, p.lon])}
+            pathOptions={{ color: '#A8842C', weight: 1.5, opacity: 0.5 }}
+          />
+        )}
+        {filter === 'all' &&
+          visPhotos.slice(0, Math.max(2, photoDrawLen)).map((p) => (
+            <CircleMarker
+              key={`ph-${p.id}`}
+              center={[p.lat, p.lon]}
+              radius={2.5}
+              pathOptions={{ color: '#A8842C', fillColor: '#A8842C', fillOpacity: 0.8, weight: 0 }}
+            >
+              <Popup>
+                <div className="world-pop">
+                  <img
+                    src={thumb(p.url, { width: 220, height: 220 })}
+                    alt=""
+                    style={{ width: '100%', borderRadius: 6, display: 'block', marginBottom: 6 }}
+                  />
+                  <div className="world-pop-flight">
+                    {new Date(p.taken_at).toLocaleString('en-GB', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </div>
+                </div>
+              </Popup>
+            </CircleMarker>
+          ))}
 
         {/* GPS run tracks in their stored colours */}
         {visRuns.map((r) => {

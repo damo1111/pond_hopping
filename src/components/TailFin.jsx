@@ -109,7 +109,14 @@ function Emblem({ emblem }) {
     case 'virgin':
       return <path d="M5 24 Q7 12 12 8 Q10 15 17 10 Q13 18 6 27 Z" fill="#fff" opacity="0.9" />
     case 'china-eastern':
-      return <path d="M4 16 Q11 9 18 16 Q13 15 11 20 Q9 15 4 16 Z" fill="#fff" />
+      return <path d="M4 16 Q11 9 18 16 Q13 15 11 20 Z" fill="#fff" />
+    case 'delta':
+      return (
+        <g fill="#fff">
+          <polygon points="12,7 18,20 12,20" />
+          <polygon points="12,7 6,20 12,20" opacity="0.6" />
+        </g>
+      )
     default:
       return <path d="M4 20 L9 2 L18 2 L13 20 Z" fill="#ffffff" opacity="0.16" />
   }
