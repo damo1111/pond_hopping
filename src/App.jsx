@@ -120,20 +120,36 @@ export default function App() {
     track('app_open')
   }, [])
 
-  // A new deploy's service worker can take control at any moment,
-  // including mid-boot-animation — reloading right then looked like the
-  // header flickering in, vanishing, then "reappearing" (it was actually
-  // a whole second boot cycle from the reload). Wait until this boot has
-  // fully settled before ever acting on it.
+  // A new deploy's service worker can take control at any moment. Only
+  // reloading once boot settles isn't enough on its own — with this many
+  // deploys landing in quick succession, an update can just as easily
+  // arrive right after boot finishes, which reloaded immediately and
+  // looked like the app flashing to the loaded Home tab and straight back
+  // to the splash screen. Reload only while nobody's actually looking:
+  // if the tab's already hidden, do it now; otherwise wait for the next
+  // time it's backgrounded (switching apps, locking the phone) so a
+  // fresh version is just quietly waiting the next time it's opened.
   useEffect(() => {
     if (booting) return
-    if (window.__pondSwUpdatePending) {
-      window.location.reload()
-      return
+
+    function reloadIfHidden() {
+      if (document.visibilityState === 'hidden') window.location.reload()
     }
-    const onUpdate = () => window.location.reload()
+
+    function onUpdate() {
+      if (document.visibilityState === 'hidden') {
+        window.location.reload()
+      } else {
+        document.addEventListener('visibilitychange', reloadIfHidden)
+      }
+    }
+
+    if (window.__pondSwUpdatePending) onUpdate()
     window.addEventListener('pond:sw-update', onUpdate)
-    return () => window.removeEventListener('pond:sw-update', onUpdate)
+    return () => {
+      window.removeEventListener('pond:sw-update', onUpdate)
+      document.removeEventListener('visibilitychange', reloadIfHidden)
+    }
   }, [booting])
 
   useEffect(() => {
