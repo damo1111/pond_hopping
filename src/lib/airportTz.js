@@ -2,12 +2,14 @@
 // in *local* time at the relevant airport (dep_time local to dep_airport,
 // arr_time local to arr_airport) — the DB stores everything as UTC.
 export const AIRPORT_TZ = {
+  ATL: 'America/New_York',
   BER: 'Europe/Berlin',
   BKK: 'Asia/Bangkok',
   BNE: 'Australia/Brisbane',
   CAN: 'Asia/Shanghai',
   CMB: 'Asia/Colombo',
   DMK: 'Asia/Bangkok',
+  EDI: 'Europe/London',
   HKG: 'Asia/Hong_Kong',
   HND: 'Asia/Tokyo',
   ICN: 'Asia/Seoul',
@@ -15,6 +17,7 @@ export const AIRPORT_TZ = {
   KUL: 'Asia/Kuala_Lumpur',
   LHR: 'Europe/London',
   MEL: 'Australia/Melbourne',
+  MSY: 'America/Chicago',
   PEK: 'Asia/Shanghai',
   SHA: 'Asia/Shanghai',
   SIN: 'Asia/Singapore',
