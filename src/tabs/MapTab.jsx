@@ -18,8 +18,23 @@ const KIND_STYLE = {
   place: { color: '#8B8375', fill: '#8B8375' },
 }
 
+// Pins have no date of their own, so match by trip + city (first entry,
+// by date, with that city). Runs carry a run_date, so that's an exact
+// match against entry_date.
+function findJournalMatch(journal, tripId, { city, date } = {}) {
+  if (date) {
+    const m = journal.find((e) => e.trip_id === tripId && e.entry_date === date)
+    if (m) return m
+  }
+  if (city) {
+    const m = journal.find((e) => e.trip_id === tripId && e.city?.toLowerCase() === city.toLowerCase())
+    if (m) return m
+  }
+  return null
+}
+
 export default function MapTab() {
-  const { tripMeta, selectedTrip } = useContext(TripContext)
+  const { tripMeta, selectedTrip, jumpToJournal } = useContext(TripContext)
   const [pins, setPins] = useState(null)
   const [runs, setRuns] = useState(null)
   const [journal, setJournal] = useState(null)
@@ -82,22 +97,33 @@ export default function MapTab() {
         )}
 
         {/* GPS run tracks in their stored colours */}
-        {visRuns.map((r) => (
-          <Polyline
-            key={r.id}
-            positions={r.coords}
-            pathOptions={{ color: r.color || '#3E7D54', weight: 3, opacity: 0.85 }}
-          >
-            <Popup>
-              <div className="world-pop">
-                <div className="world-pop-route">{r.label}</div>
-                <div className="world-pop-flight">
-                  {r.distance_km} km{r.pace ? ` · ${r.pace}` : ''}
+        {visRuns.map((r) => {
+          const match = findJournalMatch(journal, r.trip_id, { date: r.run_date })
+          return (
+            <Polyline
+              key={r.id}
+              positions={r.coords}
+              pathOptions={{ color: r.color || '#3E7D54', weight: 3, opacity: 0.85 }}
+            >
+              <Popup>
+                <div className="world-pop">
+                  <div className="world-pop-route">{r.label}</div>
+                  <div className="world-pop-flight">
+                    {r.distance_km} km{r.pace ? ` · ${r.pace}` : ''}
+                  </div>
+                  {match && (
+                    <button
+                      className="map-pop-jump"
+                      onClick={() => jumpToJournal(tripsById.get(r.trip_id)?.slug, match.entry_date)}
+                    >
+                      → view in journal
+                    </button>
+                  )}
                 </div>
-              </div>
-            </Popup>
-          </Polyline>
-        ))}
+              </Popup>
+            </Polyline>
+          )
+        })}
         {visRuns.map((r) => (
           <CircleMarker
             key={`s-${r.id}`}
@@ -110,6 +136,7 @@ export default function MapTab() {
         {/* pins */}
         {visPins.map((p) => {
           const st = KIND_STYLE[p.kind] || KIND_STYLE.place
+          const match = findJournalMatch(journal, p.trip_id, { city: p.city })
           return (
             <CircleMarker
               key={p.id}
@@ -125,6 +152,14 @@ export default function MapTab() {
                     {p.city ? ` · ${p.city}` : ''}
                     {p.notes ? ` · ${p.notes}` : ''}
                   </div>
+                  {match && (
+                    <button
+                      className="map-pop-jump"
+                      onClick={() => jumpToJournal(tripsById.get(p.trip_id)?.slug, match.entry_date)}
+                    >
+                      → view in journal
+                    </button>
+                  )}
                 </div>
               </Popup>
             </CircleMarker>

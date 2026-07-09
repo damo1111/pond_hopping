@@ -21,6 +21,9 @@ export const TripContext = createContext({
   tripMeta: [],
   selectedTrip: null,
   setSelectedTrip: () => {},
+  journalJump: null,
+  jumpToJournal: () => {},
+  clearJournalJump: () => {},
 })
 
 const TABS = [
@@ -67,6 +70,8 @@ export default function App() {
   const [tripMeta, setTripMeta] = useState([])
   const [loadError, setLoadError] = useState(null)
   const [selectedTrip, setSelectedTrip] = useState(null)
+  // Deep-link from a Map pin/run into its matching Journal entry.
+  const [journalJump, setJournalJump] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -98,9 +103,22 @@ export default function App() {
     }
   }, [])
 
+  function jumpToJournal(tripSlug, date) {
+    setSelectedTrip(tripSlug)
+    setActiveTab('journal')
+    setJournalJump({ tripSlug, date, key: Date.now() })
+  }
+
   const ctx = useMemo(
-    () => ({ tripMeta, selectedTrip, setSelectedTrip }),
-    [tripMeta, selectedTrip]
+    () => ({
+      tripMeta,
+      selectedTrip,
+      setSelectedTrip,
+      journalJump,
+      jumpToJournal,
+      clearJournalJump: () => setJournalJump(null),
+    }),
+    [tripMeta, selectedTrip, journalJump]
   )
 
   // Public read-only share page — no nav, no forms.

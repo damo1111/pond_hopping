@@ -878,6 +878,19 @@ button {
   color: var(--text-muted);
 }
 
+.map-pop-jump {
+  display: block;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
 .wp-no {
   font-family: var(--font-mono);
   color: var(--accent);
@@ -1778,16 +1791,16 @@ button {
   padding: 6px 12px;
   overflow-x: auto;
   scrollbar-width: none;
-  animation: trips-scroll-hint 1.4s ease-out 0.8s 1;
+  animation: trips-scroll-hint 2.6s ease-out 0.8s 1;
 }
 
 /* Nudges the strip once on load so it reads as horizontally scrollable
    rather than a fixed row of 3 cards. */
 @keyframes trips-scroll-hint {
   0%, 100% { transform: translateX(0); }
-  35% { transform: translateX(-22px); }
-  60% { transform: translateX(6px); }
-  80% { transform: translateX(-10px); }
+  35% { transform: translateX(-42px); }
+  60% { transform: translateX(10px); }
+  80% { transform: translateX(-18px); }
 }
 
 .world-trips::-webkit-scrollbar { display: none; }

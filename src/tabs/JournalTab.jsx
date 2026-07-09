@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import DayMap from '../components/DayMap.jsx'
@@ -14,10 +14,19 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-function Entry({ e }) {
-  const [open, setOpen] = useState(false)
+function Entry({ e, autoOpen }) {
+  const [open, setOpen] = useState(autoOpen)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (autoOpen && ref.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [autoOpen])
+
   return (
     <div
+      ref={ref}
       className={`journal-entry${open ? ' open' : ''}`}
       role="button"
       tabIndex={0}
@@ -140,7 +149,7 @@ function AddEntry({ tripMeta, selectedTrip, onSaved }) {
 }
 
 export default function JournalTab() {
-  const { tripMeta, selectedTrip } = useContext(TripContext)
+  const { tripMeta, selectedTrip, journalJump, clearJournalJump } = useContext(TripContext)
   const [entries, setEntries] = useState(null)
   const [reload, setReload] = useState(0)
 
@@ -157,6 +166,19 @@ export default function JournalTab() {
   }, [reload])
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
+
+  // Deep-link target from a Map pin/run — matched once entries are in,
+  // then cleared so it doesn't keep re-triggering on later re-renders.
+  const jumpEntry =
+    entries && journalJump
+      ? entries.find(
+          (e) => tripsById.get(e.trip_id)?.slug === journalJump.tripSlug && e.entry_date === journalJump.date
+        )
+      : null
+
+  useEffect(() => {
+    if (entries && journalJump) clearJournalJump()
+  }, [entries, journalJump, clearJournalJump])
 
   if (!entries) return <div className="tab-loading">loading journal…</div>
 
@@ -199,7 +221,7 @@ export default function JournalTab() {
             </div>
           )}
           {g.entries.map((e) => (
-            <Entry key={e.id} e={e} />
+            <Entry key={e.id} e={e} autoOpen={jumpEntry?.id === e.id} />
           ))}
         </section>
       ))}
