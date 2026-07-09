@@ -199,7 +199,19 @@ export default function PhotosTab() {
         <div ref={gridRef} className="photo-grid">
           {visible.map((p) => (
             <button key={p.id} className="photo-cell" onClick={() => setLightbox(p)}>
-              <img src={thumb(p.url)} alt={p.caption || ''} loading="lazy" decoding="async" />
+              <img
+                src={thumb(p.url)}
+                alt={p.caption || ''}
+                loading="lazy"
+                decoding="async"
+                // The Storage image-transform endpoint 400s on some of the
+                // larger camera originals (flaky, not a clean size cutoff)
+                // — rather than a permanently broken thumbnail, fall back
+                // to the untouched original once, on error.
+                onError={(ev) => {
+                  if (ev.currentTarget.src !== p.url) ev.currentTarget.src = p.url
+                }}
+              />
               {p.is_highlight && <span className="photo-star">⭐</span>}
             </button>
           ))}
