@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import DayMap from '../components/DayMap.jsx'
+import DayScrubber from '../components/DayScrubber.jsx'
 // PrivateNote is temporarily not rendered anywhere — the main app URL has
 // no login, so its "hidden from Share links" guarantee doesn't extend to
 // someone just browsing the app directly. Component/table untouched;
@@ -14,7 +15,7 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-function Entry({ e, autoOpen }) {
+function Entry({ e, autoOpen, jumpKey }) {
   const [open, setOpen] = useState(autoOpen)
   const ref = useRef(null)
 
@@ -23,6 +24,14 @@ function Entry({ e, autoOpen }) {
       ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
     }
   }, [autoOpen])
+
+  // Fires on every scrubber tap, not just at mount — unlike autoOpen,
+  // which only matters for the initial cross-tab deep link.
+  useEffect(() => {
+    if (jumpKey == null) return
+    setOpen(true)
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [jumpKey])
 
   return (
     <div
@@ -152,6 +161,7 @@ export default function JournalTab() {
   const { tripMeta, selectedTrip, journalJump, clearJournalJump } = useContext(TripContext)
   const [entries, setEntries] = useState(null)
   const [reload, setReload] = useState(0)
+  const [scrubJump, setScrubJump] = useState(null)
 
   useEffect(() => {
     let alive = true
@@ -204,6 +214,9 @@ export default function JournalTab() {
   return (
     <div className="journal-tab">
       <AddEntry tripMeta={tripMeta} selectedTrip={selectedTrip} onSaved={() => setReload((r) => r + 1)} />
+      {selectedTrip && (
+        <DayScrubber entries={visible} onJump={(id) => setScrubJump({ id, key: Date.now() })} />
+      )}
       {!groups.length && (
         <div className="placeholder">
           <div className="placeholder-code">journal</div>
@@ -221,7 +234,12 @@ export default function JournalTab() {
             </div>
           )}
           {g.entries.map((e) => (
-            <Entry key={e.id} e={e} autoOpen={jumpEntry?.id === e.id} />
+            <Entry
+              key={e.id}
+              e={e}
+              autoOpen={jumpEntry?.id === e.id}
+              jumpKey={scrubJump?.id === e.id ? scrubJump.key : null}
+            />
           ))}
         </section>
       ))}

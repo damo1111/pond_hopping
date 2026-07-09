@@ -12,6 +12,7 @@ import ShareTab from './tabs/ShareTab.jsx'
 import ShareView from './ShareView.jsx'
 import InstallChip from './components/InstallChip.jsx'
 import TripPicker from './components/TripPicker.jsx'
+import { tripColor } from './lib/tripColors.js'
 
 // The 3D globe pulls in three.js — only the Home tab needs it, so it's
 // code-split into its own chunk instead of bloating everyone's first load.
@@ -102,6 +103,13 @@ export default function App() {
       cancelled = true
     }
   }, [])
+
+  // Carry the selected trip's globe accent colour through to every other
+  // tab as a CSS var, so section headers etc. can echo it without each
+  // one re-deriving the trip → colour mapping.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--trip-accent', tripColor(selectedTrip))
+  }, [selectedTrip])
 
   function jumpToJournal(tripSlug, date) {
     setSelectedTrip(tripSlug)

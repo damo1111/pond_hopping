@@ -3,18 +3,7 @@ import Globe from 'react-globe.gl'
 import { supabase } from '../lib/supabase.js'
 import { isInAustralia } from '../lib/geo.js'
 import { TripContext } from '../App.jsx'
-
-// One accent per trip so overlapping routes read as distinct journeys
-// instead of one dense gold tangle.
-const TRIP_COLORS = {
-  'south-korea': '#D4AF37',
-  'new-zealand': '#5FA876',
-  'china-japan': '#D9614F',
-  'singapore-malaysia': '#4FA8C9',
-  bangkok: '#E0954C',
-  'sri-lanka-voyage': '#9B7FD4',
-}
-const tripColor = (slug) => TRIP_COLORS[slug] || '#A8842C'
+import { tripColor } from '../lib/tripColors.js'
 
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.

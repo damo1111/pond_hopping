@@ -2,6 +2,8 @@ import { useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import FlightCard from '../components/FlightCard.jsx'
+import RouteStrip from '../components/RouteStrip.jsx'
+import { tripColor } from '../lib/tripColors.js'
 
 export default function FlightsTab() {
   const { tripMeta, selectedTrip } = useContext(TripContext)
@@ -59,9 +61,11 @@ export default function FlightsTab() {
         const trip = tripsById.get(tripId)
         const list = byTrip.get(tripId)
         const km = list.reduce((s, f) => s + (f.distance_km || 0), 0)
+        const color = tripColor(trip?.slug)
         return (
-          <section key={tripId} className="flight-section">
+          <section key={tripId} className="flight-section" style={{ '--fsh-accent': color }}>
             <div className="flight-section-head">
+              <span className="fsh-accent-dot" />
               <span className="fsh-title">
                 {trip?.countries?.join(' ')} {trip?.title}
               </span>
@@ -69,6 +73,7 @@ export default function FlightsTab() {
                 {list.length} {list.length === 1 ? 'flight' : 'flights'} · {km.toLocaleString()} km
               </span>
             </div>
+            <RouteStrip flights={list} color={color} />
             {list.map((f) => (
               <FlightCard key={f.id} flight={f} aircraftType={f.aircraft_types} />
             ))}

@@ -39,6 +39,7 @@ export default function MapTab() {
   const [runs, setRuns] = useState(null)
   const [journal, setJournal] = useState(null)
   const [filter, setFilter] = useState('all')
+  const [drawLen, setDrawLen] = useState(0)
 
   useEffect(() => {
     let alive = true
@@ -59,6 +60,29 @@ export default function MapTab() {
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
   const inTrip = (row) => !selectedTrip || tripsById.get(row.trip_id)?.slug === selectedTrip
+
+  // Draw the journey line on progressively (point by point) whenever the
+  // trip selection changes, echoing the globe's animated arcs, instead of
+  // the whole route just appearing.
+  useEffect(() => {
+    setDrawLen(0)
+    if (filter !== 'all' || !journal || !tripMeta.length) return
+    const total = journal.filter(
+      (e) => inTrip(e) && e.lat != null && e.lon != null
+    ).length
+    if (total < 2) return
+    let raf
+    const start = performance.now()
+    const duration = Math.min(2200, 500 + total * 80)
+    function tick(now) {
+      const t = Math.min(1, (now - start) / duration)
+      setDrawLen(Math.max(2, Math.round(t * total)))
+      if (t < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, selectedTrip, journal, tripMeta])
 
   if (!pins || !runs || !journal) return <div className="tab-loading">loading map…</div>
 
@@ -91,7 +115,7 @@ export default function MapTab() {
         {/* journey line through journal entries, date order */}
         {filter === 'all' && visJournal.length > 1 && (
           <Polyline
-            positions={visJournal.map((e) => [e.lat, e.lon])}
+            positions={visJournal.slice(0, Math.max(2, drawLen)).map((e) => [e.lat, e.lon])}
             pathOptions={{ color: '#1A1611', weight: 1, dashArray: '2 6', opacity: 0.4 }}
           />
         )}

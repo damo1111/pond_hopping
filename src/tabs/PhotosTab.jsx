@@ -1,6 +1,16 @@
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
+import { tripColor } from '../lib/tripColors.js'
+import { thumb } from '../lib/imgTransform.js'
+
+function fmtRange(t) {
+  if (!t.start_date) return 'dates tbc'
+  const opt = { day: 'numeric', month: 'short' }
+  const a = new Date(t.start_date).toLocaleDateString('en-GB', opt)
+  const b = t.end_date ? new Date(t.end_date).toLocaleDateString('en-GB', opt) : null
+  return b ? `${a} – ${b}` : a
+}
 
 function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
   const [show, setShow] = useState(false)
@@ -85,10 +95,11 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
 }
 
 export default function PhotosTab() {
-  const { tripMeta, selectedTrip } = useContext(TripContext)
+  const { tripMeta, selectedTrip, setSelectedTrip } = useContext(TripContext)
   const [photos, setPhotos] = useState(null)
   const [covers, setCovers] = useState({})
   const [reload, setReload] = useState(0)
+  const gridRef = useRef(null)
   const [lightbox, setLightbox] = useState(null)
 
   useEffect(() => {
@@ -122,29 +133,73 @@ export default function PhotosTab() {
   const albums = tripMeta.filter(
     (t) => t.photos_url && (!selectedTrip || t.slug === selectedTrip)
   )
+  const photoCountByTrip = new Map()
+  for (const p of photos) photoCountByTrip.set(p.trip_id, (photoCountByTrip.get(p.trip_id) || 0) + 1)
+  const heroTrip = selectedTrip ? tripMeta.find((t) => t.slug === selectedTrip) : null
+  const heroCover = heroTrip ? covers[heroTrip.id] : null
 
   return (
     <div className="photos-tab">
+      {heroTrip && (
+        <div className="photos-hero" style={{ '--ph-color': tripColor(heroTrip.slug) }}>
+          {heroCover && <img className="ph-hero-img" src={`${heroCover}=w1200-h500-c`} alt="" loading="lazy" />}
+          <div className="ph-hero-overlay" />
+          <div className="ph-hero-content">
+            <span className="ph-hero-flags">{heroTrip.countries?.join(' ')}</span>
+            <span className="ph-hero-title">{heroTrip.title}</span>
+            <span className="ph-hero-meta">
+              {fmtRange(heroTrip)} · {visible.length} photo{visible.length === 1 ? '' : 's'}
+            </span>
+          </div>
+        </div>
+      )}
       <AddPhoto tripMeta={tripMeta} selectedTrip={selectedTrip} onSaved={() => setReload((r) => r + 1)} />
 
-      {albums.map((t) => (
-        <a key={t.slug} className="album-card" href={t.photos_url} target="_blank" rel="noreferrer">
-          {covers[t.id] && (
-            <span className="album-cover">
-              <img src={`${covers[t.id]}=w800-h450-c`} alt="" loading="lazy" />
-            </span>
-          )}
-          <span className="album-flags">{t.countries?.join(' ')}</span>
-          <span className="album-title">{t.title} — Google Photos</span>
-          <span className="album-open">Open album →</span>
-        </a>
-      ))}
+      {albums.map((t) => {
+        const count = photoCountByTrip.get(t.id) || 0
+        const cover = covers[t.id] && (
+          <span className="album-cover">
+            <img src={`${covers[t.id]}=w800-h450-c`} alt="" loading="lazy" />
+          </span>
+        )
+        // Once the real photos are registered in-app, the card should open
+        // the in-app grid, not send you out to Google Photos — the album
+        // link is only a stand-in until then.
+        if (count > 0) {
+          return (
+            <button
+              key={t.slug}
+              type="button"
+              className="album-card"
+              onClick={() => {
+                setSelectedTrip(t.slug)
+                gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }}
+            >
+              {cover}
+              <span className="album-flags">{t.countries?.join(' ')}</span>
+              <span className="album-title">{t.title}</span>
+              <span className="album-open">
+                View {count} photo{count === 1 ? '' : 's'} ↓
+              </span>
+            </button>
+          )
+        }
+        return (
+          <a key={t.slug} className="album-card" href={t.photos_url} target="_blank" rel="noreferrer">
+            {cover}
+            <span className="album-flags">{t.countries?.join(' ')}</span>
+            <span className="album-title">{t.title} — Google Photos</span>
+            <span className="album-open">Open album →</span>
+          </a>
+        )
+      })}
 
       {visible.length > 0 && (
-        <div className="photo-grid">
+        <div ref={gridRef} className="photo-grid">
           {visible.map((p) => (
             <button key={p.id} className="photo-cell" onClick={() => setLightbox(p)}>
-              <img src={p.url} alt={p.caption || ''} loading="lazy" />
+              <img src={thumb(p.url)} alt={p.caption || ''} loading="lazy" decoding="async" />
               {p.is_highlight && <span className="photo-star">⭐</span>}
             </button>
           ))}
