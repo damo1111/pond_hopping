@@ -1923,6 +1923,23 @@ button {
 .lb-caption { font-weight: 300; font-size: 15px; }
 .lb-sub { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.7; margin-top: 4px; }
 
+.lb-cover-btn {
+  margin-top: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  border-radius: 20px;
+  padding: 7px 16px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lb-cover-btn:disabled {
+  opacity: 0.6;
+}
+
 /* ── Costs ─────────────────────────────────────────────────── */
 
 .costs-tab {

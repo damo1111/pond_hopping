@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
-import { thumb } from '../lib/imgTransform.js'
+import { thumb, coverUrl } from '../lib/imgTransform.js'
 
 function fmtRange(t) {
   if (!t.start_date) return 'dates tbc'
@@ -101,6 +101,7 @@ export default function PhotosTab() {
   const [reload, setReload] = useState(0)
   const gridRef = useRef(null)
   const [lightbox, setLightbox] = useState(null)
+  const [settingCover, setSettingCover] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -127,6 +128,22 @@ export default function PhotosTab() {
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
 
+  async function setAsCover(photo) {
+    setSettingCover(true)
+    const { error } = await supabase.from('photo_cache').upsert({
+      trip_id: photo.trip_id,
+      urls: [photo.url],
+      status: 'ok',
+      updated_at: new Date().toISOString(),
+    })
+    setSettingCover(false)
+    if (error) {
+      alert(`Couldn't set cover: ${error.message}`)
+      return
+    }
+    setCovers((c) => ({ ...c, [photo.trip_id]: photo.url }))
+  }
+
   if (!photos) return <div className="tab-loading">loading photos…</div>
 
   const visible = photos.filter((p) => !selectedTrip || tripsById.get(p.trip_id)?.slug === selectedTrip)
@@ -142,7 +159,14 @@ export default function PhotosTab() {
     <div className="photos-tab">
       {heroTrip && (
         <div className="photos-hero" style={{ '--ph-color': tripColor(heroTrip.slug) }}>
-          {heroCover && <img className="ph-hero-img" src={`${heroCover}=w1200-h500-c`} alt="" loading="lazy" />}
+          {heroCover && (
+            <img
+              className="ph-hero-img"
+              src={coverUrl(heroCover, { width: 1200, height: 500 })}
+              alt=""
+              loading="lazy"
+            />
+          )}
           <div className="ph-hero-overlay" />
           <div className="ph-hero-content">
             <span className="ph-hero-flags">{heroTrip.countries?.join(' ')}</span>
@@ -159,7 +183,7 @@ export default function PhotosTab() {
         const count = photoCountByTrip.get(t.id) || 0
         const cover = covers[t.id] && (
           <span className="album-cover">
-            <img src={`${covers[t.id]}=w800-h450-c`} alt="" loading="lazy" />
+            <img src={coverUrl(covers[t.id], { width: 800, height: 450 })} alt="" loading="lazy" />
           </span>
         )
         // Once the real photos are registered in-app, the card should open
@@ -235,6 +259,20 @@ export default function PhotosTab() {
             <div className="lb-sub">
               {[lightbox.city, lightbox.taken_on].filter(Boolean).join(' · ')}
             </div>
+            <button
+              className="lb-cover-btn"
+              disabled={settingCover || covers[lightbox.trip_id] === lightbox.url}
+              onClick={(ev) => {
+                ev.stopPropagation()
+                setAsCover(lightbox)
+              }}
+            >
+              {covers[lightbox.trip_id] === lightbox.url
+                ? '★ current cover'
+                : settingCover
+                  ? 'setting…'
+                  : '☆ set as trip cover'}
+            </button>
           </div>
         </div>
       )}

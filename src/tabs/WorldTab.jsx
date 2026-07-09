@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase.js'
 import { isInAustralia } from '../lib/geo.js'
 import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
+import { coverUrl } from '../lib/imgTransform.js'
 
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.
@@ -263,7 +264,7 @@ export default function WorldTab() {
             >
               {covers[t.id] && (
                 <span className="wt-cover">
-                  <img src={`${covers[t.id]}=w400-h220-c`} alt="" loading="lazy" />
+                  <img src={coverUrl(covers[t.id], { width: 400, height: 220 })} alt="" loading="lazy" />
                 </span>
               )}
               <span className="wt-flags">{t.countries?.join(' ')}</span>
