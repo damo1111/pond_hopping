@@ -433,7 +433,10 @@ button {
   justify-content: center;
   gap: 14px;
   z-index: 1000;
-  animation: boot-in 0.9s ease both;
+  /* Fully opaque from the first frame — no fade-in here. The app
+     underneath is already mounted (just visually hidden by this
+     overlay) so an opacity animation on the overlay itself briefly
+     let the header/nav show through while it was still translucent. */
   transition: opacity 0.5s ease;
 }
 
@@ -447,11 +450,6 @@ button {
   font-size: 26px;
   letter-spacing: 0.01em;
   text-transform: uppercase;
-}
-
-@keyframes boot-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
 }
 
 /* ── Placeholder panels (pre-build tabs) ───────────────────── */
