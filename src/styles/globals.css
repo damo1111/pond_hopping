@@ -18,10 +18,13 @@
 
   /* Floating "liquid glass" surfaces — frosted overlays on the map tabs
      and the bottom nav. A diagonal sheen instead of a flat tint, plus an
-     inset top highlight so the edge catches light like a glass rim. */
-  --glass-bg: linear-gradient(165deg, rgba(255, 255, 255, 0.88), rgba(255, 255, 255, 0.6) 55%, rgba(255, 255, 255, 0.78));
-  --glass-border: 1px solid rgba(255, 255, 255, 0.55);
-  --glass-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+     inset top highlight so the edge catches light like a glass rim.
+     Kept translucent enough that whatever's underneath (paper background,
+     map, or the dark globe) still shows and blurs through — too opaque
+     and it just reads as a flat grey slab instead of glass. */
+  --glass-bg: linear-gradient(165deg, rgba(255, 250, 240, 0.55), rgba(255, 250, 240, 0.3) 55%, rgba(255, 250, 240, 0.45));
+  --glass-border: 1px solid rgba(255, 255, 255, 0.5);
+  --glass-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
 * {
@@ -266,8 +269,8 @@ button {
   gap: 2px;
   padding: 7px 6px;
   background: var(--glass-bg);
-  backdrop-filter: saturate(160%) blur(18px);
-  -webkit-backdrop-filter: saturate(160%) blur(18px);
+  backdrop-filter: saturate(180%) blur(22px);
+  -webkit-backdrop-filter: saturate(180%) blur(22px);
   border: var(--glass-border);
   border-radius: 22px;
   box-shadow: var(--glass-shadow);
@@ -996,10 +999,12 @@ button {
   height: 100%;
 }
 
-/* World tab only — the 3D globe needs a dark backdrop to read properly;
-   the Map tab's flat Leaflet view stays on the light theme as normal. */
+/* World tab only — the 3D globe needs a dark-ish backdrop to read
+   properly; the Map tab's flat Leaflet view stays on the light theme as
+   normal. Kept warm and mid-toned rather than near-black so it doesn't
+   read as an empty void above/around the globe. */
 .globe-wrap {
-  background: radial-gradient(ellipse at 50% 30%, #2a241c 0%, #171310 55%, #100d0a 100%);
+  background: radial-gradient(ellipse at 50% 30%, #453a29 0%, #2a2318 55%, #1d180f 100%);
   overflow: hidden;
 }
 
