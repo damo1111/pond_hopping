@@ -215,7 +215,7 @@ export default function App() {
       )}
 
       <div className="app">
-        <header className="app-header">
+        <header className={`app-header${activeTab === 'world' ? ' app-header--world' : ''}`}>
           <img className="header-duck" src="/duck.png" alt="" />
           <div>
             <div className="app-title">

@@ -88,6 +88,13 @@ button {
   padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
 }
 
+/* Home tab only — fades from the warm paper tone into the same
+   sky-blue the globe backdrop starts at, so the header doesn't end in
+   a hard seam right above the globe. */
+.app-header--world {
+  background: linear-gradient(to bottom, var(--bg), #eaf4fb);
+}
+
 .app-header > div {
   flex: 1;
 }
