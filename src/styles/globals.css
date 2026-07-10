@@ -999,12 +999,13 @@ button {
   height: 100%;
 }
 
-/* World tab only — the 3D globe needs a dark-ish backdrop to read
-   properly; the Map tab's flat Leaflet view stays on the light theme as
-   normal. Kept warm and mid-toned rather than near-black so it doesn't
-   read as an empty void above/around the globe. */
+/* World tab only — the Map tab's flat Leaflet view stays on the light
+   theme as normal. A light sky-blue backdrop (rather than a dark/space
+   one) so the globe reads as floating in daylight, and so the frosted
+   bottom nav sitting over it stays light and airy instead of picking up
+   a murky tint. */
 .globe-wrap {
-  background: radial-gradient(ellipse at 50% 30%, #453a29 0%, #2a2318 55%, #1d180f 100%);
+  background: radial-gradient(ellipse at 50% 30%, #eaf4fb 0%, #cfe6f5 55%, #a9cfe8 100%);
   overflow: hidden;
 }
 
