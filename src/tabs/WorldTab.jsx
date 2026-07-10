@@ -9,7 +9,7 @@ import CountryFlags from '../components/CountryFlags.jsx'
 
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.
-const OVERVIEW_POV = { lat: -8, lng: 122, altitude: 2.3 }
+const OVERVIEW_POV = { lat: -8, lng: 122, altitude: 1.9 }
 
 function fmtDate(iso) {
   if (!iso) return ''
