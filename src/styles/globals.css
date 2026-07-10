@@ -1016,6 +1016,18 @@ button {
   overflow: hidden;
 }
 
+/* react-globe.gl always centres the sphere vertically within whatever
+   height it's given — since that height spans the full tab (behind the
+   floating trip cards/nav), taller screens just show more empty sky
+   above the globe on load. Nudging the canvas up (not the camera/zoom
+   itself) tightens that gap without touching the globe's apparent size.
+   The revealed strip at the bottom is still the same wrap background,
+   and sits behind the trip-card overlay anyway. */
+.globe-shift {
+  height: 100%;
+  transform: translateY(-64px);
+}
+
 .globe-tip {
   font-family: var(--font-display);
   font-size: 12px;

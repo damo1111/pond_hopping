@@ -199,6 +199,7 @@ export default function WorldTab() {
 
   return (
     <div className="world-wrap globe-wrap" ref={wrapRef}>
+      <div className="globe-shift">
       <Globe
         ref={globeEl}
         width={dims.width}
@@ -253,6 +254,7 @@ export default function WorldTab() {
           globeEl.current.pointOfView(OVERVIEW_POV, 0)
         }}
       />
+      </div>
 
       <div className="world-trips">
         {tripMeta.map((t) => {
