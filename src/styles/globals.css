@@ -1016,6 +1016,21 @@ button {
   overflow: hidden;
 }
 
+/* Destination pins on the globe — the app's own duck mark instead of a
+   plain dot. react-globe.gl centres htmlElement on the lat/lng point by
+   default, so just size + drop-shadow the image itself. */
+.globe-duck-pin {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.globe-duck-pin img {
+  width: 22px;
+  height: 22px;
+  display: block;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
+}
+
 /* react-globe.gl always centres the sphere vertically within whatever
    height it's given — since that height spans the full tab (behind the
    floating trip cards/nav), taller screens just show more empty sky

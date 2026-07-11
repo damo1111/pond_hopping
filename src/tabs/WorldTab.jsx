@@ -235,14 +235,17 @@ export default function WorldTab() {
             )
             .join('')}</div>`
         }
-        pointsData={pointsData}
-        pointLat={(d) => d.lat}
-        pointLng={(d) => d.lng}
-        pointColor={() => '#F5F2EB'}
-        pointRadius={0.35}
-        pointAltitude={0.01}
-        pointsMerge
-        pointLabel={(d) => `<div class="globe-tip"><b>${escapeHtml(d.code)}</b><br/>${escapeHtml(d.city)}</div>`}
+        htmlElementsData={pointsData}
+        htmlLat={(d) => d.lat}
+        htmlLng={(d) => d.lng}
+        htmlAltitude={0.015}
+        htmlElement={(d) => {
+          const el = document.createElement('div')
+          el.className = 'globe-duck-pin'
+          el.title = `${d.code} — ${d.city}`
+          el.innerHTML = '<img src="/duck.png" alt="" />'
+          return el
+        }}
         labelsData={labelsData}
         labelLat={(d) => d.lat}
         labelLng={(d) => d.lng}
