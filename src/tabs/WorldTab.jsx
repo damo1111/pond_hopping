@@ -6,6 +6,7 @@ import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import { coverUrl } from '../lib/imgTransform.js'
 import CountryFlags from '../components/CountryFlags.jsx'
+import { groupTrips, chapterRange, chapterCountries } from '../lib/tripGroups.js'
 
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.
@@ -58,6 +59,10 @@ export default function WorldTab() {
   const [flights, setFlights] = useState(null)
   const [covers, setCovers] = useState({})
   const [countries, setCountries] = useState(null)
+  // Which "chapter" (e.g. "2024 Gap Year") is currently drilled into on
+  // the Home carousel — null means every chapter shows as one collapsed
+  // card. Only one open at a time, accordion-style.
+  const [expandedChapter, setExpandedChapter] = useState(null)
   const globeEl = useRef()
   const [dims, setDims] = useState({ width: 360, height: 600 })
   // A callback ref (not useRef + an empty-deps effect) — inside a
@@ -257,34 +262,70 @@ export default function WorldTab() {
       </div>
 
       <div className="world-trips">
-        {tripMeta.map((t) => {
-          const active = selectedTrip === t.slug
+        {groupTrips(tripMeta).map((item) => {
+          if (item.type === 'trip') return <TripCard key={item.trip.slug} t={item.trip} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
+
+          const { chapter, trips } = item
+          if (expandedChapter === chapter) {
+            return (
+              <div key={chapter} className="wt-chapter-open">
+                <button className="wt-card wt-chapter-collapse" onClick={() => setExpandedChapter(null)}>
+                  <span className="wt-chapter-collapse-arrow">←</span>
+                  <span className="wt-title">{chapter}</span>
+                </button>
+                {trips.map((t) => (
+                  <TripCard key={t.slug} t={t} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
+                ))}
+              </div>
+            )
+          }
+
+          const cover = trips.map((t) => covers[t.id]).find(Boolean)
           return (
-            <button
-              key={t.slug}
-              className={`wt-card${active ? ' active' : ''}`}
-              onClick={() => setSelectedTrip(active ? null : t.slug)}
-            >
-              {covers[t.id] && (
+            <button key={chapter} className="wt-card wt-chapter-card" onClick={() => setExpandedChapter(chapter)}>
+              {cover && (
                 <span className="wt-cover">
-                  <img src={coverUrl(covers[t.id], { width: 400, height: 220 })} alt="" loading="lazy" />
+                  <img src={coverUrl(cover, { width: 400, height: 220 })} alt="" loading="lazy" />
                 </span>
               )}
               <span className="wt-flags">
-                <CountryFlags countries={t.countries} size={20} />
+                <CountryFlags countries={chapterCountries(trips)} size={20} />
               </span>
-              <span className="wt-title">{t.title}</span>
-              {t.subtitle && <span className="wt-subtitle">{t.subtitle}</span>}
-              <span className="wt-dates">{fmtRange(t)}</span>
-              <span className="wt-stats">
-                {t.flight_count > 0 && <>✈ {t.flight_count}&nbsp;&nbsp;</>}
-                {t.run_count > 0 && <>🏃 {t.run_count}&nbsp;&nbsp;</>}
-                {t.journal_count > 0 && <>📔 {t.journal_count}</>}
-              </span>
+              <span className="wt-title">{chapter}</span>
+              <span className="wt-subtitle">{trips.length} trips</span>
+              <span className="wt-dates">{chapterRange(trips)}</span>
+              <span className="wt-stats">Tap to explore ›</span>
             </button>
           )
         })}
       </div>
     </div>
+  )
+}
+
+function TripCard({ t, covers, selectedTrip, setSelectedTrip }) {
+  const active = selectedTrip === t.slug
+  return (
+    <button
+      className={`wt-card${active ? ' active' : ''}`}
+      onClick={() => setSelectedTrip(active ? null : t.slug)}
+    >
+      {covers[t.id] && (
+        <span className="wt-cover">
+          <img src={coverUrl(covers[t.id], { width: 400, height: 220 })} alt="" loading="lazy" />
+        </span>
+      )}
+      <span className="wt-flags">
+        <CountryFlags countries={t.countries} size={20} />
+      </span>
+      <span className="wt-title">{t.title}</span>
+      {t.subtitle && <span className="wt-subtitle">{t.subtitle}</span>}
+      <span className="wt-dates">{fmtRange(t)}</span>
+      <span className="wt-stats">
+        {t.flight_count > 0 && <>✈ {t.flight_count}&nbsp;&nbsp;</>}
+        {t.run_count > 0 && <>🏃 {t.run_count}&nbsp;&nbsp;</>}
+        {t.journal_count > 0 && <>📔 {t.journal_count}</>}
+      </span>
+    </button>
   )
 }

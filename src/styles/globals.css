@@ -2244,6 +2244,7 @@ button {
 }
 
 .trip-picker-item {
+  width: 100%;
   text-align: left;
   border: 0;
   background: none;
@@ -2253,10 +2254,43 @@ button {
   color: var(--text);
 }
 
+/* Trip items directly inside .trip-picker-menu (a column flex container)
+   get blockified + stretched to full width automatically. Nested items
+   inside a chapter's wrapper div lose that for free, since they're no
+   longer direct flex children — make the wrapper a column flex too so
+   its own children stretch the same way. */
+.trip-picker-chapter {
+  display: flex;
+  flex-direction: column;
+}
+
 .trip-picker-item.active {
   background: var(--accent-bg);
   color: var(--accent);
   font-weight: 500;
+}
+
+/* A chapter header behaves like any other item but toggles its own
+   nested list instead of picking a trip directly — the caret + meta
+   line distinguish it from a plain trip row. */
+.trip-picker-chapter-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trip-picker-chapter-meta {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.trip-picker-item-nested {
+  padding-left: 26px;
 }
 
 /* ── World landing: trip-selector overlay ──────────────────── */
@@ -2389,6 +2423,42 @@ button {
   font-size: 9px;
   color: var(--text-muted);
   margin-top: 2px;
+}
+
+/* ── Chapter grouping (e.g. "2024 Gap Year") ───────────────────
+   A frequent-traveller history can run to dozens of trips — chapters
+   collapse a named era into one card in the strip instead of flooding it
+   with individual entries. Dashed border marks it as a group, not a
+   single trip; tapping drills in, swapping the one card for its members
+   plus a small "collapse" card at the front of that stretch. */
+.wt-chapter-card {
+  border-style: dashed;
+  border-color: var(--accent-dim);
+}
+
+.wt-chapter-open {
+  display: contents;
+}
+
+.wt-chapter-collapse {
+  width: 56px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--surface-2);
+}
+
+.wt-chapter-collapse .wt-title {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.wt-chapter-collapse-arrow {
+  font-size: 14px;
+  color: var(--accent);
 }
 
 /* ── Day map (inside expanded journal entries) ─────────────── */
