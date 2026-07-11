@@ -179,14 +179,24 @@ export default function WorldTab() {
     flights: s.flights,
   }))
 
-  const pointsData = airports.map((a) => ({ lat: a.pos[0], lng: a.pos[1], code: a.code, city: a.city }))
+  // Group same-city airports (e.g. Bangkok's BKK + DMK) into one marker —
+  // otherwise two duck pins and two "Bangkok" labels land almost on top of
+  // each other and blur together as you zoom in.
+  const cityGroups = new Map()
+  for (const a of airports) {
+    if (!cityGroups.has(a.city)) cityGroups.set(a.city, { city: a.city, codes: [a.code], pos: a.pos })
+    else cityGroups.get(a.city).codes.push(a.code)
+  }
+  const markerPoints = [...cityGroups.values()]
+
+  const pointsData = markerPoints.map((m) => ({ lat: m.pos[0], lng: m.pos[1], code: m.codes.join('/'), city: m.city }))
 
   // Country labels only where they're actually near an airport in view
   // (otherwise all ~180 countries would clutter the globe), and skipped
   // where a city label already sits almost on top of them (e.g. a small
   // country whose centroid lands right on its own capital's airport) —
   // the city name is the more useful of the two there.
-  const airportPts = airports.map((a) => a.pos)
+  const airportPts = markerPoints.map((m) => m.pos)
   const CITY_SUPPRESS_DEG = 5
   const countryLabels = (countries ?? [])
     .map((f) => {
@@ -199,7 +209,7 @@ export default function WorldTab() {
         nearAny([d.lat, d.lng], airportPts) &&
         !airportPts.some((p) => Math.abs(d.lat - p[0]) < CITY_SUPPRESS_DEG && Math.abs(d.lng - p[1]) < CITY_SUPPRESS_DEG)
     )
-  const cityLabels = airports.map((a) => ({ kind: 'city', lat: a.pos[0], lng: a.pos[1], text: a.city }))
+  const cityLabels = markerPoints.map((m) => ({ kind: 'city', lat: m.pos[0], lng: m.pos[1], text: m.city }))
   const labelsData = [...countryLabels, ...cityLabels]
 
   return (
@@ -252,7 +262,7 @@ export default function WorldTab() {
         labelText={(d) => d.text}
         labelSize={(d) => (d.kind === 'country' ? 1.1 : 0.95)}
         labelColor={(d) => (d.kind === 'country' ? 'rgba(245, 242, 235, 0.55)' : 'rgba(245, 242, 235, 0.9)')}
-        labelDotRadius={(d) => (d.kind === 'country' ? 0 : 0.22)}
+        labelDotRadius={0}
         labelAltitude={0.01}
         labelResolution={2}
         onGlobeReady={() => {
