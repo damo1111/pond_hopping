@@ -9,11 +9,13 @@ import PhrasesTab from './tabs/PhrasesTab.jsx'
 import PhotosTab from './tabs/PhotosTab.jsx'
 import CostsTab from './tabs/CostsTab.jsx'
 import ShareTab from './tabs/ShareTab.jsx'
+import AccountTab from './tabs/AccountTab.jsx'
 import ShareView from './ShareView.jsx'
 import InstallChip from './components/InstallChip.jsx'
 import TripPicker from './components/TripPicker.jsx'
 import { tripColor } from './lib/tripColors.js'
 import { track } from './lib/analytics.js'
+import { AuthProvider } from './lib/AuthContext.jsx'
 
 // The 3D globe pulls in three.js — only the Home tab needs it, so it's
 // code-split into its own chunk instead of bloating everyone's first load.
@@ -42,6 +44,7 @@ const USEFUL_TABS = [
   { id: 'currency', label: 'Currency', icon: '💱' },
   { id: 'phrases',  label: 'Phrases',  icon: '💬' },
   { id: 'share',    label: 'Share',    icon: '🔗' },
+  { id: 'account',  label: 'Account',  icon: '👤' },
 ]
 
 const SESSION_NOTES = {
@@ -266,6 +269,8 @@ export default function App() {
               <PhrasesTab />
             ) : usefulTab === 'share' ? (
               <ShareTab />
+            ) : usefulTab === 'account' ? (
+              <AccountTab />
             ) : (
               <CostsTab />
             )

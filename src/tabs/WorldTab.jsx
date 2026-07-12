@@ -6,6 +6,7 @@ import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import { coverUrl } from '../lib/imgTransform.js'
 import CountryFlags from '../components/CountryFlags.jsx'
+import PlanningModal from '../components/PlanningModal.jsx'
 import { groupTrips, chapterRange, chapterCountries } from '../lib/tripGroups.js'
 
 // Default framing for the "all trips" overview — centred on the
@@ -63,6 +64,13 @@ export default function WorldTab() {
   // the Home carousel — null means every chapter shows as one collapsed
   // card. Only one open at a time, accordion-style.
   const [expandedChapter, setExpandedChapter] = useState(null)
+  // Draft (pre-trip) trips and their planned commitments — kept separate
+  // from tripMeta/TripContext entirely, since trip_meta only exposes
+  // status='confirmed' trips (a draft has no flights/journal/photos yet,
+  // and shouldn't show up in every other tab's trip picker).
+  const [draftTrips, setDraftTrips] = useState([])
+  const [plannedEvents, setPlannedEvents] = useState([])
+  const [openDraft, setOpenDraft] = useState(null)
   const globeEl = useRef()
   const [dims, setDims] = useState({ width: 360, height: 600 })
   // A callback ref (not useRef + an empty-deps effect) — inside a
@@ -88,6 +96,30 @@ export default function WorldTab() {
           if (row.status === 'ok' && row.urls?.[0]) byTrip[row.trip_id] = row.urls[0]
         }
         setCovers(byTrip)
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let alive = true
+    supabase
+      .from('trips')
+      .select('id,slug,title,subtitle,start_date,end_date,countries,sort_order,traveler')
+      .eq('status', 'draft')
+      .order('sort_order', { ascending: true })
+      .then(({ data }) => {
+        if (!alive || !data?.length) return
+        setDraftTrips(data)
+        supabase
+          .from('planned_events')
+          .select('*')
+          .in(
+            'trip_id',
+            data.map((t) => t.id)
+          )
+          .then(({ data: events }) => alive && setPlannedEvents(events ?? []))
       })
     return () => {
       alive = false
@@ -275,6 +307,23 @@ export default function WorldTab() {
       </div>
 
       <div className="world-trips">
+        {draftTrips.map((t) => {
+          const events = plannedEvents.filter((e) => e.trip_id === t.id)
+          const doneCount = events.filter((e) => e.done).length
+          return (
+            <button key={t.id} className="wt-card wt-draft-card" onClick={() => setOpenDraft(t)}>
+              <span className="wt-flags">
+                <CountryFlags countries={t.countries} size={20} />
+              </span>
+              <span className="wt-draft-badge">✏️ Planning{t.traveler ? ` · ${t.traveler}` : ''}</span>
+              <span className="wt-title">{t.title}</span>
+              <span className="wt-subtitle">{t.subtitle}</span>
+              <span className="wt-stats">
+                {events.length ? `${doneCount}/${events.length} planned` : 'Tap to start planning ›'}
+              </span>
+            </button>
+          )
+        })}
         {groupTrips(tripMeta).map((item) => {
           if (item.type === 'trip') return <TripCard key={item.trip.slug} t={item.trip} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
 
@@ -312,6 +361,17 @@ export default function WorldTab() {
           )
         })}
       </div>
+
+      {openDraft && (
+        <PlanningModal
+          trip={openDraft}
+          events={plannedEvents.filter((e) => e.trip_id === openDraft.id)}
+          onClose={() => setOpenDraft(null)}
+          onEventsChange={(updated) =>
+            setPlannedEvents((all) => [...all.filter((e) => e.trip_id !== openDraft.id), ...updated])
+          }
+        />
+      )}
     </div>
   )
 }
