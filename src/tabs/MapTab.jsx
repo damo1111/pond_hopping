@@ -1,10 +1,12 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet'
+import { MapContainer, TileLayer, Polyline, CircleMarker, Marker, Popup } from 'react-leaflet'
+import L from 'leaflet'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import { boundsExcludingHome } from '../lib/geo.js'
 import { thumb } from '../lib/imgTransform.js'
 import { tripColor } from '../lib/tripColors.js'
+import { clusterPoints } from '../lib/clusterPoints.js'
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -13,6 +15,22 @@ const FILTERS = [
   { id: 'highlight', label: 'Highlights' },
   { id: 'photo', label: 'Photos' },
 ]
+
+const TILE_STYLES = {
+  map: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+}
+
+// A numbered badge for a cluster of overlapping points — tap to zoom in
+// and split it back into individual pins/photos.
+function clusterIcon(count, color) {
+  return L.divIcon({
+    className: 'map-cluster-icon',
+    html: `<div class="map-cluster-badge" style="--cluster-color:${color}">${count}</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  })
+}
 
 const KIND_STYLE = {
   hotel: { color: '#A8842C', fill: '#A8842C' },
@@ -45,9 +63,17 @@ export default function MapTab() {
   const [filter, setFilter] = useState('all')
   const [drawLen, setDrawLen] = useState(0)
   const [photoDrawLen, setPhotoDrawLen] = useState(0)
+  const [zoom, setZoom] = useState(11)
+  const [tileStyle, setTileStyle] = useState('map')
   const mapRef = useRef(null)
   const accent = tripColor(selectedTrip)
   const showPhotos = filter === 'all' || filter === 'photo'
+
+  // Zoom in on a cluster badge — splits it back into individual pins once
+  // there's enough room, rather than needing a popup list.
+  function expandCluster(lat, lon) {
+    mapRef.current?.flyTo([lat, lon], Math.min(zoom + 3, 16), { duration: 0.8 })
+  }
 
   useEffect(() => {
     let alive = true
@@ -144,6 +170,13 @@ export default function MapTab() {
   // pull the auto-fit back toward Australia and shrink the actual trip.
   const bounds = boundsExcludingHome(boundsPts) ?? [[-40, 100], [45, 155]]
 
+  const visPhotosDrawn = showPhotos ? visPhotos.slice(0, Math.max(2, photoDrawLen)) : []
+  // Collapse overlapping pins/photos into numbered badges at the current
+  // zoom — a dense trip (or the "all trips" view) otherwise stacks dozens
+  // of dots illegibly on top of each other.
+  const pinClusters = clusterPoints(visPins, zoom)
+  const photoClusters = clusterPoints(visPhotosDrawn, zoom)
+
   return (
     <div className="world-wrap">
       <MapContainer
@@ -154,8 +187,14 @@ export default function MapTab() {
         zoomControl={false}
         attributionControl={false}
         style={{ height: '100%', width: '100%', background: '#EDE9DF' }}
+        whenReady={() => {
+          const m = mapRef.current
+          if (!m) return
+          setZoom(m.getZoom())
+          m.on('zoomend', () => setZoom(m.getZoom()))
+        }}
       >
-        <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" subdomains="abcd" />
+        <TileLayer url={TILE_STYLES[tileStyle]} subdomains={tileStyle === 'map' ? 'abcd' : undefined} />
 
         {/* journey line through journal entries, date order */}
         {filter === 'all' && visJournal.length > 1 && (
@@ -171,12 +210,23 @@ export default function MapTab() {
             trip's own accent colour instead of a flat gold. */}
         {showPhotos && visPhotos.length > 1 && (
           <Polyline
-            positions={visPhotos.slice(0, Math.max(2, photoDrawLen)).map((p) => [p.lat, p.lon])}
+            positions={visPhotosDrawn.map((p) => [p.lat, p.lon])}
             pathOptions={{ color: accent, weight: 1.5, opacity: 0.5 }}
           />
         )}
         {showPhotos &&
-          visPhotos.slice(0, Math.max(2, photoDrawLen)).map((p) => {
+          photoClusters.map((c) => {
+            if (c.type === 'cluster') {
+              return (
+                <Marker
+                  key={`phc-${c.lat}-${c.lon}`}
+                  position={[c.lat, c.lon]}
+                  icon={clusterIcon(c.points.length, accent)}
+                  eventHandlers={{ click: () => expandCluster(c.lat, c.lon) }}
+                />
+              )
+            }
+            const p = c.point
             const match = findJournalMatch(journal, p.trip_id, { date: p.taken_at?.slice(0, 10) })
             return (
               <CircleMarker
@@ -252,7 +302,20 @@ export default function MapTab() {
         ))}
 
         {/* pins */}
-        {visPins.map((p) => {
+        {pinClusters.map((c) => {
+          if (c.type === 'cluster') {
+            const kinds = new Set(c.points.map((p) => p.kind))
+            const badgeColor = kinds.size === 1 ? (KIND_STYLE[c.points[0].kind] || KIND_STYLE.place).fill : '#1A1611'
+            return (
+              <Marker
+                key={`pc-${c.lat}-${c.lon}`}
+                position={[c.lat, c.lon]}
+                icon={clusterIcon(c.points.length, badgeColor)}
+                eventHandlers={{ click: () => expandCluster(c.lat, c.lon) }}
+              />
+            )
+          }
+          const p = c.point
           const st = KIND_STYLE[p.kind] || KIND_STYLE.place
           const match = findJournalMatch(journal, p.trip_id, { city: p.city })
           return (
@@ -284,6 +347,14 @@ export default function MapTab() {
           )
         })}
       </MapContainer>
+
+      <button
+        className="map-style-toggle"
+        onClick={() => setTileStyle((s) => (s === 'map' ? 'satellite' : 'map'))}
+        title={tileStyle === 'map' ? 'Switch to satellite' : 'Switch to map'}
+      >
+        {tileStyle === 'map' ? '🛰️' : '🗺️'}
+      </button>
 
       <div className="map-filters">
         {FILTERS.map((f) => (

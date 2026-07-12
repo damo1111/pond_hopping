@@ -9,6 +9,13 @@ export const TRIP_COLORS = {
   bangkok: '#E0954C',
   'sri-lanka-voyage': '#9B7FD4',
   'new-orleans': '#8B3A42',
+  'germany-ny-tier-run': '#4C7FB0',
+  'rome-2024': '#B5602E',
+  'harpenden-amsterdam-2024': '#8A9550',
+  'usa-big-trip-2024': '#A85FA8',
+  'amsterdam-mother-2024': '#C97B95',
+  'ny-collect-bob-2024': '#6E7B8C',
+  'asia-pacific-2024': '#3E9E96',
 }
 
 export function tripColor(slug) {
