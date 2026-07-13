@@ -2515,24 +2515,6 @@ button {
   color: var(--accent);
 }
 
-/* ── Draft (pre-trip) planning cards ───────────────────────────
-   A trip that's still being planned, not yet locked in — dashed like a
-   chapter card (marks "not a real trip yet") but with a distinct badge
-   and no photo/flight/journal stats, since none of that exists yet. */
-.wt-draft-card {
-  border-style: dashed;
-  border-color: var(--accent-dim);
-  background: rgba(255, 255, 255, 0.7);
-}
-
-.wt-draft-badge {
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent);
-}
-
 /* ── Planning modal — a draft trip's checklist ─────────────────── */
 
 .planning-modal-backdrop {
@@ -2821,4 +2803,253 @@ button {
 .connection-actions {
   display: flex;
   gap: 6px;
+}
+
+/* ── Plan tab: draft trips + wishlist, given its own real space ─── */
+
+.plan-tab {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.plan-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plan-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.plan-section-title {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.plan-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 14px 2px;
+}
+
+.plan-btn {
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+
+.plan-btn.ghost {
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent-dim);
+}
+
+.plan-btn:disabled {
+  opacity: 0.6;
+}
+
+.plan-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow);
+}
+
+.plan-card-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.plan-input {
+  font-size: 13px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.plan-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.plan-input-row .plan-input {
+  flex: 1;
+}
+
+.plan-input-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.plan-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.plan-error {
+  font-size: 11px;
+  color: #c0392b;
+}
+
+.plan-trip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.plan-trip-card {
+  text-align: left;
+  background: var(--surface);
+  border: 1px dashed var(--accent-dim);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: var(--shadow);
+}
+
+.plan-trip-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plan-trip-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.plan-trip-title {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.plan-trip-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.plan-trip-stats {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Wishlist ───────────────────────────────────────────────────── */
+
+.wishlist-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.wishlist-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+}
+
+.wishlist-cover {
+  height: 90px;
+  background: var(--surface-2);
+}
+
+.wishlist-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.wishlist-cover-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.wishlist-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wishlist-title {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.wishlist-country {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.wishlist-notes {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.wishlist-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.wishlist-status {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.wishlist-status-planned {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.wishlist-status-done {
+  background: var(--green);
+  color: #fff;
+}
+
+.wishlist-remove {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-decoration: underline;
 }

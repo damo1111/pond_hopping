@@ -9,6 +9,7 @@ import PhrasesTab from './tabs/PhrasesTab.jsx'
 import PhotosTab from './tabs/PhotosTab.jsx'
 import CostsTab from './tabs/CostsTab.jsx'
 import ShareTab from './tabs/ShareTab.jsx'
+import PlanTab from './tabs/PlanTab.jsx'
 import AccountTab from './tabs/AccountTab.jsx'
 import ShareView from './ShareView.jsx'
 import InstallChip from './components/InstallChip.jsx'
@@ -40,6 +41,7 @@ const TABS = [
 ]
 
 const USEFUL_TABS = [
+  { id: 'plan',     label: 'Plan',     icon: '🗺️' },
   { id: 'costs',    label: 'Costs',    icon: '💰' },
   { id: 'currency', label: 'Currency', icon: '💱' },
   { id: 'phrases',  label: 'Phrases',  icon: '💬' },
@@ -71,7 +73,7 @@ export default function App() {
   const [booting, setBooting] = useState(true)
   const [bootLeaving, setBootLeaving] = useState(false)
   const [activeTab, setActiveTab] = useState('world')
-  const [usefulTab, setUsefulTab] = useState('costs')
+  const [usefulTab, setUsefulTab] = useState('plan')
   const [tripMeta, setTripMeta] = useState([])
   const [loadError, setLoadError] = useState(null)
   const [selectedTrip, setSelectedTrip] = useState(null)
@@ -263,7 +265,9 @@ export default function App() {
           ) : activeTab === 'photos' ? (
             <PhotosTab />
           ) : activeTab === 'useful' ? (
-            usefulTab === 'currency' ? (
+            usefulTab === 'plan' ? (
+              <PlanTab />
+            ) : usefulTab === 'currency' ? (
               <CurrencyTab />
             ) : usefulTab === 'phrases' ? (
               <PhrasesTab />
