@@ -268,7 +268,7 @@ export default async function handler(req, res) {
       method: 'POST',
       prefer: 'return=minimal',
       body: JSON.stringify([
-        { thread_id: threadId, role: 'user', content: message },
+        { thread_id: threadId, role: 'user', content: message, proposal: null },
         { thread_id: threadId, role: 'assistant', content: finalText, proposal: ctx.proposal || null },
       ]),
     })

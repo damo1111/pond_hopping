@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PlanningModal from '../components/PlanningModal.jsx'
@@ -10,106 +10,6 @@ const WISHLIST_STATUS = [
   { id: 'planned', label: 'Planned' },
   { id: 'done', label: 'Done' },
 ]
-
-function slugify(title) {
-  return (
-    title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '') +
-    '-' +
-    Date.now().toString(36)
-  )
-}
-
-function NewTripForm({ onCreated }) {
-  const [show, setShow] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(null)
-  const [form, setForm] = useState({ title: '', subtitle: '', traveler: '', start_date: '', end_date: '' })
-
-  async function save(e) {
-    e.preventDefault()
-    setSaving(true)
-    setError(null)
-    const { error } = await supabase.from('trips').insert({
-      slug: slugify(form.title || 'trip'),
-      title: form.title,
-      subtitle: form.subtitle || null,
-      traveler: form.traveler || null,
-      start_date: form.start_date || null,
-      end_date: form.end_date || null,
-      countries: [],
-      status: 'draft',
-      sort_order: 0,
-    })
-    setSaving(false)
-    if (error) {
-      setError(error.message)
-      return
-    }
-    setForm({ title: '', subtitle: '', traveler: '', start_date: '', end_date: '' })
-    setShow(false)
-    onCreated()
-  }
-
-  if (!show) {
-    return (
-      <button className="plan-btn" onClick={() => setShow(true)}>
-        + New trip
-      </button>
-    )
-  }
-
-  return (
-    <form className="plan-card" onSubmit={save}>
-      <div className="plan-card-title">New trip</div>
-      <input
-        className="plan-input"
-        placeholder="Title (e.g. UK, or Japan ski trip)"
-        required
-        value={form.title}
-        onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-      />
-      <input
-        className="plan-input"
-        placeholder="Subtitle / notes (optional)"
-        value={form.subtitle}
-        onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value }))}
-      />
-      <input
-        className="plan-input"
-        placeholder="Whose trip? (leave blank if it's yours)"
-        value={form.traveler}
-        onChange={(e) => setForm((f) => ({ ...f, traveler: e.target.value }))}
-      />
-      <div className="plan-input-row">
-        <input
-          className="plan-input"
-          type="date"
-          value={form.start_date}
-          onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
-        />
-        <input
-          className="plan-input"
-          type="date"
-          value={form.end_date}
-          onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
-        />
-      </div>
-      <div className="plan-input-hint">Dates can be rough guesses — nothing here needs to be locked in yet.</div>
-      <div className="plan-form-actions">
-        <button className="plan-btn" type="submit" disabled={saving}>
-          {saving ? 'Creating…' : 'Create draft'}
-        </button>
-        <button className="plan-btn ghost" type="button" onClick={() => setShow(false)}>
-          Cancel
-        </button>
-      </div>
-      {error && <div className="plan-error">{error}</div>}
-    </form>
-  )
-}
 
 function DraftTripCard({ t, events, onOpen, onChat }) {
   const doneCount = events.filter((e) => e.done).length
@@ -136,16 +36,55 @@ function DraftTripCard({ t, events, onOpen, onChat }) {
           onChat()
         }}
       >
-        💬 Continue with AI
+        continue planning →
       </button>
     </div>
   )
 }
 
+// Wikipedia's REST summary API is free, keyless, and CORS-enabled — a
+// plain client-side fetch. Firing it off the title field is a lightweight
+// stand-in for "ask questions and use what I typed": type "Samoa" and the
+// wishlist card gets a real photo (and a one-line description if you
+// haven't written your own note) without ever needing an image URL.
+async function fetchPlaceInfo(title) {
+  try {
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.trim())}`)
+    if (!res.ok) return null
+    const data = await res.json()
+    if (data.type === 'disambiguation') return null
+    return {
+      image: data.thumbnail?.source || data.originalimage?.source || null,
+      extract: data.extract || null,
+    }
+  } catch {
+    return null
+  }
+}
+
 function WishlistForm({ onAdded }) {
   const [show, setShow] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [lookingUp, setLookingUp] = useState(false)
+  const [autoFound, setAutoFound] = useState(false)
   const [form, setForm] = useState({ title: '', country: '', image_url: '', notes: '' })
+  const lookupTimer = useRef(null)
+
+  function onTitleChange(e) {
+    const title = e.target.value
+    setForm((f) => ({ ...f, title }))
+    setAutoFound(false)
+    clearTimeout(lookupTimer.current)
+    if (!title.trim() || form.image_url) return
+    lookupTimer.current = setTimeout(async () => {
+      setLookingUp(true)
+      const info = await fetchPlaceInfo(title)
+      setLookingUp(false)
+      if (!info) return
+      setForm((f) => (f.image_url ? f : { ...f, image_url: info.image || f.image_url, notes: f.notes || info.extract?.slice(0, 200) || f.notes }))
+      if (info.image) setAutoFound(true)
+    }, 700)
+  }
 
   async function save(e) {
     e.preventDefault()
@@ -159,14 +98,15 @@ function WishlistForm({ onAdded }) {
     })
     setSaving(false)
     setForm({ title: '', country: '', image_url: '', notes: '' })
+    setAutoFound(false)
     setShow(false)
     onAdded()
   }
 
   if (!show) {
     return (
-      <button className="plan-btn ghost" onClick={() => setShow(true)}>
-        + Add to wishlist
+      <button className="plan-add-btn" onClick={() => setShow(true)}>
+        + add to wishlist
       </button>
     )
   }
@@ -174,38 +114,23 @@ function WishlistForm({ onAdded }) {
   return (
     <form className="plan-card" onSubmit={save}>
       <div className="plan-card-title">Someday…</div>
+      <input className="plan-input" placeholder="Place or experience — try just a country or city" required value={form.title} onChange={onTitleChange} />
+      {lookingUp && <div className="plan-input-hint">finding a photo…</div>}
+      {autoFound && !lookingUp && <div className="plan-input-hint">found a photo from Wikipedia — swap the URL below if you'd rather use your own.</div>}
+      <input className="plan-input" placeholder="Country (optional)" value={form.country} onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))} />
       <input
         className="plan-input"
-        placeholder="Place or experience"
-        required
-        value={form.title}
-        onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-      />
-      <input
-        className="plan-input"
-        placeholder="Country (optional)"
-        value={form.country}
-        onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
-      />
-      <input
-        className="plan-input"
-        placeholder="Image URL (optional)"
+        placeholder="Image URL (auto-filled if left blank)"
         value={form.image_url}
         onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value }))}
       />
-      <textarea
-        className="plan-input"
-        rows={2}
-        placeholder="Notes (optional)"
-        value={form.notes}
-        onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-      />
+      <textarea className="plan-input" rows={2} placeholder="Notes (optional)" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
       <div className="plan-form-actions">
-        <button className="plan-btn" type="submit" disabled={saving}>
-          {saving ? 'Saving…' : 'Add'}
-        </button>
         <button className="plan-btn ghost" type="button" onClick={() => setShow(false)}>
           Cancel
+        </button>
+        <button className="plan-btn" type="submit" disabled={saving}>
+          {saving ? 'Saving…' : 'Add'}
         </button>
       </div>
     </form>
@@ -297,15 +222,12 @@ export default function PlanTab() {
       <section className="plan-section">
         <div className="plan-section-head">
           <div className="plan-section-title">Trips in the works</div>
-          <div className="plan-section-actions">
-            <button className="plan-btn" onClick={() => setChatTripId(null)}>
-              ✨ Plan with AI
-            </button>
-            <NewTripForm onCreated={loadDrafts} />
-          </div>
+          <button className="plan-add-btn" onClick={() => setChatTripId(null)}>
+            + plan a trip
+          </button>
         </div>
         {draftTrips.length === 0 && (
-          <div className="plan-empty">Nothing being planned right now — start one above, or just tell the AI planner what you're thinking.</div>
+          <div className="plan-empty">Nothing being planned right now — start one above, free-text or a quick form, whichever you'd rather.</div>
         )}
         <div className="plan-trip-list">
           {draftTrips.map((t) => (

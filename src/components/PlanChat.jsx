@@ -4,6 +4,17 @@ import { supabase } from '../lib/supabase.js'
 
 const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
 
+function slugify(title) {
+  return (
+    (title || 'trip')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') +
+    '-' +
+    Date.now().toString(36)
+  )
+}
+
 function ProposalCard({ proposal, onAccept, onDiscard, onKeep, busy }) {
   return (
     <div className="plan-chat-proposal">
@@ -32,21 +43,99 @@ function ProposalCard({ proposal, onAccept, onDiscard, onKeep, busy }) {
         </ul>
       )}
       <div className="plan-form-actions">
-        <button className="plan-btn" disabled={busy} onClick={onAccept}>
-          ✓ Accept, it's booked in
+        <button className="plan-btn text-link" disabled={busy} onClick={onDiscard}>
+          Discard
         </button>
         <button className="plan-btn ghost" disabled={busy} onClick={onKeep}>
           Keep as draft
         </button>
-        <button className="plan-btn ghost plan-chat-discard" disabled={busy} onClick={onDiscard}>
-          Discard
+        <button className="plan-btn" disabled={busy} onClick={onAccept}>
+          ✓ It's booked in
         </button>
       </div>
     </div>
   )
 }
 
+function QuickForm({ tripId, onSaved, onCancel }) {
+  const [loading, setLoading] = useState(Boolean(tripId))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(null)
+  const [form, setForm] = useState({ title: '', subtitle: '', traveler: '', start_date: '', end_date: '' })
+
+  useEffect(() => {
+    if (!tripId) return
+    supabase
+      .from('trips')
+      .select('title,subtitle,traveler,start_date,end_date')
+      .eq('id', tripId)
+      .single()
+      .then(({ data }) => {
+        if (data) setForm({ title: data.title || '', subtitle: data.subtitle || '', traveler: data.traveler || '', start_date: data.start_date || '', end_date: data.end_date || '' })
+        setLoading(false)
+      })
+  }, [tripId])
+
+  async function save(e) {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    const row = {
+      title: form.title,
+      subtitle: form.subtitle || null,
+      traveler: form.traveler || null,
+      start_date: form.start_date || null,
+      end_date: form.end_date || null,
+    }
+    let newId = tripId
+    let error
+    if (tripId) {
+      ;({ error } = await supabase.from('trips').update(row).eq('id', tripId))
+    } else {
+      const res = await supabase
+        .from('trips')
+        .insert({ ...row, slug: slugify(form.title), countries: [], status: 'draft', sort_order: 0 })
+        .select('id')
+        .single()
+      error = res.error
+      newId = res.data?.id
+    }
+    setSaving(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    onSaved(newId)
+  }
+
+  if (loading) return <div className="plan-chat-form">loading…</div>
+
+  return (
+    <form className="plan-chat-form" onSubmit={save}>
+      <input className="plan-input" placeholder="Title (e.g. UK, or Japan ski trip)" required value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
+      <input className="plan-input" placeholder="Subtitle / notes (optional)" value={form.subtitle} onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value }))} />
+      <input className="plan-input" placeholder="Whose trip? (leave blank if it's yours)" value={form.traveler} onChange={(e) => setForm((f) => ({ ...f, traveler: e.target.value }))} />
+      <div className="plan-input-row">
+        <input className="plan-input" type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} />
+        <input className="plan-input" type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} />
+      </div>
+      <div className="plan-input-hint">Dates can be rough guesses — nothing here needs to be locked in yet.</div>
+      {error && <div className="plan-error">{error}</div>}
+      <div className="plan-form-actions">
+        <button className="plan-btn ghost" type="button" onClick={onCancel}>
+          Cancel
+        </button>
+        <button className="plan-btn" type="submit" disabled={saving}>
+          {saving ? 'Saving…' : tripId ? 'Save' : 'Create draft'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 export default function PlanChat({ tripId, traveler = 'both', onClose, onChanged }) {
+  const [activeTripId, setActiveTripId] = useState(tripId || null)
+  const [mode, setMode] = useState('chat')
   const [messages, setMessages] = useState([])
   const [threadId, setThreadId] = useState(null)
   const [input, setInput] = useState('')
@@ -63,14 +152,14 @@ export default function PlanChat({ tripId, traveler = 'both', onClose, onChanged
         role: 'assistant',
         content: tripId
           ? "Picking this back up — tell me anything new (dates firming up, a flight booked, something you've decided) and I'll keep building it out."
-          : "Tell me whatever you've got — a place, rough dates, something already booked, or just a feeling ('somewhere warm in October'). I'll ask if I need more, and sketch a draft as soon as there's enough to work with.",
+          : "Tell me whatever you've got — a place, rough dates, something already booked, or just a feeling ('somewhere warm in October'). I'll ask if I need more, and sketch a draft as soon as there's enough to work with. Or switch to the plain form if you'd rather just type the basics in.",
       },
     ])
   }, [tripId])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages, sending])
+  }, [messages, sending, mode])
 
   async function send(text) {
     const trimmed = text.trim()
@@ -82,14 +171,15 @@ export default function PlanChat({ tripId, traveler = 'both', onClose, onChanged
       const res = await fetch('/api/plan-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed, threadId, tripId, traveler }),
+        body: JSON.stringify({ message: trimmed, threadId, tripId: activeTripId, traveler }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'chat failed')
       setThreadId(data.threadId)
-      setMessages((m) => [...m, { role: 'assistant', content: data.reply || "…" }])
+      setMessages((m) => [...m, { role: 'assistant', content: data.reply || '…' }])
       if (data.proposal) {
         setProposal(data.proposal)
+        setActiveTripId(data.proposal.trip_id)
         onChanged?.()
       }
     } catch (e) {
@@ -120,6 +210,14 @@ export default function PlanChat({ tripId, traveler = 'both', onClose, onChanged
     setListening(true)
   }
 
+  function onFormSaved(newId) {
+    const isNew = !activeTripId
+    setActiveTripId(newId)
+    setMode('chat')
+    setMessages((m) => [...m, { role: 'assistant', content: isNew ? "Saved as a draft. Want a hand filling in the rest, or happy to keep typing it in yourself?" : 'Updated — anything else to add?' }])
+    onChanged?.()
+  }
+
   async function acceptProposal() {
     setProposalBusy(true)
     await supabase.from('trips').update({ status: 'confirmed' }).eq('id', proposal.trip_id)
@@ -140,57 +238,66 @@ export default function PlanChat({ tripId, traveler = 'both', onClose, onChanged
     <div className="plan-chat-modal">
       <div className="plan-chat-panel">
         <div className="plan-chat-head">
-          <span>✨ Plan with AI</span>
+          <span className="plan-chat-head-title">✨ Plan with AI</span>
+          <div className="plan-chat-modes">
+            <button className={`plan-chat-mode${mode === 'chat' ? ' active' : ''}`} onClick={() => setMode('chat')}>
+              💬 chat
+            </button>
+            <button className={`plan-chat-mode${mode === 'form' ? ' active' : ''}`} onClick={() => setMode('form')}>
+              📝 form
+            </button>
+          </div>
           <button className="plan-chat-close" onClick={onClose}>
             ✕
           </button>
         </div>
-        <div className="plan-chat-log" ref={scrollRef}>
-          {messages.map((m, i) => (
-            <div key={i} className={`plan-chat-bubble plan-chat-bubble-${m.role}`}>
-              {m.content}
+
+        {mode === 'form' ? (
+          <QuickForm tripId={activeTripId} onSaved={onFormSaved} onCancel={() => setMode('chat')} />
+        ) : (
+          <>
+            <div className="plan-chat-log" ref={scrollRef}>
+              {messages.map((m, i) => (
+                <div key={i} className={`plan-chat-bubble plan-chat-bubble-${m.role}`}>
+                  {m.content}
+                </div>
+              ))}
+              {sending && <div className="plan-chat-bubble plan-chat-bubble-assistant plan-chat-typing">thinking…</div>}
+              {proposal && (
+                <ProposalCard proposal={proposal} busy={proposalBusy} onAccept={acceptProposal} onDiscard={discardProposal} onKeep={() => setProposal(null)} />
+              )}
             </div>
-          ))}
-          {sending && <div className="plan-chat-bubble plan-chat-bubble-assistant plan-chat-typing">thinking…</div>}
-          {proposal && (
-            <ProposalCard
-              proposal={proposal}
-              busy={proposalBusy}
-              onAccept={acceptProposal}
-              onDiscard={discardProposal}
-              onKeep={() => setProposal(null)}
-            />
-          )}
-        </div>
-        <form
-          className="plan-chat-input-row"
-          onSubmit={(e) => {
-            e.preventDefault()
-            send(input)
-          }}
-        >
-          <textarea
-            className="plan-chat-input"
-            rows={1}
-            placeholder="Type or tap the mic and just talk…"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+            <form
+              className="plan-chat-input-row"
+              onSubmit={(e) => {
                 e.preventDefault()
                 send(input)
-              }
-            }}
-          />
-          {SpeechRecognition && (
-            <button type="button" className={`plan-chat-mic${listening ? ' listening' : ''}`} onClick={toggleMic}>
-              🎙️
-            </button>
-          )}
-          <button className="plan-btn" type="submit" disabled={sending || !input.trim()}>
-            Send
-          </button>
-        </form>
+              }}
+            >
+              <textarea
+                className="plan-chat-input"
+                rows={1}
+                placeholder="Type or tap the mic and just talk…"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault()
+                    send(input)
+                  }
+                }}
+              />
+              {SpeechRecognition && (
+                <button type="button" className={`plan-chat-mic${listening ? ' listening' : ''}`} onClick={toggleMic}>
+                  🎙️
+                </button>
+              )}
+              <button className="plan-btn" type="submit" disabled={sending || !input.trim()}>
+                Send
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </div>
   )
