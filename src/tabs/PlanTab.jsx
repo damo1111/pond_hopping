@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PlanningModal from '../components/PlanningModal.jsx'
+import PlanChat from '../components/PlanChat.jsx'
 import { thumb } from '../lib/imgTransform.js'
 
 const WISHLIST_STATUS = [
@@ -110,23 +111,34 @@ function NewTripForm({ onCreated }) {
   )
 }
 
-function DraftTripCard({ t, events, onOpen }) {
+function DraftTripCard({ t, events, onOpen, onChat }) {
   const doneCount = events.filter((e) => e.done).length
   return (
-    <button className="plan-trip-card" onClick={onOpen}>
-      <div className="plan-trip-top">
-        <CountryFlags countries={t.countries} size={18} />
-        <span className="plan-trip-badge">✏️ Planning{t.traveler ? ` · ${t.traveler}` : ''}</span>
-      </div>
-      <div className="plan-trip-title">{t.title}</div>
-      {t.subtitle && <div className="plan-trip-subtitle">{t.subtitle}</div>}
-      <div className="plan-trip-stats">
-        {t.start_date ? `~${new Date(t.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : 'dates tbc'}
-        {t.end_date ? ` – ${new Date(t.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}
-        {' · '}
-        {events.length ? `${doneCount}/${events.length} planned` : 'nothing logged yet'}
-      </div>
-    </button>
+    <div className="plan-trip-card">
+      <button className="plan-trip-card-main" onClick={onOpen}>
+        <div className="plan-trip-top">
+          <CountryFlags countries={t.countries} size={18} />
+          <span className="plan-trip-badge">✏️ Planning{t.traveler ? ` · ${t.traveler}` : ''}</span>
+        </div>
+        <div className="plan-trip-title">{t.title}</div>
+        {t.subtitle && <div className="plan-trip-subtitle">{t.subtitle}</div>}
+        <div className="plan-trip-stats">
+          {t.start_date ? `~${new Date(t.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : 'dates tbc'}
+          {t.end_date ? ` – ${new Date(t.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}
+          {' · '}
+          {events.length ? `${doneCount}/${events.length} planned` : 'nothing logged yet'}
+        </div>
+      </button>
+      <button
+        className="plan-trip-card-chat"
+        onClick={(e) => {
+          e.stopPropagation()
+          onChat()
+        }}
+      >
+        💬 Continue with AI
+      </button>
+    </div>
   )
 }
 
@@ -243,6 +255,7 @@ export default function PlanTab() {
   const [plannedEvents, setPlannedEvents] = useState([])
   const [openDraft, setOpenDraft] = useState(null)
   const [wishlist, setWishlist] = useState(null)
+  const [chatTripId, setChatTripId] = useState(undefined) // undefined = closed, null = new trip, string = continuing a draft
 
   function loadDrafts() {
     supabase
@@ -284,10 +297,15 @@ export default function PlanTab() {
       <section className="plan-section">
         <div className="plan-section-head">
           <div className="plan-section-title">Trips in the works</div>
-          <NewTripForm onCreated={loadDrafts} />
+          <div className="plan-section-actions">
+            <button className="plan-btn" onClick={() => setChatTripId(null)}>
+              ✨ Plan with AI
+            </button>
+            <NewTripForm onCreated={loadDrafts} />
+          </div>
         </div>
         {draftTrips.length === 0 && (
-          <div className="plan-empty">Nothing being planned right now — start one above.</div>
+          <div className="plan-empty">Nothing being planned right now — start one above, or just tell the AI planner what you're thinking.</div>
         )}
         <div className="plan-trip-list">
           {draftTrips.map((t) => (
@@ -296,6 +314,7 @@ export default function PlanTab() {
               t={t}
               events={plannedEvents.filter((e) => e.trip_id === t.id)}
               onOpen={() => setOpenDraft(t)}
+              onChat={() => setChatTripId(t.id)}
             />
           ))}
         </div>
@@ -322,6 +341,14 @@ export default function PlanTab() {
           onEventsChange={(updated) =>
             setPlannedEvents((all) => [...all.filter((e) => e.trip_id !== openDraft.id), ...updated])
           }
+        />
+      )}
+
+      {chatTripId !== undefined && (
+        <PlanChat
+          tripId={chatTripId}
+          onClose={() => setChatTripId(undefined)}
+          onChanged={loadDrafts}
         />
       )}
     </div>

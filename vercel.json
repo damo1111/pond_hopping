@@ -3,7 +3,8 @@
   "framework": "vite",
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
   "functions": {
-    "api/resize-photo.js": { "maxDuration": 60, "memory": 1024 }
+    "api/resize-photo.js": { "maxDuration": 60, "memory": 1024 },
+    "api/plan-chat.js": { "maxDuration": 60, "memory": 1024 }
   },
   "headers": [
     {
