@@ -5,11 +5,8 @@ import DayMap from '../components/DayMap.jsx'
 import DayScrubber from '../components/DayScrubber.jsx'
 import TripSummary from '../components/TripSummary.jsx'
 import CountryFlags from '../components/CountryFlags.jsx'
-// PrivateNote is temporarily not rendered anywhere — the main app URL has
-// no login, so its "hidden from Share links" guarantee doesn't extend to
-// someone just browsing the app directly. Component/table untouched;
-// re-enable the <PrivateNote> render below once real access control ships.
-// import PrivateNote from '../components/PrivateNote.jsx'
+import PrivateNote from '../components/PrivateNote.jsx'
+import { useAuth } from '../lib/AuthContext.jsx'
 
 const MOODS = ['😄', '🌅', '🏃', '🤔', '😮', '😤', '🌧️', '✈️', '🧱', '🌀', '🧵', '🌊']
 
@@ -20,6 +17,7 @@ function fmtDate(d) {
 function Entry({ e, autoOpen, jumpKey }) {
   const [open, setOpen] = useState(autoOpen)
   const ref = useRef(null)
+  const { user } = useAuth()
 
   useEffect(() => {
     if (autoOpen && ref.current) {
@@ -55,6 +53,7 @@ function Entry({ e, autoOpen, jumpKey }) {
       {open && (
         <div onClick={(ev) => ev.stopPropagation()}>
           <DayMap tripId={e.trip_id} date={e.entry_date} />
+          {user && <PrivateNote tripId={e.trip_id} date={e.entry_date} />}
         </div>
       )}
       {open && e.tags?.length > 0 && (
