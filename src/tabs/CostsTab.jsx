@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import CountryFlags from '../components/CountryFlags.jsx'
+import { useAuth } from '../lib/AuthContext.jsx'
 
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Hotel', 'Activity', 'Flight', 'Other']
 const CURRENCIES = ['AUD', 'KRW', 'HKD', 'JPY', 'CNY', 'USD', 'GBP']
@@ -100,12 +101,13 @@ function AddCost({ tripMeta, selectedTrip, onSaved }) {
 
 export default function CostsTab() {
   const { tripMeta, selectedTrip } = useContext(TripContext)
+  const { user } = useAuth()
   const [costs, setCosts] = useState(null)
   const [reload, setReload] = useState(0)
-  // Costs are dollar figures — hidden by default so the app is safe to
-  // show off/share before real per-recipient permissions exist. Resets
-  // every time you land back on this tab.
-  const [unlocked, setUnlocked] = useState(false)
+  // Costs are dollar figures — hidden unless actually signed in, so the
+  // app is safe to show off/share without exposing them to anyone just
+  // browsing the main app URL.
+  const unlocked = Boolean(user)
 
   useEffect(() => {
     let alive = true
