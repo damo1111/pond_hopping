@@ -86,7 +86,7 @@ export default function MapTab() {
         .order('entry_date'),
       supabase
         .from('photos')
-        .select('id,trip_id,lat,lon,taken_at,url,caption')
+        .select('id,trip_id,lat,lon,taken_at,url,caption,thumb_url')
         .not('lat', 'is', null)
         .order('taken_at'),
     ]).then(([p, r, j, ph]) => {
@@ -238,7 +238,7 @@ export default function MapTab() {
                 <Popup>
                   <div className="world-pop">
                     <img
-                      src={thumb(p.url, { width: 220, height: 220 })}
+                      src={p.thumb_url || thumb(p.url, { width: 220, height: 220 })}
                       alt=""
                       style={{ width: '100%', borderRadius: 6, display: 'block', marginBottom: 6 }}
                     />

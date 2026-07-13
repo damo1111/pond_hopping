@@ -229,14 +229,17 @@ export default function PhotosTab() {
           {visible.map((p) => (
             <button key={p.id} className="photo-cell" onClick={() => setLightbox(p)}>
               <img
-                src={thumb(p.url)}
+                src={p.thumb_url || thumb(p.url)}
                 alt={p.caption || ''}
                 loading="lazy"
                 decoding="async"
-                // The Storage image-transform endpoint 400s on some of the
-                // larger camera originals (flaky, not a clean size cutoff)
-                // — rather than a permanently broken thumbnail, fall back
-                // to the untouched original once, on error.
+                // Prefers the pre-generated static thumb_url (see
+                // api/resize-photo.js) — the on-demand transform 400s
+                // outright on the 50MP originals ("resolution too large
+                // to process"), which thumb_url exists specifically to
+                // avoid. Falls back to the untouched original if even
+                // that 404s (e.g. a photo whose thumbnail hasn't been
+                // backfilled yet and the live transform also failed).
                 onError={(ev) => {
                   if (ev.currentTarget.src !== p.url) ev.currentTarget.src = p.url
                 }}
