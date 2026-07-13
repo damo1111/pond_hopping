@@ -8,40 +8,79 @@ const ROLES = [
   { id: 'other', label: 'Other' },
 ]
 
+// A clickable magic-link email opens in the system browser, not the
+// installed PWA's own standalone window — and even where iOS routes it
+// back, the session it creates there isn't reliably visible to the
+// already-installed home-screen app (separate storage context). A typed
+// code, verified in-place via verifyOtp, never leaves the PWA at all.
 function SignInForm() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
+  const [code, setCode] = useState('')
   const [sending, setSending] = useState(false)
+  const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState(null)
 
   async function send(e) {
     e.preventDefault()
     setSending(true)
     setError(null)
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: window.location.origin },
-    })
+    const { error } = await supabase.auth.signInWithOtp({ email })
     setSending(false)
     if (error) setError(error.message)
     else setSent(true)
   }
 
+  async function verify(e) {
+    e.preventDefault()
+    setVerifying(true)
+    setError(null)
+    const { error } = await supabase.auth.verifyOtp({ email, token: code.trim(), type: 'email' })
+    setVerifying(false)
+    if (error) setError(error.message)
+    // on success, AuthContext's onAuthStateChange picks up the new session automatically
+  }
+
   if (sent) {
     return (
-      <div className="account-card">
+      <form className="account-card" onSubmit={verify}>
         <div className="account-card-title">Check your email</div>
         <div className="account-card-body">
-          Sent a sign-in link to <b>{email}</b> — open it on this device to finish signing in.
+          Sent a 6-digit code to <b>{email}</b> — enter it below (don't tap the link in the email, it'll open in
+          the browser instead of here).
         </div>
-      </div>
+        <input
+          className="account-input"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          required
+          placeholder="123456"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+        />
+        <button className="account-btn" type="submit" disabled={verifying}>
+          {verifying ? 'Checking…' : 'Verify'}
+        </button>
+        <button
+          className="account-btn ghost"
+          type="button"
+          onClick={() => {
+            setSent(false)
+            setCode('')
+            setError(null)
+          }}
+        >
+          Use a different email
+        </button>
+        {error && <div className="account-error">{error}</div>}
+      </form>
     )
   }
 
   return (
     <form className="account-card" onSubmit={send}>
       <div className="account-card-title">Sign in</div>
-      <div className="account-card-body">No password — we'll email you a link.</div>
+      <div className="account-card-body">No password — we'll email you a 6-digit code.</div>
       <input
         className="account-input"
         type="email"
@@ -51,7 +90,7 @@ function SignInForm() {
         onChange={(e) => setEmail(e.target.value)}
       />
       <button className="account-btn" type="submit" disabled={sending}>
-        {sending ? 'Sending…' : 'Send magic link'}
+        {sending ? 'Sending…' : 'Send code'}
       </button>
       {error && <div className="account-error">{error}</div>}
     </form>
