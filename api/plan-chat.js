@@ -1,16 +1,15 @@
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 
 // The "shit hot chatbot" trip-planning assistant. Runs as a Vercel Node
 // function (not a Supabase Edge Function) for the same reason resize-photo.js
 // does — this repo's rule is Supabase-only for data, but an LLM call needs a
 // real npm SDK and a server-side secret, which Edge Functions (Deno) make
-// awkward for the official @anthropic-ai/sdk. One HTTP round trip per chat
-// turn; the model's own tool calls are what give it long-term memory
-// (traveler_preferences) and drafting power (writing trips/planned_events),
-// not any server-side session state.
+// awkward for the official openai package. Same model (gpt-5.5) and
+// OPENAI_API_KEY project secret already used by summarize-trip, so this
+// reuses the same billing/credit pool instead of adding a second AI vendor.
 const SUPABASE_URL = 'https://qslksdgxoibzrisywvqk.supabase.co'
 const ANON_KEY = 'sb_publishable_HqXFypbh0cTO8Eub41LlQw_8ypkj2tH'
-const MODEL = 'claude-opus-4-8'
+const MODEL = 'gpt-5.5'
 
 function sb(path, opts = {}) {
   return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -42,54 +41,60 @@ function slugify(title) {
 
 const TOOLS = [
   {
-    name: 'record_preference',
-    description:
-      "Save a durable fact about how David or Seeby like to travel — something worth remembering for every future trip, not just this conversation. Use it the moment someone states or clearly implies a lasting preference: an airline they refuse to fly again, a cabin class they always book, a style of trip they love or hate (beaches vs cities), pace (packed vs slow), food, budget ceilings, hotel vs Airbnb, aisle vs window, anything like that. Also use it to update a preference that's changed, or soften/retire one that's no longer true.",
-    input_schema: {
-      type: 'object',
-      properties: {
-        traveler: { type: 'string', enum: ['david', 'seeby', 'both'], description: "Whose preference this is. Default 'both' unless it's clearly one person's alone." },
-        category: { type: 'string', enum: ['airline', 'cabin', 'seat', 'accommodation', 'destination_type', 'pace', 'food', 'budget', 'logistics', 'activity', 'other'] },
-        key: { type: 'string', description: "Short stable slug, e.g. 'avoid_airline_ba' or 'loves_city_breaks'. Reuse an existing key to update/reinforce it rather than making a near-duplicate." },
-        statement: { type: 'string', description: 'One clear sentence, in plain English, stating the preference.' },
-        value: { type: 'object', description: 'Small structured form of the same fact, e.g. {"airline":"BA","sentiment":"avoid"}.' },
-        strength: { type: 'string', enum: ['hard_rule', 'preference', 'observation'], description: "hard_rule = never/always, no exceptions. preference = a real lean. observation = a hunch worth tracking, not yet confirmed." },
-        confidence: { type: 'number', description: '0 to 1. 0.9+ only for something stated explicitly and emphatically.' },
-        active: { type: 'boolean', description: 'Set false to retire a preference that no longer holds.' },
-        evidence_note: { type: 'string', description: 'One line on where this came from, e.g. "said in chat, 13 Jul 2026".' },
+    type: 'function',
+    function: {
+      name: 'record_preference',
+      description:
+        "Save a durable fact about how David or Seeby like to travel — something worth remembering for every future trip, not just this conversation. Use it the moment someone states or clearly implies a lasting preference: an airline they refuse to fly again, a cabin class they always book, a style of trip they love or hate (beaches vs cities), pace (packed vs slow), food, budget ceilings, hotel vs Airbnb, aisle vs window, anything like that. Also use it to update a preference that's changed, or soften/retire one that's no longer true.",
+      parameters: {
+        type: 'object',
+        properties: {
+          traveler: { type: 'string', enum: ['david', 'seeby', 'both'], description: "Whose preference this is. Default 'both' unless it's clearly one person's alone." },
+          category: { type: 'string', enum: ['airline', 'cabin', 'seat', 'accommodation', 'destination_type', 'pace', 'food', 'budget', 'logistics', 'activity', 'other'] },
+          key: { type: 'string', description: "Short stable slug, e.g. 'avoid_airline_ba' or 'loves_city_breaks'. Reuse an existing key to update/reinforce it rather than making a near-duplicate." },
+          statement: { type: 'string', description: 'One clear sentence, in plain English, stating the preference.' },
+          value: { type: 'object', description: 'Small structured form of the same fact, e.g. {"airline":"BA","sentiment":"avoid"}.' },
+          strength: { type: 'string', enum: ['hard_rule', 'preference', 'observation'], description: "hard_rule = never/always, no exceptions. preference = a real lean. observation = a hunch worth tracking, not yet confirmed." },
+          confidence: { type: 'number', description: '0 to 1. 0.9+ only for something stated explicitly and emphatically.' },
+          active: { type: 'boolean', description: 'Set false to retire a preference that no longer holds.' },
+          evidence_note: { type: 'string', description: 'One line on where this came from, e.g. "said in chat, 13 Jul 2026".' },
+        },
+        required: ['traveler', 'category', 'key', 'statement', 'strength', 'confidence'],
       },
-      required: ['traveler', 'category', 'key', 'statement', 'strength', 'confidence'],
     },
   },
   {
-    name: 'propose_itinerary',
-    description:
-      "Write (or update) a draft itinerary once you have enough to sketch something concrete — doesn't need to be complete or final, a rough skeleton is fine and expected early on. This creates/updates a real draft trip the human sees as an accept/keep-as-draft/discard card. Call it again on the same trip to revise it as the conversation continues.",
-    input_schema: {
-      type: 'object',
-      properties: {
-        trip_id: { type: 'string', description: 'If continuing an existing draft trip, its id (given to you in context). Omit to create a new one.' },
-        title: { type: 'string' },
-        subtitle: { type: 'string' },
-        traveler: { type: 'string', description: "Whose trip, e.g. 'David Seeby'. Leave blank if it's David's own." },
-        start_date: { type: 'string', description: 'YYYY-MM-DD, or omit if unknown' },
-        end_date: { type: 'string', description: 'YYYY-MM-DD, or omit if unknown' },
-        countries: { type: 'array', items: { type: 'string' }, description: 'ISO country codes, lowercase, e.g. ["gb","fr"]' },
-        events: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              event_date: { type: 'string', description: 'YYYY-MM-DD, or omit if not yet dated' },
-              title: { type: 'string' },
-              note: { type: 'string' },
-              city: { type: 'string' },
+    type: 'function',
+    function: {
+      name: 'propose_itinerary',
+      description:
+        "Write (or update) a draft itinerary once you have enough to sketch something concrete — doesn't need to be complete or final, a rough skeleton is fine and expected early on. This creates/updates a real draft trip the human sees as an accept/keep-as-draft/discard card. Call it again on the same trip to revise it as the conversation continues.",
+      parameters: {
+        type: 'object',
+        properties: {
+          trip_id: { type: 'string', description: 'If continuing an existing draft trip, its id (given to you in context). Omit to create a new one.' },
+          title: { type: 'string' },
+          subtitle: { type: 'string' },
+          traveler: { type: 'string', description: "Whose trip, e.g. 'David Seeby'. Leave blank if it's David's own." },
+          start_date: { type: 'string', description: 'YYYY-MM-DD, or omit if unknown' },
+          end_date: { type: 'string', description: 'YYYY-MM-DD, or omit if unknown' },
+          countries: { type: 'array', items: { type: 'string' }, description: 'ISO country codes, lowercase, e.g. ["gb","fr"]' },
+          events: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                event_date: { type: 'string', description: 'YYYY-MM-DD, or omit if not yet dated' },
+                title: { type: 'string' },
+                note: { type: 'string' },
+                city: { type: 'string' },
+              },
+              required: ['title'],
             },
-            required: ['title'],
           },
         },
+        required: ['title', 'events'],
       },
-      required: ['title', 'events'],
     },
   },
 ]
@@ -223,8 +228,9 @@ export default async function handler(req, res) {
       }
     }
 
-    const client = new Anthropic()
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     const messages = [
+      { role: 'system', content: buildSystemPrompt(preferences || [], tripContext) },
       ...(history || []).map((m) => ({ role: m.role, content: m.content })),
       { role: 'user', content: message },
     ]
@@ -233,33 +239,29 @@ export default async function handler(req, res) {
     let finalText = ''
     let iterations = 0
     while (iterations++ < 6) {
-      const response = await client.messages.create({
+      const response = await client.chat.completions.create({
         model: MODEL,
-        max_tokens: 4096,
-        thinking: { type: 'adaptive' },
-        system: buildSystemPrompt(preferences || [], tripContext),
-        tools: TOOLS,
         messages,
+        tools: TOOLS,
       })
 
-      const textBlocks = response.content.filter((b) => b.type === 'text')
-      finalText = textBlocks.map((b) => b.text).join('\n').trim() || finalText
+      const choice = response.choices[0]
+      const msg = choice.message
+      finalText = msg.content?.trim() || finalText
 
-      if (response.stop_reason !== 'tool_use') break
+      if (choice.finish_reason !== 'tool_calls' || !msg.tool_calls?.length) break
 
-      messages.push({ role: 'assistant', content: response.content })
-      const toolUses = response.content.filter((b) => b.type === 'tool_use')
-      const toolResults = []
-      for (const tool of toolUses) {
+      messages.push(msg)
+      for (const call of msg.tool_calls) {
         let result
         try {
-          result = await runTool(tool.name, tool.input, ctx)
+          const input = JSON.parse(call.function.arguments || '{}')
+          result = await runTool(call.function.name, input, ctx)
         } catch (e) {
           result = { error: e.message }
         }
-        toolResults.push({ type: 'tool_result', tool_use_id: tool.id, content: JSON.stringify(result) })
+        messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) })
       }
-      messages.push({ role: 'user', content: toolResults })
     }
 
     await sb('plan_chat_messages', {
