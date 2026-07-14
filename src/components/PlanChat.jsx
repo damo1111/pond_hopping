@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import CountryFlags from './CountryFlags.jsx'
+import ItineraryTimeline from './ItineraryTimeline.jsx'
 import { supabase } from '../lib/supabase.js'
 
 const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
@@ -133,9 +134,9 @@ function QuickForm({ tripId, onSaved, onCancel }) {
   )
 }
 
-export default function PlanChat({ tripId, traveler = 'both', onClose, onChanged }) {
+export default function PlanChat({ tripId, traveler = 'both', initialMode, seedMessage, onClose, onChanged }) {
   const [activeTripId, setActiveTripId] = useState(tripId || null)
-  const [mode, setMode] = useState('chat')
+  const [mode, setMode] = useState(initialMode || (tripId ? 'itinerary' : 'chat'))
   const [messages, setMessages] = useState([])
   const [threadId, setThreadId] = useState(null)
   const [input, setInput] = useState('')
@@ -143,6 +144,7 @@ export default function PlanChat({ tripId, traveler = 'both', onClose, onChanged
   const [proposal, setProposal] = useState(null)
   const [proposalBusy, setProposalBusy] = useState(false)
   const [listening, setListening] = useState(false)
+  const [itineraryEvents, setItineraryEvents] = useState([])
   const recognitionRef = useRef(null)
   const scrollRef = useRef(null)
 
@@ -150,12 +152,27 @@ export default function PlanChat({ tripId, traveler = 'both', onClose, onChanged
     setMessages([
       {
         role: 'assistant',
-        content: tripId
-          ? "Picking this back up — tell me anything new (dates firming up, a flight booked, something you've decided) and I'll keep building it out."
-          : "Tell me whatever you've got — a place, rough dates, something already booked, or just a feeling ('somewhere warm in October'). I'll ask if I need more, and sketch a draft as soon as there's enough to work with. Or switch to the plain form if you'd rather just type the basics in.",
+        content:
+          seedMessage ||
+          (tripId
+            ? "Picking this back up — tell me anything new (dates firming up, a flight booked, something you've decided) and I'll keep building it out."
+            : "Tell me whatever you've got — a place, rough dates, something already booked, or just a feeling ('somewhere warm in October'). I'll ask if I need more, and sketch a draft as soon as there's enough to work with. Or switch to the plain form if you'd rather just type the basics in."),
       },
     ])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId])
+
+  useEffect(() => {
+    if (!activeTripId) {
+      setItineraryEvents([])
+      return
+    }
+    supabase
+      .from('planned_events')
+      .select('*')
+      .eq('trip_id', activeTripId)
+      .then(({ data }) => setItineraryEvents(data ?? []))
+  }, [activeTripId, proposal])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -213,8 +230,10 @@ export default function PlanChat({ tripId, traveler = 'both', onClose, onChanged
   function onFormSaved(newId) {
     const isNew = !activeTripId
     setActiveTripId(newId)
-    setMode('chat')
-    setMessages((m) => [...m, { role: 'assistant', content: isNew ? "Saved as a draft. Want a hand filling in the rest, or happy to keep typing it in yourself?" : 'Updated — anything else to add?' }])
+    setMode(isNew ? 'chat' : 'itinerary')
+    if (isNew) {
+      setMessages((m) => [...m, { role: 'assistant', content: "Saved as a draft. Want a hand filling in the rest, or happy to keep typing it in yourself?" }])
+    }
     onChanged?.()
   }
 
@@ -240,6 +259,11 @@ export default function PlanChat({ tripId, traveler = 'both', onClose, onChanged
         <div className="plan-chat-head">
           <span className="plan-chat-head-title">✨ Plan with AI</span>
           <div className="plan-chat-modes">
+            {activeTripId && (
+              <button className={`plan-chat-mode${mode === 'itinerary' ? ' active' : ''}`} onClick={() => setMode('itinerary')}>
+                🗓️ plan
+              </button>
+            )}
             <button className={`plan-chat-mode${mode === 'chat' ? ' active' : ''}`} onClick={() => setMode('chat')}>
               💬 chat
             </button>
@@ -253,7 +277,14 @@ export default function PlanChat({ tripId, traveler = 'both', onClose, onChanged
         </div>
 
         {mode === 'form' ? (
-          <QuickForm tripId={activeTripId} onSaved={onFormSaved} onCancel={() => setMode('chat')} />
+          <QuickForm tripId={activeTripId} onSaved={onFormSaved} onCancel={() => setMode(activeTripId ? 'itinerary' : 'chat')} />
+        ) : mode === 'itinerary' ? (
+          <div className="plan-chat-itinerary">
+            <ItineraryTimeline events={itineraryEvents} onEventsChange={setItineraryEvents} />
+            <button className="plan-add-btn plan-chat-itinerary-cta" onClick={() => setMode('chat')}>
+              💬 continue planning
+            </button>
+          </div>
         ) : (
           <>
             <div className="plan-chat-log" ref={scrollRef}>

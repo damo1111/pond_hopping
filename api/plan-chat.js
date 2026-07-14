@@ -88,8 +88,9 @@ const TOOLS = [
                 title: { type: 'string' },
                 note: { type: 'string' },
                 city: { type: 'string' },
+                kind: { type: 'string', enum: ['flight', 'hotel', 'transport', 'activity', 'other'], description: 'What this event actually is — drives the icon/colour in the itinerary timeline. Pick the closest fit.' },
               },
-              required: ['title'],
+              required: ['title', 'kind'],
             },
           },
         },
@@ -98,6 +99,28 @@ const TOOLS = [
     },
   },
 ]
+
+// Same free, keyless Wikipedia trick used for wishlist photos — this runs
+// server-side in the Vercel function (real internet access, unlike this
+// repo's sandboxed dev tooling), so it's the itinerary timeline's photo
+// source rather than anything client-side.
+const placePhotoCache = new Map()
+async function fetchPlacePhoto(place) {
+  if (!place) return null
+  if (placePhotoCache.has(place)) return placePhotoCache.get(place)
+  let photo = null
+  try {
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(place)}`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.type !== 'disambiguation') photo = data.thumbnail?.source || null
+    }
+  } catch {
+    // no photo — the timeline just shows the icon instead, not a hard failure
+  }
+  placePhotoCache.set(place, photo)
+  return photo
+}
 
 async function runTool(name, input, ctx) {
   if (name === 'record_preference') {
@@ -149,14 +172,18 @@ async function runTool(name, input, ctx) {
     }
 
     await sb(`planned_events?trip_id=eq.${tripId}`, { method: 'DELETE', prefer: 'return=minimal' })
-    const events = (input.events || []).map((e) => ({
-      trip_id: tripId,
-      event_date: e.event_date || null,
-      title: e.title,
-      note: e.note || null,
-      city: e.city || null,
-      done: false,
-    }))
+    const events = await Promise.all(
+      (input.events || []).map(async (e) => ({
+        trip_id: tripId,
+        event_date: e.event_date || null,
+        title: e.title,
+        note: e.note || null,
+        city: e.city || null,
+        kind: e.kind || 'other',
+        photo_url: await fetchPlacePhoto(e.city || input.title),
+        done: false,
+      }))
+    )
     if (events.length) await sb('planned_events', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(events) })
 
     ctx.proposal = { trip_id: tripId, ...tripRow, events }

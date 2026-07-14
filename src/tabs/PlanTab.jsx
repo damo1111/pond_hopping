@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import CountryFlags from '../components/CountryFlags.jsx'
-import PlanningModal from '../components/PlanningModal.jsx'
 import PlanChat from '../components/PlanChat.jsx'
 import { thumb } from '../lib/imgTransform.js'
 
@@ -10,6 +9,17 @@ const WISHLIST_STATUS = [
   { id: 'planned', label: 'Planned' },
   { id: 'done', label: 'Done' },
 ]
+
+function slugify(title) {
+  return (
+    (title || 'trip')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '') +
+    '-' +
+    Date.now().toString(36)
+  )
+}
 
 function DraftTripCard({ t, events, onOpen, onChat }) {
   const doneCount = events.filter((e) => e.done).length
@@ -46,7 +56,7 @@ function DraftTripCard({ t, events, onOpen, onChat }) {
 // plain client-side fetch. Firing it off the title field is a lightweight
 // stand-in for "ask questions and use what I typed": type "Samoa" and the
 // wishlist card gets a real photo (and a one-line description if you
-// haven't written your own note) without ever needing an image URL.
+// haven't written your own note), fully automatic — no image URL to fill in.
 async function fetchPlaceInfo(title) {
   try {
     const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.trim())}`)
@@ -75,13 +85,13 @@ function WishlistForm({ onAdded }) {
     setForm((f) => ({ ...f, title }))
     setAutoFound(false)
     clearTimeout(lookupTimer.current)
-    if (!title.trim() || form.image_url) return
+    if (!title.trim()) return
     lookupTimer.current = setTimeout(async () => {
       setLookingUp(true)
       const info = await fetchPlaceInfo(title)
       setLookingUp(false)
       if (!info) return
-      setForm((f) => (f.image_url ? f : { ...f, image_url: info.image || f.image_url, notes: f.notes || info.extract?.slice(0, 200) || f.notes }))
+      setForm((f) => ({ ...f, image_url: info.image || f.image_url, notes: f.notes || info.extract?.slice(0, 200) || f.notes }))
       if (info.image) setAutoFound(true)
     }, 700)
   }
@@ -114,16 +124,10 @@ function WishlistForm({ onAdded }) {
   return (
     <form className="plan-card" onSubmit={save}>
       <div className="plan-card-title">Someday…</div>
-      <input className="plan-input" placeholder="Place or experience — try just a country or city" required value={form.title} onChange={onTitleChange} />
+      <input className="plan-input" placeholder="Place or experience — a country or city is enough" required value={form.title} onChange={onTitleChange} />
       {lookingUp && <div className="plan-input-hint">finding a photo…</div>}
-      {autoFound && !lookingUp && <div className="plan-input-hint">found a photo from Wikipedia — swap the URL below if you'd rather use your own.</div>}
+      {autoFound && !lookingUp && <div className="plan-input-hint">found a photo automatically.</div>}
       <input className="plan-input" placeholder="Country (optional)" value={form.country} onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))} />
-      <input
-        className="plan-input"
-        placeholder="Image URL (auto-filled if left blank)"
-        value={form.image_url}
-        onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value }))}
-      />
       <textarea className="plan-input" rows={2} placeholder="Notes (optional)" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
       <div className="plan-form-actions">
         <button className="plan-btn ghost" type="button" onClick={() => setShow(false)}>
@@ -137,7 +141,9 @@ function WishlistForm({ onAdded }) {
   )
 }
 
-function WishlistItem({ item, onChange }) {
+function WishlistItem({ item, onChange, onOpenChat }) {
+  const [converting, setConverting] = useState(false)
+
   async function cycleStatus() {
     const idx = WISHLIST_STATUS.findIndex((s) => s.id === item.status)
     const next = WISHLIST_STATUS[(idx + 1) % WISHLIST_STATUS.length].id
@@ -147,6 +153,35 @@ function WishlistItem({ item, onChange }) {
   async function remove() {
     await supabase.from('wishlist_items').delete().eq('id', item.id)
     onChange()
+  }
+
+  async function turnIntoTrip() {
+    if (item.trip_id) {
+      onOpenChat(item.trip_id)
+      return
+    }
+    setConverting(true)
+    const { data: trip, error } = await supabase
+      .from('trips')
+      .insert({
+        slug: slugify(item.title),
+        title: item.title,
+        subtitle: item.notes || null,
+        countries: [],
+        status: 'draft',
+        sort_order: 0,
+      })
+      .select('id')
+      .single()
+    if (!error && trip) {
+      if (item.image_url) {
+        await supabase.from('photo_cache').upsert({ trip_id: trip.id, urls: [item.image_url], status: 'ok', updated_at: new Date().toISOString() })
+      }
+      await supabase.from('wishlist_items').update({ trip_id: trip.id, status: 'planned' }).eq('id', item.id)
+      onChange()
+      onOpenChat(trip.id)
+    }
+    setConverting(false)
   }
 
   return (
@@ -170,6 +205,9 @@ function WishlistItem({ item, onChange }) {
             remove
           </button>
         </div>
+        <button className="wishlist-convert" onClick={turnIntoTrip} disabled={converting}>
+          {converting ? 'creating…' : item.trip_id ? '→ continue this trip' : '→ turn into a trip'}
+        </button>
       </div>
     </div>
   )
@@ -178,9 +216,8 @@ function WishlistItem({ item, onChange }) {
 export default function PlanTab() {
   const [draftTrips, setDraftTrips] = useState(null)
   const [plannedEvents, setPlannedEvents] = useState([])
-  const [openDraft, setOpenDraft] = useState(null)
   const [wishlist, setWishlist] = useState(null)
-  const [chatTripId, setChatTripId] = useState(undefined) // undefined = closed, null = new trip, string = continuing a draft
+  const [chat, setChat] = useState(null) // null = closed, { tripId, mode } otherwise
 
   function loadDrafts() {
     supabase
@@ -222,7 +259,7 @@ export default function PlanTab() {
       <section className="plan-section">
         <div className="plan-section-head">
           <div className="plan-section-title">Trips in the works</div>
-          <button className="plan-add-btn" onClick={() => setChatTripId(null)}>
+          <button className="plan-add-btn" onClick={() => setChat({ tripId: null, mode: 'chat' })}>
             + plan a trip
           </button>
         </div>
@@ -235,8 +272,8 @@ export default function PlanTab() {
               key={t.id}
               t={t}
               events={plannedEvents.filter((e) => e.trip_id === t.id)}
-              onOpen={() => setOpenDraft(t)}
-              onChat={() => setChatTripId(t.id)}
+              onOpen={() => setChat({ tripId: t.id, mode: 'itinerary' })}
+              onChat={() => setChat({ tripId: t.id, mode: 'chat' })}
             />
           ))}
         </div>
@@ -250,27 +287,28 @@ export default function PlanTab() {
         {wishlist.length === 0 && <div className="plan-empty">Nowhere on the someday-list yet.</div>}
         <div className="wishlist-grid">
           {wishlist.map((item) => (
-            <WishlistItem key={item.id} item={item} onChange={loadWishlist} />
+            <WishlistItem
+              key={item.id}
+              item={item}
+              onChange={() => {
+                loadWishlist()
+                loadDrafts()
+              }}
+              onOpenChat={(tripId) => setChat({ tripId, mode: 'itinerary' })}
+            />
           ))}
         </div>
       </section>
 
-      {openDraft && (
-        <PlanningModal
-          trip={openDraft}
-          events={plannedEvents.filter((e) => e.trip_id === openDraft.id)}
-          onClose={() => setOpenDraft(null)}
-          onEventsChange={(updated) =>
-            setPlannedEvents((all) => [...all.filter((e) => e.trip_id !== openDraft.id), ...updated])
-          }
-        />
-      )}
-
-      {chatTripId !== undefined && (
+      {chat && (
         <PlanChat
-          tripId={chatTripId}
-          onClose={() => setChatTripId(undefined)}
-          onChanged={loadDrafts}
+          tripId={chat.tripId}
+          initialMode={chat.mode}
+          onClose={() => setChat(null)}
+          onChanged={() => {
+            loadDrafts()
+            loadWishlist()
+          }}
         />
       )}
     </div>
