@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import CountryFlags from './CountryFlags.jsx'
-import ItineraryTimeline from './ItineraryTimeline.jsx'
 import { supabase } from '../lib/supabase.js'
 
 const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
@@ -134,9 +133,9 @@ function QuickForm({ tripId, onSaved, onCancel }) {
   )
 }
 
-export default function PlanChat({ tripId, traveler = 'both', initialMode, seedMessage, onClose, onChanged }) {
+export default function PlanChat({ tripId, traveler = 'both', autoSend, seedMessage, onClose, onChanged }) {
   const [activeTripId, setActiveTripId] = useState(tripId || null)
-  const [mode, setMode] = useState(initialMode || (tripId ? 'itinerary' : 'chat'))
+  const [mode, setMode] = useState('chat')
   const [messages, setMessages] = useState([])
   const [threadId, setThreadId] = useState(null)
   const [input, setInput] = useState('')
@@ -144,7 +143,6 @@ export default function PlanChat({ tripId, traveler = 'both', initialMode, seedM
   const [proposal, setProposal] = useState(null)
   const [proposalBusy, setProposalBusy] = useState(false)
   const [listening, setListening] = useState(false)
-  const [itineraryEvents, setItineraryEvents] = useState([])
   const recognitionRef = useRef(null)
   const scrollRef = useRef(null)
 
@@ -163,20 +161,19 @@ export default function PlanChat({ tripId, traveler = 'both', initialMode, seedM
   }, [tripId])
 
   useEffect(() => {
-    if (!activeTripId) {
-      setItineraryEvents([])
-      return
-    }
-    supabase
-      .from('planned_events')
-      .select('*')
-      .eq('trip_id', activeTripId)
-      .then(({ data }) => setItineraryEvents(data ?? []))
-  }, [activeTripId, proposal])
-
-  useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, sending, mode])
+
+  // Fired once when opened with a pre-baked instruction (e.g. an Explore
+  // "get ideas" tap, or the add-sheet's natural-language box).
+  const autoSentRef = useRef(false)
+  useEffect(() => {
+    if (autoSend && !autoSentRef.current) {
+      autoSentRef.current = true
+      send(autoSend)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function send(text) {
     const trimmed = text.trim()
@@ -197,6 +194,8 @@ export default function PlanChat({ tripId, traveler = 'both', initialMode, seedM
       if (data.proposal) {
         setProposal(data.proposal)
         setActiveTripId(data.proposal.trip_id)
+        onChanged?.()
+      } else if (data.itemsAdded > 0) {
         onChanged?.()
       }
     } catch (e) {
@@ -228,12 +227,9 @@ export default function PlanChat({ tripId, traveler = 'both', initialMode, seedM
   }
 
   function onFormSaved(newId) {
-    const isNew = !activeTripId
     setActiveTripId(newId)
-    setMode(isNew ? 'chat' : 'itinerary')
-    if (isNew) {
-      setMessages((m) => [...m, { role: 'assistant', content: "Saved as a draft. Want a hand filling in the rest, or happy to keep typing it in yourself?" }])
-    }
+    setMode('chat')
+    setMessages((m) => [...m, { role: 'assistant', content: 'Saved as a draft. Want a hand filling in the rest, or happy to take it from here?' }])
     onChanged?.()
   }
 
@@ -259,11 +255,6 @@ export default function PlanChat({ tripId, traveler = 'both', initialMode, seedM
         <div className="plan-chat-head">
           <span className="plan-chat-head-title">✨ Plan with AI</span>
           <div className="plan-chat-modes">
-            {activeTripId && (
-              <button className={`plan-chat-mode${mode === 'itinerary' ? ' active' : ''}`} onClick={() => setMode('itinerary')}>
-                🗓️ plan
-              </button>
-            )}
             <button className={`plan-chat-mode${mode === 'chat' ? ' active' : ''}`} onClick={() => setMode('chat')}>
               💬 chat
             </button>
@@ -277,14 +268,7 @@ export default function PlanChat({ tripId, traveler = 'both', initialMode, seedM
         </div>
 
         {mode === 'form' ? (
-          <QuickForm tripId={activeTripId} onSaved={onFormSaved} onCancel={() => setMode(activeTripId ? 'itinerary' : 'chat')} />
-        ) : mode === 'itinerary' ? (
-          <div className="plan-chat-itinerary">
-            <ItineraryTimeline events={itineraryEvents} onEventsChange={setItineraryEvents} />
-            <button className="plan-add-btn plan-chat-itinerary-cta" onClick={() => setMode('chat')}>
-              💬 continue planning
-            </button>
-          </div>
+          <QuickForm tripId={activeTripId} onSaved={onFormSaved} onCancel={() => setMode('chat')} />
         ) : (
           <>
             <div className="plan-chat-log" ref={scrollRef}>

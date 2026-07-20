@@ -88,13 +88,46 @@ const TOOLS = [
                 title: { type: 'string' },
                 note: { type: 'string' },
                 city: { type: 'string' },
-                kind: { type: 'string', enum: ['flight', 'hotel', 'transport', 'activity', 'other'], description: 'What this event actually is — drives the icon/colour in the itinerary timeline. Pick the closest fit.' },
+                kind: { type: 'string', enum: ['flight', 'hotel', 'transport', 'car_hire', 'activity', 'place', 'other'], description: 'What this event actually is — drives the icon/colour in the itinerary timeline. Pick the closest fit.' },
               },
               required: ['title', 'kind'],
             },
           },
         },
         required: ['title', 'events'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_items',
+      description:
+        "Append one or more items to an EXISTING trip's itinerary WITHOUT touching what's already there — use this whenever the trip already has events and the user is adding to it (a place to visit, a hotel, a train, a car hire, an activity). This is the default for 'add X' on a trip that already exists. Never use propose_itinerary to add to a populated trip — that rebuilds it from scratch and wipes manual edits.",
+      parameters: {
+        type: 'object',
+        properties: {
+          trip_id: { type: 'string', description: 'The existing trip id (given to you in context).' },
+          items: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                event_date: { type: 'string', description: 'YYYY-MM-DD' },
+                end_date: { type: 'string', description: 'YYYY-MM-DD, for multi-night stays or a car-hire return day' },
+                start_time: { type: 'string', description: "'HH:MM' 24h local, if there's a meaningful time" },
+                end_time: { type: 'string', description: "'HH:MM' 24h local" },
+                title: { type: 'string' },
+                note: { type: 'string' },
+                city: { type: 'string', description: 'City or place name — also used to fetch a photo' },
+                kind: { type: 'string', enum: ['flight', 'hotel', 'transport', 'car_hire', 'activity', 'place', 'other'] },
+                detail: { type: 'object', description: 'Type-specific extras, e.g. for a flight {"flight_number","airline","dep_airport","arr_airport","dep_city","arr_city","status"}; for a hotel {"address","confirmation"}.' },
+              },
+              required: ['title', 'kind'],
+            },
+          },
+        },
+        required: ['trip_id', 'items'],
       },
     },
   },
@@ -173,13 +206,18 @@ async function runTool(name, input, ctx) {
 
     await sb(`planned_events?trip_id=eq.${tripId}`, { method: 'DELETE', prefer: 'return=minimal' })
     const events = await Promise.all(
-      (input.events || []).map(async (e) => ({
+      (input.events || []).map(async (e, i) => ({
         trip_id: tripId,
         event_date: e.event_date || null,
+        start_time: e.start_time || null,
+        end_time: e.end_time || null,
+        end_date: e.end_date || null,
         title: e.title,
         note: e.note || null,
         city: e.city || null,
         kind: e.kind || 'other',
+        detail: e.detail || {},
+        sort_order: i,
         photo_url: await fetchPlacePhoto(e.city || input.title),
         done: false,
       }))
@@ -188,6 +226,30 @@ async function runTool(name, input, ctx) {
 
     ctx.proposal = { trip_id: tripId, ...tripRow, events }
     return { trip_id: tripId, saved: true, event_count: events.length }
+  }
+
+  if (name === 'add_items') {
+    const tripId = input.trip_id || ctx.tripId
+    if (!tripId) return { error: 'no trip_id to add to' }
+    const rows = await Promise.all(
+      (input.items || []).map(async (e) => ({
+        trip_id: tripId,
+        event_date: e.event_date || null,
+        start_time: e.start_time || null,
+        end_time: e.end_time || null,
+        end_date: e.end_date || null,
+        title: e.title,
+        note: e.note || null,
+        city: e.city || null,
+        kind: e.kind || 'place',
+        detail: e.detail || {},
+        photo_url: await fetchPlacePhoto(e.city || e.title),
+        done: false,
+      }))
+    )
+    if (rows.length) await sb('planned_events', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(rows) })
+    ctx.itemsAdded = (ctx.itemsAdded || 0) + rows.length
+    return { trip_id: tripId, added: rows.length }
   }
 
   return { error: `unknown tool ${name}` }
@@ -204,7 +266,10 @@ Either David may free-text or dictate (voice-to-text) as much or as little as th
 
 1. Read what's given, don't ask about anything already stated or already knowable from remembered preferences below.
 2. Ask sharp, specific clarifying questions ONLY where something material is genuinely missing or ambiguous — never a generic checklist. One or two questions at a time, not an interrogation.
-3. The moment you have enough to sketch something concrete, call propose_itinerary — a rough skeleton is fine, don't wait for perfection. Keep revising it via the same tool as the conversation adds detail.
+3. Building the itinerary:
+   - If there is NO trip yet, or the trip is an empty shell, call propose_itinerary to sketch a first skeleton — rough is fine, don't wait for perfection.
+   - If the trip ALREADY has events (see the context below) and the user is adding to it — "add a stay in Bath", "put a car hire on the 14th", "we're doing dinner at X" — call add_items to APPEND. Never call propose_itinerary on a populated trip; that rebuilds it and wipes what's there.
+   - Set each item's kind accurately (flight/hotel/transport/car_hire/activity/place) and fill start_time/dates when known, so it lands on the right day of the vertical timeline. For flights, populate detail with flight_number, airline, dep_airport, arr_airport, dep_city, arr_city.
 4. Whenever someone states or clearly implies a lasting preference (an airline they're done with, a class they always fly, loving city breaks over beaches, whatever) call record_preference immediately — don't wait to be asked, and don't just mention it back in prose without saving it.
 5. Weave remembered preferences in naturally when they're relevant (e.g. steer away from an airline they've soured on, default to their usual cabin) — don't recite the list at them.
 
@@ -247,11 +312,14 @@ export default async function handler(req, res) {
     let tripContext = ''
     if (tripId) {
       const [trip] = await sb(`trips?id=eq.${tripId}&select=id,title,subtitle,traveler,start_date,end_date,countries,status`)
-      const events = await sb(`planned_events?trip_id=eq.${tripId}&select=event_date,title,note,city,done&order=event_date.asc`)
+      const events = await sb(`planned_events?trip_id=eq.${tripId}&select=event_date,start_time,title,note,city,kind,done&order=event_date.asc`)
       if (trip) {
-        tripContext = `\n\nAlready in progress — draft trip id ${trip.id}, "${trip.title}"${trip.subtitle ? ` (${trip.subtitle})` : ''}, dates ${trip.start_date || '?'} to ${trip.end_date || '?'}. Known so far: ${
-          events?.length ? events.map((e) => `${e.event_date || '(no date)'}: ${e.title}${e.note ? ` — ${e.note}` : ''}`).join('; ') : 'nothing logged yet beyond the trip shell.'
-        } Pass trip_id "${trip.id}" back on propose_itinerary to keep building on this one instead of starting a new trip.`
+        const populated = events?.length > 0
+        tripContext = `\n\nAlready in progress — trip id ${trip.id}, "${trip.title}"${trip.subtitle ? ` (${trip.subtitle})` : ''}, dates ${trip.start_date || '?'} to ${trip.end_date || '?'}. ${
+          populated
+            ? `It ALREADY has ${events.length} item(s): ${events.map((e) => `${e.event_date || '(no date)'}${e.start_time ? ' ' + e.start_time : ''} [${e.kind}] ${e.title}`).join('; ')}. This trip is populated — ADD to it with add_items (trip_id "${trip.id}"), do not rebuild it with propose_itinerary.`
+            : `It has no items yet — use propose_itinerary with trip_id "${trip.id}" to sketch the first skeleton.`
+        }`
       }
     }
 
@@ -300,7 +368,7 @@ export default async function handler(req, res) {
       ]),
     })
 
-    res.status(200).json({ threadId, reply: finalText, proposal: ctx.proposal || null })
+    res.status(200).json({ threadId, reply: finalText, proposal: ctx.proposal || null, itemsAdded: ctx.itemsAdded || 0 })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: err.message })

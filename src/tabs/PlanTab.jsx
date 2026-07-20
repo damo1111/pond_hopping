@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PlanChat from '../components/PlanChat.jsx'
+import TripPlanner from '../components/TripPlanner.jsx'
 import { thumb } from '../lib/imgTransform.js'
 
 const WISHLIST_STATUS = [
@@ -217,7 +218,8 @@ export default function PlanTab() {
   const [draftTrips, setDraftTrips] = useState(null)
   const [plannedEvents, setPlannedEvents] = useState([])
   const [wishlist, setWishlist] = useState(null)
-  const [chat, setChat] = useState(null) // null = closed, { tripId, mode } otherwise
+  const [creating, setCreating] = useState(false) // PlanChat for a brand-new trip
+  const [plannerId, setPlannerId] = useState(null) // full-screen TripPlanner for an existing draft
 
   function loadDrafts() {
     supabase
@@ -259,7 +261,7 @@ export default function PlanTab() {
       <section className="plan-section">
         <div className="plan-section-head">
           <div className="plan-section-title">Trips in the works</div>
-          <button className="plan-add-btn" onClick={() => setChat({ tripId: null, mode: 'chat' })}>
+          <button className="plan-add-btn" onClick={() => setCreating(true)}>
             + plan a trip
           </button>
         </div>
@@ -272,8 +274,8 @@ export default function PlanTab() {
               key={t.id}
               t={t}
               events={plannedEvents.filter((e) => e.trip_id === t.id)}
-              onOpen={() => setChat({ tripId: t.id, mode: 'itinerary' })}
-              onChat={() => setChat({ tripId: t.id, mode: 'chat' })}
+              onOpen={() => setPlannerId(t.id)}
+              onChat={() => setPlannerId(t.id)}
             />
           ))}
         </div>
@@ -294,21 +296,31 @@ export default function PlanTab() {
                 loadWishlist()
                 loadDrafts()
               }}
-              onOpenChat={(tripId) => setChat({ tripId, mode: 'itinerary' })}
+              onOpenChat={(tripId) => setPlannerId(tripId)}
             />
           ))}
         </div>
       </section>
 
-      {chat && (
+      {creating && (
         <PlanChat
-          tripId={chat.tripId}
-          initialMode={chat.mode}
-          onClose={() => setChat(null)}
+          tripId={null}
+          onClose={() => setCreating(false)}
           onChanged={() => {
             loadDrafts()
             loadWishlist()
           }}
+        />
+      )}
+
+      {plannerId && (
+        <TripPlanner
+          tripId={plannerId}
+          onClose={() => {
+            setPlannerId(null)
+            loadDrafts()
+          }}
+          onChanged={loadDrafts}
         />
       )}
     </div>
