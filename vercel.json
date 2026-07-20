@@ -4,8 +4,7 @@
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
   "functions": {
     "api/resize-photo.js": { "maxDuration": 60, "memory": 1024 },
-    "api/plan-chat.js": { "maxDuration": 60, "memory": 1024 },
-    "api/set-cover.js": { "maxDuration": 30, "memory": 1024 }
+    "api/plan-chat.js": { "maxDuration": 60, "memory": 1024 }
   },
   "headers": [
     {
