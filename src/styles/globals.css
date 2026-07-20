@@ -63,9 +63,22 @@ a {
   text-decoration: none;
 }
 
+/* Baseline reset for every <button> in the app. Safari (unlike the
+   Chromium this was originally verified in) renders an unstyled button
+   with a heavy native grey box — background/border/appearance must be
+   explicitly zeroed here rather than assumed. Any component that wants
+   a visible border/background sets it in its own class, which — being
+   a class selector — always wins the cascade over this element rule,
+   so this is safe to apply globally. */
 button {
   font-family: inherit;
+  color: inherit;
+  text-align: inherit;
   cursor: pointer;
+  background: none;
+  border: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 ::selection {
@@ -2951,8 +2964,6 @@ button {
 .plan-trip-card {
   position: relative;
   background: var(--surface);
-  background-size: cover;
-  background-position: center;
   border-radius: 16px;
   padding: 14px;
   display: flex;
@@ -2962,15 +2973,18 @@ button {
   overflow: hidden;
 }
 
-.plan-trip-card-shade {
+.plan-trip-card-img {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(26, 22, 17, 0.12) 0%, rgba(26, 22, 17, 0.42) 55%, rgba(26, 22, 17, 0.8) 100%);
-  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
 }
 
 .plan-trip-card-main {
   position: relative;
+  z-index: 1;
   text-align: left;
   display: flex;
   flex-direction: column;
@@ -2979,6 +2993,7 @@ button {
 
 .plan-trip-card-chat {
   position: relative;
+  z-index: 1;
   align-self: flex-start;
   font-family: var(--font-mono);
   font-size: 9px;
@@ -2987,24 +3002,46 @@ button {
   color: var(--text-muted);
 }
 
-/* Glass treatment once a cover photo is in play — dimmed image behind a
-   frosted "continue planning" chip, light text, no more flat grey border. */
+/* Real "liquid glass" treatment once a cover photo is in play — a frosted,
+   blurred panel sitting over the dimmed photo guarantees text contrast
+   regardless of the image's own tone, rather than trusting a gradient
+   alone. This is what genuine glassmorphism means: translucent + blurred,
+   not just darkened. */
 .plan-trip-card.has-cover {
-  min-height: 150px;
+  min-height: 168px;
   justify-content: flex-end;
+  padding: 0;
+}
+
+.plan-trip-card.has-cover .plan-trip-card-main {
+  padding: 12px 14px 10px;
+}
+
+.plan-trip-card.has-cover .plan-trip-card-glass {
+  background: rgba(20, 17, 12, 0.42);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .plan-trip-card.has-cover .plan-trip-badge,
 .plan-trip-card.has-cover .plan-trip-subtitle,
 .plan-trip-card.has-cover .plan-trip-stats {
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(255, 255, 255, 0.88);
 }
 
 .plan-trip-card.has-cover .plan-trip-title {
   color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .plan-trip-card.has-cover .plan-trip-card-chat {
+  margin: 0 14px 12px;
   align-self: flex-start;
   padding: 7px 13px;
   border-radius: 999px;
@@ -3312,24 +3349,24 @@ button {
 
 .tp-tabs {
   display: flex;
-  gap: 22px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--border);
+  gap: 8px;
+  padding: 4px 12px 10px;
 }
 
 .tp-tab {
-  padding: 8px 0 10px;
-  font-size: 15px;
-  font-weight: 300;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-muted);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  transition: background 0.15s, color 0.15s;
 }
 
 .tp-tab.active {
-  color: var(--text);
-  font-weight: 500;
-  border-bottom-color: var(--accent);
+  color: #fff;
+  background: var(--text);
 }
 
 .tp-dayswitch {
@@ -3603,138 +3640,38 @@ button {
   max-width: calc(100% - 40px);
 }
 
-/* ── Planner flight card (Flighty/ByAir flavoured) ───────────────── */
+/* ── Planner flight card ──────────────────────────────────────────
+   Collapsed state reuses .flight-card/.flight-head.board/.fh-* from the
+   Flights tab directly (see FlightCard.jsx) — the departures-board look
+   is the actual reference to match, not just inspiration. Only the
+   expanded detail panel below is planner-specific. */
 
 .pf-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
   margin-bottom: 10px;
-  overflow: hidden;
-}
-
-.pf-head {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 13px 15px;
-}
-
-.pf-card.open .pf-head {
-  padding-bottom: 10px;
-}
-
-.pf-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.pf-airline {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.pf-plane {
-  color: #3b7ea1;
-}
-
-.pf-fno {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
 }
 
 .pf-status {
+  position: absolute;
+  right: -4px;
+  top: -4px;
   font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.06em;
+  font-size: 7px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  padding: 4px 9px;
+  padding: 3px 6px;
   border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 0 0 2px #17130e;
 }
 
-.pf-status-scheduled { background: rgba(59, 126, 161, 0.12); color: #2f6a89; }
-.pf-status-ontime { background: rgba(62, 125, 84, 0.14); color: #2f6642; }
-.pf-status-delayed { background: rgba(192, 57, 43, 0.12); color: #a5342a; }
-.pf-status-muted { background: var(--surface-2); color: var(--text-muted); }
+.pf-status-scheduled { background: #3B7EA1; color: #fff; }
+.pf-status-ontime { background: #3E7D54; color: #fff; }
+.pf-status-delayed { background: #C0392B; color: #fff; }
+.pf-status-muted { background: #4a4438; color: #d8d0c0; }
 
-.pf-route {
-  display: flex;
-  align-items: flex-start;
-}
-
-.pf-endpoint {
-  flex: none;
-  width: 74px;
-}
-
-.pf-endpoint-arr {
-  text-align: right;
-}
-
-.pf-code {
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 1;
-}
-
-.pf-city {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 3px;
-}
-
-.pf-time {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text);
-  margin-top: 4px;
-}
-
-.pf-path {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 8px 0;
-}
-
-.pf-line {
-  flex: 1;
-  height: 2px;
-  background: repeating-linear-gradient(90deg, var(--accent-dim) 0 5px, transparent 5px 10px);
-}
-
-.pf-planemid {
-  color: #3b7ea1;
-  font-size: 13px;
-}
-
-.pf-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #3b7ea1;
-  flex: none;
-}
-
-.pf-dot-hollow {
-  background: var(--surface);
-  border: 2px solid #3b7ea1;
-}
-
-.pf-foot {
+.pf-foot-inline {
   display: flex;
   gap: 12px;
-  margin-top: 11px;
-  padding-top: 9px;
-  border-top: 1px solid var(--border);
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.04em;

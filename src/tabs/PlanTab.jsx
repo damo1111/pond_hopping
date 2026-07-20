@@ -25,23 +25,22 @@ function slugify(title) {
 function DraftTripCard({ t, events, cover, onOpen, onChat }) {
   const doneCount = events.filter((e) => e.done).length
   return (
-    <div
-      className={`plan-trip-card${cover ? ' has-cover' : ''}`}
-      style={cover ? { backgroundImage: `url(${coverUrl(cover, { width: 700, height: 400 })})` } : undefined}
-    >
-      {cover && <div className="plan-trip-card-shade" />}
+    <div className={`plan-trip-card${cover ? ' has-cover' : ''}`}>
+      {cover && <img className="plan-trip-card-img" src={coverUrl(cover, { width: 700, height: 400 })} alt="" loading="lazy" />}
       <button className="plan-trip-card-main" onClick={onOpen}>
-        <div className="plan-trip-top">
-          <CountryFlags countries={t.countries} size={18} />
-          <span className="plan-trip-badge">✏️ Planning{t.traveler ? ` · ${t.traveler}` : ''}</span>
-        </div>
-        <div className="plan-trip-title">{t.title}</div>
-        {t.subtitle && <div className="plan-trip-subtitle">{t.subtitle}</div>}
-        <div className="plan-trip-stats">
-          {t.start_date ? `~${new Date(t.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : 'dates tbc'}
-          {t.end_date ? ` – ${new Date(t.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}
-          {' · '}
-          {events.length ? `${doneCount}/${events.length} planned` : 'nothing logged yet'}
+        <div className="plan-trip-card-glass">
+          <div className="plan-trip-top">
+            <CountryFlags countries={t.countries} size={18} />
+            <span className="plan-trip-badge">✏️ Planning{t.traveler ? ` · ${t.traveler}` : ''}</span>
+          </div>
+          <div className="plan-trip-title">{t.title}</div>
+          {t.subtitle && <div className="plan-trip-subtitle">{t.subtitle}</div>}
+          <div className="plan-trip-stats">
+            {t.start_date ? `~${new Date(t.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : 'dates tbc'}
+            {t.end_date ? ` – ${new Date(t.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}
+            {' · '}
+            {events.length ? `${doneCount}/${events.length} planned` : 'nothing logged yet'}
+          </div>
         </div>
       </button>
       <button

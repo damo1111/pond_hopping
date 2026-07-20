@@ -1,10 +1,21 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase.js'
 import { thumb } from '../../lib/imgTransform.js'
+import { destinationQuery } from '../../lib/planItems.js'
 
 // Explore = ideas to fold into the trip. Two honest sources without a paid
 // places API: the user's own wishlist (quick to pull one onto this trip),
-// and the AI planner (tap to have it suggest things for the destination).
+// filtered to items that actually relate to THIS trip's destination
+// (previously showed every unconverted wishlist item on every trip —
+// a Samoa idea has no business appearing under a UK trip), and the AI
+// planner (tap to have it suggest things for the destination).
+function isRelevant(item, trip, dest) {
+  const destLower = dest.toLowerCase()
+  const hay = `${item.title || ''} ${item.country || ''}`.toLowerCase()
+  const tripTitle = (trip.title || '').toLowerCase()
+  return hay.includes(destLower) || destLower.includes(item.title?.toLowerCase() || '\0') || tripTitle.includes(item.country?.toLowerCase() || '\0')
+}
+
 export default function ExploreView({ trip, onAddIdea, onAskAI }) {
   const [wishlist, setWishlist] = useState([])
 
@@ -16,7 +27,8 @@ export default function ExploreView({ trip, onAddIdea, onAskAI }) {
       .then(({ data }) => setWishlist(data ?? []))
   }, [])
 
-  const dest = (trip.title || 'here').replace(/^.*—\s*/, '')
+  const dest = destinationQuery(trip)
+  const relevant = wishlist.filter((w) => isRelevant(w, trip, dest))
 
   return (
     <div className="ex-scroll">
@@ -29,11 +41,11 @@ export default function ExploreView({ trip, onAddIdea, onAskAI }) {
       </button>
 
       <div className="ex-section-title">From your wishlist</div>
-      {wishlist.length === 0 ? (
-        <div className="ov-empty">Nothing on the wishlist yet — add somewhere from the Plan tab.</div>
+      {relevant.length === 0 ? (
+        <div className="ov-empty">Nothing on your wishlist matches {dest} yet — the AI planner above can suggest some instead.</div>
       ) : (
         <div className="ex-grid">
-          {wishlist.map((w) => (
+          {relevant.map((w) => (
             <div key={w.id} className="ex-card">
               {w.image_url ? (
                 <div className="ex-cover">

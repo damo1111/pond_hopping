@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase.js'
 import { fetchAircraftPhoto } from '../../lib/planespotters.js'
-import { fmtTime } from '../../lib/planItems.js'
+import TailFin from '../TailFin.jsx'
+import FlapText from '../FlapText.jsx'
+import { AIRPORT_COORDS } from '../../lib/airportCoords.js'
+import { distanceKm } from '../../lib/geo.js'
 
-// Upcoming-flight card in the spirit of Flighty / ByAir: airline + number,
-// a status pill, big origin→destination with local times, and a subtle
-// route progress line. Tapping expands it in place — terminal/baggage
+// Collapsed view reuses the Flights tab's actual departures-board strip
+// (.flight-head.board / TailFin / FlapText split-flap animation) rather
+// than a bespoke design — this IS the reference the planner should match,
+// not just take inspiration from. Tapping expands to terminal/baggage
 // belt for both ends, delay likelihood, and aircraft registration (which,
-// once entered, fetches a real Planespotters photo exactly like the
-// Flights tab's FlightCard already does).
+// once set, fetches a real Planespotters photo exactly like Flights does).
 const STATUS = {
   scheduled: { label: 'Scheduled', cls: 'scheduled' },
   on_time: { label: 'On time', cls: 'ontime' },
@@ -25,9 +28,12 @@ const DELAY_RISK = [
   { id: 'high', label: 'High', color: '#C0392B' },
 ]
 
-// Mirrors FlightCard.jsx's Meta component exactly — same interaction,
-// same classes — just under a different name since this is a distinct
-// component file.
+function fmtDate(iso) {
+  if (!iso) return ''
+  return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+// Mirrors FlightCard.jsx's Meta component — same interaction, same classes.
 function DetailCell({ label, value, mono, onSave }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -107,51 +113,55 @@ export default function PlanFlightCard({ event, onEditEvent, onSaveDetail }) {
   const status = STATUS[d.status] || STATUS.scheduled
   const dep = d.dep_airport || '—'
   const arr = d.arr_airport || '—'
+  const km =
+    AIRPORT_COORDS[d.dep_airport] && AIRPORT_COORDS[d.arr_airport]
+      ? distanceKm(AIRPORT_COORDS[d.dep_airport], AIRPORT_COORDS[d.arr_airport])
+      : null
 
   return (
-    <div className={`pf-card${open ? ' open' : ''}`}>
-      <button className="pf-head" onClick={() => setOpen((o) => !o)}>
-        <div className="pf-top">
-          <span className="pf-airline">
-            <span className="pf-plane">✈</span>
-            {d.airline || 'Flight'}
-            {d.flight_number ? <span className="pf-fno">{d.flight_number}</span> : null}
-          </span>
+    <div className={`flight-card pf-card${open ? ' open' : ''}`}>
+      <button className="flight-head board" onClick={() => setOpen((o) => !o)}>
+        <span className="fh-thumb">
+          <TailFin airline={d.airline} size={22} />
           <span className={`pf-status pf-status-${status.cls}`}>{status.label}</span>
-        </div>
-
-        <div className="pf-route">
-          <div className="pf-endpoint">
-            <div className="pf-code">{dep}</div>
-            <div className="pf-city">{d.dep_city || ''}</div>
-            <div className="pf-time">{fmtTime(event.start_time)}</div>
-          </div>
-
-          <div className="pf-path">
-            <span className="pf-dot" />
-            <span className="pf-line" />
-            <span className="pf-planemid">✈</span>
-            <span className="pf-line" />
-            <span className="pf-dot pf-dot-hollow" />
-          </div>
-
-          <div className="pf-endpoint pf-endpoint-arr">
-            <div className="pf-code">{arr}</div>
-            <div className="pf-city">{d.arr_city || ''}</div>
-            <div className="pf-time">{fmtTime(event.end_time)}</div>
-          </div>
-        </div>
-
-        {(d.via || event.end_date) && (
-          <div className="pf-foot">
-            {d.via ? <span>via {d.via}</span> : null}
-            {event.end_date && event.end_date !== event.event_date ? <span>arrives next day</span> : null}
-          </div>
-        )}
+        </span>
+        <span className="fh-main">
+          <span className="fh-row1">
+            <FlapText className="fh-time" text={event.start_time || '--:--'} groupDelay={0} />
+            <span className="fh-route">
+              <FlapText text={dep} groupDelay={200} />
+              <span className="fh-arrow">→</span>
+              <FlapText text={arr} groupDelay={260} />
+            </span>
+            <FlapText className="fh-flightno" text={d.flight_number || ''} groupDelay={420} />
+          </span>
+          <span className="fh-row2">
+            {d.dep_city || dep} — {d.arr_city || arr}
+            {event.event_date && (
+              <>
+                <span className="fh-dot">·</span>
+                {fmtDate(event.event_date)}
+              </>
+            )}
+            {km && (
+              <>
+                <span className="fh-dot">·</span>
+                {km.toLocaleString()} km
+              </>
+            )}
+          </span>
+        </span>
       </button>
 
       {open && (
         <div className="pf-details" onClick={(e) => e.stopPropagation()}>
+          {(d.via || (event.end_date && event.end_date !== event.event_date)) && (
+            <div className="pf-foot pf-foot-inline">
+              {d.via ? <span>via {d.via}</span> : null}
+              {event.end_date && event.end_date !== event.event_date ? <span>arrives next day</span> : null}
+            </div>
+          )}
+
           <div className="pf-detail-section">
             <div className="pf-detail-title">Departure — {dep}</div>
             <div className="pf-detail-grid">
