@@ -1,0 +1,58 @@
+import { useEffect, useState } from 'react'
+import { supabase } from '../../lib/supabase.js'
+import { thumb } from '../../lib/imgTransform.js'
+
+// Explore = ideas to fold into the trip. Two honest sources without a paid
+// places API: the user's own wishlist (quick to pull one onto this trip),
+// and the AI planner (tap to have it suggest things for the destination).
+export default function ExploreView({ trip, onAddIdea, onAskAI }) {
+  const [wishlist, setWishlist] = useState([])
+
+  useEffect(() => {
+    supabase
+      .from('wishlist_items')
+      .select('*')
+      .is('trip_id', null)
+      .then(({ data }) => setWishlist(data ?? []))
+  }, [])
+
+  const dest = (trip.title || 'here').replace(/^.*—\s*/, '')
+
+  return (
+    <div className="ex-scroll">
+      <button className="ex-ai" onClick={() => onAskAI(`Suggest a handful of great things to do on this trip (${dest}) — mix of food, sights and something a bit special.`)}>
+        <span className="ex-ai-i">✨</span>
+        <span>
+          <span className="ex-ai-title">Get ideas for {dest}</span>
+          <span className="ex-ai-sub">Ask the planner — it knows your taste</span>
+        </span>
+      </button>
+
+      <div className="ex-section-title">From your wishlist</div>
+      {wishlist.length === 0 ? (
+        <div className="ov-empty">Nothing on the wishlist yet — add somewhere from the Plan tab.</div>
+      ) : (
+        <div className="ex-grid">
+          {wishlist.map((w) => (
+            <div key={w.id} className="ex-card">
+              {w.image_url ? (
+                <div className="ex-cover">
+                  <img src={thumb(w.image_url, { width: 300, height: 180 })} alt="" loading="lazy" />
+                </div>
+              ) : (
+                <div className="ex-cover ex-cover-empty">🌍</div>
+              )}
+              <div className="ex-card-body">
+                <div className="ex-card-title">{w.title}</div>
+                {w.country && <div className="ex-card-sub">{w.country}</div>}
+                <button className="ex-add" onClick={() => onAddIdea(w)}>
+                  + add to trip
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
