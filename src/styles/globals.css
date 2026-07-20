@@ -2949,17 +2949,28 @@ button {
 }
 
 .plan-trip-card {
+  position: relative;
   background: var(--surface);
-  border: 1px dashed var(--border);
-  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 16px;
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.plan-trip-card-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(26, 22, 17, 0.12) 0%, rgba(26, 22, 17, 0.42) 55%, rgba(26, 22, 17, 0.8) 100%);
+  pointer-events: none;
 }
 
 .plan-trip-card-main {
+  position: relative;
   text-align: left;
   display: flex;
   flex-direction: column;
@@ -2967,12 +2978,41 @@ button {
 }
 
 .plan-trip-card-chat {
+  position: relative;
   align-self: flex-start;
   font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+/* Glass treatment once a cover photo is in play — dimmed image behind a
+   frosted "continue planning" chip, light text, no more flat grey border. */
+.plan-trip-card.has-cover {
+  min-height: 150px;
+  justify-content: flex-end;
+}
+
+.plan-trip-card.has-cover .plan-trip-badge,
+.plan-trip-card.has-cover .plan-trip-subtitle,
+.plan-trip-card.has-cover .plan-trip-stats {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.plan-trip-card.has-cover .plan-trip-title {
+  color: #fff;
+}
+
+.plan-trip-card.has-cover .plan-trip-card-chat {
+  align-self: flex-start;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  color: #fff;
 }
 
 .plan-section-actions {
@@ -3566,15 +3606,23 @@ button {
 /* ── Planner flight card (Flighty/ByAir flavoured) ───────────────── */
 
 .pf-card {
-  display: block;
-  width: 100%;
-  text-align: left;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 13px 15px;
   box-shadow: var(--shadow);
   margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.pf-head {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 13px 15px;
+}
+
+.pf-card.open .pf-head {
+  padding-bottom: 10px;
 }
 
 .pf-top {
@@ -3692,6 +3740,64 @@ button {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.pf-details {
+  padding: 0 15px 15px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.pf-detail-title {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.pf-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pf-risk-row {
+  display: flex;
+  gap: 7px;
+}
+
+.pf-risk-chip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  background: none;
+}
+
+.pf-risk-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.pf-edit-link {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-decoration: underline;
+  margin-top: 2px;
 }
 
 /* ── Overview ────────────────────────────────────────────────────── */

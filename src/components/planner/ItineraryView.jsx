@@ -4,8 +4,8 @@ import { thumb } from '../../lib/imgTransform.js'
 import { KIND_META, tripDays, sortEvents, fmtTime, fmtDayLong } from '../../lib/planItems.js'
 import PlanFlightCard from './PlanFlightCard.jsx'
 
-function TimelineItem({ ev, onToggle, onEdit }) {
-  if (ev.kind === 'flight') return <PlanFlightCard event={ev} onEdit={onEdit} />
+function TimelineItem({ ev, onToggle, onEdit, onSaveDetail }) {
+  if (ev.kind === 'flight') return <PlanFlightCard event={ev} onEditEvent={onEdit} onSaveDetail={onSaveDetail} />
   const meta = KIND_META[ev.kind] || KIND_META.other
   return (
     <div className={`tl-item${ev.done ? ' done' : ''}`}>
@@ -78,6 +78,10 @@ export default function ItineraryView({ trip, events, activeDay, setActiveDay, s
     if (!error) onEventsChange(events.map((e) => (e.id === ev.id ? { ...e, done: !e.done } : e)))
   }
 
+  function saveDetail(id, detail) {
+    onEventsChange(events.map((e) => (e.id === id ? { ...e, detail } : e)))
+  }
+
   const unscheduled = byDay.unscheduled ? sortEvents(byDay.unscheduled) : []
 
   return (
@@ -94,7 +98,7 @@ export default function ItineraryView({ trip, events, activeDay, setActiveDay, s
               <div className="tl-day-empty">Trip starts here — add your outbound flight.</div>
             )}
             {dayEvents.map((ev) => (
-              <TimelineItem key={ev.id} ev={ev} onToggle={() => toggleDone(ev)} onEdit={() => onEditEvent(ev)} />
+              <TimelineItem key={ev.id} ev={ev} onToggle={() => toggleDone(ev)} onEdit={() => onEditEvent(ev)} onSaveDetail={saveDetail} />
             ))}
             <button className="tl-add" onClick={() => onAddOnDay(d.key)}>
               + add to this day

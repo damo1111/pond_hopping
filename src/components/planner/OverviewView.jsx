@@ -29,7 +29,7 @@ async function fetchDestinationPhoto(trip) {
   }
 }
 
-export default function OverviewView({ trip, events, onEditEvent }) {
+export default function OverviewView({ trip, events, onEditEvent, onEventsChange }) {
   const [cover, setCover] = useState(null)
 
   useEffect(() => {
@@ -126,7 +126,12 @@ export default function OverviewView({ trip, events, onEditEvent }) {
           <div className="ov-section-title">Flights</div>
           <div className="ov-flights">
             {flights.map((f) => (
-              <PlanFlightCard key={f.id} event={f} onEdit={() => onEditEvent(f)} />
+              <PlanFlightCard
+                key={f.id}
+                event={f}
+                onEditEvent={() => onEditEvent(f)}
+                onSaveDetail={(id, detail) => onEventsChange?.(events.map((e) => (e.id === id ? { ...e, detail } : e)))}
+              />
             ))}
           </div>
         </div>

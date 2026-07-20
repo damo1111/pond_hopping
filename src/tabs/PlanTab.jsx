@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PlanChat from '../components/PlanChat.jsx'
 import TripPlanner from '../components/TripPlanner.jsx'
-import { thumb } from '../lib/imgTransform.js'
+import { thumb, coverUrl } from '../lib/imgTransform.js'
 
 const WISHLIST_STATUS = [
   { id: 'idea', label: 'Idea' },
@@ -22,10 +22,14 @@ function slugify(title) {
   )
 }
 
-function DraftTripCard({ t, events, onOpen, onChat }) {
+function DraftTripCard({ t, events, cover, onOpen, onChat }) {
   const doneCount = events.filter((e) => e.done).length
   return (
-    <div className="plan-trip-card">
+    <div
+      className={`plan-trip-card${cover ? ' has-cover' : ''}`}
+      style={cover ? { backgroundImage: `url(${coverUrl(cover, { width: 700, height: 400 })})` } : undefined}
+    >
+      {cover && <div className="plan-trip-card-shade" />}
       <button className="plan-trip-card-main" onClick={onOpen}>
         <div className="plan-trip-top">
           <CountryFlags countries={t.countries} size={18} />
@@ -217,6 +221,7 @@ function WishlistItem({ item, onChange, onOpenChat }) {
 export default function PlanTab() {
   const [draftTrips, setDraftTrips] = useState(null)
   const [plannedEvents, setPlannedEvents] = useState([])
+  const [covers, setCovers] = useState({})
   const [wishlist, setWishlist] = useState(null)
   const [creating, setCreating] = useState(false) // PlanChat for a brand-new trip
   const [plannerId, setPlannerId] = useState(null) // full-screen TripPlanner for an existing draft
@@ -230,13 +235,20 @@ export default function PlanTab() {
       .then(({ data }) => {
         setDraftTrips(data ?? [])
         if (data?.length) {
+          const ids = data.map((t) => t.id)
           supabase
             .from('planned_events')
             .select('*')
-            .in('trip_id', data.map((t) => t.id))
+            .in('trip_id', ids)
             .then(({ data: events }) => setPlannedEvents(events ?? []))
+          supabase
+            .from('photo_cache')
+            .select('trip_id,urls')
+            .in('trip_id', ids)
+            .then(({ data: rows }) => setCovers(Object.fromEntries((rows ?? []).map((r) => [r.trip_id, r.urls?.[0]]).filter(([, u]) => u))))
         } else {
           setPlannedEvents([])
+          setCovers({})
         }
       })
   }
@@ -274,6 +286,7 @@ export default function PlanTab() {
               key={t.id}
               t={t}
               events={plannedEvents.filter((e) => e.trip_id === t.id)}
+              cover={covers[t.id]}
               onOpen={() => setPlannerId(t.id)}
               onChat={() => setPlannerId(t.id)}
             />

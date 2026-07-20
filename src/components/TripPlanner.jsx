@@ -123,7 +123,7 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
       )}
 
       <main className="tp-body">
-        {tab === 'overview' && <OverviewView trip={trip} events={events} onEditEvent={setEditEvent} />}
+        {tab === 'overview' && <OverviewView trip={trip} events={events} onEditEvent={setEditEvent} onEventsChange={setEvents} />}
         {tab === 'itinerary' && (
           <ItineraryView
             trip={trip}
