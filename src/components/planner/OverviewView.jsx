@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Polyline, CircleMarker } from 'react-leaflet'
 import { supabase } from '../../lib/supabase.js'
 import { greatCircle } from '../../lib/geo.js'
 import { AIRPORT_COORDS } from '../../lib/airportCoords.js'
-import { KIND_META } from '../../lib/planItems.js'
+import { KIND_META, destinationQuery } from '../../lib/planItems.js'
 import { coverUrl } from '../../lib/imgTransform.js'
 import PlanFlightCard from './PlanFlightCard.jsx'
 
@@ -13,16 +13,48 @@ function nights(a, b) {
   return d > 0 ? Math.round(d) : null
 }
 
+// Free, keyless Wikipedia lookup — same trick already used for wishlist
+// and event photos. Only called when a trip genuinely has no cover yet,
+// and the result is cached in photo_cache so it's a one-time fetch per
+// trip, not a fetch on every Overview visit.
+async function fetchDestinationPhoto(trip) {
+  try {
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(destinationQuery(trip))}`)
+    if (!res.ok) return null
+    const data = await res.json()
+    if (data.type === 'disambiguation') return null
+    return data.thumbnail?.source || data.originalimage?.source || null
+  } catch {
+    return null
+  }
+}
+
 export default function OverviewView({ trip, events, onEditEvent }) {
   const [cover, setCover] = useState(null)
 
   useEffect(() => {
+    let alive = true
     supabase
       .from('photo_cache')
       .select('urls')
       .eq('trip_id', trip.id)
       .maybeSingle()
-      .then(({ data }) => setCover(data?.urls?.[0] || null))
+      .then(async ({ data }) => {
+        const existing = data?.urls?.[0]
+        if (existing) {
+          if (alive) setCover(existing)
+          return
+        }
+        // No cover on file for this trip yet — auto-fill one from the
+        // destination, going forward, so a fresh draft never shows blank.
+        const photo = await fetchDestinationPhoto(trip)
+        if (!photo) return
+        if (alive) setCover(photo)
+        await supabase.from('photo_cache').upsert({ trip_id: trip.id, urls: [photo], status: 'ok', updated_at: new Date().toISOString() })
+      })
+    return () => {
+      alive = false
+    }
   }, [trip.id])
 
   const flights = events.filter((e) => e.kind === 'flight')

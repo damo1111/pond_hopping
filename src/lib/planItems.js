@@ -1,3 +1,38 @@
+import { emojiFlagToIso } from './flags.js'
+
+// ISO code -> a name Wikipedia's summary API will actually resolve.
+// Covers the codes already in public/flags/ (see CountryFlags.jsx).
+const COUNTRY_NAMES = {
+  au: 'Australia',
+  cn: 'China',
+  de: 'Germany',
+  gb: 'United Kingdom',
+  'gb-sct': 'Scotland',
+  hk: 'Hong Kong',
+  it: 'Italy',
+  jp: 'Japan',
+  kr: 'South Korea',
+  lk: 'Sri Lanka',
+  my: 'Malaysia',
+  nl: 'Netherlands',
+  nz: 'New Zealand',
+  sg: 'Singapore',
+  th: 'Thailand',
+  us: 'United States',
+}
+
+// A trip's `countries` column has held two shapes over this app's life —
+// plain lowercase ISO codes ('gb') and flag emoji ('🇬🇧') — so accept
+// either. Falls back to the trip title itself if nothing resolves,
+// which still works fine for a title that's already a real place name.
+export function destinationQuery(trip) {
+  const codes = (trip.countries || [])
+    .map((c) => (/^[a-z]{2}(-[a-z]+)?$/.test(c) ? c : emojiFlagToIso(c)))
+    .filter(Boolean)
+  const name = codes.map((c) => COUNTRY_NAMES[c]).find(Boolean)
+  return name || trip.title
+}
+
 // One source of truth for the itinerary item vocabulary — icon + colour
 // per kind, matching the app's established "colour-code by category"
 // pattern (CostsTab CAT_ICON, tripColors palette) rather than tinting
