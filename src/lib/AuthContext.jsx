@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from './supabase.js'
+import { rememberGoogleToken } from './google.js'
 
 export const AuthContext = createContext({
   session: null,
@@ -22,10 +23,12 @@ export function AuthProvider({ children }) {
     let alive = true
     supabase.auth.getSession().then(({ data }) => {
       if (!alive) return
+      rememberGoogleToken(data.session)
       setSession(data.session)
       setAuthLoading(false)
     })
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+      rememberGoogleToken(s)
       setSession(s)
     })
     return () => {

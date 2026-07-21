@@ -8,6 +8,7 @@ import { KIND_META, destinationQuery, tripDays, sortEvents, eventsForDay, fmtDay
 import { coverUrl } from '../../lib/imgTransform.js'
 import { TimelineItem, SpanRow } from './ItineraryView.jsx'
 import Concierge from './Concierge.jsx'
+import GmailImport from './GmailImport.jsx'
 
 function nights(a, b) {
   if (!a || !b) return null
@@ -33,6 +34,7 @@ async function fetchDestinationPhoto(trip) {
 
 export default function OverviewView({ trip, events, onEditEvent, onEventsChange, onAskAI, onAdded }) {
   const [cover, setCover] = useState(null)
+  const [importing, setImporting] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -145,6 +147,19 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
         ))}
         {events.length === 0 && <div className="ov-empty">Nothing planned yet — head to Itinerary or ask the AI planner.</div>}
       </div>
+
+      {trip.start_date && trip.end_date && (
+        <button className="ov-import" onClick={() => setImporting(true)}>
+          <span className="ov-import-i">📬</span>
+          <span className="ov-import-body">
+            <span className="ov-import-title">Auto-fill from your inbox</span>
+            <span className="ov-import-sub">Scan Gmail for this trip's flights, stays &amp; bookings</span>
+          </span>
+          <span className="ov-import-arrow">→</span>
+        </button>
+      )}
+
+      {importing && <GmailImport trip={trip} onClose={() => setImporting(false)} onImported={onAdded} />}
 
       <Concierge trip={trip} events={events} onAskAI={onAskAI} onAdded={onAdded} />
 
