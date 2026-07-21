@@ -95,11 +95,16 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
   const placePts = places.map((p) => p.coords)
   const allPts = [...flightPts, ...placePts]
 
-  // Every trip starts/ends at home (Australia) — letting that far-off point
-  // drive the fit squashes the actual destination down to a sliver. Same
-  // fix already used on the main Map tab: focus on where the trip actually
-  // happens, and just let home's route render without dictating the zoom.
-  const focusPts = boundsExcludingHome(allPts) || allPts
+  // The real destination is wherever the stays/activities actually are —
+  // not every airport a flight happens to touch. A cheap routing via
+  // Colombo, or a connection through Helsinki, is "how you get there," not
+  // "where you're going," and letting either one drive the fit drags the
+  // zoom out to the whole flight path instead of the UK. Same principle as
+  // the home-exclusion fix already used on the main Map tab, just applied
+  // via the itinerary's own place pins rather than a hardcoded country box
+  // — falls back to flights-minus-home if a trip has no stays/activities
+  // pinned yet (e.g. only flights booked so far).
+  const focusPts = placePts.length ? placePts : boundsExcludingHome(allPts) || allPts
   const center = focusPts.length
     ? [focusPts.reduce((a, p) => a + p[0], 0) / focusPts.length, focusPts.reduce((a, p) => a + p[1], 0) / focusPts.length]
     : [20, 0]
