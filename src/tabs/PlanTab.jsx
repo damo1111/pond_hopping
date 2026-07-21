@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { useAuth } from '../lib/AuthContext.jsx'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PlanChat from '../components/PlanChat.jsx'
 import TripPlanner from '../components/TripPlanner.jsx'
@@ -22,8 +23,16 @@ function slugify(title) {
   )
 }
 
-function DraftTripCard({ t, events, cover, onOpen, onChat }) {
+function DraftTripCard({ t, events, cover, members, myEmail, onOpen, onChat }) {
   const doneCount = events.filter((e) => e.done).length
+  // A member-gated trip carries its ownership on the card: whose trip it
+  // is, and what your role in it is ("Seeby's trip · you're the planner").
+  const owner = members?.find((m) => m.role === 'owner')
+  const me = myEmail ? members?.find((m) => m.email.toLowerCase() === myEmail.toLowerCase()) : null
+  // Full display name, not first name — in a two-David household,
+  // "David's trip" identifies nobody.
+  const whose = owner ? (owner.email.toLowerCase() === myEmail?.toLowerCase() ? 'Your' : `${owner.display_name || owner.email}'s`) : null
+  const roleLabel = me && me.role !== 'owner' ? ` · you're the ${me.role}` : ''
   return (
     <div className={`plan-trip-card${cover ? ' has-cover' : ''}`}>
       {cover && <img className="plan-trip-card-img" src={coverUrl(cover, { width: 700, height: 400 })} alt="" loading="lazy" />}
@@ -31,7 +40,9 @@ function DraftTripCard({ t, events, cover, onOpen, onChat }) {
         <div className="plan-trip-card-glass">
           <div className="plan-trip-top">
             <CountryFlags countries={t.countries} size={18} />
-            <span className="plan-trip-badge">✏️ Planning{t.traveler ? ` · ${t.traveler}` : ''}</span>
+            <span className="plan-trip-badge">
+              {whose ? `🔒 ${whose} trip${roleLabel}` : `✏️ Planning${t.traveler ? ` · ${t.traveler}` : ''}`}
+            </span>
           </div>
           <div className="plan-trip-title">{t.title}</div>
           {t.subtitle && <div className="plan-trip-subtitle">{t.subtitle}</div>}
@@ -218,9 +229,11 @@ function WishlistItem({ item, onChange, onOpenChat }) {
 }
 
 export default function PlanTab() {
+  const { user } = useAuth()
   const [draftTrips, setDraftTrips] = useState(null)
   const [plannedEvents, setPlannedEvents] = useState([])
   const [covers, setCovers] = useState({})
+  const [members, setMembers] = useState({}) // trip_id -> trip_members rows (RLS: only trips you belong to)
   const [wishlist, setWishlist] = useState(null)
   const [creating, setCreating] = useState(false) // PlanChat for a brand-new trip
   const [plannerId, setPlannerId] = useState(null) // full-screen TripPlanner for an existing draft
@@ -245,9 +258,19 @@ export default function PlanTab() {
             .select('trip_id,urls')
             .in('trip_id', ids)
             .then(({ data: rows }) => setCovers(Object.fromEntries((rows ?? []).map((r) => [r.trip_id, r.urls?.[0]]).filter(([, u]) => u))))
+          supabase
+            .from('trip_members')
+            .select('trip_id,email,role,display_name')
+            .in('trip_id', ids)
+            .then(({ data: rows }) => {
+              const byTrip = {}
+              for (const r of rows ?? []) (byTrip[r.trip_id] = byTrip[r.trip_id] || []).push(r)
+              setMembers(byTrip)
+            })
         } else {
           setPlannedEvents([])
           setCovers({})
+          setMembers({})
         }
       })
   }
@@ -260,10 +283,13 @@ export default function PlanTab() {
       .then(({ data }) => setWishlist(data ?? []))
   }
 
+  // Re-fetch when auth state changes — RLS returns a different world
+  // depending on who (if anyone) is signed in.
   useEffect(() => {
     loadDrafts()
     loadWishlist()
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id])
 
   if (!draftTrips || !wishlist) return <div className="tab-loading">loading plans…</div>
 
@@ -276,6 +302,9 @@ export default function PlanTab() {
             + plan a trip
           </button>
         </div>
+        {!user && (
+          <div className="plan-empty plan-signin-hint">🔒 Private trips are hidden — sign in from the Account tab to see yours.</div>
+        )}
         {draftTrips.length === 0 && (
           <div className="plan-empty">Nothing being planned right now — start one above, free-text or a quick form, whichever you'd rather.</div>
         )}
@@ -286,6 +315,8 @@ export default function PlanTab() {
               t={t}
               events={plannedEvents.filter((e) => e.trip_id === t.id)}
               cover={covers[t.id]}
+              members={members[t.id]}
+              myEmail={user?.email}
               onOpen={() => setPlannerId(t.id)}
               onChat={() => setPlannerId(t.id)}
             />

@@ -2857,6 +2857,13 @@ button {
   padding: 14px 2px;
 }
 
+.plan-signin-hint {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+
 /* Trigger to open the form/chat — same quiet dashed-tint affordance as
    the Journal tab's "+ add entry", not a loud solid-fill CTA. */
 .plan-add-btn {

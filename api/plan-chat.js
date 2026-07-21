@@ -11,12 +11,20 @@ const SUPABASE_URL = 'https://qslksdgxoibzrisywvqk.supabase.co'
 const ANON_KEY = 'sb_publishable_HqXFypbh0cTO8Eub41LlQw_8ypkj2tH'
 const MODEL = 'gpt-5.5'
 
+// Member-gated trips are invisible to the anon key under RLS, so the
+// client forwards the signed-in user's JWT and every Supabase call here
+// runs AS that user — the planner can only see/edit what they can.
+// Module-level is safe on Vercel's lambda model (one request per
+// instance at a time); set at handler entry, cleared implicitly by the
+// next request overwriting it.
+let USER_TOKEN = null
+
 function sb(path, opts = {}) {
   return fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...opts,
     headers: {
       apikey: ANON_KEY,
-      Authorization: `Bearer ${ANON_KEY}`,
+      Authorization: `Bearer ${USER_TOKEN || ANON_KEY}`,
       'Content-Type': 'application/json',
       Prefer: opts.prefer || 'return=representation',
       ...opts.headers,
@@ -285,6 +293,9 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'POST only' })
     return
   }
+
+  const bearer = (req.headers.authorization || '').replace(/^Bearer\s+/i, '')
+  USER_TOKEN = bearer && bearer !== ANON_KEY ? bearer : null
 
   try {
     const { message, threadId: incomingThreadId, tripId, traveler = 'both' } = req.body || {}
