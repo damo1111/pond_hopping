@@ -153,6 +153,17 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
               loadEvents()
             }}
             onAskAI={(text) => setChat({ autoSend: text })}
+            onAddPlace={async (p) => {
+              await supabase.from('planned_events').insert({
+                trip_id: tripId,
+                title: p.name,
+                city: p.address || trip.title,
+                kind: 'place',
+                note: p.type || null,
+                done: false,
+              })
+              loadEvents()
+            }}
           />
         )}
       </main>

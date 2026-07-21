@@ -16,8 +16,57 @@ function isRelevant(item, trip, dest) {
   return hay.includes(destLower) || destLower.includes(item.title?.toLowerCase() || '\0') || tripTitle.includes(item.country?.toLowerCase() || '\0')
 }
 
-export default function ExploreView({ trip, onAddIdea, onAskAI }) {
+// A place card for a live Foursquare search result (as opposed to a
+// wishlist item) — its photo is fetched lazily, one request per card,
+// same pattern as the Planespotters aircraft-photo lookup on flight cards.
+function PlaceCard({ place, onAdd }) {
+  const [photo, setPhoto] = useState(undefined)
+  const [added, setAdded] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    fetch(`/api/explore-photo?id=${encodeURIComponent(place.id)}`)
+      .then((r) => (r.ok ? r.json() : { url: null }))
+      .then((d) => alive && setPhoto(d.url || null))
+      .catch(() => alive && setPhoto(null))
+    return () => {
+      alive = false
+    }
+  }, [place.id])
+
+  return (
+    <div className="ex-card">
+      {photo ? (
+        <div className="ex-cover">
+          <img src={photo} alt="" loading="lazy" />
+        </div>
+      ) : photo === undefined ? (
+        <div className="ex-cover photo-skel" />
+      ) : (
+        <div className="ex-cover ex-cover-empty">📍</div>
+      )}
+      <div className="ex-card-body">
+        <div className="ex-card-title">{place.name}</div>
+        <div className="ex-card-sub">{place.type || place.address || 'Foursquare'}</div>
+        <button
+          className="ex-add"
+          disabled={added}
+          onClick={() => {
+            setAdded(true)
+            onAdd(place)
+          }}
+        >
+          {added ? 'added ✓' : '+ add to trip'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export default function ExploreView({ trip, onAddIdea, onAddPlace, onAskAI }) {
   const [wishlist, setWishlist] = useState([])
+  const [places, setPlaces] = useState(undefined) // undefined = loading, null = errored
+  const dest = destinationQuery(trip)
 
   useEffect(() => {
     supabase
@@ -27,7 +76,14 @@ export default function ExploreView({ trip, onAddIdea, onAskAI }) {
       .then(({ data }) => setWishlist(data ?? []))
   }, [])
 
-  const dest = destinationQuery(trip)
+  useEffect(() => {
+    setPlaces(undefined)
+    fetch(`/api/explore-search?near=${encodeURIComponent(dest)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+      .then((d) => setPlaces(d.places || []))
+      .catch(() => setPlaces(null))
+  }, [dest])
+
   const relevant = wishlist.filter((w) => isRelevant(w, trip, dest))
 
   return (
@@ -39,6 +95,21 @@ export default function ExploreView({ trip, onAddIdea, onAskAI }) {
           <span className="ex-ai-sub">Ask the planner — it knows your taste</span>
         </span>
       </button>
+
+      <div className="ex-section-title">Popular near {dest}</div>
+      {places === undefined ? (
+        <div className="ov-empty">Finding places…</div>
+      ) : places === null ? (
+        <div className="ov-empty">Couldn't reach Foursquare just now — try again shortly.</div>
+      ) : places.length === 0 ? (
+        <div className="ov-empty">No Foursquare results for {dest} yet.</div>
+      ) : (
+        <div className="ex-grid" style={{ marginBottom: 20 }}>
+          {places.map((p) => (
+            <PlaceCard key={p.id} place={p} onAdd={onAddPlace} />
+          ))}
+        </div>
+      )}
 
       <div className="ex-section-title">From your wishlist</div>
       {relevant.length === 0 ? (

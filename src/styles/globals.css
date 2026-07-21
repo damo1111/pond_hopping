@@ -3501,6 +3501,9 @@ button {
   color: #fff;
   font-size: 28px;
   line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   box-shadow: 0 6px 18px rgba(26, 22, 17, 0.3);
   z-index: 20;
 }
