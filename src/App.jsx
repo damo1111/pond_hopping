@@ -14,9 +14,10 @@ import AccountTab from './tabs/AccountTab.jsx'
 import ShareView from './ShareView.jsx'
 import InstallChip from './components/InstallChip.jsx'
 import TripPicker from './components/TripPicker.jsx'
+import AuthSheet from './components/AuthSheet.jsx'
 import { tripColor } from './lib/tripColors.js'
 import { track } from './lib/analytics.js'
-import { AuthProvider } from './lib/AuthContext.jsx'
+import { AuthProvider, useAuth } from './lib/AuthContext.jsx'
 
 // The 3D globe pulls in three.js — only the Home tab needs it, so it's
 // code-split into its own chunk instead of bloating everyone's first load.
@@ -70,6 +71,8 @@ const SHARE_PARAMS = (() => {
 })()
 
 export default function App() {
+  const { user, authLoading } = useAuth()
+  const [authOpen, setAuthOpen] = useState(false)
   const [booting, setBooting] = useState(true)
   const [bootLeaving, setBootLeaving] = useState(false)
   const [activeTab, setActiveTab] = useState('world')
@@ -221,7 +224,15 @@ export default function App() {
 
       <div className="app">
         <header className={`app-header${activeTab === 'world' ? ' app-header--world' : ''}`}>
-          <img className="header-duck" src="/duck.png" alt="" />
+          <button
+            className={`header-duck-btn${user ? ' signed-in' : ''}`}
+            onClick={() => setAuthOpen(true)}
+            aria-label={user ? 'Account' : 'Sign in'}
+            title={user ? user.email : 'Sign in'}
+          >
+            <img className="header-duck" src="/duck.png" alt="" />
+            {!authLoading && <span className={`header-duck-dot${user ? ' on' : ''}`} />}
+          </button>
           <div>
             <div className="app-title">
               <span className="app-title-thin">Pond</span>
@@ -230,6 +241,8 @@ export default function App() {
           </div>
           <InstallChip />
         </header>
+
+        {authOpen && <AuthSheet onClose={() => setAuthOpen(false)} />}
 
         {activeTab !== 'world' && (
           <TripPicker tripMeta={tripMeta} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />

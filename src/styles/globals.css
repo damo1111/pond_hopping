@@ -224,6 +224,63 @@ button {
   box-shadow: 0 0 0 3px var(--accent-bg), var(--shadow);
 }
 
+/* The duck is the front door to the account — tappable, with a small
+   status dot so "am I signed in" is glanceable. */
+.header-duck-btn {
+  position: relative;
+  flex: none;
+  padding: 0;
+  line-height: 0;
+  border-radius: 11px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.header-duck-btn:active {
+  transform: scale(0.94);
+}
+
+.header-duck-dot {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  background: var(--text-muted);
+  opacity: 0.5;
+}
+
+.header-duck-dot.on {
+  background: #3e7d54;
+  opacity: 1;
+}
+
+.auth-sheet .account-input {
+  margin-bottom: 12px;
+}
+
+.auth-who {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin-bottom: 16px;
+}
+
+.auth-avatar {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .boot-duck {
   width: 176px;
   height: 176px;
