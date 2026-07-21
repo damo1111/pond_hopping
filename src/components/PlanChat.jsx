@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import CountryFlags from './CountryFlags.jsx'
 import { supabase } from '../lib/supabase.js'
+import { API_BASE } from '../lib/apiBase.js'
 
 const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
 
@@ -182,7 +183,7 @@ export default function PlanChat({ tripId, traveler = 'both', autoSend, seedMess
     setInput('')
     setSending(true)
     try {
-      const res = await fetch('/api/plan-chat', {
+      const res = await fetch(`${API_BASE}/api/plan-chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: trimmed, threadId, tripId: activeTripId, traveler }),

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase.js'
 import { thumb } from '../../lib/imgTransform.js'
 import { destinationQuery } from '../../lib/planItems.js'
+import { API_BASE } from '../../lib/apiBase.js'
 
 // Explore = ideas to fold into the trip. Two honest sources without a paid
 // places API: the user's own wishlist (quick to pull one onto this trip),
@@ -25,7 +26,7 @@ function PlaceCard({ place, onAdd }) {
 
   useEffect(() => {
     let alive = true
-    fetch(`/api/explore-photo?id=${encodeURIComponent(place.id)}`)
+    fetch(`${API_BASE}/api/explore-photo?id=${encodeURIComponent(place.id)}`)
       .then((r) => (r.ok ? r.json() : { url: null }))
       .then((d) => alive && setPhoto(d.url || null))
       .catch(() => alive && setPhoto(null))
@@ -78,7 +79,7 @@ export default function ExploreView({ trip, onAddIdea, onAddPlace, onAskAI }) {
 
   useEffect(() => {
     setPlaces(undefined)
-    fetch(`/api/explore-search?near=${encodeURIComponent(dest)}`)
+    fetch(`${API_BASE}/api/explore-search?near=${encodeURIComponent(dest)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((d) => setPlaces(d.places || []))
       .catch(() => setPlaces(null))
