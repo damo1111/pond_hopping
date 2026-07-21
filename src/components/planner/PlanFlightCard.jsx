@@ -34,6 +34,11 @@ function fmtDate(iso) {
 }
 
 // Mirrors FlightCard.jsx's Meta component — same interaction, same classes.
+// No live flight-tracking source is connected yet (ByAir's connection was
+// down when this was checked; TBD which source ends up feeding this), so
+// an empty field reads honestly as "TBC" rather than fabricating a value
+// or pretending nothing's missing — still tappable to fill in by hand as
+// a stopgap.
 function DetailCell({ label, value, mono, onSave }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -67,14 +72,14 @@ function DetailCell({ label, value, mono, onSave }) {
       </div>
     ) : (
       <button
-        className="meta-cell meta-cell-add"
+        className="meta-cell meta-cell-add meta-cell-tbc"
         onClick={(e) => {
           e.stopPropagation()
           setEditing(true)
         }}
       >
         <div className="meta-label">{label}</div>
-        <div className="meta-value meta-add-cta">+ add</div>
+        <div className="meta-value meta-add-cta">TBC</div>
       </button>
     )
   }
@@ -155,6 +160,9 @@ export default function PlanFlightCard({ event, onEditEvent, onSaveDetail }) {
 
       {open && (
         <div className="pf-details" onClick={(e) => e.stopPropagation()}>
+          {!d.dep_terminal && !d.arr_terminal && !d.aircraft_reg && (
+            <div className="pf-tbc-banner">Live flight tracking isn't connected yet — terminal, gate, baggage belt and aircraft reg show as TBC until then. Tap any field to fill it in yourself for now.</div>
+          )}
           {(d.via || (event.end_date && event.end_date !== event.event_date)) && (
             <div className="pf-foot pf-foot-inline">
               {d.via ? <span>via {d.via}</span> : null}

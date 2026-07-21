@@ -3726,6 +3726,19 @@ button {
   margin-top: 6px;
 }
 
+.pf-tbc-banner {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+
+.meta-cell-tbc .meta-add-cta {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .pf-edit-link {
   align-self: flex-start;
   font-family: var(--font-mono);
