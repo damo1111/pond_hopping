@@ -3391,6 +3391,9 @@ button {
   background: var(--text);
   color: #fff;
   font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tp-day {
@@ -3554,6 +3557,7 @@ button {
 }
 
 .tl-check {
+  position: relative;
   flex: none;
   width: 30px;
   height: 30px;
@@ -3564,6 +3568,22 @@ button {
   justify-content: center;
   font-size: 14px;
   margin-top: 2px;
+}
+
+/* A multi-night stay's rail — starts at the check-in circle, threads down
+   through each day's SpanRow, and stops at checkout (tl-span-end), so the
+   whole stay reads as one connected block instead of a card that goes
+   quiet until the last day. */
+.tl-check.continues::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 22px;
+  background: currentColor;
+  opacity: 0.35;
 }
 
 .tl-card {
@@ -3644,6 +3664,7 @@ button {
 }
 
 .tl-span {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -3654,6 +3675,21 @@ button {
   border-radius: 10px;
   background: transparent;
   font-size: 12px;
+}
+
+.tl-span::before {
+  content: '';
+  position: absolute;
+  left: -25px;
+  top: -10px;
+  bottom: -10px;
+  width: 2px;
+  background: currentColor;
+  opacity: 0.35;
+}
+
+.tl-span-end::before {
+  bottom: 50%;
 }
 
 .tl-span-i {

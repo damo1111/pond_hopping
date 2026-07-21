@@ -7,9 +7,17 @@ import PlanFlightCard from './PlanFlightCard.jsx'
 export function TimelineItem({ ev, onToggle, onEdit, onSaveDetail }) {
   if (ev.kind === 'flight') return <PlanFlightCard event={ev} onEditEvent={onEdit} onSaveDetail={onSaveDetail} />
   const meta = KIND_META[ev.kind] || KIND_META.other
+  // A multi-night stay's thread starts here — the rail continues down
+  // through every SpanRow beneath it, so the whole stay reads as one
+  // connected block rather than a card that goes quiet until checkout.
+  const continues = ev.kind === 'hotel' && ev.end_date && ev.end_date !== ev.event_date
   return (
     <div className={`tl-item${ev.done ? ' done' : ''}`}>
-      <button className="tl-check" style={{ borderColor: meta.color, color: ev.done ? '#fff' : meta.color, background: ev.done ? meta.color : 'transparent' }} onClick={onToggle}>
+      <button
+        className={`tl-check${continues ? ' continues' : ''}`}
+        style={{ borderColor: meta.color, color: ev.done ? '#fff' : meta.color, background: ev.done ? meta.color : 'transparent' }}
+        onClick={onToggle}
+      >
         {ev.done ? '✓' : meta.icon}
       </button>
       <button className="tl-card" onClick={onEdit}>
@@ -42,7 +50,11 @@ export function SpanRow({ ev, onEdit, dayKey }) {
   const meta = KIND_META[ev.kind] || KIND_META.other
   const isCheckout = ev.end_date === dayKey
   return (
-    <button className="tl-span" style={{ borderColor: meta.color, color: meta.color }} onClick={onEdit}>
+    <button
+      className={`tl-span${isCheckout ? ' tl-span-end' : ''}`}
+      style={{ borderColor: meta.color, color: meta.color }}
+      onClick={onEdit}
+    >
       <span className="tl-span-i">{meta.icon}</span>
       <span className="tl-span-label">
         {isCheckout ? 'Check out — ' : 'Staying at '}
