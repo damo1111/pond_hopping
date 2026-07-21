@@ -7,6 +7,7 @@ import { CITY_COORDS } from '../../lib/cityCoords.js'
 import { KIND_META, destinationQuery, tripDays, sortEvents, eventsForDay, fmtDayLong } from '../../lib/planItems.js'
 import { coverUrl } from '../../lib/imgTransform.js'
 import { TimelineItem, SpanRow } from './ItineraryView.jsx'
+import Concierge from './Concierge.jsx'
 
 function nights(a, b) {
   if (!a || !b) return null
@@ -30,7 +31,7 @@ async function fetchDestinationPhoto(trip) {
   }
 }
 
-export default function OverviewView({ trip, events, onEditEvent, onEventsChange }) {
+export default function OverviewView({ trip, events, onEditEvent, onEventsChange, onAskAI, onAdded }) {
   const [cover, setCover] = useState(null)
 
   useEffect(() => {
@@ -144,6 +145,8 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
         ))}
         {events.length === 0 && <div className="ov-empty">Nothing planned yet — head to Itinerary or ask the AI planner.</div>}
       </div>
+
+      <Concierge trip={trip} events={events} onAskAI={onAskAI} onAdded={onAdded} />
 
       {allPts.length > 0 && (
         <div className="ov-map">

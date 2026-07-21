@@ -123,7 +123,16 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
       )}
 
       <main className="tp-body">
-        {tab === 'overview' && <OverviewView trip={trip} events={events} onEditEvent={setEditEvent} onEventsChange={setEvents} />}
+        {tab === 'overview' && (
+          <OverviewView
+            trip={trip}
+            events={events}
+            onEditEvent={setEditEvent}
+            onEventsChange={setEvents}
+            onAskAI={(text) => setChat({ autoSend: text })}
+            onAdded={loadEvents}
+          />
+        )}
         {tab === 'itinerary' && (
           <ItineraryView
             trip={trip}
