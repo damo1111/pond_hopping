@@ -90,6 +90,25 @@ export function sortEvents(events) {
   })
 }
 
+// A multi-night stay shouldn't just vanish the day after check-in — it
+// should keep showing up through checkout. `starting` gets the full card
+// on its first day; `spanning` gets a lighter "still here" row on every
+// day in between and on checkout day. Scoped to kind 'hotel' only — a
+// flight's end_date just means "lands the next day", not a stay to
+// remind about (an overnight flight shouldn't get a "check out" row).
+export function eventsForDay(events, dayKey) {
+  const starting = []
+  const spanning = []
+  for (const ev of events) {
+    if (ev.event_date === dayKey) {
+      starting.push(ev)
+    } else if (ev.kind === 'hotel' && ev.end_date && ev.event_date < dayKey && dayKey <= ev.end_date) {
+      spanning.push(ev)
+    }
+  }
+  return { starting: sortEvents(starting), spanning }
+}
+
 export function fmtTime(t) {
   if (!t) return ''
   // Accept 'HH:MM' or 'HH:MM:SS'

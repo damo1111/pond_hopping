@@ -3643,6 +3643,23 @@ button {
   max-width: calc(100% - 40px);
 }
 
+.tl-span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: calc(100% - 40px);
+  margin: 0 0 10px 40px;
+  padding: 6px 10px;
+  border: 1px dashed;
+  border-radius: 10px;
+  background: transparent;
+  font-size: 12px;
+}
+
+.tl-span-i {
+  font-size: 13px;
+}
+
 /* ── Planner flight card ──────────────────────────────────────────
    Collapsed state reuses .flight-card/.flight-head.board/.fh-* from the
    Flights tab directly (see FlightCard.jsx) — the departures-board look

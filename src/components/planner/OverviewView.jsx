@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, Polyline, CircleMarker } from 'react-leaflet'
+import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet'
 import { supabase } from '../../lib/supabase.js'
-import { greatCircle } from '../../lib/geo.js'
+import { greatCircle, boundsExcludingHome } from '../../lib/geo.js'
 import { AIRPORT_COORDS } from '../../lib/airportCoords.js'
-import { KIND_META, destinationQuery, tripDays, sortEvents, fmtDayLong } from '../../lib/planItems.js'
+import { CITY_COORDS } from '../../lib/cityCoords.js'
+import { KIND_META, destinationQuery, tripDays, sortEvents, eventsForDay, fmtDayLong } from '../../lib/planItems.js'
 import { coverUrl } from '../../lib/imgTransform.js'
-import { TimelineItem } from './ItineraryView.jsx'
+import { TimelineItem, SpanRow } from './ItineraryView.jsx'
 
 function nights(a, b) {
   if (!a || !b) return null
@@ -83,10 +84,29 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
     })
     .filter(Boolean)
 
-  const pts = segments.flatMap((s) => [s.from, s.to])
-  const center = pts.length
-    ? [pts.reduce((a, p) => a + p[0], 0) / pts.length, pts.reduce((a, p) => a + p[1], 0) / pts.length]
+  // Non-flight items (stays, activities...) pinned by city name, so the
+  // map shows what's actually happening at the destination, not just the
+  // long-haul routes getting there.
+  const places = events
+    .filter((e) => e.kind !== 'flight' && e.city && CITY_COORDS[e.city])
+    .map((e) => ({ ...e, coords: CITY_COORDS[e.city] }))
+
+  const flightPts = segments.flatMap((s) => [s.from, s.to])
+  const placePts = places.map((p) => p.coords)
+  const allPts = [...flightPts, ...placePts]
+
+  // Every trip starts/ends at home (Australia) — letting that far-off point
+  // drive the fit squashes the actual destination down to a sliver. Same
+  // fix already used on the main Map tab: focus on where the trip actually
+  // happens, and just let home's route render without dictating the zoom.
+  const focusPts = boundsExcludingHome(allPts) || allPts
+  const center = focusPts.length
+    ? [focusPts.reduce((a, p) => a + p[0], 0) / focusPts.length, focusPts.reduce((a, p) => a + p[1], 0) / focusPts.length]
     : [20, 0]
+  const latSpread = focusPts.length ? Math.max(...focusPts.map((p) => p[0])) - Math.min(...focusPts.map((p) => p[0])) : 0
+  const lonSpread = focusPts.length ? Math.max(...focusPts.map((p) => p[1])) - Math.min(...focusPts.map((p) => p[1])) : 0
+  const spread = Math.max(latSpread, lonSpread)
+  const zoom = spread < 1 ? 8 : spread < 3 ? 7 : spread < 8 ? 6 : spread < 20 ? 4 : 2
 
   const n = nights(trip.start_date, trip.end_date)
 
@@ -120,30 +140,42 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
         {events.length === 0 && <div className="ov-empty">Nothing planned yet — head to Itinerary or ask the AI planner.</div>}
       </div>
 
-      {segments.length > 0 && (
+      {allPts.length > 0 && (
         <div className="ov-map">
-          <MapContainer center={center} zoom={2} zoomControl={false} attributionControl={false} scrollWheelZoom={false} style={{ height: '100%', width: '100%', background: '#EDE9DF' }}>
+          <MapContainer center={center} zoom={zoom} zoomControl={false} attributionControl={false} scrollWheelZoom={false} style={{ height: '100%', width: '100%', background: '#EDE9DF' }}>
             <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" subdomains="abcd" />
             {segments.map((s, i) => (
               <Polyline key={i} positions={greatCircle(s.from, s.to, 64)} pathOptions={{ color: KIND_META.flight.color, weight: 2, dashArray: '5 7' }} />
             ))}
-            {pts.map((p, i) => (
-              <CircleMarker key={i} center={p} radius={4} pathOptions={{ color: KIND_META.flight.color, fillColor: '#fff', fillOpacity: 1, weight: 2 }} />
+            {flightPts.map((p, i) => (
+              <CircleMarker key={`f-${i}`} center={p} radius={4} pathOptions={{ color: KIND_META.flight.color, fillColor: '#fff', fillOpacity: 1, weight: 2 }} />
             ))}
+            {places.map((p) => {
+              const meta = KIND_META[p.kind] || KIND_META.other
+              return (
+                <CircleMarker key={p.id} center={p.coords} radius={6} pathOptions={{ color: '#fff', fillColor: meta.color, fillOpacity: 0.95, weight: 1.5 }}>
+                  <Popup>
+                    <strong>{p.title}</strong>
+                    <br />
+                    {p.city}
+                  </Popup>
+                </CircleMarker>
+              )
+            })}
           </MapContainer>
         </div>
       )}
 
       {days.map((d) => {
-        const dayEvents = sortEvents(byDay[d.key] || [])
-        if (!dayEvents.length) return null
+        const { starting, spanning } = eventsForDay(events, d.key)
+        if (!starting.length && !spanning.length) return null
         return (
           <div key={d.key} className="ov-section">
             <div className="ov-section-title">
               Day {d.dayNum} · {fmtDayLong(d.key)}
             </div>
             <div className="ov-day-items">
-              {dayEvents.map((ev) => (
+              {starting.map((ev) => (
                 <TimelineItem
                   key={ev.id}
                   ev={ev}
@@ -151,6 +183,9 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
                   onEdit={() => onEditEvent(ev)}
                   onSaveDetail={(id, detail) => onEventsChange?.(events.map((e) => (e.id === id ? { ...e, detail } : e)))}
                 />
+              ))}
+              {spanning.map((ev) => (
+                <SpanRow key={ev.id} ev={ev} dayKey={d.key} onEdit={() => onEditEvent(ev)} />
               ))}
             </div>
           </div>

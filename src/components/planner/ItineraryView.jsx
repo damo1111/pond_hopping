@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase.js'
 import { thumb } from '../../lib/imgTransform.js'
-import { KIND_META, tripDays, sortEvents, fmtTime, fmtDayLong } from '../../lib/planItems.js'
+import { KIND_META, tripDays, sortEvents, eventsForDay, fmtTime, fmtDayLong } from '../../lib/planItems.js'
 import PlanFlightCard from './PlanFlightCard.jsx'
 
 export function TimelineItem({ ev, onToggle, onEdit, onSaveDetail }) {
@@ -31,6 +31,24 @@ export function TimelineItem({ ev, onToggle, onEdit, onSaveDetail }) {
         )}
       </button>
     </div>
+  )
+}
+
+// A multi-night stay's full card only makes sense on check-in day — this
+// is the lighter reminder that shows on every day in between (and on
+// checkout day), so a 4-night Airbnb doesn't just vanish from the timeline
+// after day one.
+export function SpanRow({ ev, onEdit, dayKey }) {
+  const meta = KIND_META[ev.kind] || KIND_META.other
+  const isCheckout = ev.end_date === dayKey
+  return (
+    <button className="tl-span" style={{ borderColor: meta.color, color: meta.color }} onClick={onEdit}>
+      <span className="tl-span-i">{meta.icon}</span>
+      <span className="tl-span-label">
+        {isCheckout ? 'Check out — ' : 'Staying at '}
+        {ev.city || ev.title}
+      </span>
+    </button>
   )
 }
 
@@ -87,18 +105,21 @@ export default function ItineraryView({ trip, events, activeDay, setActiveDay, s
   return (
     <div className="tl-scroll" ref={scrollRef} onScroll={onScroll}>
       {days.map((d, i) => {
-        const dayEvents = sortEvents(byDay[d.key] || [])
+        const { starting, spanning } = eventsForDay(events, d.key)
         return (
           <section key={d.key} className="tl-day" ref={(el) => (sectionRefs.current[d.key] = el)}>
             <div className="tl-day-head">
               <span className="tl-day-num">Day {d.dayNum}</span>
               <span className="tl-day-date">{fmtDayLong(d.key)}</span>
             </div>
-            {i === 0 && !dayEvents.length && (
+            {i === 0 && !starting.length && !spanning.length && (
               <div className="tl-day-empty">Trip starts here — add your outbound flight.</div>
             )}
-            {dayEvents.map((ev) => (
+            {starting.map((ev) => (
               <TimelineItem key={ev.id} ev={ev} onToggle={() => toggleDone(ev)} onEdit={() => onEditEvent(ev)} onSaveDetail={saveDetail} />
+            ))}
+            {spanning.map((ev) => (
+              <SpanRow key={ev.id} ev={ev} dayKey={d.key} onEdit={() => onEditEvent(ev)} />
             ))}
             <button className="tl-add" onClick={() => onAddOnDay(d.key)}>
               + add to this day
