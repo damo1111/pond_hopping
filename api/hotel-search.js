@@ -19,8 +19,18 @@ const BRAND_QUERIES = [
   { q: 'Holiday Inn', program: 'IHG' },
 ]
 
-async function searchBrand(near, { q, program }) {
-  const params = new URLSearchParams({ near, query: `${q} hotel`, limit: '3' })
+async function searchBrand(loc, { q, program }) {
+  // A small town like Harpenden has no flagship-chain hotel in the town
+  // itself, so a plain `near` search returns nothing. When the client
+  // knows coordinates (CITY_COORDS), it sends ll and we search a 15km
+  // radius instead — catching the Lutons and St Albanses next door.
+  const params = new URLSearchParams({ query: `${q} hotel`, limit: '3' })
+  if (loc.ll) {
+    params.set('ll', loc.ll)
+    params.set('radius', '15000')
+  } else {
+    params.set('near', loc.near)
+  }
   const r = await fetch(`https://places-api.foursquare.com/places/search?${params}`, {
     headers: {
       accept: 'application/json',
@@ -56,13 +66,15 @@ export default async function handler(req, res) {
     return
   }
   const near = req.query?.near
-  if (!near || !near.trim()) {
-    res.status(400).json({ error: 'near required' })
+  const ll = req.query?.ll
+  if ((!near || !near.trim()) && !ll) {
+    res.status(400).json({ error: 'near or ll required' })
     return
   }
+  const loc = ll && /^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(ll) ? { ll } : { near: near.trim() }
 
   try {
-    const batches = await Promise.all(BRAND_QUERIES.map((b) => searchBrand(near.trim(), b)))
+    const batches = await Promise.all(BRAND_QUERIES.map((b) => searchBrand(loc, b)))
     const seen = new Set()
     const hotels = []
     for (const batch of batches) {

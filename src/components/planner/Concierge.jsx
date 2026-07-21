@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase.js'
 import { computeCoverage, fmtGapRange } from '../../lib/tripGaps.js'
+import { CITY_COORDS } from '../../lib/cityCoords.js'
 import { API_BASE } from '../../lib/apiBase.js'
 
 // The Concierge: reads the itinerary like a human assistant would.
@@ -38,12 +39,17 @@ function GapCard({ gap, trip, onAskAI, onAdded }) {
 
   const where = gap.cities[0] || null
   const searchNear = where ? `${where}, UK` : null
+  // Known coordinates beat a town-name search: a 15km-radius search
+  // around Harpenden finds the chain hotels in Luton/St Albans next door,
+  // where near="Harpenden" alone finds nothing at all.
+  const ll = where && CITY_COORDS[where] ? CITY_COORDS[where].join(',') : null
 
   async function findHotels() {
     setHotels(undefined)
     setError(false)
     try {
-      const r = await fetch(`${API_BASE}/api/hotel-search?near=${encodeURIComponent(searchNear)}`)
+      const q = ll ? `ll=${encodeURIComponent(ll)}` : `near=${encodeURIComponent(searchNear)}`
+      const r = await fetch(`${API_BASE}/api/hotel-search?${q}`)
       if (!r.ok) throw new Error()
       const d = await r.json()
       setHotels(d.hotels || [])
