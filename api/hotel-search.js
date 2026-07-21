@@ -30,8 +30,12 @@ async function searchBrand(near, { q, program }) {
   })
   if (!r.ok) return []
   const data = await r.json()
+  // Text search also surfaces venues INSIDE hotels (gyms, bars, lounges,
+  // restaurants) — a "Wellington Lounge at InterContinental" is not a
+  // place to sleep. Keep only results that read as the hotel itself.
+  const NOT_A_HOTEL = /\b(gym|bar|lounge|restaurant|spa|cafe|café|club|pool|terrace|kitchen)\b/i
   return (data.results || [])
-    .filter((p) => (p.name || '').toLowerCase().includes(q.toLowerCase()))
+    .filter((p) => (p.name || '').toLowerCase().includes(q.toLowerCase()) && !NOT_A_HOTEL.test(p.name || ''))
     .map((p) => ({
       id: p.fsq_place_id,
       name: p.name,
