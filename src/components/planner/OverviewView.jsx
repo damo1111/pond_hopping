@@ -3,9 +3,9 @@ import { MapContainer, TileLayer, Polyline, CircleMarker } from 'react-leaflet'
 import { supabase } from '../../lib/supabase.js'
 import { greatCircle } from '../../lib/geo.js'
 import { AIRPORT_COORDS } from '../../lib/airportCoords.js'
-import { KIND_META, destinationQuery } from '../../lib/planItems.js'
+import { KIND_META, destinationQuery, tripDays, sortEvents, fmtDayLong } from '../../lib/planItems.js'
 import { coverUrl } from '../../lib/imgTransform.js'
-import PlanFlightCard from './PlanFlightCard.jsx'
+import { TimelineItem } from './ItineraryView.jsx'
 
 function nights(a, b) {
   if (!a || !b) return null
@@ -61,6 +61,19 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
   const counts = {}
   for (const e of events) counts[e.kind] = (counts[e.kind] || 0) + 1
 
+  const days = tripDays(trip.start_date, trip.end_date)
+  const byDay = {}
+  for (const ev of events) {
+    const k = ev.event_date || 'unscheduled'
+    ;(byDay[k] = byDay[k] || []).push(ev)
+  }
+  const unscheduled = byDay.unscheduled ? sortEvents(byDay.unscheduled) : []
+
+  async function toggleDone(ev) {
+    const { error } = await supabase.from('planned_events').update({ done: !ev.done }).eq('id', ev.id)
+    if (!error) onEventsChange?.(events.map((e) => (e.id === ev.id ? { ...e, done: !e.done } : e)))
+  }
+
   // Flight route segments we can actually place on the map.
   const segments = flights
     .map((f) => {
@@ -101,7 +114,7 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
               {(KIND_META[k] || KIND_META.other).icon}
             </span>
             <span className="ov-stat-n">{v}</span>
-            <span className="ov-stat-l">{(KIND_META[k] || KIND_META.other).label}{v > 1 ? 's' : ''}</span>
+            <span className="ov-stat-l">{v > 1 ? (KIND_META[k] || KIND_META.other).plural : (KIND_META[k] || KIND_META.other).label}</span>
           </div>
         ))}
         {events.length === 0 && <div className="ov-empty">Nothing planned yet — head to Itinerary or ask the AI planner.</div>}
@@ -121,17 +134,35 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
         </div>
       )}
 
-      {flights.length > 0 && (
+      {days.map((d) => {
+        const dayEvents = sortEvents(byDay[d.key] || [])
+        if (!dayEvents.length) return null
+        return (
+          <div key={d.key} className="ov-section">
+            <div className="ov-section-title">
+              Day {d.dayNum} · {fmtDayLong(d.key)}
+            </div>
+            <div className="ov-day-items">
+              {dayEvents.map((ev) => (
+                <TimelineItem
+                  key={ev.id}
+                  ev={ev}
+                  onToggle={() => toggleDone(ev)}
+                  onEdit={() => onEditEvent(ev)}
+                  onSaveDetail={(id, detail) => onEventsChange?.(events.map((e) => (e.id === id ? { ...e, detail } : e)))}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })}
+
+      {unscheduled.length > 0 && (
         <div className="ov-section">
-          <div className="ov-section-title">Flights</div>
-          <div className="ov-flights">
-            {flights.map((f) => (
-              <PlanFlightCard
-                key={f.id}
-                event={f}
-                onEditEvent={() => onEditEvent(f)}
-                onSaveDetail={(id, detail) => onEventsChange?.(events.map((e) => (e.id === id ? { ...e, detail } : e)))}
-              />
+          <div className="ov-section-title">Unscheduled</div>
+          <div className="ov-day-items">
+            {unscheduled.map((ev) => (
+              <TimelineItem key={ev.id} ev={ev} onToggle={() => toggleDone(ev)} onEdit={() => onEditEvent(ev)} />
             ))}
           </div>
         </div>

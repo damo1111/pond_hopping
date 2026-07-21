@@ -38,13 +38,13 @@ export function destinationQuery(trip) {
 // pattern (CostsTab CAT_ICON, tripColors palette) rather than tinting
 // everything the CANARD gold, which reads wrong in the planner.
 export const KIND_META = {
-  flight: { icon: '✈️', color: '#3B7EA1', label: 'Flight' },
-  hotel: { icon: '🏨', color: '#C97B95', label: 'Stay' },
-  transport: { icon: '🚆', color: '#3E7D54', label: 'Travel' },
-  car_hire: { icon: '🚗', color: '#B5602E', label: 'Car hire' },
-  activity: { icon: '🎟️', color: '#C17817', label: 'Activity' },
-  place: { icon: '📍', color: '#6E7B8C', label: 'Place' },
-  other: { icon: '📌', color: '#8B8375', label: 'Other' },
+  flight: { icon: '✈️', color: '#3B7EA1', label: 'Flight', plural: 'Flights' },
+  hotel: { icon: '🏨', color: '#C97B95', label: 'Stay', plural: 'Stays' },
+  transport: { icon: '🚆', color: '#3E7D54', label: 'Travel', plural: 'Travel' },
+  car_hire: { icon: '🚗', color: '#B5602E', label: 'Car hire', plural: 'Car hires' },
+  activity: { icon: '🎟️', color: '#C17817', label: 'Activity', plural: 'Activities' },
+  place: { icon: '📍', color: '#6E7B8C', label: 'Place', plural: 'Places' },
+  other: { icon: '📌', color: '#8B8375', label: 'Other', plural: 'Other' },
 }
 
 // The kinds the "add" menu offers, in the order the reference app shows them.

@@ -4,7 +4,7 @@ import { thumb } from '../../lib/imgTransform.js'
 import { KIND_META, tripDays, sortEvents, fmtTime, fmtDayLong } from '../../lib/planItems.js'
 import PlanFlightCard from './PlanFlightCard.jsx'
 
-function TimelineItem({ ev, onToggle, onEdit, onSaveDetail }) {
+export function TimelineItem({ ev, onToggle, onEdit, onSaveDetail }) {
   if (ev.kind === 'flight') return <PlanFlightCard event={ev} onEditEvent={onEdit} onSaveDetail={onSaveDetail} />
   const meta = KIND_META[ev.kind] || KIND_META.other
   return (
