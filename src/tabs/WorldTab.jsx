@@ -279,13 +279,11 @@ export default function WorldTab() {
           if (item.type === 'trip') return <TripCard key={item.trip.slug} t={item.trip} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
 
           const { chapter, trips } = item
+          const cover = trips.map((t) => covers[t.id]).find(Boolean)
           if (expandedChapter === chapter) {
             return (
               <div key={chapter} className="wt-chapter-open">
-                <button className="wt-card wt-chapter-collapse" onClick={() => setExpandedChapter(null)}>
-                  <span className="wt-chapter-collapse-arrow">←</span>
-                  <span className="wt-title">{chapter}</span>
-                </button>
+                <ChapterSpine chapter={chapter} cover={cover} onClick={() => setExpandedChapter(null)} />
                 {trips.map((t) => (
                   <TripCard key={t.slug} t={t} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
                 ))}
@@ -293,35 +291,91 @@ export default function WorldTab() {
             )
           }
 
-          const cover = trips.map((t) => covers[t.id]).find(Boolean)
-          return (
-            <button key={chapter} className="wt-card wt-chapter-card" onClick={() => setExpandedChapter(chapter)}>
-              {cover && (
-                <span className="wt-cover">
-                  <img src={coverUrl(cover, { width: 400, height: 220 })} alt="" loading="lazy" />
-                </span>
-              )}
-              <span className="wt-flags">
-                <CountryFlags countries={chapterCountries(trips)} size={20} />
-              </span>
-              <span className="wt-title">{chapter}</span>
-              <span className="wt-subtitle">{trips.length} trips</span>
-              <span className="wt-dates">{chapterRange(trips)}</span>
-              <span className="wt-stats">Tap to explore ›</span>
-            </button>
-          )
+          return <ChapterCard key={chapter} chapter={chapter} trips={trips} cover={cover} onClick={() => setExpandedChapter(chapter)} />
         })}
       </div>
     </div>
   )
 }
 
-function TripCard({ t, covers, selectedTrip, setSelectedTrip }) {
-  const active = selectedTrip === t.slug
+// A satisfying little press-pop on tap. Toggling a class and clearing it
+// on animationend replays the keyframe every time (a plain :active can't
+// bounce — it only holds while pressed).
+function useBounce() {
+  const [on, setOn] = useState(false)
+  return {
+    className: on ? ' bounce' : '',
+    onPress: () => setOn(true),
+    onAnimationEnd: () => setOn(false),
+  }
+}
+
+// The collapsed "2024 Gap Year" era card — now led by the era's cover
+// photo with a dimmed scrim so the title/flags read over it, matching the
+// visual weight of a real trip card rather than a flat dashed box.
+function ChapterCard({ chapter, trips, cover, onClick }) {
+  const bounce = useBounce()
   return (
     <button
-      className={`wt-card${active ? ' active' : ''}`}
-      onClick={() => setSelectedTrip(active ? null : t.slug)}
+      className={`wt-card wt-chapter-card${bounce.className}`}
+      onClick={() => {
+        bounce.onPress()
+        onClick()
+      }}
+      onAnimationEnd={bounce.onAnimationEnd}
+    >
+      {cover && (
+        <span className="wt-cover wt-chapter-cover">
+          <img src={coverUrl(cover, { width: 400, height: 220 })} alt="" loading="lazy" />
+          <span className="wt-chapter-scrim" />
+          <span className="wt-chapter-count">{trips.length} trips</span>
+        </span>
+      )}
+      <span className="wt-flags">
+        <CountryFlags countries={chapterCountries(trips)} size={20} />
+      </span>
+      <span className="wt-title">{chapter}</span>
+      {!cover && <span className="wt-subtitle">{trips.length} trips</span>}
+      <span className="wt-dates">{chapterRange(trips)}</span>
+      <span className="wt-stats">Tap to explore ›</span>
+    </button>
+  )
+}
+
+// The "spine" shown once an era is open — was a flat grey vertical strip;
+// now the era's cover runs up it behind a tint, so it reads as the closed
+// book you tapped open, and bounces when you tap to close.
+function ChapterSpine({ chapter, cover, onClick }) {
+  const bounce = useBounce()
+  return (
+    <button
+      className={`wt-card wt-chapter-collapse${bounce.className}`}
+      onClick={() => {
+        bounce.onPress()
+        onClick()
+      }}
+      onAnimationEnd={bounce.onAnimationEnd}
+    >
+      {cover && <img className="wt-chapter-spine-img" src={coverUrl(cover, { width: 160, height: 440 })} alt="" loading="lazy" />}
+      <span className="wt-chapter-spine-inner">
+        <span className="wt-chapter-collapse-arrow">←</span>
+        <span className="wt-title">{chapter}</span>
+      </span>
+    </button>
+  )
+}
+
+function TripCard({ t, covers, selectedTrip, setSelectedTrip }) {
+  const active = selectedTrip === t.slug
+  const bounce = useBounce()
+  return (
+    <button
+      className={`wt-card${active ? ' active' : ''}${bounce.className}`}
+      onClick={() => {
+        bounce.onPress()
+        setSelectedTrip(active ? null : t.slug)
+      }}
+      onAnimationEnd={bounce.onAnimationEnd}
     >
       {covers[t.id] && (
         <span className="wt-cover">
