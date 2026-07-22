@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
-import { connectGoogle } from '../lib/google.js'
 
 // The front door to the app's account, opened by tapping the duck.
 // Same passwordless OTP flow the Account tab has always used (email →
@@ -94,42 +93,23 @@ export default function AuthSheet({ onClose }) {
             {error && <div className="account-error">{error}</div>}
           </form>
         ) : (
-          <>
+          <form onSubmit={send}>
             <div className="ios-sheet-title">Sign in to Pond Hopping</div>
-            <div className="ios-sheet-sub">Private trips only show when you're signed in.</div>
-            <button
-              className="auth-google"
-              onClick={async () => {
-                setBusy(true)
-                const { error } = await connectGoogle()
-                if (error) {
-                  setError(error.message)
-                  setBusy(false)
-                }
-                // On success the browser redirects to Google; nothing more to do here.
-              }}
-              disabled={busy}
-            >
-              <span className="auth-google-g">G</span>
-              Continue with Google
+            <div className="ios-sheet-sub">Private trips only show when you're signed in. No password — we email you a 6-digit code.</div>
+            <input
+              className="account-input"
+              type="email"
+              autoFocus
+              required
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <button className="ios-sheet-done" type="submit" disabled={busy || !email.trim()}>
+              {busy ? 'Sending…' : 'Email me a code'}
             </button>
-            <div className="auth-google-hint">Best for Gmail — lets Pond Hopping find this trip's bookings in your inbox.</div>
-            <div className="auth-or">or</div>
-            <form onSubmit={send}>
-              <input
-                className="account-input"
-                type="email"
-                required
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <button className="ios-sheet-done" type="submit" disabled={busy || !email.trim()}>
-                {busy ? 'Sending…' : 'Email me a code instead'}
-              </button>
-            </form>
             {error && <div className="account-error">{error}</div>}
-          </>
+          </form>
         )}
       </div>
     </div>

@@ -368,6 +368,14 @@ button {
   overflow-y: auto;
 }
 
+.gm-paste {
+  width: 100%;
+  resize: vertical;
+  margin-bottom: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .gm-status {
   text-align: center;
   padding: 12px 4px 4px;

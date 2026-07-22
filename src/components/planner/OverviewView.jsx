@@ -152,8 +152,8 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
         <button className="ov-import" onClick={() => setImporting(true)}>
           <span className="ov-import-i">📬</span>
           <span className="ov-import-body">
-            <span className="ov-import-title">Auto-fill from your inbox</span>
-            <span className="ov-import-sub">Scan Gmail for this trip's flights, stays &amp; bookings</span>
+            <span className="ov-import-title">Add a booking</span>
+            <span className="ov-import-sub">Paste a confirmation — I'll pull out the flights, stays &amp; bookings</span>
           </span>
           <span className="ov-import-arrow">→</span>
         </button>

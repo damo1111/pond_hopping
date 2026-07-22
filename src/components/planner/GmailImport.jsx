@@ -1,51 +1,70 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '../../lib/supabase.js'
 import { API_BASE } from '../../lib/apiBase.js'
 import { getGoogleToken } from '../../lib/google.js'
 import { KIND_META } from '../../lib/planItems.js'
 
-// The review step for the inbox scan. It never adds anything on its own —
-// it shows what it found, pre-ticked, and only the ones the user keeps get
-// written. Confidence is surfaced honestly ("not sure" on the shaky ones)
-// so a wrong guess is easy to spot and untick.
+// Turn a booking into trip items with zero setup: paste (or forward →
+// copy) the confirmation email and the same AI extraction pulls out the
+// flights/stays/dinners. If the user happens to have connected Google, a
+// "scan my whole inbox" shortcut is offered too — but paste is the path
+// that always works, no OAuth, no console. Nothing is saved until the
+// review step is confirmed.
 function fmtDate(iso) {
   if (!iso) return ''
   return new Date(iso + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
 export default function GmailImport({ trip, onClose, onImported }) {
-  const [state, setState] = useState('scanning') // scanning | review | saving | done | error
+  const [state, setState] = useState('entry') // entry | working | review | saving | done | error
+  const [text, setText] = useState('')
   const [items, setItems] = useState([])
-  const [keep, setKeep] = useState({}) // index -> bool
-  const [scanned, setScanned] = useState(0)
+  const [keep, setKeep] = useState({})
   const [error, setError] = useState(null)
+  const hasGoogle = !!getGoogleToken()
 
-  useEffect(() => {
-    let alive = true
-    const token = getGoogleToken()
-    if (!token) {
-      setState('error')
-      setError('no-token')
-      return
-    }
-    fetch(`${API_BASE}/api/gmail-scan`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accessToken: token, start: trip.start_date, end: trip.end_date }),
-    })
-      .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-      .then((d) => {
-        if (!alive) return
-        setItems(d.items || [])
-        setScanned(d.scanned || 0)
-        setKeep(Object.fromEntries((d.items || []).map((_, i) => [i, true]))) // all pre-ticked
-        setState('review')
+  function receive(list) {
+    setItems(list)
+    setKeep(Object.fromEntries(list.map((_, i) => [i, true])))
+    setState('review')
+  }
+
+  async function parsePasted() {
+    if (!text.trim()) return
+    setState('working')
+    try {
+      const r = await fetch(`${API_BASE}/api/parse-booking`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, start: trip.start_date, end: trip.end_date }),
       })
-      .catch(() => alive && (setState('error'), setError('scan-failed')))
-    return () => {
-      alive = false
+      if (!r.ok) throw new Error()
+      const d = await r.json()
+      receive(d.items || [])
+    } catch {
+      setState('error')
+      setError('parse-failed')
     }
-  }, [trip.id])
+  }
+
+  async function scanInbox() {
+    const token = getGoogleToken()
+    if (!token) return
+    setState('working')
+    try {
+      const r = await fetch(`${API_BASE}/api/gmail-scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken: token, start: trip.start_date, end: trip.end_date }),
+      })
+      if (!r.ok) throw new Error()
+      const d = await r.json()
+      receive(d.items || [])
+    } catch {
+      setState('error')
+      setError('scan-failed')
+    }
+  }
 
   async function save() {
     setState('saving')
@@ -59,7 +78,7 @@ export default function GmailImport({ trip, onClose, onImported }) {
         title: it.title,
         city: it.city || null,
         kind: it.kind,
-        note: it.note ? `${it.note} · imported from inbox` : 'imported from inbox',
+        note: it.note ? `${it.note} · imported` : 'imported from a booking',
         detail: { imported: true, source_subject: it.source_subject },
         done: false,
       }))
@@ -75,37 +94,59 @@ export default function GmailImport({ trip, onClose, onImported }) {
       <div className="ios-sheet gm-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="ios-sheet-grip" />
 
-        {state === 'scanning' && (
+        {state === 'entry' && (
+          <>
+            <div className="ios-sheet-title">Add a booking</div>
+            <div className="ios-sheet-sub">
+              Paste a confirmation email (flight, hotel, restaurant, tickets) and I'll pull out what belongs to this
+              trip. Forward it to yourself first if it's easier, then copy the text in.
+            </div>
+            <textarea
+              className="account-input gm-paste"
+              rows={6}
+              placeholder="Paste the booking email here…"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+            <button className="ios-sheet-done" onClick={parsePasted} disabled={!text.trim()}>
+              Find bookings
+            </button>
+            {hasGoogle && (
+              <button className="account-btn ghost" onClick={scanInbox}>
+                or scan my whole inbox
+              </button>
+            )}
+            <button className="account-btn ghost" onClick={onClose}>Cancel</button>
+          </>
+        )}
+
+        {state === 'working' && (
           <div className="gm-status">
             <div className="gm-spin">📬</div>
-            <div className="ios-sheet-title">Reading your inbox…</div>
-            <div className="ios-sheet-sub">Looking for flights, stays, restaurants and tickets between {fmtDate(trip.start_date)} and {fmtDate(trip.end_date)}.</div>
+            <div className="ios-sheet-title">Reading it…</div>
+            <div className="ios-sheet-sub">Pulling out anything between {fmtDate(trip.start_date)} and {fmtDate(trip.end_date)}.</div>
           </div>
         )}
 
         {state === 'error' && (
           <div className="gm-status">
-            <div className="ios-sheet-title">{error === 'no-token' ? 'Connect Gmail first' : "Couldn't scan just now"}</div>
-            <div className="ios-sheet-sub">
-              {error === 'no-token'
-                ? 'Sign in with Google (tap the duck) to let Pond Hopping read this trip from your inbox.'
-                : 'Something went wrong reading your inbox — try again in a moment.'}
-            </div>
-            <button className="account-btn ghost" onClick={onClose}>Close</button>
+            <div className="ios-sheet-title">Couldn't read that</div>
+            <div className="ios-sheet-sub">Something went wrong — try pasting the email again.</div>
+            <button className="account-btn ghost" onClick={() => setState('entry')}>Back</button>
           </div>
         )}
 
         {state === 'review' && items.length === 0 && (
           <div className="gm-status">
             <div className="ios-sheet-title">Nothing found for these dates</div>
-            <div className="ios-sheet-sub">Scanned {scanned} emails but found no bookings between {fmtDate(trip.start_date)} and {fmtDate(trip.end_date)}. You can always add things by hand or ask the planner.</div>
-            <button className="account-btn ghost" onClick={onClose}>Close</button>
+            <div className="ios-sheet-sub">Couldn't spot a booking between {fmtDate(trip.start_date)} and {fmtDate(trip.end_date)} in that. Try another email, or add it by hand.</div>
+            <button className="account-btn ghost" onClick={() => setState('entry')}>Try another</button>
           </div>
         )}
 
         {state === 'review' && items.length > 0 && (
           <>
-            <div className="ios-sheet-title">Found {items.length} in your inbox</div>
+            <div className="ios-sheet-title">Found {items.length}</div>
             <div className="ios-sheet-sub">Tick what to add — nothing's saved until you confirm.</div>
             <div className="gm-list">
               {items.map((it, i) => {
@@ -133,7 +174,7 @@ export default function GmailImport({ trip, onClose, onImported }) {
             <button className="ios-sheet-done" onClick={save} disabled={keepCount === 0}>
               Add {keepCount} to the trip
             </button>
-            <button className="account-btn ghost" onClick={onClose}>Not now</button>
+            <button className="account-btn ghost" onClick={() => setState('entry')}>Paste another</button>
           </>
         )}
 
