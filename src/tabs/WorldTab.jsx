@@ -6,6 +6,7 @@ import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import { coverUrl } from '../lib/imgTransform.js'
 import CountryFlags from '../components/CountryFlags.jsx'
+import TripStoryCard from '../components/TripStoryCard.jsx'
 import { groupTrips, chapterRange, chapterCountries } from '../lib/tripGroups.js'
 
 // Default framing for the "all trips" overview — centred on the
@@ -55,7 +56,7 @@ function nearAny(point, others) {
 }
 
 export default function WorldTab() {
-  const { tripMeta, selectedTrip, setSelectedTrip } = useContext(TripContext)
+  const { tripMeta, selectedTrip, setSelectedTrip, goToTab } = useContext(TripContext)
   const [flights, setFlights] = useState(null)
   const [covers, setCovers] = useState({})
   const [countries, setCountries] = useState(null)
@@ -118,6 +119,7 @@ export default function WorldTab() {
   }, [wrapEl])
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
+  const selectedTripObj = selectedTrip ? tripMeta.find((t) => t.slug === selectedTrip) : null
 
   // Dedupe flights into route segments (repeat sectors share one arc).
   const { segments, airports } = useMemo(() => {
@@ -274,26 +276,35 @@ export default function WorldTab() {
       />
       </div>
 
-      <div className="world-trips">
-        {groupTrips(tripMeta).map((item) => {
-          if (item.type === 'trip') return <TripCard key={item.trip.slug} t={item.trip} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
+      {selectedTripObj ? (
+        <TripStoryCard
+          trip={selectedTripObj}
+          cover={covers[selectedTripObj.id]}
+          onClose={() => setSelectedTrip(null)}
+          goToTab={goToTab}
+        />
+      ) : (
+        <div className="world-trips">
+          {groupTrips(tripMeta).map((item) => {
+            if (item.type === 'trip') return <TripCard key={item.trip.slug} t={item.trip} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
 
-          const { chapter, trips } = item
-          const cover = trips.map((t) => covers[t.id]).find(Boolean)
-          if (expandedChapter === chapter) {
-            return (
-              <div key={chapter} className="wt-chapter-open">
-                <ChapterSpine chapter={chapter} cover={cover} onClick={() => setExpandedChapter(null)} />
-                {trips.map((t) => (
-                  <TripCard key={t.slug} t={t} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
-                ))}
-              </div>
-            )
-          }
+            const { chapter, trips } = item
+            const cover = trips.map((t) => covers[t.id]).find(Boolean)
+            if (expandedChapter === chapter) {
+              return (
+                <div key={chapter} className="wt-chapter-open">
+                  <ChapterSpine chapter={chapter} cover={cover} onClick={() => setExpandedChapter(null)} />
+                  {trips.map((t) => (
+                    <TripCard key={t.slug} t={t} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
+                  ))}
+                </div>
+              )
+            }
 
-          return <ChapterCard key={chapter} chapter={chapter} trips={trips} cover={cover} onClick={() => setExpandedChapter(chapter)} />
-        })}
-      </div>
+            return <ChapterCard key={chapter} chapter={chapter} trips={trips} cover={cover} onClick={() => setExpandedChapter(chapter)} />
+          })}
+        </div>
+      )}
     </div>
   )
 }

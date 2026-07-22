@@ -30,6 +30,7 @@ export const TripContext = createContext({
   journalJump: null,
   jumpToJournal: () => {},
   clearJournalJump: () => {},
+  goToTab: () => {},
 })
 
 const TABS = [
@@ -201,6 +202,7 @@ export default function App() {
       journalJump,
       jumpToJournal,
       clearJournalJump: () => setJournalJump(null),
+      goToTab: (tab) => setActiveTab(tab),
     }),
     [tripMeta, selectedTrip, journalJump]
   )
