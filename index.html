@@ -4,6 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#F5F2EB" />
+    <!-- Wrapped in Capacitor the app's origin is capacitor://localhost (iOS) /
+         http://localhost (Android). Google Photos' image CDN
+         (lh3.googleusercontent.com) 403s requests whose Referer isn't a host
+         it likes, which broke every Google-Photos trip cover in the native
+         app. Sending no referer is how these public URLs are meant to be
+         hotlinked, and every other image host (Wikipedia, Supabase,
+         Foursquare, Planespotters) serves fine without one. -->
+    <meta name="referrer" content="no-referrer" />
     <!-- Standalone PWA (app-family blueprint §2a) -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
