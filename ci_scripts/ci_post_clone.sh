@@ -19,11 +19,7 @@ npm ci
 npm run build
 npx cap sync ios
 
-# Xcode Cloud disables automatic SPM resolution and requires a committed/
-# generated Package.resolved. Capacitor wires up its swift-pm dependency
-# during `cap sync` but never resolves it, so do that here — this writes
-# App.xcodeproj/project.xcworkspace/.../swiftpm/Package.resolved, which the
-# Archive step then finds instead of failing.
-xcodebuild -resolvePackageDependencies \
-  -project ios/App/App.xcodeproj \
-  -scheme App
+# Note: the SPM Package.resolved is committed at
+# ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+# so Xcode Cloud (which disables automatic package resolution) has the
+# pinned capacitor-swift-pm to satisfy the Archive step.
