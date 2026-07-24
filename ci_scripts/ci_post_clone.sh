@@ -24,3 +24,12 @@ cd "$REPO_ROOT"
 npm ci
 npm run build
 npx cap sync ios
+
+# capacitor-swift-pm is a *transitive* dependency (App.xcodeproj depends on
+# the local CapApp-SPM package, which in turn depends on capacitor-swift-pm
+# remotely). Xcode Cloud disables automatic package resolution for the
+# actual archive step, and on a cold build machine with no warm SPM cache
+# it can fail to even verify the committed Package.resolved is satisfied.
+# Resolve explicitly here, with normal (non-restricted) permissions, so the
+# package is already cloned and cached by the time xcodebuild archives.
+xcodebuild -resolvePackageDependencies -project ios/App/App.xcodeproj -scheme App
