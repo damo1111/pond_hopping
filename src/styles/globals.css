@@ -37,6 +37,13 @@ html,
 body,
 #root {
   height: 100%;
+  /* Safety net: nothing on any screen should ever be wide enough to
+     force horizontal scroll, but if something briefly is (a long
+     unbroken string, a stray fixed width), clip it here instead of
+     letting it push the whole page and cut off unrelated content on
+     the right edge — which is what "doesn't fit screen" looks like. */
+  overflow-x: hidden;
+  width: 100%;
 }
 
 body {
@@ -3427,9 +3434,10 @@ button {
 
 .plan-section-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 10px;
+  gap: 6px 10px;
   padding: 0 4px 4px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
@@ -3438,6 +3446,8 @@ button {
 .plan-section-title {
   font-weight: 300;
   font-size: 15px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .plan-empty {
