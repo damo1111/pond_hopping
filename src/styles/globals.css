@@ -3463,6 +3463,18 @@ button {
   margin-bottom: 6px;
 }
 
+.plan-import-banner {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
 /* Trigger to open the form/chat — same quiet dashed-tint affordance as
    the Journal tab's "+ add entry", not a loud solid-fill CTA. */
 .plan-add-btn {

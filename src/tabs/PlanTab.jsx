@@ -4,6 +4,7 @@ import { useAuth } from '../lib/AuthContext.jsx'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PlanChat from '../components/PlanChat.jsx'
 import TripPlanner from '../components/TripPlanner.jsx'
+import EmailImportsReview from '../components/planner/EmailImportsReview.jsx'
 import { thumb, coverUrl } from '../lib/imgTransform.js'
 
 const WISHLIST_STATUS = [
@@ -237,6 +238,17 @@ export default function PlanTab() {
   const [wishlist, setWishlist] = useState(null)
   const [creating, setCreating] = useState(false) // PlanChat for a brand-new trip
   const [plannerId, setPlannerId] = useState(null) // full-screen TripPlanner for an existing draft
+  const [pendingImports, setPendingImports] = useState([])
+  const [reviewingImports, setReviewingImports] = useState(false)
+
+  function loadPendingImports() {
+    supabase
+      .from('email_imports')
+      .select('*')
+      .eq('status', 'pending')
+      .order('received_at', { ascending: true })
+      .then(({ data }) => setPendingImports(data ?? []))
+  }
 
   function loadDrafts() {
     supabase
@@ -288,6 +300,7 @@ export default function PlanTab() {
   useEffect(() => {
     loadDrafts()
     loadWishlist()
+    loadPendingImports()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
@@ -295,6 +308,12 @@ export default function PlanTab() {
 
   return (
     <div className="plan-tab">
+      {pendingImports.length > 0 && (
+        <button className="plan-import-banner" onClick={() => setReviewingImports(true)}>
+          📧 {pendingImports.length} booking{pendingImports.length > 1 ? 's' : ''} found from a forwarded email — review
+        </button>
+      )}
+
       <section className="plan-section">
         <div className="plan-section-head">
           <div className="plan-section-title">Trips in the works</div>
@@ -364,6 +383,18 @@ export default function PlanTab() {
             loadDrafts()
           }}
           onChanged={loadDrafts}
+        />
+      )}
+
+      {reviewingImports && pendingImports.length > 0 && (
+        <EmailImportsReview
+          imports={pendingImports}
+          draftTrips={draftTrips}
+          onClose={() => setReviewingImports(false)}
+          onChanged={() => {
+            loadPendingImports()
+            loadDrafts()
+          }}
         />
       )}
     </div>
