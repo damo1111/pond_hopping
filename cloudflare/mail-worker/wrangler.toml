@@ -1,0 +1,7 @@
+name = "pond-hopping-mail-worker"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# No [vars] block for the secret on purpose — set it with:
+#   npx wrangler secret put INBOUND_EMAIL_SECRET
+# so it never sits in a plaintext config file.
