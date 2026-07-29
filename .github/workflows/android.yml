@@ -60,3 +60,18 @@ jobs:
           name: pond-hopping-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      # Firebase App Distribution is the Android equivalent of TestFlight —
+      # testers get an email with a direct install link, no GitHub login,
+      # no Play Store account needed. Skipped automatically (rather than
+      # failing the build) until FIREBASE_APP_ID and
+      # FIREBASE_SERVICE_ACCOUNT_KEY secrets are added in repo Settings.
+      - name: Distribute to Firebase App Distribution
+        if: ${{ secrets.FIREBASE_APP_ID != '' && secrets.FIREBASE_SERVICE_ACCOUNT_KEY != '' }}
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFileContent: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+          groups: family
+          file: android/app/build/outputs/apk/debug/app-debug.apk
+          releaseNotes: Auto-built from ${{ github.sha }}
