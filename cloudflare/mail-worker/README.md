@@ -67,3 +67,31 @@ tab of the app.
 Edit `src/index.js`, then re-run `npx wrangler deploy` from this
 directory. No Vercel changes needed unless `/api/inbound-email`'s
 expected payload shape changes.
+
+---
+
+## Why this Worker probably isn't the route to take
+
+`eend.app` has four live properties on it — the website itself, plus
+`pond`, `nouse` and `duckworth`. Cloudflare Email Routing needs Cloudflare
+to be authoritative for the whole zone (subdomain zones are
+Enterprise-only), which means moving nameservers and re-homing all four.
+That's a real risk for a convenience feature.
+
+**Use [CloudMailin](https://www.cloudmailin.com/inbound) instead.** It
+hands you an address on its own domain, so there is no DNS change at all:
+
+1. Sign up (free tier).
+2. Set the target to `https://pond.eend.app/api/inbound-email?key=<INBOUND_EMAIL_SECRET>`,
+   POST format JSON.
+3. Set `INBOUND_EMAIL_SECRET` in the Vercel project to the same value.
+4. Set `VITE_INBOX_ADDRESS` in Vercel to the address CloudMailin gives you —
+   that's what makes the "forward your bookings" option appear in
+   onboarding. Until it's set, that route stays hidden.
+
+`api/inbound-email.js` normalises CloudMailin, Postmark and SendGrid
+payload shapes, so swapping provider later needs no code change.
+
+This Worker stays here in case `eend.app` ever does move to Cloudflare for
+other reasons — at which point it's a better fit, since the address can
+then live on your own domain.

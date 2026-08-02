@@ -1,14 +1,21 @@
-// Receives forwarded booking confirmations at an inbound address on
-// eend.app (Postmark's Inbound webhook posts here). Runs the same AI
-// extraction as the paste-a-booking flow, guesses which draft trip it
-// belongs to by matching dates, and stashes it as a pending row for the
-// person to review in-app — nothing lands in the itinerary automatically.
+// Receives forwarded booking confirmations from whichever inbound-email
+// provider is pointed at it. Runs the same AI extraction as the
+// paste-a-booking flow, guesses which draft trip it belongs to by matching
+// dates, and stashes it as a pending row for the person to review in-app —
+// nothing lands in an itinerary automatically.
 //
-// Postmark doesn't sign inbound webhook payloads, so this endpoint is
-// protected with HTTP Basic Auth instead: set the webhook URL in Postmark
-// to `https://<user>:<INBOUND_EMAIL_SECRET>@pond.eend.app/api/inbound-email`
-// and set INBOUND_EMAIL_SECRET in Vercel to match. Any request without a
-// matching secret is rejected before touching OpenAI or Supabase.
+// Provider-agnostic on purpose. CloudMailin is the current plan because it
+// hands you an address on its own domain, so it needs no DNS changes at
+// all — eend.app has four live subdomains behind it, and moving its
+// nameservers to Cloudflare (the only way to get Email Routing, since
+// subdomain zones are Enterprise-only) isn't worth that risk for this.
+// normalise() below handles CloudMailin, Postmark and SendGrid shapes.
+//
+// None of these providers sign their webhooks, so this endpoint is
+// protected with a shared secret instead: put it in the target URL as
+// `?key=<INBOUND_EMAIL_SECRET>` (or use HTTP Basic auth) and set the same
+// value in Vercel. Anything without it is rejected before touching OpenAI
+// or Supabase.
 import { extractBookingItems } from './_lib/extractBookingItems.js'
 
 const SUPABASE_URL = 'https://qslksdgxoibzrisywvqk.supabase.co'
@@ -47,12 +54,25 @@ function authorized(req) {
   return req.query?.key === secret
 }
 
-// Strip a forwarded/replied email down to the new content — Postmark's
-// StrippedTextReply already does this when available; otherwise fall
-// back to the full plain-text body (the model is instructed to skip
-// marketing/quoted noise anyway).
-function bodyText(payload) {
-  return (payload.StrippedTextReply || payload.TextBody || '').trim()
+// Every inbound-email provider invents its own payload shape, and which
+// one sits in front of this endpoint is a deployment detail that shouldn't
+// reach the rest of the code. Normalise here instead:
+//
+//   Postmark      FromFull.Email / Subject / TextBody / StrippedTextReply
+//   CloudMailin   headers.from / headers.subject / plain
+//   SendGrid      from / subject / text
+//   Cloudflare    (our Worker already mimics Postmark's shape)
+//
+// StrippedTextReply is preferred where a provider offers it — it removes
+// quoted history from a forward. Otherwise take the full plain-text body;
+// the extraction model is told to skip marketing and quoted noise anyway.
+function normalise(p) {
+  const h = p.headers || {}
+  return {
+    from: p.FromFull?.Email || p.From || h.from || p.envelope?.from || p.from || null,
+    subject: p.Subject || h.subject || p.subject || null,
+    text: (p.StrippedTextReply || p.TextBody || p.plain || p.text || p.body || '').trim(),
+  }
 }
 
 // Which draft trip does this most likely belong to? Count how many
@@ -91,12 +111,9 @@ export default async function handler(req, res) {
     return
   }
 
-  const payload = req.body || {}
-  const text = bodyText(payload)
-  const fromAddress = payload.FromFull?.Email || payload.From || null
-  const subject = payload.Subject || null
+  const { from: fromAddress, subject, text } = normalise(req.body || {})
 
-  // Always 200 back to Postmark once authorized — a 4xx/5xx makes it
+  // Always 200 back to the provider once authorized — a 4xx/5xx makes them
   // retry the same email repeatedly. Failures are logged, not thrown.
   if (!text) {
     res.status(200).json({ ok: true, skipped: 'no body text' })

@@ -11,7 +11,12 @@ import { useAuth } from '../lib/AuthContext.jsx'
 //
 // Notably absent: a feature walkthrough. Nobody reads them.
 
-const INBOX = 'bookings@eend.app'
+// The forward-to address is whatever the inbound provider hands us —
+// CloudMailin gives one on its own domain, so no DNS is involved. Set
+// VITE_INBOX_ADDRESS in Vercel once it exists and this route appears;
+// until then it stays hidden rather than advertising an address that
+// bounces.
+const INBOX = import.meta.env.VITE_INBOX_ADDRESS || null
 
 function Step({ children }) {
   return <div className="ob-step">{children}</div>
@@ -129,15 +134,25 @@ export default function Onboarding({ onDone }) {
               </div>
             )}
 
-            <div className="ob-route">
-              <div className="ob-route-title">📧 Forward your bookings</div>
-              <div className="ob-route-body">
-                Send any confirmation — flight, hotel, restaurant — to this address and it turns into
-                an itinerary. Forward a few old ones and your history builds itself.
+            {INBOX && (
+              <div className="ob-route">
+                <div className="ob-route-title">📧 Forward your bookings</div>
+                <div className="ob-route-body">
+                  Send any confirmation — flight, hotel, restaurant — to this address and it turns
+                  into an itinerary. Forward a few old ones and your history builds itself.
+                </div>
+                <button className="ob-secondary" onClick={() => copy('inbox', INBOX)}>
+                  {copied === 'inbox' ? 'Copied' : INBOX}
+                </button>
               </div>
-              <button className="ob-secondary" onClick={() => copy('inbox', INBOX)}>
-                {copied === 'inbox' ? 'Copied' : INBOX}
-              </button>
+            )}
+
+            <div className="ob-route">
+              <div className="ob-route-title">📋 Paste a confirmation</div>
+              <div className="ob-route-body">
+                Copy any booking email into the Plan tab and it'll pull out the flights, stays and
+                bookings. Works right now, nothing to set up.
+              </div>
             </div>
 
             {mcpUrl && (
