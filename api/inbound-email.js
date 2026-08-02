@@ -132,6 +132,13 @@ export default async function handler(req, res) {
 
     await sb('email_imports', {
       method: 'POST',
+      // return=minimal matters here. The default (return=representation)
+      // makes PostgREST add RETURNING, and returning a row needs SELECT
+      // permission — which email_imports grants only to signed-in users,
+      // since it holds whole forwarded confirmation emails. The webhook
+      // has no session, so the insert itself succeeded and the RETURNING
+      // was what tripped RLS. We don't need the row back anyway.
+      prefer: 'return=minimal',
       body: JSON.stringify({
         from_address: fromAddress,
         subject,
