@@ -1,6 +1,6 @@
-// Cloudflare Email Worker for mail.eend.app. Cloudflare Email Routing
+// Cloudflare Email Worker for eend.app. Cloudflare Email Routing
 // delivers the raw MIME message here for any address routed to this
-// worker (e.g. bookings@mail.eend.app) — this parses it and forwards
+// worker (e.g. bookings@eend.app) — this parses it and forwards
 // the useful bits to Pond Hopping's existing inbound-email endpoint,
 // which already speaks this exact shape (it was built for Postmark's
 // webhook payload, and this worker just mimics that shape so no server

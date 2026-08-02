@@ -11,7 +11,7 @@ import { useAuth } from '../lib/AuthContext.jsx'
 //
 // Notably absent: a feature walkthrough. Nobody reads them.
 
-const INBOX = 'bookings@mail.eend.app'
+const INBOX = 'bookings@eend.app'
 
 function Step({ children }) {
   return <div className="ob-step">{children}</div>
