@@ -112,6 +112,9 @@ export default function FlightCard({ flight, aircraftType }) {
                 {f.distance_km.toLocaleString()} km
               </>
             ) : null}
+            {/* Only shown on legs someone flew alone — on a trip everyone
+                took together, tagging every flight "both" is just noise. */}
+            {f.traveler ? <span className="fh-who">{f.traveler}</span> : null}
           </span>
         </span>
       </button>

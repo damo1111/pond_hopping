@@ -76,7 +76,7 @@ export default function WorldTab() {
     let alive = true
     supabase
       .from('flights')
-      .select('flight_number,airline,trip_id,dep_airport,dep_city,dep_lat,dep_lon,arr_airport,arr_city,arr_lat,arr_lon,dep_time,distance_km')
+      .select('flight_number,airline,trip_id,dep_airport,dep_city,dep_lat,dep_lon,arr_airport,arr_city,arr_lat,arr_lon,dep_time,distance_km,traveler')
       .order('dep_time', { ascending: true })
       .then(({ data }) => alive && setFlights(data ?? []))
     supabase
@@ -122,13 +122,18 @@ export default function WorldTab() {
   const selectedTripObj = selectedTrip ? tripMeta.find((t) => t.slug === selectedTrip) : null
 
   // Dedupe flights into route segments (repeat sectors share one arc).
-  const { segments, airports } = useMemo(() => {
+  // Travellers are part of the key: on a trip where two people flew in from
+  // different places, their legs stay separate arcs so the globe shows two
+  // threads converging on the destination rather than one merged line.
+  const { segments, airports, travelers } = useMemo(() => {
     const segs = new Map()
     const apts = new Map()
+    const who = new Set()
     for (const f of flights ?? []) {
       if (selectedTrip && tripsById.get(f.trip_id)?.slug !== selectedTrip) continue
       if (f.dep_lat == null || f.arr_lat == null) continue
-      const key = `${f.dep_airport}-${f.arr_airport}`
+      if (f.traveler) who.add(f.traveler)
+      const key = `${f.dep_airport}-${f.arr_airport}-${f.traveler || ''}`
       if (!segs.has(key)) {
         segs.set(key, {
           key,
@@ -136,6 +141,7 @@ export default function WorldTab() {
           to: [f.arr_lat, f.arr_lon],
           label: `${f.dep_airport} → ${f.arr_airport}`,
           tripSlug: tripsById.get(f.trip_id)?.slug,
+          traveler: f.traveler || null,
           flights: [],
         })
       }
@@ -143,7 +149,7 @@ export default function WorldTab() {
       if (!apts.has(f.dep_airport)) apts.set(f.dep_airport, { code: f.dep_airport, city: f.dep_city, pos: [f.dep_lat, f.dep_lon] })
       if (!apts.has(f.arr_airport)) apts.set(f.arr_airport, { code: f.arr_airport, city: f.arr_city, pos: [f.arr_lat, f.arr_lon] })
     }
-    return { segments: [...segs.values()], airports: [...apts.values()] }
+    return { segments: [...segs.values()], airports: [...apts.values()], travelers: [...who].sort() }
   }, [flights, selectedTrip, tripsById])
 
   // Fly to the selection (or back to the overview) and toggle ambient
@@ -171,6 +177,10 @@ export default function WorldTab() {
 
   if (!flights) return <div className="tab-loading">loading the world…</div>
 
+  // Two people flying into the same city on the same day would otherwise
+  // overlap into one indistinguishable line. Lifting each traveller's arcs
+  // to a different altitude separates them in 3D, so the paths read as two
+  // threads that converge — which is the whole point of a shared trip.
   const arcsData = segments.map((s) => ({
     startLat: s.from[0],
     startLng: s.from[1],
@@ -178,6 +188,11 @@ export default function WorldTab() {
     endLng: s.to[1],
     color: tripColor(s.tripSlug),
     label: s.label,
+    traveler: s.traveler,
+    altitude:
+      s.traveler && travelers.length > 1
+        ? 0.16 + travelers.indexOf(s.traveler) * 0.11
+        : 0.22,
     flights: s.flights,
   }))
 
@@ -232,13 +247,16 @@ export default function WorldTab() {
         arcEndLat={(d) => d.endLat}
         arcEndLng={(d) => d.endLng}
         arcColor={(d) => d.color}
+        arcAltitude={(d) => d.altitude}
         arcStroke={0.5}
         arcDashLength={0.4}
         arcDashGap={0.25}
         arcDashAnimateTime={4000}
         arcsTransitionDuration={400}
         arcLabel={(d) =>
-          `<div class="globe-tip"><b>${escapeHtml(d.label)}</b>${d.flights
+          `<div class="globe-tip"><b>${escapeHtml(d.label)}</b>${
+            d.traveler ? ` <i>${escapeHtml(d.traveler)}</i>` : ''
+          }${d.flights
             .map(
               (f) =>
                 `<br/>${escapeHtml(f.flight_number)} · ${escapeHtml(fmtDate(f.dep_time))}${
