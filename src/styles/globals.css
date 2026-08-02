@@ -3331,6 +3331,13 @@ button {
   color: var(--text-muted);
 }
 
+.account-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.75;
+  margin-top: 8px;
+}
+
 .account-input {
   font-size: 13px;
   padding: 9px 11px;

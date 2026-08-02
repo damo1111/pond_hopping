@@ -187,6 +187,56 @@ function ConnectionRow({ c, myId, onChange }) {
   )
 }
 
+// Calendar apps and AI assistants can't sign in with a Supabase session,
+// so they use an opaque per-person token instead. It's minted on first
+// view (my_api_token creates one if none exists) rather than at signup, so
+// nobody has a live credential they never asked for.
+function ConnectCard() {
+  const [token, setToken] = useState(null)
+  const [copied, setCopied] = useState(null)
+
+  useEffect(() => {
+    supabase.rpc('my_api_token').then(({ data }) => setToken(data ?? null))
+  }, [])
+
+  function copy(what, text) {
+    navigator.clipboard?.writeText(text)
+    setCopied(what)
+    setTimeout(() => setCopied(null), 1800)
+  }
+
+  if (!token) return null
+
+  // webcal:// rather than https:// so a tap opens the calendar app with a
+  // subscribe prompt instead of downloading a one-off .ics file.
+  const calendar = `webcal://pond.eend.app/api/calendar/${token}.ics`
+  const mcp = `https://pond.eend.app/api/mcp?key=${token}`
+
+  return (
+    <div className="account-card">
+      <div className="account-card-title">Connect</div>
+
+      <div className="account-card-body">
+        Subscribe to your trips in Apple, Google or Outlook Calendar. Updates itself as plans change.
+      </div>
+      <a className="account-btn" href={calendar}>Add to calendar</a>
+      <button className="account-btn ghost" onClick={() => copy('cal', calendar)}>
+        {copied === 'cal' ? 'Copied' : 'Copy calendar link'}
+      </button>
+
+      <div className="account-card-body" style={{ marginTop: 14 }}>
+        Connect Pond Hopping to Claude, ChatGPT or Gemini so your assistant can read your travel
+        history — and add trips it finds in your inbox.
+      </div>
+      <button className="account-btn ghost" onClick={() => copy('mcp', mcp)}>
+        {copied === 'mcp' ? 'Copied' : 'Copy AI connector URL'}
+      </button>
+
+      <div className="account-hint">Both links contain a private key — treat them like a password.</div>
+    </div>
+  )
+}
+
 function SignedIn() {
   const { user, profile } = useAuth()
   const [connections, setConnections] = useState(null)
@@ -229,6 +279,8 @@ function SignedIn() {
           Sign out
         </button>
       </div>
+
+      <ConnectCard />
 
       <InviteForm onInvited={load} />
 
