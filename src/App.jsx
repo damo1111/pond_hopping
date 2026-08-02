@@ -34,9 +34,15 @@ export const TripContext = createContext({
   goToTab: () => {},
 })
 
+// Six is the most that fits a phone's bottom bar without cramping, so
+// promoting Plan meant demoting something. Flights went, because Plan is
+// now where the Concierge, the booking imports and the planner all live —
+// the forward-looking half of the app — whereas Flights is a beautiful
+// read-only view of what already happened, and the globe on Home already
+// draws every route. It's one tap away under Useful.
 const TABS = [
   { id: 'world',    label: 'Home',    icon: '🌏' },
-  { id: 'flights',  label: 'Flights', icon: '✈️' },
+  { id: 'plan',     label: 'Plan',    icon: '🧭' },
   { id: 'journal',  label: 'Journal', icon: '📔' },
   { id: 'map',      label: 'Map',     icon: '🗺️' },
   { id: 'photos',   label: 'Photos',  icon: '📷' },
@@ -44,7 +50,7 @@ const TABS = [
 ]
 
 const USEFUL_TABS = [
-  { id: 'plan',     label: 'Plan',     icon: '🗺️' },
+  { id: 'flights',  label: 'Flights',  icon: '✈️' },
   { id: 'costs',    label: 'Costs',    icon: '💰' },
   { id: 'currency', label: 'Currency', icon: '💱' },
   { id: 'phrases',  label: 'Phrases',  icon: '💬' },
@@ -78,7 +84,7 @@ export default function App() {
   const [booting, setBooting] = useState(true)
   const [bootLeaving, setBootLeaving] = useState(false)
   const [activeTab, setActiveTab] = useState('world')
-  const [usefulTab, setUsefulTab] = useState('plan')
+  const [usefulTab, setUsefulTab] = useState('flights')
   const [tripMeta, setTripMeta] = useState([])
   const [loadError, setLoadError] = useState(null)
   const [selectedTrip, setSelectedTrip] = useState(null)
@@ -203,7 +209,18 @@ export default function App() {
       journalJump,
       jumpToJournal,
       clearJournalJump: () => setJournalJump(null),
-      goToTab: (tab) => setActiveTab(tab),
+      // Callers (the trip story card, mostly) ask for a destination by name
+      // without knowing whether it sits in the bottom bar or under Useful.
+      // Resolve that here so moving a tab between the two doesn't break
+      // every jump link in the app.
+      goToTab: (tab) => {
+        if (USEFUL_TABS.some((t) => t.id === tab)) {
+          setUsefulTab(tab)
+          setActiveTab('useful')
+        } else {
+          setActiveTab(tab)
+        }
+      },
     }),
     [tripMeta, selectedTrip, journalJump]
   )
@@ -278,8 +295,8 @@ export default function App() {
             <Suspense fallback={<div className="tab-loading">loading the world…</div>}>
               <WorldTab />
             </Suspense>
-          ) : activeTab === 'flights' ? (
-            <FlightsTab />
+          ) : activeTab === 'plan' ? (
+            <PlanTab />
           ) : activeTab === 'journal' ? (
             <JournalTab />
           ) : activeTab === 'map' ? (
@@ -287,8 +304,8 @@ export default function App() {
           ) : activeTab === 'photos' ? (
             <PhotosTab />
           ) : activeTab === 'useful' ? (
-            usefulTab === 'plan' ? (
-              <PlanTab />
+            usefulTab === 'flights' ? (
+              <FlightsTab />
             ) : usefulTab === 'currency' ? (
               <CurrencyTab />
             ) : usefulTab === 'phrases' ? (
@@ -308,7 +325,7 @@ export default function App() {
           )}
         </main>
 
-        {navHint && <div className="nav-hint">↓ explore Flights, Journal, Map &amp; Photos</div>}
+        {navHint && <div className="nav-hint">↓ explore Plan, Journal, Map &amp; Photos</div>}
 
         <nav className={`bottomnav${navPulse ? ' pulse' : ''}`}>
           {TABS.map((tab) => (
