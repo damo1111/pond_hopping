@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'r
 import Globe from 'react-globe.gl'
 import { supabase } from '../lib/supabase.js'
 import { isInAustralia } from '../lib/geo.js'
+import { AIRPORT_COORDS } from '../lib/airportCoords.js'
 import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import { coverUrl } from '../lib/imgTransform.js'
@@ -58,6 +59,13 @@ function nearAny(point, others) {
 export default function WorldTab() {
   const { tripMeta, selectedTrip, setSelectedTrip, goToTab } = useContext(TripContext)
   const [flights, setFlights] = useState(null)
+  // Booked-but-not-yet-flown legs. These live in planned_events (the
+  // planner's world), not the flights table (the travel log's world), so
+  // an upcoming trip drew nothing on the globe at all — Seeby's whole
+  // September itinerary was invisible here. Rather than copying rows
+  // between the two and creating a sync problem, read both and draw the
+  // planned ones as dotted arcs: same globe, honestly distinguished.
+  const [planned, setPlanned] = useState([])
   const [covers, setCovers] = useState({})
   const [countries, setCountries] = useState(null)
   // Which "chapter" (e.g. "2024 Gap Year") is currently drilled into on
@@ -79,6 +87,11 @@ export default function WorldTab() {
       .select('flight_number,airline,trip_id,dep_airport,dep_city,dep_lat,dep_lon,arr_airport,arr_city,arr_lat,arr_lon,dep_time,distance_km,traveler')
       .order('dep_time', { ascending: true })
       .then(({ data }) => alive && setFlights(data ?? []))
+    supabase
+      .from('planned_events')
+      .select('trip_id,event_date,start_time,title,detail,traveler')
+      .eq('kind', 'flight')
+      .then(({ data }) => alive && setPlanned(data ?? []))
     supabase
       .from('photo_cache')
       .select('trip_id,urls,status')
@@ -149,8 +162,41 @@ export default function WorldTab() {
       if (!apts.has(f.dep_airport)) apts.set(f.dep_airport, { code: f.dep_airport, city: f.dep_city, pos: [f.dep_lat, f.dep_lon] })
       if (!apts.has(f.arr_airport)) apts.set(f.arr_airport, { code: f.arr_airport, city: f.arr_city, pos: [f.arr_lat, f.arr_lon] })
     }
+
+    // Booked legs from the planner. Coordinates come from AIRPORT_COORDS
+    // rather than the row (planned_events has no lat/lon), and a leg is
+    // skipped rather than guessed at if the airport isn't in that table.
+    for (const p of planned) {
+      const d = p.detail || {}
+      if (selectedTrip && tripsById.get(p.trip_id)?.slug !== selectedTrip) continue
+      const from = AIRPORT_COORDS[d.dep_airport]
+      const to = AIRPORT_COORDS[d.arr_airport]
+      if (!from || !to) continue
+      if (p.traveler) who.add(p.traveler)
+      const key = `planned-${d.dep_airport}-${d.arr_airport}-${p.traveler || ''}`
+      if (!segs.has(key)) {
+        segs.set(key, {
+          key,
+          from,
+          to,
+          label: `${d.dep_airport} → ${d.arr_airport}`,
+          tripSlug: tripsById.get(p.trip_id)?.slug,
+          traveler: p.traveler || null,
+          planned: true,
+          flights: [],
+        })
+      }
+      segs.get(key).flights.push({
+        flight_number: d.flight_number || p.title,
+        dep_time: p.event_date,
+        trip_id: p.trip_id,
+      })
+      if (!apts.has(d.dep_airport)) apts.set(d.dep_airport, { code: d.dep_airport, city: d.dep_city, pos: from })
+      if (!apts.has(d.arr_airport)) apts.set(d.arr_airport, { code: d.arr_airport, city: d.arr_city, pos: to })
+    }
+
     return { segments: [...segs.values()], airports: [...apts.values()], travelers: [...who].sort() }
-  }, [flights, selectedTrip, tripsById])
+  }, [flights, planned, selectedTrip, tripsById])
 
   // Fly to the selection (or back to the overview) and toggle ambient
   // auto-rotate — spinning while idle, still while inspecting a trip.
@@ -189,6 +235,7 @@ export default function WorldTab() {
     color: tripColor(s.tripSlug),
     label: s.label,
     traveler: s.traveler,
+    planned: !!s.planned,
     altitude:
       s.traveler && travelers.length > 1
         ? 0.16 + travelers.indexOf(s.traveler) * 0.11
@@ -249,14 +296,17 @@ export default function WorldTab() {
         arcColor={(d) => d.color}
         arcAltitude={(d) => d.altitude}
         arcStroke={0.5}
-        arcDashLength={0.4}
-        arcDashGap={0.25}
-        arcDashAnimateTime={4000}
+        // Flown legs read as near-solid; booked-but-not-yet-flown ones as a
+        // faster-moving dotted trail, so an upcoming trip is visibly a
+        // promise rather than a memory.
+        arcDashLength={(d) => (d.planned ? 0.08 : 0.4)}
+        arcDashGap={(d) => (d.planned ? 0.12 : 0.25)}
+        arcDashAnimateTime={(d) => (d.planned ? 2200 : 4000)}
         arcsTransitionDuration={400}
         arcLabel={(d) =>
           `<div class="globe-tip"><b>${escapeHtml(d.label)}</b>${
-            d.traveler ? ` <i>${escapeHtml(d.traveler)}</i>` : ''
-          }${d.flights
+            d.planned ? ' <i>upcoming</i>' : ''
+          }${d.traveler ? ` <i>${escapeHtml(d.traveler)}</i>` : ''}${d.flights
             .map(
               (f) =>
                 `<br/>${escapeHtml(f.flight_number)} · ${escapeHtml(fmtDate(f.dep_time))}${
