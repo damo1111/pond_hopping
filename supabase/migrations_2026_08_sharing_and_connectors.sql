@@ -94,12 +94,20 @@ alter table public.api_tokens enable row level security;  -- no policies: servic
 -- Every content table was readable AND deletable by anyone holding the
 -- publishable key, which ships in the client bundle. Nothing in the app
 -- deletes from these tables, so those policies were pure liability.
--- Reads now follow trip visibility; deletes require being a trip editor.
+-- Reads now follow trip visibility; deletes, inserts and updates all
+-- require being an editor on the trip.
 --
--- STILL OPEN: INSERT/UPDATE remain anon-permissive on these tables,
--- because api/resize-photo.js and api/inbound-email.js write with the anon
--- key. Tightening those requires reworking both to go through SECURITY
--- DEFINER functions first.
+-- The blocker for writes was api/resize-photo.js PATCHing photos.thumb_url
+-- with no user session. Rather than introduce a service-role key, it now
+-- calls api_set_photo_thumb(), which is narrow enough to expose to anon:
+-- it sets thumb_url and only thumb_url, and only when one isn't already
+-- set, so the worst an abuser achieves is a silly thumbnail.
+--
+-- email_imports: SELECT/UPDATE/DELETE now require a session (it holds whole
+-- forwarded confirmation emails — the most sensitive table here). INSERT
+-- stays open because the inbound webhook has no session; it's gated at the
+-- HTTP layer by INBOUND_EMAIL_SECRET, and anything injected still has to
+-- survive human review before reaching an itinerary.
 
 do $$
 declare tbl text;

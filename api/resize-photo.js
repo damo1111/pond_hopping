@@ -60,16 +60,19 @@ export default async function handler(req, res) {
       })
       if (!upRes.ok) throw new Error(`upload ${upRes.status}: ${(await upRes.text()).slice(0, 150)}`)
 
+      // photos.UPDATE is scoped to trip editors, and this job has no user
+      // session — so it goes through api_set_photo_thumb, which can set
+      // thumb_url and nothing else. See the function's comment in
+      // supabase/migrations_2026_08_sharing_and_connectors.sql.
       const thumbUrl = `${SUPABASE_URL}/storage/v1/object/public/photos/${destPath}`
-      const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/photos?id=eq.${p.id}`, {
-        method: 'PATCH',
+      const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/api_set_photo_thumb`, {
+        method: 'POST',
         headers: {
           apikey: ANON_KEY,
           Authorization: `Bearer ${ANON_KEY}`,
           'Content-Type': 'application/json',
-          Prefer: 'return=minimal',
         },
-        body: JSON.stringify({ thumb_url: thumbUrl }),
+        body: JSON.stringify({ p_id: p.id, p_thumb: thumbUrl }),
       })
       if (!patchRes.ok) throw new Error(`patch ${patchRes.status}`)
       done++
