@@ -15,6 +15,7 @@ import ShareView from './ShareView.jsx'
 import InstallChip from './components/InstallChip.jsx'
 import TripPicker from './components/TripPicker.jsx'
 import AuthSheet from './components/AuthSheet.jsx'
+import Onboarding from './components/Onboarding.jsx'
 import { tripColor } from './lib/tripColors.js'
 import { track } from './lib/analytics.js'
 import { AuthProvider, useAuth } from './lib/AuthContext.jsx'
@@ -72,7 +73,7 @@ const SHARE_PARAMS = (() => {
 })()
 
 export default function App() {
-  const { user, authLoading } = useAuth()
+  const { user, authLoading, profile } = useAuth()
   const [authOpen, setAuthOpen] = useState(false)
   const [booting, setBooting] = useState(true)
   const [bootLeaving, setBootLeaving] = useState(false)
@@ -212,8 +213,14 @@ export default function App() {
     return <ShareView slug={SHARE_PARAMS.slug} show={SHARE_PARAMS.show} />
   }
 
+  // First run, once. Signed-out visitors deliberately don't see this —
+  // they get the public globe, which is a far better pitch than a form.
+  const needsOnboarding = !!user && !!profile && !profile.onboarded_at && !booting
+
   return (
     <TripContext.Provider value={ctx}>
+      {needsOnboarding && <Onboarding onDone={() => setActiveTab('world')} />}
+
       {booting && (
         <div className={`boot${bootLeaving ? ' leaving' : ''}`}>
           <img className="boot-duck" src="/duck.png" alt="" />

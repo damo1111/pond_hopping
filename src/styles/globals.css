@@ -3394,6 +3394,121 @@ button {
   margin-top: 8px;
 }
 
+/* ── First run ─────────────────────────────────────────────── */
+
+.ob-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(env(safe-area-inset-top) + 20px) 18px calc(env(safe-area-inset-bottom) + 20px);
+  overflow-y: auto;
+}
+
+.ob-sheet {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ob-duck {
+  width: 54px;
+  height: 54px;
+  align-self: center;
+  animation: story-rise 0.5s ease both;
+}
+
+.ob-step {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: story-rise 0.35s ease both;
+}
+
+.ob-title {
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 24px;
+  letter-spacing: 0.01em;
+}
+
+.ob-body {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.ob-primary {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fff;
+  background: var(--accent);
+  border-radius: 11px;
+  padding: 14px 18px;
+  text-align: center;
+}
+
+.ob-primary:disabled {
+  opacity: 0.55;
+}
+
+.ob-secondary {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px dashed var(--accent-dim);
+  border-radius: 9px;
+  padding: 8px 12px;
+  word-break: break-all;
+  text-align: left;
+}
+
+.ob-skip {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 4px;
+}
+
+.ob-route {
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 13px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: var(--surface);
+}
+
+/* The "someone already shared trips with you" case — the only route that
+   requires no work at all, so it earns the accent treatment. */
+.ob-route-ready {
+  border-color: var(--accent-dim);
+  background: var(--accent-bg);
+}
+
+.ob-route-title {
+  font-size: 14px;
+}
+
+.ob-route-body {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 .account-input {
   font-size: 13px;
   padding: 9px 11px;
