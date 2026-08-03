@@ -5,7 +5,15 @@
 // cases below are the ones that came out of a real 899-flight import.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { claimedBy, claimedKm, findConflicts, nextQuestion, samePattern } from './flightAttribution.js'
+import {
+  claimedBy,
+  claimedKm,
+  findConflicts,
+  nextQuestion,
+  openConflicts,
+  samePattern,
+  unresolvableConflicts,
+} from './flightAttribution.js'
 
 const ME = 'me@example.com'
 const THEM = 'them@example.com'
@@ -103,6 +111,39 @@ test('an answer propagates: resolving one flight can clear its neighbours', () =
   )
   assert.equal(findConflicts(after, ME).length, 0)
   assert.equal(nextQuestion(after, ME), null)
+})
+
+test('answering "that was me" moves on, even though the clash remains', () => {
+  // The bug this pins: claiming a flight doesn't resolve the contradiction —
+  // you're still on two aeroplanes — so the queue re-picked the same flight
+  // forever and the button looked dead. A flight someone has ruled on is
+  // settled; the question belongs on the other side of the clash now.
+  const a = flight('LHR', 'JFK', '2024-01-01T09:00:00Z', '2024-01-01T17:00:00Z')
+  const b = flight('MEL', 'SIN', '2024-01-01T10:00:00Z', '2024-01-01T18:00:00Z')
+  const first = nextQuestion([a, b], ME).flight
+
+  const answered = [a, b].map((x) =>
+    x.id === first.id ? { ...x, travellers: [ME], travellers_confirmed_at: 'now' } : x
+  )
+  const second = nextQuestion(answered, ME)
+  assert.ok(second, 'the other side is still worth asking about')
+  assert.notEqual(second.flight.id, first.id, 'must not re-ask the flight just answered')
+
+  // And once both have been claimed there is nothing left to ask, even
+  // though the contradiction is still there.
+  const both = answered.map((x) => ({ ...x, travellers: [ME], travellers_confirmed_at: 'now' }))
+  assert.equal(nextQuestion(both, ME), null)
+  assert.equal(unresolvableConflicts(both, ME).length, 1, 'reported, not silently dropped')
+})
+
+test('the outstanding count only counts flights still open to a question', () => {
+  const a = flight('LHR', 'JFK', '2024-01-01T09:00:00Z', '2024-01-01T17:00:00Z')
+  const b = flight('MEL', 'SIN', '2024-01-01T10:00:00Z', '2024-01-01T18:00:00Z')
+  assert.equal(openConflicts([a, b], ME).length, 1)
+  const answered = [{ ...a, travellers: [ME], travellers_confirmed_at: 'now' }, b]
+  assert.equal(openConflicts(answered, ME).length, 1, 'still open — b hasn’t been answered')
+  const bothAnswered = answered.map((x) => ({ ...x, travellers_confirmed_at: 'now' }))
+  assert.equal(openConflicts(bothAnswered, ME).length, 0)
 })
 
 test('skipping moves the question to the other side of the clash, not away', () => {

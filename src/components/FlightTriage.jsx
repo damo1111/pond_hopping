@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
-import { claimedKm, findConflicts, nextQuestion, samePattern } from '../lib/flightAttribution.js'
+import {
+  claimedKm,
+  nextQuestion,
+  openConflicts,
+  samePattern,
+  unresolvableConflicts,
+} from '../lib/flightAttribution.js'
 
 // An imported logbook is yours until proven otherwise, so this screen never
 // asks "who flew this?" about a flight it has no reason to doubt. It asks
@@ -156,10 +162,17 @@ export default function FlightTriage({ onClose, onChanged }) {
       </div>
     )
 
-  const outstanding = findConflicts(flights, email).filter((c) => c.kind !== 'gap')
+  // Only flights still open to being asked about. Answering "that was me"
+  // leaves the contradiction standing — you're still on two aeroplanes — so
+  // counting every flight in a clash would make the number stick while the
+  // reader worked, which is exactly how the first version looked broken.
   const openCount = new Set(
-    outstanding.flatMap((c) => [c.a.id, c.b.id]).filter((id) => !skipped.has(id))
+    openConflicts(flights, email, skipped)
+      .flatMap((c) => [c.a, c.b])
+      .filter((f) => !skipped.has(f.id) && f.travellers_confirmed_at == null)
+      .map((f) => f.id)
   ).size
+  const stuck = unresolvableConflicts(flights, email)
 
   if (!question) {
     return (
@@ -173,9 +186,11 @@ export default function FlightTriage({ onClose, onChanged }) {
         <div className="triage-finale">
           <div className="tf-km">{km.toLocaleString()} km</div>
           <div className="tf-note">
-            {skipped.size > 0
-              ? `Your itinerary holds together. ${skipped.size} skipped — come back to them any time.`
-              : 'Your itinerary holds together: no flight overlaps another, and every departure follows an arrival. Everything not marked otherwise is yours.'}
+            {stuck.length > 0
+              ? `Everything's been answered. ${stuck.length} pair${stuck.length === 1 ? '' : 's'} still overlap with both sides claimed — if they're really both yours, a time is wrong in the imported data.`
+              : skipped.size > 0
+                ? `Your itinerary holds together. ${skipped.size} skipped — come back to them any time.`
+                : 'Your itinerary holds together: no flight overlaps another, and every departure follows an arrival. Everything not marked otherwise is yours.'}
           </div>
           {skipped.size > 0 && (
             <button className="triage-choice" onClick={() => setSkipped(new Set())}>

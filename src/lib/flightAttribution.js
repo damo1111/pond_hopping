@@ -92,8 +92,27 @@ export function findConflicts(flights, email) {
  * the most contradictions. Ties break towards the more recent flight, which
  * is the one a person stands a chance of remembering.
  */
+/**
+ * A flight nobody should be asked about again: either they've skipped it for
+ * now, or they've already ruled on it.
+ *
+ * Answering "that one was me" does *not* remove the contradiction — you are
+ * still claiming to be on two aeroplanes — so without this the queue re-picks
+ * the same flight forever and the screen appears frozen. What the answer
+ * settles is that *this* side of the clash is decided; the question belongs
+ * on the other side now.
+ */
+const isSettled = (f, skip) => skip.has(f.id) || f.travellers_confirmed_at != null
+
+/** Contradictions with at least one flight still open to being asked about. */
+export function openConflicts(flights, email, skip = new Set()) {
+  return findConflicts(flights, email).filter(
+    (c) => c.kind !== 'gap' && (!isSettled(c.a, skip) || !isSettled(c.b, skip))
+  )
+}
+
 export function nextQuestion(flights, email, skip = new Set()) {
-  const conflicts = findConflicts(flights, email).filter((c) => c.kind !== 'gap')
+  const conflicts = openConflicts(flights, email, skip)
   if (!conflicts.length) return null
 
   const score = new Map()
@@ -101,13 +120,10 @@ export function nextQuestion(flights, email, skip = new Set()) {
     for (const f of [c.a, c.b]) score.set(f.id, (score.get(f.id) || 0) + 1)
   }
 
-  // A skipped flight stays in the graph — the contradiction is still real —
-  // but stops being the one asked about, so the same clash gets raised from
-  // the other side instead of quietly disappearing along with its partner.
   let best = null
   for (const c of conflicts) {
     for (const f of [c.a, c.b]) {
-      if (skip.has(f.id)) continue
+      if (isSettled(f, skip)) continue
       const n = score.get(f.id)
       if (!best || n > best.n || (n === best.n && f.dep_time > best.flight.dep_time)) {
         best = { flight: f, n }
@@ -128,6 +144,19 @@ export function nextQuestion(flights, email, skip = new Set()) {
     })),
     remaining: new Set(conflicts.flatMap((c) => [c.a.id, c.b.id])).size,
   }
+}
+
+/**
+ * Contradictions where every flight has already been claimed. Attribution
+ * can't fix these — if both are genuinely yours then a departure or arrival
+ * time is wrong in whatever the log was imported from. Worth saying so at
+ * the end rather than pretending the itinerary is clean.
+ */
+export function unresolvableConflicts(flights, email) {
+  return findConflicts(flights, email).filter(
+    (c) =>
+      c.kind !== 'gap' && c.a.travellers_confirmed_at != null && c.b.travellers_confirmed_at != null
+  )
 }
 
 /**
