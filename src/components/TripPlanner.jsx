@@ -7,6 +7,7 @@ import ExploreView from './planner/ExploreView.jsx'
 import AddItemSheet from './planner/AddItemSheet.jsx'
 import EditEventModal from './planner/EditEventModal.jsx'
 import PlanChat from './PlanChat.jsx'
+import { coverUrl } from '../lib/imgTransform.js'
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -17,7 +18,11 @@ const TABS = [
 export default function TripPlanner({ tripId, onClose, onChanged }) {
   const [trip, setTrip] = useState(null)
   const [events, setEvents] = useState([])
-  const [tab, setTab] = useState('itinerary')
+  // Overview first: it's the answer to "where am I up to with this trip" —
+  // the counts, what's unsorted, the map — where Itinerary is where you go
+  // once you already know.
+  const [tab, setTab] = useState('overview')
+  const [cover, setCover] = useState(null)
   const [activeDay, setActiveDay] = useState(null)
   const [scrollSignal, setScrollSignal] = useState(null)
   const [showCal, setShowCal] = useState(false)
@@ -79,7 +84,17 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
   const showDaySwitch = tab === 'itinerary' || tab === 'overview'
 
   return (
-    <div className="tp-modal">
+    <div className={`tp-modal${cover && tab === 'overview' ? ' tp-modal--hero' : ''}`}>
+      {/* The trip photo, painted behind everything and masked so it fades out
+          before it reaches the back button and title, and again into the page
+          below. Sitting behind the chrome rather than under it is what stops
+          it reading as a rectangle pasted into the middle of the screen. */}
+      {cover && tab === 'overview' && (
+        <div
+          className="tp-cover"
+          style={{ backgroundImage: `url(${coverUrl(cover, { width: 1200, height: 800 })})` }}
+        />
+      )}
       <header className="tp-header">
         <button className="tp-back" onClick={onClose}>‹</button>
         <div className="tp-title">{trip.title}</div>
@@ -125,6 +140,7 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
       <main className="tp-body">
         {tab === 'overview' && (
           <OverviewView
+            onCover={setCover}
             trip={trip}
             events={events}
             onEditEvent={setEditEvent}

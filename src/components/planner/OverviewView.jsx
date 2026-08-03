@@ -32,7 +32,7 @@ async function fetchDestinationPhoto(trip) {
   }
 }
 
-export default function OverviewView({ trip, events, onEditEvent, onEventsChange, onAskAI, onAdded }) {
+export default function OverviewView({ trip, events, onEditEvent, onEventsChange, onAskAI, onAdded, onCover }) {
   const [cover, setCover] = useState(null)
   const [importing, setImporting] = useState(false)
 
@@ -60,6 +60,10 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
       alive = false
     }
   }, [trip.id])
+
+  useEffect(() => {
+    onCover?.(cover)
+  }, [cover, onCover])
 
   const flights = events.filter((e) => e.kind === 'flight')
   const counts = {}
@@ -120,8 +124,11 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
 
   return (
     <div className="ov-scroll">
+      {/* The picture is painted behind the whole planner (see .tp-cover) so
+          it can bleed up past the tabs and day strip and fade out at the very
+          top. What stays here is the wording, positioned to land on the part
+          of the photo that's still at full strength. */}
       <div className="ov-hero">
-        {cover && <img className="ov-hero-img" src={coverUrl(cover, { width: 900, height: 500 })} alt="" />}
         <div className="ov-hero-shade" />
         <div className="ov-hero-text">
           <div className="ov-hero-title">{trip.title}</div>

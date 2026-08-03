@@ -4506,6 +4506,73 @@ button {
   flex-direction: column;
 }
 
+/* The trip photo, full-bleed behind the planner's chrome.
+
+   The mask is the whole trick: transparent at the very top so the back
+   button and title read against the plain background, ramping to full
+   strength by the time it reaches the hero wording, then falling away again
+   so the page below starts on paper rather than against a hard edge. */
+.tp-cover {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Tall enough to reach the bottom of the hero wording and no further —
+     any more and it runs on under the flight/stay counts and swallows them. */
+  height: 356px;
+  background-size: cover;
+  background-position: center 38%;
+  z-index: 0;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    rgba(0, 0, 0, 0.3) 12%,
+    #000 40%,
+    #000 86%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    rgba(0, 0, 0, 0.3) 12%,
+    #000 40%,
+    #000 86%,
+    transparent 100%
+  );
+}
+
+/* Chrome floats over the picture rather than being painted on top of it. */
+.tp-modal--hero .tp-header,
+.tp-modal--hero .tp-tabs,
+.tp-modal--hero .tp-dayswitch,
+.tp-modal--hero .tp-body {
+  position: relative;
+  z-index: 1;
+}
+
+/* A hairline that made sense against paper reads as a scar across a
+   photograph. */
+.tp-modal--hero .tp-dayswitch {
+  border-bottom-color: transparent;
+}
+
+/* Over the faded top of the picture the title still has to hold. A soft
+   shadow does it without tinting the whole header. */
+.tp-modal--hero .tp-title,
+.tp-modal--hero .tp-back,
+.tp-modal--hero .tp-menu {
+  text-shadow: 0 1px 10px rgba(245, 242, 235, 0.9), 0 1px 3px rgba(245, 242, 235, 0.7);
+}
+
+@media (prefers-color-scheme: dark) {
+  .tp-modal--hero .tp-title,
+  .tp-modal--hero .tp-back,
+  .tp-modal--hero .tp-menu {
+    text-shadow: 0 1px 10px rgba(20, 17, 13, 0.95), 0 1px 3px rgba(20, 17, 13, 0.8);
+  }
+}
+
 .tp-loading {
   margin: auto;
   font-family: var(--font-mono);
@@ -5017,23 +5084,27 @@ button {
   padding-bottom: calc(30px + env(safe-area-inset-bottom));
 }
 
+/* The hero is now just the wording. The photograph behind it is .tp-cover,
+   which spans the whole planner so it can rise past the tabs and day strip
+   instead of starting abruptly below them. This block reserves the space
+   where the picture is at full strength and sits the title in it. */
 .ov-hero {
   position: relative;
-  height: 168px;
-  background: var(--surface-2);
-  overflow: hidden;
+  height: 176px;
 }
 
-.ov-hero-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
+/* Enough shadow under the wording to hold it against a bright sky, released
+   again before the bottom so it doesn't leave a dark band on the paper. */
 .ov-hero-shade {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(26, 22, 17, 0.65), transparent 60%);
+  background: linear-gradient(
+    to bottom,
+    transparent 0,
+    rgba(26, 22, 17, 0.12) 38%,
+    rgba(26, 22, 17, 0.62) 80%,
+    transparent 100%
+  );
 }
 
 .ov-hero-text {
