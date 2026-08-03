@@ -23,6 +23,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Needed to publish the APK as a release asset, which is what gives it a
+    # permanent public download URL.
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -60,6 +64,27 @@ jobs:
           name: pond-hopping-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      # A run artifact needs a GitHub login and four taps to reach, which is
+      # no good on the phone you're trying to install onto. A release asset on
+      # a public repo is a plain URL that never changes:
+      #
+      #   https://github.com/damo1111/pond_hopping/releases/latest/download/pond-hopping.apk
+      #
+      # One rolling "latest" release, re-uploaded each build, so the link can
+      # be bookmarked or turned into a QR code once and left alone.
+      - name: Publish as the latest downloadable APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk pond-hopping.apk
+          gh release view latest >/dev/null 2>&1 || \
+            gh release create latest --title "Latest Android build" --notes "Bootstrapping."
+          gh release upload latest pond-hopping.apk --clobber
+          gh release edit latest --latest --notes "$(printf '%s\n\n%s\n\n%s' \
+            "Debug build from ${GITHUB_SHA::7} — $(date -u '+%d %b %Y, %H:%M UTC')." \
+            "Install: https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/pond-hopping.apk" \
+            "Android will warn about installing outside the Play Store; that's expected for a sideloaded build.")"
 
       # Firebase App Distribution is the Android equivalent of TestFlight —
       # testers get an email with a direct install link, no GitHub login,

@@ -1,6 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
+  "redirects": [
+    {
+      "source": "/apk",
+      "destination": "https://github.com/damo1111/pond_hopping/releases/latest/download/pond-hopping.apk",
+      "permanent": false
+    }
+  ],
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
   "functions": {
     "api/resize-photo.js": { "maxDuration": 60, "memory": 1024 },
