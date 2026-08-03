@@ -246,10 +246,13 @@ export default function WorldTab() {
   // Group same-city airports (e.g. Bangkok's BKK + DMK) into one marker —
   // otherwise two duck pins and two "Bangkok" labels land almost on top of
   // each other and blur together as you zoom in.
+  // Keyed on the code when a row has no city, so airports missing one stay
+  // separate pins rather than all collapsing into a single unnamed marker.
   const cityGroups = new Map()
   for (const a of airports) {
-    if (!cityGroups.has(a.city)) cityGroups.set(a.city, { city: a.city, codes: [a.code], pos: a.pos })
-    else cityGroups.get(a.city).codes.push(a.code)
+    const key = a.city || a.code
+    if (!cityGroups.has(key)) cityGroups.set(key, { city: a.city || a.code, codes: [a.code], pos: a.pos })
+    else cityGroups.get(key).codes.push(a.code)
   }
   const markerPoints = [...cityGroups.values()]
 

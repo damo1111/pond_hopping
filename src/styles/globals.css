@@ -1003,6 +1003,92 @@ button {
   flex: none;
 }
 
+/* Lifetime totals above the trip list. Four columns on anything wider than
+   a small phone, two below — a 2×2 grid keeps the numbers legible instead
+   of squeezing "round the earth" onto three lines. */
+.flights-lifetime {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 8px;
+  padding: 14px 12px;
+  margin-bottom: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+@media (min-width: 480px) {
+  .flights-lifetime {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.fl-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.fl-value {
+  font-family: var(--font-mono);
+  font-size: 17px;
+  font-weight: 300;
+  letter-spacing: -0.01em;
+  color: var(--gold);
+}
+
+.fl-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Imported flight history: same section furniture, but the head is a button
+   and the year sits where a trip title would. */
+.flights-history-rule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 4px 0;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.flights-history-rule::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.fsh-toggle {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fsh-chevron {
+  font-size: 9px;
+  color: var(--text-muted);
+  flex: none;
+}
+
+.flight-section-history .fsh-title {
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  margin-right: auto;
+}
+
 .route-strip {
   padding: 2px 6px 14px;
 }

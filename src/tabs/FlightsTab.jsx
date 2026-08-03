@@ -18,6 +18,9 @@ export default function FlightsTab() {
   const [planned, setPlanned] = useState([])
   const [drafts, setDrafts] = useState([])
   const [error, setError] = useState(null)
+  // null until the reader touches a year, so the newest one can default to
+  // open without that default fighting the first click to close it.
+  const [openYears, setOpenYears] = useState(null)
 
   useEffect(() => {
     let alive = true
@@ -70,6 +73,29 @@ export default function FlightsTab() {
     byTrip.get(f.trip_id).push(f)
   }
 
+  // Imported history — seventeen years of byAir logs — carries no trip: the
+  // trips it belongs to were never written down, and inventing four hundred
+  // of them would bury the fourteen that are real. They still belong on
+  // screen, newest first, under their own heading below the trips.
+  const loose = selectedTrip ? [] : (byTrip.get(null) ?? [])
+  byTrip.delete(null)
+
+  const historyByYear = new Map()
+  for (const f of loose) {
+    const year = (f.dep_time || '').slice(0, 4) || '—'
+    if (!historyByYear.has(year)) historyByYear.set(year, [])
+    historyByYear.get(year).unshift(f) // flights arrive ascending; show newest first
+  }
+  const historyYears = [...historyByYear.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+  const defaultOpen = historyYears.length ? [historyYears[0][0]] : []
+  const isYearOpen = (year) => (openYears ?? new Set(defaultOpen)).has(year)
+  const toggleYear = (year) =>
+    setOpenYears((prev) => {
+      const next = new Set(prev ?? defaultOpen)
+      next.has(year) ? next.delete(year) : next.add(year)
+      return next
+    })
+
   const plannedByTrip = new Map()
   for (const p of planned) {
     if (selectedTrip && tripsById.get(p.trip_id)?.slug !== selectedTrip) continue
@@ -99,7 +125,15 @@ export default function FlightsTab() {
 
   const sections = order.filter((id) => byTrip.has(id) || plannedByTrip.has(id))
 
-  if (!sections.length) {
+  // Lifetime totals across everything flown, trip or not. Laps of the earth
+  // because 2.7 million kilometres is a number nobody has a feel for, and
+  // "sixty-eight times round" is.
+  const EARTH_KM = 40075
+  const lifetimeKm = flights.reduce((s, f) => s + (f.distance_km || 0), 0)
+  const lifetimeAirports = new Set(flights.flatMap((f) => [f.dep_airport, f.arr_airport])).size
+  const firstYear = flights.length ? flights[0].dep_time?.slice(0, 4) : null
+
+  if (!sections.length && !loose.length) {
     return (
       <div className="placeholder">
         <div className="placeholder-code">flights</div>
@@ -112,6 +146,26 @@ export default function FlightsTab() {
 
   return (
     <div className="flights-tab">
+      {!selectedTrip && flights.length > 0 && (
+        <div className="flights-lifetime">
+          <div className="fl-stat">
+            <span className="fl-value">{flights.length.toLocaleString()}</span>
+            <span className="fl-label">flights{firstYear ? ` since ${firstYear}` : ''}</span>
+          </div>
+          <div className="fl-stat">
+            <span className="fl-value">{lifetimeKm.toLocaleString()}</span>
+            <span className="fl-label">kilometres</span>
+          </div>
+          <div className="fl-stat">
+            <span className="fl-value">{(lifetimeKm / EARTH_KM).toFixed(1)}×</span>
+            <span className="fl-label">round the earth</span>
+          </div>
+          <div className="fl-stat">
+            <span className="fl-value">{lifetimeAirports}</span>
+            <span className="fl-label">airports</span>
+          </div>
+        </div>
+      )}
       {sections.map((tripId) => {
         const trip = tripsById.get(tripId)
         const list = byTrip.get(tripId) ?? []
@@ -144,6 +198,38 @@ export default function FlightsTab() {
             {upcoming.map((p) => (
               <PlanFlightCard key={p.id} event={p} onEditEvent={() => {}} onSaveDetail={async () => {}} />
             ))}
+          </section>
+        )
+      })}
+
+      {/* Grouped by year and collapsed by default: nine hundred cards is a
+          scroll no-one finishes, but "2019 · 61 flights · 214,000 km" is a
+          line you can read. The newest year opens on arrival so the section
+          isn't just a wall of closed drawers. */}
+      {historyYears.length > 0 && (
+        <div className="flights-history-rule">
+          Flight history · {loose.length.toLocaleString()} legs
+        </div>
+      )}
+      {historyYears.map(([year, list]) => {
+        const open = isYearOpen(year)
+        const km = list.reduce((s, f) => s + (f.distance_km || 0), 0)
+        return (
+          <section key={year} className="flight-section flight-section-history">
+            <button
+              type="button"
+              className="flight-section-head fsh-toggle"
+              aria-expanded={open}
+              onClick={() => toggleYear(year)}
+            >
+              <span className="fsh-chevron" aria-hidden="true">{open ? '▾' : '▸'}</span>
+              <span className="fsh-title">{year}</span>
+              <span className="fsh-meta">
+                {list.length} {list.length === 1 ? 'flight' : 'flights'} · {km.toLocaleString()} km
+              </span>
+            </button>
+            {open &&
+              list.map((f) => <FlightCard key={f.id} flight={f} aircraftType={f.aircraft_types} />)}
           </section>
         )
       })}
