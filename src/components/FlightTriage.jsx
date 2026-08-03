@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import {
   claimedKm,
+  commuteCandidates,
   nextQuestion,
   openConflicts,
   samePattern,
@@ -19,7 +20,7 @@ import {
 // faster than one per tap and reaches zero.
 
 const SELECT =
-  'id,flight_number,airline,dep_airport,arr_airport,dep_city,arr_city,dep_time,arr_time,distance_km,cabin,travellers,travellers_confirmed_at,status,purpose'
+  'id,flight_number,airline,dep_airport,arr_airport,dep_city,arr_city,dep_time,arr_time,distance_km,cabin,travellers,travellers_confirmed_at,status,purpose,purpose_confirmed_at'
 
 const fmtDay = (iso) =>
   new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(
@@ -93,10 +94,25 @@ export default function FlightTriage({ onClose, onChanged }) {
     }
   }, [])
 
+  const commute = useMemo(() => (flights ? commuteCandidates(flights)[0] ?? null : null), [flights])
   const question = useMemo(
-    () => (email && flights ? nextQuestion(flights, email, skipped) : null),
-    [flights, email, skipped]
+    () => (email && flights && !commute ? nextQuestion(flights, email, skipped) : null),
+    [flights, email, skipped, commute]
   )
+
+  async function answerRoute(pair, isCommuting) {
+    setSaving(true)
+    setError(null)
+    const { error } = await supabase.rpc(
+      isCommuting ? 'archive_route_as_commuting' : 'confirm_route_is_travel',
+      { p_a: pair[0], p_b: pair[1] }
+    )
+    setSaving(false)
+    if (error) return setError(error.message)
+    const { data } = await supabase.from('flights').select(SELECT).order('dep_time')
+    setFlights(data ?? [])
+    onChanged?.()
+  }
   const km = useMemo(() => (flights ? claimedKm(flights, email) : 0), [flights, email])
   useEffect(() => {
     if (startKm == null && flights) setStartKm(claimedKm(flights, email))
@@ -173,6 +189,65 @@ export default function FlightTriage({ onClose, onChanged }) {
       .map((f) => f.id)
   ).size
   const stuck = unresolvableConflicts(flights, email)
+
+  // Whole routes first. "You've flown EDI–LHR 140 times" is one question that
+  // settles a quarter of the logbook — asking it after 140 individual ones
+  // would be asking it far too late.
+  if (commute) {
+    const years =
+      commute.first.slice(0, 4) === commute.last.slice(0, 4)
+        ? commute.first.slice(0, 4)
+        : `${commute.first.slice(0, 4)}–${commute.last.slice(0, 4)}`
+    return (
+      <div className="triage">
+        <header className="triage-head">
+          <button className="triage-close" onClick={onClose} aria-label="Back">←</button>
+          <div className="triage-head-text">
+            <div className="triage-title">Is this a route you commute?</div>
+            <div className="triage-sub">One answer settles {commute.legs} flights</div>
+          </div>
+        </header>
+
+        {error && <div className="error-note">{error}</div>}
+
+        <div className="triage-why">
+          <p>
+            You've flown this <b>{commute.legs}</b> times between {years}. That's a lot for a
+            journey, and about right for a way of getting to work.
+          </p>
+        </div>
+
+        <section className="triage-question">
+          <div className="tq-when">{years}</div>
+          <div className="tq-route">
+            <span className="tq-code">{commute.pair[0]}</span>
+            <span className="tq-arrow">⇄</span>
+            <span className="tq-code">{commute.pair[1]}</span>
+          </div>
+          <div className="tq-meta">
+            {commute.legs} legs · {commute.km.toLocaleString()} km
+          </div>
+        </section>
+
+        <div className="triage-choices">
+          <button
+            className="triage-choice"
+            disabled={saving}
+            onClick={() => answerRoute(commute.pair, false)}
+          >
+            These were trips
+          </button>
+          <button
+            className="triage-choice triage-choice-no"
+            disabled={saving}
+            onClick={() => answerRoute(commute.pair, true)}
+          >
+            Commuting — leave them out
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   if (!question) {
     return (

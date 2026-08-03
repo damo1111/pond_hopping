@@ -5666,32 +5666,3 @@ button {
 .build-stamp:disabled {
   opacity: 0.5;
 }
-
-/* Commuting, folded to one line. It counts in the totals — those flights
-   happened — but a hundred and twenty-nine identical Edinburgh–London hops
-   listed individually bury the journeys worth reading. */
-.flights-commute {
-  display: flex;
-  align-items: baseline;
-  gap: 9px;
-  padding: 10px 12px;
-  margin-top: 12px;
-  border: 1px dashed var(--border);
-  border-radius: 8px;
-}
-
-.fc-count {
-  font-family: var(--font-mono);
-  font-size: 15px;
-  color: var(--text-muted);
-  flex: none;
-}
-
-.fc-text {
-  font-family: var(--font-mono);
-  font-size: 8.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  line-height: 1.5;
-}

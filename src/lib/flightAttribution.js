@@ -153,6 +153,44 @@ export function nextQuestion(flights, email, skip = new Set()) {
 }
 
 /**
+ * Routes that look like commuting rather than travelling: the same short hop,
+ * flown over and over. Someone living in Edinburgh and working in London
+ * racks up 140 EDI–LHR legs, which is a quarter of their logbook, none of it
+ * a journey, and all of it unmemorable — so it can't be attributed, it
+ * generates most of the impossible-itinerary clashes, and it buries the trips
+ * that are actually worth reading.
+ *
+ * Worth asking about once per route, before anything else: one answer settles
+ * more flights than the entire rest of the review.
+ *
+ * Direction is ignored — a commute is a there-and-back habit — and the
+ * distance cap keeps genuine repeat long-hauls (a transatlantic route flown
+ * yearly for a decade) out of it.
+ */
+export function commuteCandidates(flights, { minLegs = 10, maxKm = 1500 } = {}) {
+  const byRoute = new Map()
+  for (const f of flights) {
+    if (f.status === 'cancelled' || f.purpose_confirmed_at != null) continue
+    if (!f.dep_airport || !f.arr_airport) continue
+    if ((f.distance_km ?? Infinity) > maxKm) continue
+    const key = [f.dep_airport, f.arr_airport].sort().join('–')
+    if (!byRoute.has(key)) byRoute.set(key, [])
+    byRoute.get(key).push(f)
+  }
+  return [...byRoute.entries()]
+    .filter(([, legs]) => legs.length >= minLegs)
+    .map(([route, legs]) => ({
+      route,
+      pair: route.split('–'),
+      legs: legs.length,
+      km: legs.reduce((s, f) => s + (f.distance_km || 0), 0),
+      first: legs.reduce((a, f) => (f.dep_time < a ? f.dep_time : a), legs[0].dep_time),
+      last: legs.reduce((a, f) => (f.dep_time > a ? f.dep_time : a), legs[0].dep_time),
+    }))
+    .sort((a, b) => b.legs - a.legs)
+}
+
+/**
  * Contradictions where every flight has already been claimed. Attribution
  * can't fix these — if both are genuinely yours then a departure or arrival
  * time is wrong in whatever the log was imported from. Worth saying so at

@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 import {
   claimedBy,
   claimedKm,
+  commuteCandidates,
   findConflicts,
   nextQuestion,
   openConflicts,
@@ -227,4 +228,30 @@ test('a commute is never asked about — it is self-evidently yours', () => {
   const trip = flight('LHR', 'JFK', '2024-01-01T09:30:00Z', '2024-01-01T17:00:00Z')
   const q = nextQuestion([a, trip], ME)
   assert.equal(q.flight.id, trip.id)
+})
+
+test('a repeated short hop is offered as a route, a repeated long-haul is not', () => {
+  const hop = (i) =>
+    flight('EDI', 'LHR', `2024-0${(i % 9) + 1}-01T09:00:00Z`, `2024-0${(i % 9) + 1}-01T10:30:00Z`, {
+      distance_km: 534,
+    })
+  const haul = (i) =>
+    flight('LHR', 'JFK', `2024-0${(i % 9) + 1}-15T09:00:00Z`, `2024-0${(i % 9) + 1}-15T17:00:00Z`, {
+      distance_km: 5540,
+    })
+  const f = [...Array(14)].map((_, i) => hop(i)).concat([...Array(14)].map((_, i) => haul(i)))
+
+  const found = commuteCandidates(f)
+  assert.equal(found.length, 1, 'the transatlantic route is not a commute however often it is flown')
+  assert.equal(found[0].route, 'EDI–LHR')
+  assert.equal(found[0].legs, 14)
+
+  // Direction doesn't matter — a commute is a there-and-back habit.
+  const back = f.concat([...Array(3)].map(() =>
+    flight('LHR', 'EDI', '2024-05-02T18:00:00Z', '2024-05-02T19:30:00Z', { distance_km: 534 })))
+  assert.equal(commuteCandidates(back)[0].legs, 17)
+
+  // And once someone has said "these were trips", it stops being asked.
+  const answered = f.map((x) => ({ ...x, purpose_confirmed_at: 'now' }))
+  assert.deepEqual(commuteCandidates(answered), [])
 })
