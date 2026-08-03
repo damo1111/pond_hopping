@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import FlightCard from '../components/FlightCard.jsx'
+import FlightTriage from '../components/FlightTriage.jsx'
 import PlanFlightCard from '../components/planner/PlanFlightCard.jsx'
 import RouteStrip from '../components/RouteStrip.jsx'
 import { tripColor } from '../lib/tripColors.js'
@@ -21,12 +22,19 @@ export default function FlightsTab() {
   // null until the reader touches a year, so the newest one can default to
   // open without that default fighting the first click to close it.
   const [openYears, setOpenYears] = useState(null)
+  const [reviewing, setReviewing] = useState(false)
+  // Bumped when the review screen saves, to re-pull the list underneath it.
+  const [reloads, setReloads] = useState(0)
 
   useEffect(() => {
     let alive = true
+    // Cancelled flights stay in the table — byAir knows they were booked and
+    // the row is the evidence — but they didn't happen, so they don't belong
+    // in the log, the distance total or on the globe.
     supabase
       .from('flights')
       .select('*, aircraft_types(icao,name,manufacturer)')
+      .eq('status', 'flown')
       .order('dep_time', { ascending: true })
       .then(({ data, error }) => {
         if (!alive) return
@@ -50,8 +58,10 @@ export default function FlightsTab() {
     return () => {
       alive = false
     }
-  }, [])
+  }, [reloads])
 
+  if (reviewing)
+    return <FlightTriage onClose={() => setReviewing(false)} onChanged={() => setReloads((n) => n + 1)} />
   if (error) return <div className="error-note">flights: {error}</div>
   if (!flights) return <div className="tab-loading">loading flights…</div>
 
@@ -87,6 +97,7 @@ export default function FlightsTab() {
     historyByYear.get(year).unshift(f) // flights arrive ascending; show newest first
   }
   const historyYears = [...historyByYear.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+  const unattributed = loose.filter((f) => !f.traveler).length
   const defaultOpen = historyYears.length ? [historyYears[0][0]] : []
   const isYearOpen = (year) => (openYears ?? new Set(defaultOpen)).has(year)
   const toggleYear = (year) =>
@@ -210,6 +221,14 @@ export default function FlightsTab() {
         <div className="flights-history-rule">
           Flight history · {loose.length.toLocaleString()} legs
         </div>
+      )}
+      {unattributed > 0 && (
+        <button className="flights-review-cta" onClick={() => setReviewing(true)}>
+          <span className="frc-count">{unattributed.toLocaleString()}</span>
+          <span className="frc-text">
+            imported legs don't say who flew them. Review →
+          </span>
+        </button>
       )}
       {historyYears.map(([year, list]) => {
         const open = isYearOpen(year)

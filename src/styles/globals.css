@@ -1045,6 +1045,195 @@ button {
   color: var(--text-muted);
 }
 
+/* Call to review unattributed imports. Deliberately quiet — it's a standing
+   invitation, not an error. */
+.flights-review-cta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--gold) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
+  border-radius: 8px;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.frc-count {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--gold);
+  flex: none;
+}
+
+.frc-text {
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--text-muted);
+}
+
+/* Review screen */
+.triage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.triage-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.triage-close,
+.triage-undo {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  flex: none;
+}
+
+.triage-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.triage-title {
+  font-size: 15px;
+  font-weight: 300;
+}
+
+.triage-sub {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.triage-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.triage-when {
+  font-size: 13px;
+  font-weight: 300;
+}
+
+.triage-chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--gold);
+}
+
+/* Where a leg doesn't continue from the previous arrival — usually the tell
+   that a cluster has swept up two different people's flights. */
+.tc-break {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.triage-meta {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.triage-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.triage-choice {
+  flex: 1 1 auto;
+  min-width: 76px;
+  padding: 9px 8px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.triage-choice:active {
+  background: color-mix(in srgb, var(--gold) 18%, transparent);
+}
+
+.triage-choice:disabled {
+  opacity: 0.4;
+}
+
+.triage-choice-no {
+  color: var(--text-muted);
+}
+
+.triage-expand {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 2px 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.triage-leg {
+  padding: 8px 0 0;
+  border-top: 1px solid var(--border);
+}
+
+.triage-leg-what {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12px;
+}
+
+.tl-num {
+  font-family: var(--font-mono);
+  color: var(--gold);
+}
+
+.tl-date {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.triage-choices-inline .triage-choice {
+  padding: 6px;
+  font-size: 11px;
+}
+
 /* Imported flight history: same section furniture, but the head is a button
    and the year sits where a trip title would. */
 .flights-history-rule {

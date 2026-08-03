@@ -85,6 +85,8 @@ export default function WorldTab() {
     supabase
       .from('flights')
       .select('flight_number,airline,trip_id,dep_airport,dep_city,dep_lat,dep_lon,arr_airport,arr_city,arr_lat,arr_lon,dep_time,distance_km,traveler')
+      // A cancelled booking leaves a row behind but no line on the map.
+      .eq('status', 'flown')
       .order('dep_time', { ascending: true })
       .then(({ data }) => alive && setFlights(data ?? []))
     supabase
