@@ -75,11 +75,22 @@ function normalise(p) {
   }
 }
 
-// Which draft trip does this most likely belong to? Count how many
-// extracted items fall within (± 2 days of) each trip's window and pick
-// the best match — nullable if nothing overlaps, which just means the
-// person picks the trip by hand during review.
-function guessTrip(items, trips) {
+// From headers arrive as "David Moritz <david@moritznet.com>"; we want
+// just the address, since that's what identifies the owner.
+function bareAddress(s) {
+  if (!s) return null
+  const m = String(s).match(/<([^>]+)>/)
+  return (m ? m[1] : String(s)).trim().toLowerCase() || null
+}
+
+// Superseded by api_guess_trip() in the database. Kept only as a record of
+// why it moved: matching here meant fetching trips with the anon key, and
+// reads are scoped to public-or-member — so an anonymous webhook could
+// only ever see *public* trips, i.e. finished history, never the private
+// drafts someone is actually planning. Doing it in a SECURITY DEFINER
+// function also means a forward can only match trips its sender belongs
+// to, rather than anyone's.
+function guessTripLegacy(items, trips) {
   if (!items.length || !trips.length) return null
   let best = null
   let bestScore = 0
@@ -127,8 +138,16 @@ export default async function handler(req, res) {
       return
     }
 
-    const trips = await sb('trips?select=id,start_date,end_date,status')
-    const matchedTripId = guessTrip(items, trips || [])
+    // Matched in the database against trips the *forwarder* belongs to,
+    // private drafts included — see api_guess_trip.
+    const owner = bareAddress(fromAddress)
+    const dates = [...new Set(items.map((i) => i.event_date).filter(Boolean))]
+    const matchedTripId = owner && dates.length
+      ? await sb('rpc/api_guess_trip', {
+          method: 'POST',
+          body: JSON.stringify({ p_email: owner, p_dates: dates }),
+        }).catch(() => null)
+      : null
 
     await sb('email_imports', {
       method: 'POST',
@@ -141,6 +160,7 @@ export default async function handler(req, res) {
       prefer: 'return=minimal',
       body: JSON.stringify({
         from_address: fromAddress,
+        owner_email: owner,
         subject,
         raw_text: text.slice(0, 12000),
         items,
