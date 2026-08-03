@@ -191,6 +191,14 @@ export default function FlightsTab() {
           </div>
         </div>
       )}
+      {openQuestions > 0 && (
+        <button className="flights-review-cta" onClick={() => setReviewing(true)}>
+          <span className="frc-count">{openQuestions.toLocaleString()}</span>
+          <span className="frc-text">
+            flights can't all be yours — you'd be in two places at once. Sort them out →
+          </span>
+        </button>
+      )}
       {sections.map((tripId) => {
         const trip = tripsById.get(tripId)
         const list = byTrip.get(tripId) ?? []
@@ -235,14 +243,6 @@ export default function FlightsTab() {
         <div className="flights-history-rule">
           Flight history · {loose.length.toLocaleString()} legs
         </div>
-      )}
-      {openQuestions > 0 && (
-        <button className="flights-review-cta" onClick={() => setReviewing(true)}>
-          <span className="frc-count">{openQuestions.toLocaleString()}</span>
-          <span className="frc-text">
-            flights can't all be yours — you'd be in two places at once. Sort them out →
-          </span>
-        </button>
       )}
       {historyYears.map(([year, list]) => {
         const open = isYearOpen(year)

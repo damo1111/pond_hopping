@@ -1045,17 +1045,20 @@ button {
   color: var(--text-muted);
 }
 
-/* Call to review unattributed imports. Deliberately quiet — it's a standing
-   invitation, not an error. */
+/* Call to review the flights that can't all be yours. It sits directly under
+   the lifetime figures because it's a claim about those figures — the first
+   version lived below nine hundred flights of history, where it may as well
+   not have existed. */
 .flights-review-cta {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
   width: 100%;
-  padding: 10px 12px;
-  background: color-mix(in srgb, var(--gold) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent);
-  border-radius: 8px;
+  padding: 13px 14px;
+  margin-bottom: 4px;
+  background: color-mix(in srgb, var(--gold) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--gold) 45%, transparent);
+  border-radius: 10px;
   color: inherit;
   text-align: left;
   cursor: pointer;
@@ -1063,15 +1066,17 @@ button {
 
 .frc-count {
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1;
   color: var(--gold);
   flex: none;
 }
 
 .frc-text {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 300;
-  color: var(--text-muted);
+  line-height: 1.4;
 }
 
 /* Review screen */
