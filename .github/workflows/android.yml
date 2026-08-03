@@ -49,6 +49,30 @@ jobs:
       - name: Build web bundle
         run: npm run build
 
+      # Without this the APK serves the copy of dist/ that was baked into it,
+      # so every fix means sideloading a new build — which is how a bug that
+      # was fixed an hour earlier kept reproducing on the phone.
+      #
+      # Pointing the Android shell at the live site instead makes it a native
+      # window onto pond.eend.app: every Vercel deploy is in the app on the
+      # next launch, no reinstall, and the service worker inside the WebView
+      # still caches the shell so it works offline after first load. A new APK
+      # is then only needed when native code changes — plugins, icon,
+      # permissions.
+      #
+      # Android only, deliberately. iOS keeps the bundled assets because App
+      # Store review treats a remote-URL wrapper as failing the minimum
+      # functionality bar, and TestFlight builds go through the same review.
+      - name: Point the Android shell at the live site
+        run: |
+          node -e '
+            const fs = require("fs");
+            const c = JSON.parse(fs.readFileSync("capacitor.config.json", "utf8"));
+            c.server = { url: "https://pond.eend.app", cleartext: false };
+            fs.writeFileSync("capacitor.config.json", JSON.stringify(c, null, 2));
+            console.log(c);
+          '
+
       - name: Sync Capacitor → Android
         run: npx cap sync android
 
