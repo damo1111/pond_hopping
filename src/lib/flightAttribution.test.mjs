@@ -205,3 +205,26 @@ test('the queue terminates: answering the top question always shrinks it', () =>
   assert.ok(asked <= f.length, `converged in ${asked} questions`)
   assert.equal(findConflicts(state, ME).filter((c) => c.kind !== 'gap').length, 0)
 })
+
+test('a commute is never asked about — it is self-evidently yours', () => {
+  // 140 identical Edinburgh–London hops generated most of the clashes in a
+  // real import, and no one can say which Tuesday was which.
+  const a = flight('EDI', 'LHR', '2024-01-01T09:00:00Z', '2024-01-01T10:30:00Z', {
+    purpose: 'commute',
+  })
+  const b = flight('MEL', 'SIN', '2024-01-01T10:00:00Z', '2024-01-01T18:00:00Z', {
+    purpose: 'commute',
+  })
+  assert.equal(nextQuestion([a, b], ME), null)
+  assert.equal(openConflicts([a, b], ME).length, 0)
+  assert.equal(unresolvableConflicts([a, b], ME).length, 0)
+
+  // Still counted, though — they happened.
+  assert.equal(claimedKm([a, b], ME), 200)
+
+  // A commute clashing with a real trip still surfaces the trip, since that
+  // is the leg a person can actually rule on.
+  const trip = flight('LHR', 'JFK', '2024-01-01T09:30:00Z', '2024-01-01T17:00:00Z')
+  const q = nextQuestion([a, trip], ME)
+  assert.equal(q.flight.id, trip.id)
+})

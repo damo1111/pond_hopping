@@ -94,8 +94,15 @@ export default function FlightsTab() {
   const loose = selectedTrip ? [] : (byTrip.get(null) ?? [])
   byTrip.delete(null)
 
+  // Commuting isn't travel. 129 Edinburgh–London hops listed one per card
+  // buries the fourteen journeys that are actually worth reading, so they
+  // collapse to a single line — still counted in the totals above, because
+  // they happened, just not narrated.
+  const commutes = loose.filter((f) => f.purpose === 'commute')
+  const history = loose.filter((f) => f.purpose !== 'commute')
+
   const historyByYear = new Map()
-  for (const f of loose) {
+  for (const f of history) {
     const year = (f.dep_time || '').slice(0, 4) || '—'
     if (!historyByYear.has(year)) historyByYear.set(year, [])
     historyByYear.get(year).unshift(f) // flights arrive ascending; show newest first
@@ -239,9 +246,19 @@ export default function FlightsTab() {
           scroll no-one finishes, but "2019 · 61 flights · 214,000 km" is a
           line you can read. The newest year opens on arrival so the section
           isn't just a wall of closed drawers. */}
+      {commutes.length > 0 && (
+        <div className="flights-commute">
+          <span className="fc-count">{commutes.length.toLocaleString()}</span>
+          <span className="fc-text">
+            commuting legs ·{' '}
+            {[...new Set(commutes.map((f) => [f.dep_airport, f.arr_airport].sort().join('–')))].join(', ')} ·{' '}
+            {commutes.reduce((s, f) => s + (f.distance_km || 0), 0).toLocaleString()} km
+          </span>
+        </div>
+      )}
       {historyYears.length > 0 && (
         <div className="flights-history-rule">
-          Flight history · {loose.length.toLocaleString()} legs
+          Flight history · {history.length.toLocaleString()} legs
         </div>
       )}
       {historyYears.map(([year, list]) => {

@@ -35,6 +35,12 @@ export function claimedBy(flights, email) {
     .sort((a, b) => (a.dep_time || '').localeCompare(b.dep_time || ''))
 }
 
+// A commute is self-evidently yours — you don't need to be asked which of a
+// hundred and forty identical Edinburgh–London hops was you. They're also
+// where nearly all the contradictions came from: the same short route flown
+// over and over, tangled up with everyone else's on the same day.
+const isCommute = (f) => f.purpose === 'commute'
+
 /**
  * Every way the owner's itinerary contradicts itself. Each conflict names
  * the two flights involved, because the question to ask is always "which of
@@ -102,7 +108,7 @@ export function findConflicts(flights, email) {
  * settles is that *this* side of the clash is decided; the question belongs
  * on the other side now.
  */
-const isSettled = (f, skip) => skip.has(f.id) || f.travellers_confirmed_at != null
+const isSettled = (f, skip) => skip.has(f.id) || f.travellers_confirmed_at != null || isCommute(f)
 
 /** Contradictions with at least one flight still open to being asked about. */
 export function openConflicts(flights, email, skip = new Set()) {
@@ -155,7 +161,11 @@ export function nextQuestion(flights, email, skip = new Set()) {
 export function unresolvableConflicts(flights, email) {
   return findConflicts(flights, email).filter(
     (c) =>
-      c.kind !== 'gap' && c.a.travellers_confirmed_at != null && c.b.travellers_confirmed_at != null
+      c.kind !== 'gap' &&
+      !isCommute(c.a) &&
+      !isCommute(c.b) &&
+      c.a.travellers_confirmed_at != null &&
+      c.b.travellers_confirmed_at != null
   )
 }
 

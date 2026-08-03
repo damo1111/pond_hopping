@@ -19,7 +19,7 @@ import {
 // faster than one per tap and reaches zero.
 
 const SELECT =
-  'id,flight_number,airline,dep_airport,arr_airport,dep_city,arr_city,dep_time,arr_time,distance_km,cabin,travellers,travellers_confirmed_at,status'
+  'id,flight_number,airline,dep_airport,arr_airport,dep_city,arr_city,dep_time,arr_time,distance_km,cabin,travellers,travellers_confirmed_at,status,purpose'
 
 const fmtDay = (iso) =>
   new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(
@@ -169,7 +169,7 @@ export default function FlightTriage({ onClose, onChanged }) {
   const openCount = new Set(
     openConflicts(flights, email, skipped)
       .flatMap((c) => [c.a, c.b])
-      .filter((f) => !skipped.has(f.id) && f.travellers_confirmed_at == null)
+      .filter((f) => !skipped.has(f.id) && f.travellers_confirmed_at == null && f.purpose !== 'commute')
       .map((f) => f.id)
   ).size
   const stuck = unresolvableConflicts(flights, email)
