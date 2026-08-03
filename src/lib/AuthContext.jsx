@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { supabase } from './supabase.js'
 import { rememberGoogleToken } from './google.js'
+import { registerPush } from './push.js'
 
 export const AuthContext = createContext({
   session: null,
@@ -54,10 +55,13 @@ export function AuthProvider({ children }) {
     loadProfile(session.user.id).then((d) => {
       if (!alive) setProfile((p) => p ?? d)
     })
+    // Re-register the device on every signed-in launch: FCM tokens rotate,
+    // and a stale one silently stops delivering. No-ops on the web build.
+    registerPush(session.user.email)
     return () => {
       alive = false
     }
-  }, [session?.user?.id, loadProfile])
+  }, [session?.user?.id, session?.user?.email, loadProfile])
 
   // Onboarding writes to profiles and needs the provider to notice, rather
   // than the flow reappearing on the next render.

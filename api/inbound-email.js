@@ -17,6 +17,7 @@
 // value in Vercel. Anything without it is rejected before touching OpenAI
 // or Supabase.
 import { extractBookingItems } from './_lib/extractBookingItems.js'
+import { sendPush } from './_lib/sendPush.js'
 
 const SUPABASE_URL = 'https://qslksdgxoibzrisywvqk.supabase.co'
 const ANON_KEY = 'sb_publishable_HqXFypbh0cTO8Eub41LlQw_8ypkj2tH'
@@ -169,11 +170,28 @@ export default async function handler(req, res) {
       }),
     })
 
-    res.status(200).json({ ok: true, found: items.length, matchedTripId })
+    // Tell them something arrived. Deliberately after the row is safely
+    // stored and wrapped in its own catch: a push that fails must never
+    // cost someone the import itself, which is the part that matters.
+    let push = null
+    if (owner) {
+      const one = items[0]
+      push = await sendPush({
+        email: owner,
+        title: items.length === 1 ? 'Booking added to review' : `${items.length} bookings to review`,
+        body:
+          items.length === 1
+            ? `${one.title}${one.city ? ` · ${one.city}` : ''}`
+            : items.map((i) => i.title).slice(0, 3).join(', '),
+        data: { kind: 'email_import', tab: 'plan' },
+      }).catch((e) => ({ error: String(e) }))
+    }
+
+    res.status(200).json({ ok: true, found: items.length, matchedTripId, push })
   } catch (err) {
     console.error(err)
-    // Still 200 — Postmark would otherwise hammer retries on a transient
-    // OpenAI/Supabase hiccup for an email that can't be re-sent by anyone.
+    // Still 200 — the provider would otherwise hammer retries on a
+    // transient OpenAI/Supabase hiccup for an email nobody can re-send.
     res.status(200).json({ ok: false, error: err.message })
   }
 }
