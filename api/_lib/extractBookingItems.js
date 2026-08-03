@@ -28,6 +28,13 @@ const EXTRACT_TOOL = {
               start_time: { type: 'string', description: 'HH:MM 24h local, if known; else omit' },
               city: { type: 'string' },
               note: { type: 'string', description: 'confirmation number, host, party size — short' },
+              travelers: {
+                type: 'array',
+                items: { type: 'string' },
+                description:
+                  'Passenger or guest names exactly as printed, e.g. ["MR DAVID SEEBY"]. Used to work out who a leg belongs to on a shared trip. Omit if the booking names nobody.',
+              },
+              party_size: { type: 'number', description: 'Number of travellers/guests if stated' },
               confidence: { type: 'number', description: '0..1 how sure this is real (not marketing/cancelled)' },
               source_subject: { type: 'string', description: 'a short label for what this came from' },
             },

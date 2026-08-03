@@ -3641,6 +3641,18 @@ button {
   margin-bottom: 6px;
 }
 
+/* Shown when the chosen trip's window doesn't contain the booking's dates
+   — the case that previously slipped through silently. */
+.gm-warn {
+  font-size: 12px;
+  line-height: 1.45;
+  color: #8a5a00;
+  background: rgba(193, 120, 23, 0.1);
+  border: 1px solid rgba(193, 120, 23, 0.35);
+  border-radius: 10px;
+  padding: 9px 11px;
+}
+
 .plan-import-banner {
   display: block;
   width: 100%;
