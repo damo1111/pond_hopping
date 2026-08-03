@@ -73,6 +73,8 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
   )
   // Only ever the real match, or nothing.
   const [tripId, setTripId] = useState(imports[0]?.matched_trip_id || null)
+  // Who's actually going on a trip we're about to create: 'both' | 'me' | 'them'.
+  const [going, setGoing] = useState('both')
   const [allTrips, setAllTrips] = useState([])
   const [saving, setSaving] = useState(false)
 
@@ -119,6 +121,11 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
   // together, so a brand-new trip from either of them starts shared. Without
   // one, it starts solo — adding a trip to someone else's app uninvited is
   // far worse than making them tap "share".
+  //
+  // Membership is not the same as presence, though: people routinely book
+  // and plan trips they aren't on. `going` says who is actually travelling;
+  // both stay members either way, so whoever booked it keeps full access to
+  // what they arranged.
   async function createTrip() {
     const { data: trip } = await supabase
       .from('trips')
@@ -135,9 +142,24 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
       .single()
     if (!trip) return null
 
-    const members = [{ trip_id: trip.id, email: user.email, role: 'owner', display_name: profile?.display_name || user.email.split('@')[0] }]
-    if (profile?.partner_email) {
-      members.push({ trip_id: trip.id, email: profile.partner_email, role: 'planner', display_name: profile.partner_email.split('@')[0] })
+    const partner = profile?.partner_email
+    const members = [
+      {
+        trip_id: trip.id,
+        email: user.email,
+        role: 'owner',
+        display_name: profile?.display_name || user.email.split('@')[0],
+        is_traveller: going !== 'them',
+      },
+    ]
+    if (partner) {
+      members.push({
+        trip_id: trip.id,
+        email: partner,
+        role: 'planner',
+        display_name: partner.split('@')[0],
+        is_traveller: going !== 'me',
+      })
     }
     await supabase.from('trip_members').insert(members)
     return trip.id
@@ -214,6 +236,35 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
           <div className="ios-sheet-sub">
             Nothing on your existing trips covers these dates — starting a new one is probably right.
           </div>
+        )}
+
+        {/* Only when creating. For an existing trip the travellers are
+            already established, and quietly rewriting them from one
+            forwarded booking would be the wrong call. */}
+        {tripId === CREATE && profile?.partner_email && (
+          <>
+            <div className="ios-sheet-sub">Who's actually going?</div>
+            <div className="going-row">
+              {[
+                { id: 'both', label: 'Both of us' },
+                { id: 'me', label: 'Just me' },
+                { id: 'them', label: `Just ${profile.partner_email.split('@')[0]}` },
+              ].map((o) => (
+                <button
+                  key={o.id}
+                  className={`going-opt${going === o.id ? ' on' : ''}`}
+                  onClick={() => setGoing(o.id)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            {going === 'them' && (
+              <div className="ios-sheet-sub">
+                You'll still be able to see and plan it — you just won't be counted as travelling.
+              </div>
+            )}
+          </>
         )}
 
         {outOfRange && (
