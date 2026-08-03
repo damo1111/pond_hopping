@@ -5645,3 +5645,24 @@ button {
 .wishlist-convert:disabled {
   opacity: 0.6;
 }
+
+/* Build stamp in Account. Quiet, but always there — it's the difference
+   between "the fix doesn't work" and "you're on yesterday's bundle". */
+.build-stamp {
+  display: block;
+  width: 100%;
+  margin-top: 18px;
+  padding: 8px;
+  background: none;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  text-align: center;
+  cursor: pointer;
+}
+
+.build-stamp:disabled {
+  opacity: 0.5;
+}

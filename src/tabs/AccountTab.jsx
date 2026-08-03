@@ -296,8 +296,43 @@ function SignedIn() {
   )
 }
 
+// Which build this is. Tapping it makes the service worker go and look for a
+// newer one — the fix for a phone that's been sitting on a cached bundle,
+// and the thing that settles "is my fix even live yet?" in one glance.
+function BuildStamp() {
+  const [checking, setChecking] = useState(false)
+  const [state, setState] = useState(null)
+
+  async function check() {
+    if (!('serviceWorker' in navigator)) return setState('no service worker here')
+    setChecking(true)
+    try {
+      const reg = await navigator.serviceWorker.ready
+      await reg.update()
+      // A worker installing or waiting means an update is on its way in;
+      // main.jsx's controllerchange listener handles the reload from there.
+      setState(reg.installing || reg.waiting ? 'updating…' : 'already up to date')
+    } catch {
+      setState('couldn’t check')
+    }
+    setChecking(false)
+  }
+
+  return (
+    <button className="build-stamp" onClick={check} disabled={checking}>
+      build {__BUILD_ID__} · {__BUILT_AT__}
+      {state ? ` — ${state}` : ' · tap to check for updates'}
+    </button>
+  )
+}
+
 export default function AccountTab() {
   const { user, authLoading } = useAuth()
   if (authLoading) return <div className="tab-loading">loading…</div>
-  return <div className="account-wrap">{user ? <SignedIn /> : <SignInForm />}</div>
+  return (
+    <div className="account-wrap">
+      {user ? <SignedIn /> : <SignInForm />}
+      <BuildStamp />
+    </div>
+  )
 }

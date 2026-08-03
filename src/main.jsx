@@ -24,6 +24,16 @@ if ('serviceWorker' in navigator) {
     window.__pondSwUpdatePending = true
     window.dispatchEvent(new Event('pond:sw-update'))
   })
+
+  // A browser only looks for a new service worker on navigation, and an
+  // installed PWA on a phone is opened once and left for days — so a fix can
+  // ship and simply never arrive. Ask explicitly: when the app comes back to
+  // the foreground, and hourly while it's there.
+  navigator.serviceWorker.ready.then((reg) => {
+    const check = () => document.visibilityState === 'visible' && reg.update()
+    document.addEventListener('visibilitychange', check)
+    setInterval(check, 60 * 60 * 1000)
+  })
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(
