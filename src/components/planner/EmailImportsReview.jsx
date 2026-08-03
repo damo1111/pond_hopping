@@ -43,12 +43,15 @@ function proposeTrip(items) {
 }
 
 // Whose leg is this? Deliberately cautious, because the name on a booking
-// is a poor proxy for who's travelling: one partner often books in their own
-// name for a loyalty discount while both of them travel, and the other
-// person may not appear in the email at all. So a name only attributes a
-// leg when it's unambiguous *and* the booking is for one person. Anything
-// else stays null, which the app reads as "the whole party" — the safe
-// answer, and the correct one for a couple booking together.
+// says almost nothing about who is travelling: one partner routinely books
+// in their own name for a loyalty discount, sometimes for a trip they
+// aren't even on. So a name only attributes a leg when it identifies
+// exactly one member *and* the booking is for one person.
+//
+// Otherwise it stays null, which resolves to the trip's *travellers*
+// (trip_members.is_traveller) — not its members. That distinction is the
+// whole point: David plans and books Seeby's September UK trip without
+// going on it, so null there means Seeby, not both of them.
 function attributeTo(item, members) {
   if (!item.travelers?.length) return null
   if ((item.party_size ?? 1) > 1) return null
