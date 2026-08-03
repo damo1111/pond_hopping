@@ -5758,3 +5758,49 @@ button {
   font-size: 12px;
   cursor: pointer;
 }
+
+/* Change the trip photo. Small and out of the way — the automatic guess is
+   right often enough that this is a correction, not a step. */
+.ov-hero-pick {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(26, 22, 17, 0.45);
+  color: #fff;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+
+.ov-cover-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px 16px 0;
+}
+
+.ov-cover-edit .plan-input {
+  flex: 1 1 200px;
+}
+
+.ov-cover-save,
+.ov-cover-cancel {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ov-cover-save {
+  border-color: var(--gold);
+  color: var(--gold);
+}

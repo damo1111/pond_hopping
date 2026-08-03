@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet'
 import { supabase } from '../../lib/supabase.js'
 import { greatCircle, boundsExcludingHome } from '../../lib/geo.js'
@@ -20,23 +20,60 @@ function nights(a, b) {
 // and event photos. Only called when a trip genuinely has no cover yet,
 // and the result is cached in photo_cache so it's a one-time fetch per
 // trip, not a fetch on every Overview visit.
-async function fetchDestinationPhoto(trip) {
+async function summaryPhoto(term) {
   try {
-    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(destinationQuery(trip))}`)
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(term)}`)
     if (!res.ok) return null
     const data = await res.json()
     if (data.type === 'disambiguation') return null
-    return data.thumbnail?.source || data.originalimage?.source || null
+    return data.originalimage?.source || data.thumbnail?.source || null
   } catch {
     return null
   }
 }
 
+// The country was the only thing asked for before, which gave a Lisbon &
+// Porto trip a generic photograph of Portugal. Where you're actually going
+// is written all over the itinerary — so try the city you'll spend the most
+// nights in first, and only fall back to the country if that draws a blank.
+async function fetchDestinationPhoto(trip, events) {
+  const tally = {}
+  for (const e of events || []) if (e.city) tally[e.city] = (tally[e.city] || 0) + 1
+  const cities = Object.entries(tally)
+    .sort((a, b) => b[1] - a[1])
+    .map(([c]) => c)
+
+  for (const term of [...cities, destinationQuery(trip)]) {
+    const photo = await summaryPhoto(term)
+    if (photo) return photo
+  }
+  return null
+}
+
 export default function OverviewView({ trip, events, onEditEvent, onEventsChange, onAskAI, onAdded, onCover }) {
   const [cover, setCover] = useState(null)
   const [importing, setImporting] = useState(false)
+  const [coverDraft, setCoverDraft] = useState(null)
 
+  async function saveCover(url) {
+    const next = url.trim() || null
+    setCover(next)
+    setCoverDraft(null)
+    await supabase.from('photo_cache').upsert({
+      trip_id: trip.id,
+      urls: next ? [next] : [],
+      status: next ? 'ok' : 'empty',
+      updated_at: new Date().toISOString(),
+    })
+  }
+
+  // Waits for the itinerary before guessing, since the itinerary is what
+  // says where the trip actually goes — and only guesses once per trip, so
+  // adding an event doesn't re-run it.
+  const guessed = useRef(null)
   useEffect(() => {
+    if (guessed.current === trip.id || !events.length) return
+    guessed.current = trip.id
     let alive = true
     supabase
       .from('photo_cache')
@@ -49,9 +86,9 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
           if (alive) setCover(existing)
           return
         }
-        // No cover on file for this trip yet — auto-fill one from the
-        // destination, going forward, so a fresh draft never shows blank.
-        const photo = await fetchDestinationPhoto(trip)
+        // Nothing on file yet — fill one in so a fresh draft never shows
+        // blank, and remember it so this is a one-time lookup per trip.
+        const photo = await fetchDestinationPhoto(trip, events)
         if (!photo) return
         if (alive) setCover(photo)
         await supabase.from('photo_cache').upsert({ trip_id: trip.id, urls: [photo], status: 'ok', updated_at: new Date().toISOString() })
@@ -59,7 +96,7 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
     return () => {
       alive = false
     }
-  }, [trip.id])
+  }, [trip.id, events.length])
 
   useEffect(() => {
     onCover?.(cover)
@@ -130,6 +167,14 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
           of the photo that's still at full strength. */}
       <div className="ov-hero">
         <div className="ov-hero-shade" />
+        <button
+          className="ov-hero-pick"
+          onClick={() => setCoverDraft(cover || '')}
+          aria-label="Change trip photo"
+          title="Change trip photo"
+        >
+          ⛰
+        </button>
         <div className="ov-hero-text">
           <div className="ov-hero-title">{trip.title}</div>
           <div className="ov-hero-sub">
@@ -141,6 +186,28 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
           </div>
         </div>
       </div>
+
+      {coverDraft !== null && (
+        <form
+          className="ov-cover-edit"
+          onSubmit={(e) => {
+            e.preventDefault()
+            saveCover(coverDraft)
+          }}
+        >
+          <input
+            className="plan-input"
+            autoFocus
+            value={coverDraft}
+            placeholder="Paste an image URL — anything you have the right to use"
+            onChange={(e) => setCoverDraft(e.target.value)}
+          />
+          <button type="submit" className="ov-cover-save">Use it</button>
+          <button type="button" className="ov-cover-cancel" onClick={() => setCoverDraft(null)}>
+            Cancel
+          </button>
+        </form>
+      )}
 
       <div className="ov-stats">
         {Object.entries(counts).map(([k, v]) => (
