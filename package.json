@@ -2,12 +2,13 @@
   "name": "pond-hopping",
   "private": true,
   "version": "0.1.0",
-  "description": "Pond Hopping — travel logs for David + husband, starting with the mini gap year",
+  "description": "Pond Hopping \u2014 travel logs for David + husband, starting with the mini gap year",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --test src/**/*.test.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

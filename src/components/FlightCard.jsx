@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase.js'
 import TailFin from './TailFin.jsx'
 import FlapText from './FlapText.jsx'
 import { localTime, localDate } from '../lib/airportTz.js'
+import { nameFor, usePeopleNames } from '../lib/people.js'
 
 function fmtDuration(min) {
   if (!min) return ''
@@ -49,6 +50,7 @@ function AnimatedRoute({ from, to }) {
 }
 
 export default function FlightCard({ flight, aircraftType }) {
+  const names = usePeopleNames()
   const [open, setOpen] = useState(false)
   const [photo, setPhoto] = useState(undefined) // undefined = not loaded, null = none
   const [overrides, setOverrides] = useState({})
@@ -114,7 +116,9 @@ export default function FlightCard({ flight, aircraftType }) {
             ) : null}
             {/* Only shown on legs someone flew alone — on a trip everyone
                 took together, tagging every flight "both" is just noise. */}
-            {f.traveler ? <span className="fh-who">{f.traveler}</span> : null}
+            {f.travellers?.length ? (
+              <span className="fh-who">{f.travellers.map((e) => nameFor(e, names)).join(' & ')}</span>
+            ) : null}
           </span>
         </span>
       </button>

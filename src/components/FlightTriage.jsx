@@ -1,68 +1,82 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { useAuth } from '../lib/AuthContext.jsx'
+import { claimedKm, findConflicts, nextQuestion, samePattern } from '../lib/flightAttribution.js'
 
-// Seventeen years of byAir history came in with no idea who was on board —
-// byAir marks a flight "mine" whether David flew it, Seeby flew it, or David
-// was just tracking a friend's plane. Nothing in the export can tell those
-// apart, so this is the one screen where a person has to say.
+// An imported logbook is yours until proven otherwise, so this screen never
+// asks "who flew this?" about a flight it has no reason to doubt. It asks
+// only where the assumption breaks — two aeroplanes at once, or a departure
+// from an airport you weren't at — and it asks about one at a time.
 //
-// Answering 821 legs one at a time is a job nobody finishes, so they're
-// clustered: any run of flights with no four-day gap is almost always one
-// journey, which takes it to about 200 decisions. A cluster that turns out
-// to be mixed can be opened and answered leg by leg.
-const CLUSTER_GAP_MS = 4 * 24 * 60 * 60 * 1000
+// On this account that's 142 questions instead of 821, and each answer
+// re-knits the itinerary around the hole it leaves, so the count falls
+// faster than one per tap and reaches zero.
 
-const CHOICES = [
-  { key: 'David', label: 'Me' },
-  { key: 'Both', label: 'DS & I' },
-  { key: 'Seeby', label: 'DS' },
-  { key: 'Other', label: 'Someone else' },
-  { key: '__cancelled', label: "Didn't happen" },
-]
+const SELECT =
+  'id,flight_number,airline,dep_airport,arr_airport,dep_city,arr_city,dep_time,arr_time,distance_km,cabin,travellers,travellers_confirmed_at,status'
 
-function clusterFlights(flights) {
-  const out = []
-  for (const f of flights) {
-    const last = out[out.length - 1]
-    const gap = last ? Math.abs(Date.parse(f.dep_time) - Date.parse(last.at(-1).dep_time)) : Infinity
-    if (last && gap <= CLUSTER_GAP_MS) last.push(f)
-    else out.push([f])
-  }
-  return out
+const fmtDay = (iso) =>
+  new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(
+    new Date(iso)
+  )
+const fmtTime = (iso) =>
+  new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' }).format(
+    new Date(iso)
+  )
+const fmtGap = (ms) => {
+  const h = Math.round(Math.abs(ms) / 3600000)
+  if (h < 1) return 'minutes'
+  if (h < 48) return `${h} hours`
+  return `${Math.round(h / 24)} days`
 }
 
-const fmtDate = (iso) =>
-  new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(iso))
+// The people this account can attribute a flight to: whoever is signed in,
+// plus anyone they're connected to. No names are baked in — a household of
+// one sees one button, a family of five sees five — and profile reads are
+// scoped to people you actually know, so this can't enumerate the userbase.
+function useRoster(user, profile) {
+  const [others, setOthers] = useState([])
+  useEffect(() => {
+    if (!user?.id) return
+    let alive = true
+    supabase
+      .from('profiles')
+      .select('id,email,display_name')
+      .neq('id', user.id)
+      .then(({ data }) => alive && setOthers((data ?? []).filter((p) => p.email)))
+    return () => {
+      alive = false
+    }
+  }, [user?.id])
 
-// MEL → SIN → LHR rather than three separate pairs, so a connecting journey
-// reads as one line. A leg that doesn't continue from the previous arrival
-// starts a new run — that's usually the tell that a cluster holds two
-// people's flights.
-function routeChain(legs) {
-  const parts = []
-  for (const f of legs) {
-    if (parts.at(-1) !== f.dep_airport) parts.push(parts.length ? '·' : null, f.dep_airport)
-    parts.push(f.arr_airport)
-  }
-  return parts.filter(Boolean)
+  const me = { email: (user?.email || '').toLowerCase() }
+  const partnerEmail = profile?.partner_email?.toLowerCase()
+  const partner = partnerEmail
+    ? others.find((o) => o.email.toLowerCase() === partnerEmail)
+    : undefined
+  const rest = others.filter((o) => o !== partner)
+  return { me, partner, rest }
 }
 
 export default function FlightTriage({ onClose, onChanged }) {
+  const { user, profile } = useAuth()
+  const email = (user?.email || '').toLowerCase()
+  const { me, partner, rest } = useRoster(user, profile)
+
   const [flights, setFlights] = useState(null)
-  const [done, setDone] = useState([]) // undo stack: [{ ids, previous }]
-  const [openCluster, setOpenCluster] = useState(null)
+  const [history, setHistory] = useState([]) // undo stack
+  const [skipped, setSkipped] = useState(() => new Set())
+  const [applyPattern, setApplyPattern] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [startKm, setStartKm] = useState(null)
 
   useEffect(() => {
     let alive = true
     supabase
       .from('flights')
-      .select('id,flight_number,airline,dep_airport,arr_airport,dep_city,arr_city,dep_time,distance_km,cabin')
-      .is('trip_id', null)
-      .is('traveler', null)
-      .eq('status', 'flown')
-      .order('dep_time', { ascending: false })
+      .select(SELECT)
+      .order('dep_time', { ascending: true })
       .then(({ data, error }) => {
         if (!alive) return
         if (error) setError(error.message)
@@ -73,153 +87,228 @@ export default function FlightTriage({ onClose, onChanged }) {
     }
   }, [])
 
-  const clusters = useMemo(() => clusterFlights(flights ?? []), [flights])
+  const question = useMemo(
+    () => (email && flights ? nextQuestion(flights, email, skipped) : null),
+    [flights, email, skipped]
+  )
+  const km = useMemo(() => (flights ? claimedKm(flights, email) : 0), [flights, email])
+  useEffect(() => {
+    if (startKm == null && flights) setStartKm(claimedKm(flights, email))
+  }, [flights, email, startKm])
 
-  async function answer(ids, choice) {
-    setSaving(true)
-    setError(null)
-    const patch = choice === '__cancelled' ? { status: 'cancelled' } : { traveler: choice }
-    // Ask for the changed rows back. Row-level security refuses a write by
-    // matching no rows rather than erroring, so without this a signed-out
-    // reader would watch cards disappear and nothing be saved.
-    const { data, error } = await supabase.from('flights').update(patch).in('id', ids).select('id')
-    setSaving(false)
-    if (error) return setError(error.message)
-    if (!data?.length) {
-      setError("That didn't save — you need to be signed in as David or Seeby to answer these.")
-      return
-    }
-    setFlights((prev) => prev.filter((f) => !ids.includes(f.id)))
-    setDone((prev) => [...prev, { ids, choice }])
-    setOpenCluster(null)
-    onChanged?.()
-  }
+  const pattern = useMemo(
+    () => (question && flights ? samePattern(flights, question.flight, email) : []),
+    [question, flights, email]
+  )
+
+  const apply = useCallback(
+    async (ids, travellers, cancelled = false) => {
+      setSaving(true)
+      setError(null)
+      const patch = cancelled
+        ? { status: 'cancelled', travellers_confirmed_at: new Date().toISOString() }
+        : { travellers, travellers_confirmed_at: new Date().toISOString() }
+      // Ask for the rows back: row-level security refuses a write by matching
+      // nothing rather than erroring, so without this a signed-out reader
+      // would watch the counter move and nothing be saved.
+      const { data, error } = await supabase.from('flights').update(patch).in('id', ids).select(SELECT)
+      setSaving(false)
+      if (error) return setError(error.message)
+      if (!data?.length)
+        return setError('That didn’t save — you need to be signed in to answer these.')
+
+      const byId = new Map(data.map((f) => [f.id, f]))
+      setFlights((prev) => prev.map((f) => byId.get(f.id) ?? f))
+      setHistory((prev) => [...prev, { ids, before: ids.map((id) => flights.find((f) => f.id === id)) }])
+      onChanged?.()
+    },
+    [flights, onChanged]
+  )
 
   async function undo() {
-    const last = done.at(-1)
+    const last = history.at(-1)
     if (!last) return
     setSaving(true)
-    const patch = last.choice === '__cancelled' ? { status: 'flown' } : { traveler: null }
-    const { data: undone, error } = await supabase
-      .from('flights')
-      .update(patch)
-      .in('id', last.ids)
-      .select('id')
+    for (const f of last.before) {
+      await supabase
+        .from('flights')
+        .update({
+          travellers: f.travellers,
+          travellers_confirmed_at: f.travellers_confirmed_at,
+          status: f.status,
+        })
+        .eq('id', f.id)
+    }
     setSaving(false)
-    if (error) return setError(error.message)
-    if (!undone?.length) return setError("Couldn't undo that one.")
-    setDone((prev) => prev.slice(0, -1))
-    // Cheapest correct refresh: the undone legs go back where they were.
-    const { data } = await supabase
-      .from('flights')
-      .select('id,flight_number,airline,dep_airport,arr_airport,dep_city,arr_city,dep_time,distance_km,cabin')
-      .in('id', last.ids)
-    setFlights((prev) =>
-      [...(prev ?? []), ...(data ?? [])].sort((a, b) => b.dep_time.localeCompare(a.dep_time))
-    )
+    const byId = new Map(last.before.map((f) => [f.id, f]))
+    setFlights((prev) => prev.map((f) => byId.get(f.id) ?? f))
+    setHistory((prev) => prev.slice(0, -1))
     onChanged?.()
   }
 
   if (error && !flights) return <div className="error-note">review: {error}</div>
-  if (!flights) return <div className="tab-loading">loading flights to review…</div>
+  if (!flights) return <div className="tab-loading">working out what needs asking…</div>
+  if (!email)
+    return (
+      <div className="placeholder">
+        <div className="placeholder-code">sign in</div>
+        <div className="placeholder-note">Attributing flights needs to know who you are.</div>
+      </div>
+    )
+
+  const outstanding = findConflicts(flights, email).filter((c) => c.kind !== 'gap')
+  const openCount = new Set(
+    outstanding.flatMap((c) => [c.a.id, c.b.id]).filter((id) => !skipped.has(id))
+  ).size
+
+  if (!question) {
+    return (
+      <div className="triage triage-done">
+        <header className="triage-head">
+          <button className="triage-close" onClick={onClose} aria-label="Back">←</button>
+          <div className="triage-head-text">
+            <div className="triage-title">Nothing left to check</div>
+          </div>
+        </header>
+        <div className="triage-finale">
+          <div className="tf-km">{km.toLocaleString()} km</div>
+          <div className="tf-note">
+            {skipped.size > 0
+              ? `Your itinerary holds together. ${skipped.size} skipped — come back to them any time.`
+              : 'Your itinerary holds together: no flight overlaps another, and every departure follows an arrival. Everything not marked otherwise is yours.'}
+          </div>
+          {skipped.size > 0 && (
+            <button className="triage-choice" onClick={() => setSkipped(new Set())}>
+              Revisit skipped
+            </button>
+          )}
+          <button className="triage-choice" onClick={onClose}>Done</button>
+        </div>
+      </div>
+    )
+  }
+
+  const f = question.flight
+  const choices = [
+    { label: 'Me', travellers: [me.email] },
+    partner && { label: `${partner.display_name || 'Partner'} & me`, travellers: [me.email, partner.email] },
+    partner && { label: partner.display_name || 'Them', travellers: [partner.email] },
+    ...rest.map((p) => ({ label: p.display_name || p.email, travellers: [p.email] })),
+    { label: 'Someone else', travellers: [], hint: 'Kept in the log, not counted as yours' },
+  ].filter(Boolean)
+
+  const done = history.length
 
   return (
     <div className="triage">
       <header className="triage-head">
-        <button className="triage-close" onClick={onClose} aria-label="Close review">←</button>
+        <button className="triage-close" onClick={onClose} aria-label="Back">←</button>
         <div className="triage-head-text">
-          <div className="triage-title">Who flew these?</div>
+          <div className="triage-title">{openCount} to check</div>
           <div className="triage-sub">
-            {clusters.length
-              ? `${clusters.length} to go · ${flights.length} legs`
-              : 'All done — nothing left to review.'}
+            {km.toLocaleString()} km yours
+            {startKm != null && km !== startKm ? ` · ${(startKm - km).toLocaleString()} km set aside` : ''}
           </div>
         </div>
-        {done.length > 0 && (
+        {done > 0 && (
           <button className="triage-undo" onClick={undo} disabled={saving}>Undo</button>
         )}
       </header>
 
       {error && <div className="error-note">{error}</div>}
 
-      {clusters.map((legs, i) => {
-        const chain = routeChain(legs)
-        const km = legs.reduce((s, f) => s + (f.distance_km || 0), 0)
-        const first = legs.at(-1) // clusters arrive newest-first
-        const last = legs[0]
-        const span =
-          first.dep_time.slice(0, 10) === last.dep_time.slice(0, 10)
-            ? fmtDate(first.dep_time)
-            : `${fmtDate(first.dep_time)} – ${fmtDate(last.dep_time)}`
-        const open = openCluster === i
-        return (
-          <section key={legs[0].id} className="triage-card">
-            <div className="triage-when">{span}</div>
-            <div className="triage-chain">
-              {chain.map((c, n) => (
-                <span key={n} className={c === '·' ? 'tc-break' : 'tc-code'}>
-                  {c}
-                </span>
-              ))}
-            </div>
-            <div className="triage-meta">
-              {legs.length} {legs.length === 1 ? 'leg' : 'legs'} · {km.toLocaleString()} km ·{' '}
-              {[...new Set(legs.map((f) => f.airline).filter(Boolean))].join(', ') || 'unknown airline'}
-            </div>
-
-            <div className="triage-choices">
-              {CHOICES.map((c) => (
-                <button
-                  key={c.key}
-                  className={`triage-choice${c.key === '__cancelled' ? ' triage-choice-no' : ''}`}
-                  disabled={saving}
-                  onClick={() => answer(legs.map((f) => f.id), c.key)}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-
-            {legs.length > 1 && (
-              <button className="triage-expand" onClick={() => setOpenCluster(open ? null : i)}>
-                {open ? 'Hide legs' : 'Answer leg by leg'}
-              </button>
+      {/* The clash, first — it's what makes the question answerable. Being
+          told "you were over the Atlantic at the time" is what jogs the
+          memory; "was this you?" on its own does not. */}
+      <div className="triage-why">
+        {question.against.map((c, i) => (
+          <p key={i}>
+            {c.kind === 'overlap' ? (
+              <>
+                You'd already be aboard <b>{c.other.flight_number}</b> {c.other.dep_airport}→
+                {c.other.arr_airport}, in the air from {fmtTime(c.other.dep_time)} to{' '}
+                {fmtTime(c.other.arr_time)}.
+              </>
+            ) : (
+              <>
+                Your previous flight landed at <b>{c.other.arr_airport}</b>
+                {c.other.arr_time ? ` at ${fmtTime(c.other.arr_time)}` : ''} — {fmtGap(c.gapMs)} isn't
+                enough to reach {f.dep_airport}.
+              </>
             )}
+          </p>
+        ))}
+      </div>
 
-            {open &&
-              legs.map((f) => (
-                <div key={f.id} className="triage-leg">
-                  <div className="triage-leg-what">
-                    <span className="tl-num">{f.flight_number}</span>
-                    <span className="tl-route">
-                      {f.dep_airport} → {f.arr_airport}
-                    </span>
-                    <span className="tl-date">{fmtDate(f.dep_time)}</span>
-                  </div>
-                  <div className="triage-choices triage-choices-inline">
-                    {CHOICES.map((c) => (
-                      <button
-                        key={c.key}
-                        className={`triage-choice${c.key === '__cancelled' ? ' triage-choice-no' : ''}`}
-                        disabled={saving}
-                        onClick={() => answer([f.id], c.key)}
-                      >
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
-          </section>
-        )
-      })}
-
-      {!clusters.length && (
-        <div className="placeholder">
-          <div className="placeholder-code">done</div>
-          <div className="placeholder-note">Every imported flight has been attributed.</div>
+      <section className="triage-question">
+        <div className="tq-when">{fmtDay(f.dep_time)}</div>
+        <div className="tq-route">
+          <span className="tq-code">{f.dep_airport}</span>
+          <span className="tq-arrow">→</span>
+          <span className="tq-code">{f.arr_airport}</span>
         </div>
+        <div className="tq-city">
+          {f.dep_city} to {f.arr_city}
+        </div>
+        <div className="tq-meta">
+          {[f.flight_number, f.airline, f.cabin, f.distance_km ? `${f.distance_km.toLocaleString()} km` : null]
+            .filter(Boolean)
+            .join(' · ')}
+        </div>
+      </section>
+
+      {/* Someone who tracked a friend's shuttle hops tracked all of them, so
+          one answer is offered for the whole habit rather than asked 47
+          times. Opt-out, because the common case is that it's right. */}
+      {pattern.length > 0 && (
+        <label className="triage-pattern">
+          <input
+            type="checkbox"
+            checked={applyPattern}
+            onChange={(e) => setApplyPattern(e.target.checked)}
+          />
+          <span>
+            Apply to the {pattern.length} other {f.dep_airport}→{f.arr_airport} flight
+            {pattern.length === 1 ? '' : 's'} on {(f.flight_number || '').replace(/\d+$/, '')} too
+          </span>
+        </label>
       )}
+
+      <div className="triage-choices">
+        {choices.map((c) => (
+          <button
+            key={c.label}
+            className="triage-choice"
+            disabled={saving}
+            title={c.hint}
+            onClick={() =>
+              apply(
+                applyPattern && pattern.length ? [f.id, ...pattern.map((p) => p.id)] : [f.id],
+                c.travellers
+              )
+            }
+          >
+            {c.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="triage-secondary">
+        <button
+          className="triage-choice triage-choice-no"
+          disabled={saving}
+          onClick={() => apply([f.id], null, true)}
+        >
+          Didn't happen
+        </button>
+        <button
+          className="triage-choice triage-choice-skip"
+          disabled={saving}
+          onClick={() => setSkipped((prev) => new Set(prev).add(f.id))}
+        >
+          Not sure — skip
+        </button>
+      </div>
     </div>
   )
 }

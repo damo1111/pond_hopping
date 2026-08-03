@@ -124,7 +124,12 @@ export default async function handler(req, res) {
 
       for (const [i, f] of (trip.flights || []).entries()) {
         if (!f.dep_time) continue
-        const who = f.traveler ? ` (${f.traveler})` : ''
+        // Who was aboard is an array of emails now; the calendar wants a
+        // name, and the part before the @ is the best one available without
+        // dragging profile lookups into a feed that has to stay fast.
+        const who = f.travellers?.length
+          ? ` (${f.travellers.map((e) => e.split('@')[0]).join(' & ')})`
+          : ''
         out.push(
           vevent({
             uid: `flight-${trip.slug}-${i}@pond.eend.app`,

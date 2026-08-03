@@ -8,9 +8,13 @@ import RouteStrip from '../components/RouteStrip.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import { AIRPORT_COORDS } from '../lib/airportCoords.js'
+import { findConflicts } from '../lib/flightAttribution.js'
+import { useAuth } from '../lib/AuthContext.jsx'
 
 export default function FlightsTab() {
   const { tripMeta, selectedTrip } = useContext(TripContext)
+  const { user } = useAuth()
+  const myEmail = (user?.email || '').toLowerCase()
   const [flights, setFlights] = useState(null)
   // Booked-but-not-yet-flown legs live in planned_events, not flights, so
   // an upcoming trip showed an empty Flights tab even with everything
@@ -97,7 +101,17 @@ export default function FlightsTab() {
     historyByYear.get(year).unshift(f) // flights arrive ascending; show newest first
   }
   const historyYears = [...historyByYear.entries()].sort((a, b) => b[0].localeCompare(a[0]))
-  const unattributed = loose.filter((f) => !f.traveler).length
+  // Not "how many are unattributed" — an imported flight is yours until
+  // something says otherwise, so the number worth showing is how many the
+  // app can *prove* it doesn't know: the ones that overlap another flight
+  // or depart from an airport the previous one didn't land at.
+  const openQuestions = myEmail
+    ? new Set(
+        findConflicts(flights, myEmail)
+          .filter((c) => c.kind !== 'gap')
+          .flatMap((c) => [c.a.id, c.b.id])
+      ).size
+    : 0
   const defaultOpen = historyYears.length ? [historyYears[0][0]] : []
   const isYearOpen = (year) => (openYears ?? new Set(defaultOpen)).has(year)
   const toggleYear = (year) =>
@@ -222,11 +236,11 @@ export default function FlightsTab() {
           Flight history · {loose.length.toLocaleString()} legs
         </div>
       )}
-      {unattributed > 0 && (
+      {openQuestions > 0 && (
         <button className="flights-review-cta" onClick={() => setReviewing(true)}>
-          <span className="frc-count">{unattributed.toLocaleString()}</span>
+          <span className="frc-count">{openQuestions.toLocaleString()}</span>
           <span className="frc-text">
-            imported legs don't say who flew them. Review →
+            flights can't all be yours — you'd be in two places at once. Sort them out →
           </span>
         </button>
       )}

@@ -67,6 +67,7 @@ export default function WorldTab() {
   // planned ones as dotted arcs: same globe, honestly distinguished.
   const [planned, setPlanned] = useState([])
   const [covers, setCovers] = useState({})
+  const [names, setNames] = useState({})
   const [countries, setCountries] = useState(null)
   // Which "chapter" (e.g. "2024 Gap Year") is currently drilled into on
   // the Home carousel — null means every chapter shows as one collapsed
@@ -84,7 +85,7 @@ export default function WorldTab() {
     let alive = true
     supabase
       .from('flights')
-      .select('flight_number,airline,trip_id,dep_airport,dep_city,dep_lat,dep_lon,arr_airport,arr_city,arr_lat,arr_lon,dep_time,distance_km,traveler')
+      .select('flight_number,airline,trip_id,dep_airport,dep_city,dep_lat,dep_lon,arr_airport,arr_city,arr_lat,arr_lon,dep_time,distance_km,travellers')
       // A cancelled booking leaves a row behind but no line on the map.
       .eq('status', 'flown')
       .order('dep_time', { ascending: true })
@@ -94,6 +95,16 @@ export default function WorldTab() {
       .select('trip_id,event_date,start_time,title,detail,traveler')
       .eq('kind', 'flight')
       .then(({ data }) => alive && setPlanned(data ?? []))
+    // Flights record who was aboard by email; the globe should say "Seeby".
+    // Reads are scoped to people you actually know, so this returns the
+    // household and nobody else.
+    supabase
+      .from('profiles')
+      .select('email,display_name')
+      .then(({ data }) => {
+        if (!alive) return
+        setNames(Object.fromEntries((data ?? []).map((p) => [p.email.toLowerCase(), p.display_name || p.email])))
+      })
     supabase
       .from('photo_cache')
       .select('trip_id,urls,status')
@@ -147,20 +158,27 @@ export default function WorldTab() {
     for (const f of flights ?? []) {
       if (selectedTrip && tripsById.get(f.trip_id)?.slug !== selectedTrip) continue
       if (f.dep_lat == null || f.arr_lat == null) continue
-      if (f.traveler) who.add(f.traveler)
-      const key = `${f.dep_airport}-${f.arr_airport}-${f.traveler || ''}`
-      if (!segs.has(key)) {
-        segs.set(key, {
-          key,
-          from: [f.dep_lat, f.dep_lon],
-          to: [f.arr_lat, f.arr_lon],
-          label: `${f.dep_airport} → ${f.arr_airport}`,
-          tripSlug: tripsById.get(f.trip_id)?.slug,
-          traveler: f.traveler || null,
-          flights: [],
-        })
+      // A flight can carry more than one person; the arc is drawn per
+      // traveller so two people leaving from different cities show as two
+      // threads converging rather than one merged line. Unattributed rows
+      // are assumed to be the account owner's and drawn on the shared lane.
+      const aboard = f.travellers?.length ? f.travellers : ['']
+      for (const person of aboard) {
+        if (person) who.add(person)
+        const key = `${f.dep_airport}-${f.arr_airport}-${person}`
+        if (!segs.has(key)) {
+          segs.set(key, {
+            key,
+            from: [f.dep_lat, f.dep_lon],
+            to: [f.arr_lat, f.arr_lon],
+            label: `${f.dep_airport} → ${f.arr_airport}`,
+            tripSlug: tripsById.get(f.trip_id)?.slug,
+            traveler: person || null,
+            flights: [],
+          })
+        }
+        segs.get(key).flights.push(f)
       }
-      segs.get(key).flights.push(f)
       if (!apts.has(f.dep_airport)) apts.set(f.dep_airport, { code: f.dep_airport, city: f.dep_city, pos: [f.dep_lat, f.dep_lon] })
       if (!apts.has(f.arr_airport)) apts.set(f.arr_airport, { code: f.arr_airport, city: f.arr_city, pos: [f.arr_lat, f.arr_lon] })
     }
@@ -311,7 +329,7 @@ export default function WorldTab() {
         arcLabel={(d) =>
           `<div class="globe-tip"><b>${escapeHtml(d.label)}</b>${
             d.planned ? ' <i>upcoming</i>' : ''
-          }${d.traveler ? ` <i>${escapeHtml(d.traveler)}</i>` : ''}${d.flights
+          }${d.traveler ? ` <i>${escapeHtml(names[d.traveler] || d.traveler)}</i>` : ''}${d.flights
             .map(
               (f) =>
                 `<br/>${escapeHtml(f.flight_number)} · ${escapeHtml(fmtDate(f.dep_time))}${
