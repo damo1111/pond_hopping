@@ -99,29 +99,44 @@ export default function App() {
     let cancelled = false
     const started = Date.now()
 
-    async function load() {
-      const { data, error } = await supabase
-        .from('trip_meta')
-        .select('*')
-        .order('sort_order', { ascending: true })
-
+    // The boot screen is a flourish, not a loading gate, so it comes off on
+    // a timer and nothing else. It used to wait for the trip list, which
+    // meant a dropped connection left the duck bobbing on the splash for as
+    // long as supabase-js took to give up — about ten seconds — and if the
+    // call threw, the timers that end boot were skipped entirely and it
+    // stayed there forever, with no error and no way out.
+    //
+    // The trips arrive when they arrive; the app is perfectly capable of
+    // rendering an empty carousel for a moment.
+    const minBoot = 1200
+    const leave = setTimeout(() => {
       if (cancelled) return
-      if (error) setLoadError(error.message)
-      else setTripMeta(data ?? [])
+      setBootLeaving(true)
+      setTimeout(() => !cancelled && setBooting(false), 550)
+    }, minBoot)
 
-      // Hold the boot screen long enough to register, then fade out
-      const minBoot = 1200
-      const wait = Math.max(0, minBoot - (Date.now() - started))
-      setTimeout(() => {
+    async function load() {
+      try {
+        const { data, error } = await supabase
+          .from('trip_meta')
+          .select('*')
+          .order('sort_order', { ascending: true })
+
         if (cancelled) return
-        setBootLeaving(true)
-        setTimeout(() => !cancelled && setBooting(false), 550)
-      }, wait)
+        if (error) setLoadError(error.message)
+        else {
+          setTripMeta(data ?? [])
+          setLoadError(null)
+        }
+      } catch (e) {
+        if (!cancelled) setLoadError(e?.message || 'Couldn’t reach the server.')
+      }
     }
 
     load()
     return () => {
       cancelled = true
+      clearTimeout(leave)
     }
   }, [])
 
@@ -290,7 +305,17 @@ export default function App() {
         )}
 
         <main className={`tab-panel${activeTab === 'world' || activeTab === 'map' ? ' full' : ''}`}>
-          {loadError && <div className="error-note">supabase: {loadError}</div>}
+          {/* "supabase: TypeError: Failed to fetch" tells the reader nothing
+              they can act on, and there was no way to try again short of
+              killing the app. */}
+          {loadError && (
+            <div className="error-note load-error">
+              <span>{loadError}</span>
+              <button className="load-retry" onClick={() => window.location.reload()}>
+                Try again
+              </button>
+            </div>
+          )}
           {activeTab === 'world' ? (
             <Suspense fallback={<div className="tab-loading">loading the world…</div>}>
               <WorldTab />

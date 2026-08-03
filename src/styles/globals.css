@@ -5666,3 +5666,24 @@ button {
 .build-stamp:disabled {
   opacity: 0.5;
 }
+
+/* Load failure with a way out of it. */
+.load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.load-retry {
+  flex: none;
+  padding: 5px 11px;
+  background: none;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
