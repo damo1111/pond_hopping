@@ -8,7 +8,8 @@ import { tripColor } from '../lib/tripColors.js'
 import { coverUrl } from '../lib/imgTransform.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import TripStoryCard from '../components/TripStoryCard.jsx'
-import { groupTrips, chapterRange, chapterCountries } from '../lib/tripGroups.js'
+import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
+import { sectionTrips } from '../lib/tripPhase.js'
 
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.
@@ -57,7 +58,10 @@ function nearAny(point, others) {
 }
 
 export default function WorldTab() {
-  const { tripMeta, selectedTrip, setSelectedTrip, goToTab } = useContext(TripContext)
+  const { tripMeta, tripsLoaded, selectedTrip, setSelectedTrip, goToTab, jumpToJournal } =
+    useContext(TripContext)
+  // The one thing worth opening the app for when nothing is planned.
+  const [memory, setMemory] = useState(null)
   const [flights, setFlights] = useState(null)
   // Booked-but-not-yet-flown legs. These live in planned_events (the
   // planner's world), not the flights table (the travel log's world), so
@@ -80,6 +84,42 @@ export default function WorldTab() {
   // the DOM node is actually attached, silently skipping the measure.
   const [wrapEl, setWrapEl] = useState(null)
   const wrapRef = useCallback((node) => setWrapEl(node), [])
+
+  const sections = useMemo(() => sectionTrips(tripMeta), [tripMeta])
+
+  // "Three years ago today". Filtering happens here rather than in SQL
+  // because matching a month-and-day needs an expression index to be worth
+  // pushing down, and there are a couple of hundred entries — revisit if
+  // that ever becomes thousands.
+  useEffect(() => {
+    if (!tripMeta.length) return
+    let alive = true
+    supabase
+      .from('journal_entries')
+      .select('entry_date,title,note,trip_id')
+      .then(({ data }) => {
+        if (!alive || !data) return
+        const now = new Date()
+        const md = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+        const thisYear = now.getFullYear()
+        const bySlug = Object.fromEntries(tripMeta.map((t) => [t.id, t]))
+        const hits = data
+          .filter((e) => e.entry_date?.slice(5, 10) === md && Number(e.entry_date.slice(0, 4)) < thisYear)
+          .sort((a, b) => b.entry_date.localeCompare(a.entry_date))
+        const hit = hits.find((e) => bySlug[e.trip_id])
+        if (!hit) return
+        const trip = bySlug[hit.trip_id]
+        setMemory({
+          ...hit,
+          slug: trip.slug,
+          tripTitle: trip.title,
+          yearsAgo: thisYear - Number(hit.entry_date.slice(0, 4)),
+        })
+      })
+    return () => {
+      alive = false
+    }
+  }, [tripMeta])
 
   useEffect(() => {
     let alive = true
@@ -374,26 +414,39 @@ export default function WorldTab() {
           onClose={() => setSelectedTrip(null)}
           goToTab={goToTab}
         />
+      ) : tripsLoaded && !tripMeta.length ? (
+        <EmptyHome onPlan={() => goToTab('plan')} />
       ) : (
         <div className="world-trips">
-          {groupTrips(tripMeta).map((item) => {
-            if (item.type === 'trip') return <TripCard key={item.trip.slug} t={item.trip} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
+          {memory && <MemoryCard memory={memory} onOpen={() => jumpToJournal(memory.slug, memory.entry_date)} />}
 
-            const { chapter, trips } = item
-            const cover = trips.map((t) => covers[t.id]).find(Boolean)
-            if (expandedChapter === chapter) {
-              return (
-                <div key={chapter} className="wt-chapter-open">
-                  <ChapterSpine chapter={chapter} cover={cover} onClick={() => setExpandedChapter(null)} />
-                  {trips.map((t) => (
-                    <TripCard key={t.slug} t={t} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
-                  ))}
-                </div>
-              )
-            }
+          {/* Past and future used to sit in one undifferentiated row, in
+              hand-curated order, distinguishable only by reading the dates
+              and doing the arithmetic. The strip now says which is which. */}
+          {sections.map((section) => (
+            <div key={section.id} className={`wt-section wt-section--${section.id}`}>
+              <div className="wt-section-label">{section.label}</div>
+              {section.items.map((item) => {
+                if (item.type === 'trip')
+                  return <TripCard key={item.trip.slug} t={item.trip} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
 
-            return <ChapterCard key={chapter} chapter={chapter} trips={trips} cover={cover} onClick={() => setExpandedChapter(chapter)} />
-          })}
+                const { chapter, trips } = item
+                const cover = trips.map((t) => covers[t.id]).find(Boolean)
+                if (expandedChapter === chapter) {
+                  return (
+                    <div key={chapter} className="wt-chapter-open">
+                      <ChapterSpine chapter={chapter} cover={cover} onClick={() => setExpandedChapter(null)} />
+                      {trips.map((t) => (
+                        <TripCard key={t.slug} t={t} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
+                      ))}
+                    </div>
+                  )
+                }
+
+                return <ChapterCard key={chapter} chapter={chapter} trips={trips} cover={cover} onClick={() => setExpandedChapter(chapter)} />
+              })}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -415,6 +468,37 @@ function useBounce() {
 // The collapsed "2024 Gap Year" era card — now led by the era's cover
 // photo with a dimmed scrim so the title/flags read over it, matching the
 // visual weight of a real trip card rather than a flat dashed box.
+// What Home said before this was nothing at all: an empty div under a
+// slowly rotating, arc-less globe. Someone with no trips got no heading, no
+// prompt and no way in.
+function EmptyHome({ onPlan }) {
+  return (
+    <div className="world-empty">
+      <div className="world-empty-title">Nothing on the globe yet</div>
+      <div className="world-empty-body">
+        Every trip you take lands here — the flights, the photos, the day you got lost. Start with
+        one you've already booked, or just somewhere you fancy.
+      </div>
+      <button className="world-empty-btn" onClick={onPlan}>
+        Plan a trip →
+      </button>
+    </div>
+  )
+}
+
+// The reason to open the app on a Tuesday with nothing booked.
+function MemoryCard({ memory, onOpen }) {
+  return (
+    <button className="wt-memory" onClick={onOpen}>
+      <span className="wt-memory-when">
+        {memory.yearsAgo === 1 ? 'A year ago today' : `${memory.yearsAgo} years ago today`}
+      </span>
+      <span className="wt-memory-title">{memory.title || memory.tripTitle}</span>
+      {memory.note && <span className="wt-memory-note">{memory.note}</span>}
+    </button>
+  )
+}
+
 function ChapterCard({ chapter, trips, cover, onClick }) {
   const bounce = useBounce()
   return (

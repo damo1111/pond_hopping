@@ -27,6 +27,7 @@ const WorldTab = lazy(() => import('./tabs/WorldTab.jsx'))
 
 export const TripContext = createContext({
   tripMeta: [],
+  tripsLoaded: false,
   selectedTrip: null,
   setSelectedTrip: () => {},
   journalJump: null,
@@ -103,6 +104,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('world')
   const [usefulTab, setUsefulTab] = useState('costs')
   const [tripMeta, setTripMeta] = useState([])
+  const [tripsLoaded, setTripsLoaded] = useState(false)
   const [loadError, setLoadError] = useState(null)
   const [selectedTrip, setSelectedTrip] = useState(null)
   // Deep-link from a Map pin/run into its matching Journal entry.
@@ -140,6 +142,11 @@ export default function App() {
         else {
           setTripMeta(data ?? [])
           setLoadError(null)
+          // Only a clean read proves the account is genuinely empty. An
+          // empty tripMeta otherwise just means "hasn't arrived", and Home
+          // would greet a dropped connection with "nothing on the globe
+          // yet" — which reads as data loss, not as a network blip.
+          setTripsLoaded(true)
         }
       } catch (e) {
         if (!cancelled) setLoadError(e?.message || 'Couldn’t reach the server.')
@@ -227,6 +234,7 @@ export default function App() {
   const ctx = useMemo(
     () => ({
       tripMeta,
+      tripsLoaded,
       selectedTrip,
       setSelectedTrip,
       journalJump,
@@ -245,7 +253,7 @@ export default function App() {
         }
       },
     }),
-    [tripMeta, selectedTrip, journalJump]
+    [tripMeta, tripsLoaded, selectedTrip, journalJump]
   )
 
   // Public read-only share page — no nav, no forms.
