@@ -6,8 +6,12 @@ import Capacitor
 /// file for why the location manager isn't owned by this class.
 ///
 /// Reached from JS as `registerPlugin('VisitTracker')`.
+///
+/// `CAPInstancePlugin` rather than plain `CAPPlugin` because the bridge
+/// doesn't construct this one: it's registered by hand in
+/// MainViewController, and that base class is the marker for exactly that.
 @objc(VisitTrackerPlugin)
-public class VisitTrackerPlugin: CAPPlugin, CAPBridgedPlugin {
+public class VisitTrackerPlugin: CAPInstancePlugin, CAPBridgedPlugin {
     public let identifier = "VisitTrackerPlugin"
     public let jsName = "VisitTracker"
     public let pluginMethods: [CAPPluginMethod] = [
