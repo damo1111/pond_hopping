@@ -35,29 +35,45 @@ export const TripContext = createContext({
   goToTab: () => {},
 })
 
-// Six is the most that fits a phone's bottom bar without cramping, so
-// promoting Plan meant demoting something. Flights went, because Plan is
-// now where the Concierge, the booking imports and the planner all live —
-// the forward-looking half of the app — whereas Flights is a beautiful
-// read-only view of what already happened, and the globe on Home already
-// draws every route. It's one tap away under Useful.
+// Every screen here is either about *all* your travel or about *one* trip,
+// and only the first kind belongs in the bottom bar. Journal, Map and Photos
+// are the second kind — they used to sit here with a trip picker bolted on
+// top, which is the tell: a tab that has to ask which trip is a trip view you
+// reached through the wrong door. They're still very much in the app, you
+// just enter them from a trip on Home.
+//
+// Flights goes the other way. It's the one genuinely cross-trip thing we
+// have — 87 airports, most of a lifetime — and it was buried in a drawer
+// next to Currency and Phrases.
 const TABS = [
   { id: 'world',    label: 'Home',    icon: '🌏' },
   { id: 'plan',     label: 'Plan',    icon: '🧭' },
-  { id: 'journal',  label: 'Journal', icon: '📔' },
-  { id: 'map',      label: 'Map',     icon: '🗺️' },
-  { id: 'photos',   label: 'Photos',  icon: '📷' },
+  { id: 'flights',  label: 'Flights', icon: '✈️' },
   { id: 'useful',   label: 'Useful',  icon: '🧰' },
 ]
 
 const USEFUL_TABS = [
-  { id: 'flights',  label: 'Flights',  icon: '✈️' },
   { id: 'costs',    label: 'Costs',    icon: '💰' },
   { id: 'currency', label: 'Currency', icon: '💱' },
   { id: 'phrases',  label: 'Phrases',  icon: '💬' },
   { id: 'share',    label: 'Share',    icon: '🔗' },
   { id: 'account',  label: 'Account',  icon: '👤' },
 ]
+
+// Reachable only by entering a trip on Home — no longer in the bottom bar.
+const TRIP_TABS = ['journal', 'map', 'photos']
+
+// Where you are and how to leave, in the strip the trip picker used to
+// occupy. Doubles as the answer to "which trip am I looking at?", which the
+// dropdown only ever answered by accident.
+function TripCrumb({ trip, onBack }) {
+  return (
+    <button className="trip-crumb" onClick={onBack}>
+      <span className="trip-crumb-back">←</span>
+      <span className="trip-crumb-title">{trip?.title ?? 'All trips'}</span>
+    </button>
+  )
+}
 
 const SESSION_NOTES = {
   world:    ['session 3', 'Full-bleed map. Every flight route drawn in sequence — the mission briefing.'],
@@ -85,16 +101,12 @@ export default function App() {
   const [booting, setBooting] = useState(true)
   const [bootLeaving, setBootLeaving] = useState(false)
   const [activeTab, setActiveTab] = useState('world')
-  const [usefulTab, setUsefulTab] = useState('flights')
+  const [usefulTab, setUsefulTab] = useState('costs')
   const [tripMeta, setTripMeta] = useState([])
   const [loadError, setLoadError] = useState(null)
   const [selectedTrip, setSelectedTrip] = useState(null)
   // Deep-link from a Map pin/run into its matching Journal entry.
   const [journalJump, setJournalJump] = useState(null)
-  // Nudges toward the bottom nav right after picking a trip on Home —
-  // that's the moment people don't yet know there's more to explore.
-  const [navPulse, setNavPulse] = useState(false)
-  const [navHint, setNavHint] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -196,26 +208,13 @@ export default function App() {
     return installVisitSync()
   }, [user])
 
-  // Picking a trip on Home is the one moment people don't yet know there's
-  // more to see — pulse the bottom nav every time, and show a one-off text
-  // hint the very first time (never again after that, via localStorage).
+  // This used to pulse the bottom bar when you picked a trip, because the
+  // trip's journal, map and photos were down there. They're in the sheet
+  // that just opened instead, so pointing away from it would now be
+  // actively wrong.
   useEffect(() => {
     if (activeTab !== 'world' || !selectedTrip) return
     track('trip_select', { trip: selectedTrip })
-    setNavPulse(true)
-    const pulseTimer = setTimeout(() => setNavPulse(false), 1800)
-
-    let hintTimer
-    if (!localStorage.getItem('ph_nav_hint_seen')) {
-      localStorage.setItem('ph_nav_hint_seen', '1')
-      setNavHint(true)
-      hintTimer = setTimeout(() => setNavHint(false), 4200)
-    }
-
-    return () => {
-      clearTimeout(pulseTimer)
-      if (hintTimer) clearTimeout(hintTimer)
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTrip, activeTab])
 
@@ -294,9 +293,19 @@ export default function App() {
 
         {authOpen && <AuthSheet onClose={() => setAuthOpen(false)} />}
 
-        {activeTab !== 'world' && (
+        {/* Journal, Map and Photos are always about the trip you came in
+            from, so they say which one and offer the way back rather than a
+            dropdown asking you to pick again. Costs and Share still keep the
+            picker — they're per-trip too, but you can only reach them from
+            the Useful drawer, so there's nothing to have come in from yet. */}
+        {TRIP_TABS.includes(activeTab) ? (
+          <TripCrumb
+            trip={tripMeta.find((t) => t.slug === selectedTrip)}
+            onBack={() => setActiveTab('world')}
+          />
+        ) : activeTab === 'useful' && (usefulTab === 'costs' || usefulTab === 'share') ? (
           <TripPicker tripMeta={tripMeta} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
-        )}
+        ) : null}
 
         {activeTab === 'useful' && (
           <nav className="subnav">
@@ -331,6 +340,8 @@ export default function App() {
             </Suspense>
           ) : activeTab === 'plan' ? (
             <PlanTab />
+          ) : activeTab === 'flights' ? (
+            <FlightsTab />
           ) : activeTab === 'journal' ? (
             <JournalTab />
           ) : activeTab === 'map' ? (
@@ -338,9 +349,7 @@ export default function App() {
           ) : activeTab === 'photos' ? (
             <PhotosTab />
           ) : activeTab === 'useful' ? (
-            usefulTab === 'flights' ? (
-              <FlightsTab />
-            ) : usefulTab === 'currency' ? (
+            usefulTab === 'currency' ? (
               <CurrencyTab />
             ) : usefulTab === 'phrases' ? (
               <PhrasesTab />
@@ -359,9 +368,7 @@ export default function App() {
           )}
         </main>
 
-        {navHint && <div className="nav-hint">↓ explore Plan, Journal, Map &amp; Photos</div>}
-
-        <nav className={`bottomnav${navPulse ? ' pulse' : ''}`}>
+        <nav className="bottomnav">
           {TABS.map((tab) => (
             <button
               key={tab.id}
