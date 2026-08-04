@@ -52,5 +52,15 @@
 	     every TestFlight upload. -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<!-- Visit monitoring only. No `location` background mode is declared:
+	     CLVisit wakes the app on its own, and asking for continuous updates
+	     would cost battery and invite an App Review question we'd have no
+	     good answer to. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Pond Hopping notes the places you stop, so a trip fills in its own map and timeline while you get on with the holiday.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Pond Hopping builds your travel timeline in the background, so a day you never got round to opening the app still ends up in your journal.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Pond Hopping builds your travel timeline in the background, so a day you never got round to opening the app still ends up in your journal.</string>
 </dict>
 </plist>

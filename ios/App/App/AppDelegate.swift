@@ -7,7 +7,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Visit monitoring outlives the process — iOS relaunches us in the
+        // background purely to hand over a visit — so the location delegate
+        // has to be re-attached on every launch, before Capacitor or the
+        // WebView exist. Does nothing until the user opts in.
+        VisitTracker.shared.resumeIfEnabled()
         return true
     }
 

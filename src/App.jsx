@@ -19,6 +19,7 @@ import Onboarding from './components/Onboarding.jsx'
 import { tripColor } from './lib/tripColors.js'
 import { track } from './lib/analytics.js'
 import { AuthProvider, useAuth } from './lib/AuthContext.jsx'
+import { installVisitSync } from './lib/visits.js'
 
 // The 3D globe pulls in three.js — only the Home tab needs it, so it's
 // code-split into its own chunk instead of bloating everyone's first load.
@@ -186,6 +187,14 @@ export default function App() {
   useEffect(() => {
     track('tab_view', { tab: activeTab })
   }, [activeTab])
+
+  // Visits pile up on the device while the app is closed — including on the
+  // background launches iOS does purely to deliver one — so the upload has
+  // to happen on the way in, not on the way out.
+  useEffect(() => {
+    if (!user) return
+    return installVisitSync()
+  }, [user])
 
   // Picking a trip on Home is the one moment people don't yet know there's
   // more to see — pulse the bottom nav every time, and show a one-off text

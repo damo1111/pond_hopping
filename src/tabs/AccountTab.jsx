@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
+import { visitStatus, enableVisits, disableVisits, syncVisits } from '../lib/visits.js'
 
 const ROLES = [
   { id: 'family', label: 'Family' },
@@ -237,6 +238,71 @@ function ConnectCard() {
   )
 }
 
+// Opt-in background location. Renders nothing at all off iOS, and nothing on
+// an iOS build that predates the plugin — visitStatus() returns null in both
+// cases rather than offering a switch that can't be flipped.
+function TimelineCard() {
+  const [status, setStatus] = useState(undefined)
+  const [busy, setBusy] = useState(false)
+
+  async function refresh() {
+    setStatus(await visitStatus())
+  }
+
+  useEffect(() => {
+    refresh()
+  }, [])
+
+  if (status === undefined || status === null) return null
+
+  async function toggle() {
+    setBusy(true)
+    try {
+      if (status.enabled) await disableVisits()
+      else await enableVisits()
+      await syncVisits()
+    } finally {
+      await refresh()
+      setBusy(false)
+    }
+  }
+
+  const blocked = status.authorization === 'denied' || status.authorization === 'restricted'
+
+  return (
+    <div className="account-card">
+      <div className="account-card-title">Travel timeline (beta)</div>
+      <div className="account-card-body">
+        Notes the places you stop and how long you stayed, so a trip fills in its own map without
+        you logging anything. Nobody else can see it — not even people you've shared a trip with.
+      </div>
+
+      {blocked ? (
+        <div className="account-hint">
+          Location is switched off for Pond Hopping. Settings → Privacy &amp; Security → Location
+          Services → Pond Hopping.
+        </div>
+      ) : (
+        <button
+          className={`account-btn${status.enabled ? ' ghost' : ''}`}
+          onClick={toggle}
+          disabled={busy}
+        >
+          {busy ? 'one sec…' : status.enabled ? 'Stop recording' : 'Start recording'}
+        </button>
+      )}
+
+      {status.enabled && status.authorization === 'whenInUse' && (
+        <div className="account-hint">
+          Recording while the app is open. iOS offers to extend that to the background on its own
+          schedule, once it's seen the app genuinely use it — say yes when it asks.
+        </div>
+      )}
+      {status.pending > 0 && <div className="account-hint">{status.pending} waiting to upload.</div>}
+    </div>
+  )
+}
+
 function SignedIn() {
   const { user, profile } = useAuth()
   const [connections, setConnections] = useState(null)
@@ -281,6 +347,8 @@ function SignedIn() {
       </div>
 
       <ConnectCard />
+
+      <TimelineCard />
 
       <InviteForm onInvited={load} />
 
