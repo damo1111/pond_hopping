@@ -84,6 +84,7 @@ const PATHS = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  close: <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />,
 }
 
 export default function Icon({ name, size = 22, className = '' }) {

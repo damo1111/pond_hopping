@@ -5945,8 +5945,9 @@ button {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: #F5F2EB;
-  font-size: 14px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Tall on purpose. The cover is the trip; everything under it is footnotes.

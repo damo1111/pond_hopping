@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase.js'
 import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
 import CountryFlags from './CountryFlags.jsx'
+import Icon from './Icon.jsx'
 
 // A trip, in one page.
 //
@@ -97,7 +98,7 @@ export default function TripRecap({ trip, cover, onClose }) {
   return createPortal(
     <div className="recap">
       <button className="recap-close" onClick={onClose} aria-label="Close">
-        ✕
+        <Icon name="close" size={16} />
       </button>
 
       <div className="recap-scroll">

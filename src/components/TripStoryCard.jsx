@@ -37,7 +37,7 @@ export default function TripStoryCard({ trip, cover, onClose, goToTab }) {
   return (
     <div className="story-card">
       <button className="story-close" onClick={onClose} aria-label="Back to the globe">
-        ✕
+        <Icon name="close" size={13} />
       </button>
 
       <div className="story-head">
