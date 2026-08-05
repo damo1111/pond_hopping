@@ -38,11 +38,14 @@ export default function TripRecap({ trip, cover, onClose }) {
         .eq('status', 'flown'),
       supabase.from('journal_entries').select('city,entry_date,title').eq('trip_id', trip.id),
       supabase.from('runs').select('distance_km').eq('trip_id', trip.id),
-      // thumb_url is the pre-sized render where one exists; falling back to
-      // coverUrl() was the bug — it appends =w400-h400-c to a Google Photos
-      // link that already carries its own size suffix, and the second one
-      // breaks it. Highlights first, so the recap shows the good ones
-      // rather than the first twelve that happened to be inserted.
+      // thumb_url is a stored, already-rendered file; thumb() builds a URL
+      // against Supabase's on-the-fly transform endpoint. Asking that
+      // endpoint for twelve renders at once is what broke the grid, which
+      // is why PhotosTab has always preferred the stored one. 500 of the
+      // 504 rows have one; the transform is the fallback, not the default.
+      //
+      // Highlights first, so the recap leads with the good ones rather than
+      // the first twelve that happened to be inserted.
       supabase
         .from('photos')
         .select('url,thumb_url,caption,is_highlight,taken_on')
