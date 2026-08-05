@@ -3070,6 +3070,36 @@ button {
   flex-shrink: 0;
 }
 
+/* Sits where the picker used to on Journal, Map and Photos. Deliberately
+   quieter than the picker was — it's telling you where you are, not
+   inviting you to change it. */
+.trip-crumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 14px 0;
+  padding: 7px 4px;
+  flex-shrink: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+}
+
+.trip-crumb-back {
+  font-size: 15px;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.trip-crumb-title {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .trip-picker-btn {
   width: 100%;
   display: flex;
