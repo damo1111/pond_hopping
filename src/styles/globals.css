@@ -3354,7 +3354,6 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 13px;
   padding-right: 30px;
   width: 100%;
   text-align: left;
@@ -3373,8 +3372,10 @@ button {
    the image says what's behind it; the tint and the chevron say that it
    opens — which is the part people were missing. */
 .story-head.openable {
+  /* Symmetric now the tiles are gone — a bottom margin left a band of dead
+     white under the tint where the tile row used to be. */
   padding: 8px 34px 8px 8px;
-  margin: -8px -8px 5px;
+  margin: -8px;
   border-radius: 15px;
   background: var(--accent-bg);
   transition: background 0.15s;

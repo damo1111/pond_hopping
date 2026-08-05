@@ -59,7 +59,7 @@ function nearAny(point, others) {
 }
 
 export default function WorldTab() {
-  const { tripMeta, tripsLoaded, selectedTrip, setSelectedTrip, goToTab, jumpToJournal } =
+  const { tripMeta, tripsLoaded, selectedTrip, setSelectedTrip, goToTab, jumpToJournal, openPlanner } =
     useContext(TripContext)
   // The one thing worth opening the app for when nothing is planned.
   const [memory, setMemory] = useState(null)
@@ -434,6 +434,7 @@ export default function WorldTab() {
           cover={covers[selectedTripObj.id]}
           onClose={() => setSelectedTrip(null)}
           goToTab={goToTab}
+          openPlanner={openPlanner}
         />
       ) : tripsLoaded && !tripMeta.length ? (
         <EmptyHome onPlan={() => goToTab('plan')} />
