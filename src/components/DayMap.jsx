@@ -46,12 +46,21 @@ export default function DayMap({ tripId, date }) {
 
   return (
     <div className="daymap">
+      {/* Inert on purpose. This is a picture of the day, sitting inside a
+          story you scroll through — a finger that lands on it mid-scroll
+          should carry on scrolling, not drag Wellington off the screen. The
+          Map sheet is where a map you can actually drive lives. */}
       <MapContainer
         bounds={bounds}
         boundsOptions={{ padding: [24, 24] }}
         zoomControl={false}
         attributionControl={false}
         scrollWheelZoom={false}
+        dragging={false}
+        touchZoom={false}
+        doubleClickZoom={false}
+        boxZoom={false}
+        keyboard={false}
         style={{ height: 230, width: '100%', background: '#EDE9DF' }}
       >
         <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" subdomains="abcd" />

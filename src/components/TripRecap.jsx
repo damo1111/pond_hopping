@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
 import { coverUrl, thumb } from '../lib/imgTransform.js'
@@ -69,10 +69,55 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
   // over a flat surface and only goes frosted once it has arrived.
   const [settled, setSettled] = useState(false)
   const [hint, setHint] = useState(false)
+  // How far the sheet has been pulled down, in px. The handle was drawn as an
+  // affordance the sheet didn't honour: it looks like something you can pull,
+  // so on the web a downward drag went to the browser's pull-to-refresh
+  // instead. Now the sheet takes the gesture.
+  const [drag, setDrag] = useState(0)
+  const dragRef = useRef(null)
+  const bodyRef = useRef(null)
 
   useEffect(() => {
     setSettled(false)
+    setDrag(0)
   }, [layer])
+
+  // Far enough down to be deliberate rather than a stray thumb.
+  const CLOSE_AT = 96
+
+  function onPointerDown(e) {
+    // From the bar always; from the body only when it's already at the top,
+    // so pulling the sheet never competes with reading what's in it.
+    const fromBody = bodyRef.current?.contains(e.target)
+    if (fromBody && (bodyRef.current.scrollTop || 0) > 0) return
+    dragRef.current = { y: e.clientY, t: e.timeStamp, moved: false }
+  }
+
+  function onPointerMove(e) {
+    const d = dragRef.current
+    if (!d) return
+    const dy = e.clientY - d.y
+    if (dy <= 0) {
+      if (d.moved) setDrag(0)
+      return
+    }
+    if (!d.moved && dy < 4) return
+    d.moved = true
+    // Resistance, so it feels attached to something rather than free.
+    setDrag(dy < CLOSE_AT ? dy : CLOSE_AT + (dy - CLOSE_AT) * 0.4)
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+  }
+
+  function onPointerUp(e) {
+    const d = dragRef.current
+    dragRef.current = null
+    if (!d?.moved) return
+    const dy = e.clientY - d.y
+    // A short flick closes as surely as a long pull.
+    const velocity = dy / Math.max(1, e.timeStamp - d.t)
+    if (dy > CLOSE_AT || velocity > 0.6) setLayer(null)
+    else setDrag(0)
+  }
 
   // Once the recap is actually up and idle, pull the sheet chunks in the
   // background. Not before: while it's still hidden the globe is flying, and
@@ -257,9 +302,17 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
 
       {layer && (
         <section
-          className={`recap-layer ${layer}${settled ? ' settled' : ''}`}
+          className={`recap-layer ${layer}${settled ? ' settled' : ''}${drag ? ' dragging' : ''}`}
           key={layer}
+          style={drag ? { transform: `translateY(${drag}px)` } : undefined}
           onAnimationEnd={(e) => e.target === e.currentTarget && setSettled(true)}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={() => {
+            dragRef.current = null
+            setDrag(0)
+          }}
         >
           {/* The frosted pane behind the sheet's content — see
               .recap-layer-glass for why the blur can't sit on the sheet. */}
@@ -273,7 +326,7 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
                 thing, and of the pair only the link says where you land. */}
             <span className="recap-layer-title">{LAYERS[layer].title}</span>
           </header>
-          <div className="recap-layer-body">
+          <div className="recap-layer-body" ref={bodyRef}>
             <SheetContext.Provider value={true}>
               <Suspense fallback={<div className="tab-loading">loading…</div>}>
                 {(() => {

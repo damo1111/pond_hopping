@@ -46,13 +46,17 @@ const fmtPace = (p) => (p ? `${String(p).replace(/\/km$/, '')} /km` : null)
 
 export default function RunsPanel({ trip }) {
   const [runs, setRuns] = useState(null)
+  // A card that shows a route and a pace looks like it opens; it should.
+  // Tapping one draws the trace big — 96px of squiggle is a thumbnail, not a
+  // route — and brings out what the row had no space for.
+  const [open, setOpen] = useState(null)
 
   useEffect(() => {
     if (!trip?.id) return
     let alive = true
     supabase
       .from('runs')
-      .select('id,label,city,run_date,distance_km,pace,hr_avg,elevation_m,color,coords')
+      .select('id,label,city,run_date,distance_km,pace,hr_avg,hr_max,elevation_m,color,coords')
       .eq('trip_id', trip.id)
       .order('run_date', { ascending: true })
       .then(({ data }) => alive && setRuns(data ?? []))
@@ -83,38 +87,69 @@ export default function RunsPanel({ trip }) {
       </div>
 
       {runs.map((r) => {
+        const isOpen = open === r.id
         const d = trackPath(r.coords, 96, 64)
+        const big = isOpen ? trackPath(r.coords, 320, 200, 14) : null
         const pace = fmtPace(r.pace)
         return (
-          <article className="run-card" key={r.id} style={{ '--run-color': r.color || '#3E7D54' }}>
-            <div className="run-track">
-              {d ? (
-                <svg viewBox="0 0 96 64" width="96" height="64" aria-hidden="true">
-                  <path d={d} fill="none" stroke="var(--run-color)" strokeWidth="2.2"
-                    strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              ) : (
-                /* A run logged without a GPS trace still happened. */
-                <span className="run-track-none" aria-hidden="true" />
-              )}
-            </div>
-            <div className="run-body">
-              <div className="run-head">
-                <span className="run-date">{fmtDate(r.run_date)}</span>
-                {r.city && <span className="run-city">{r.city}</span>}
+          <article
+            className={`run-card${isOpen ? ' open' : ''}`}
+            key={r.id}
+            style={{ '--run-color': r.color || '#3E7D54' }}
+          >
+            <button className="run-row" onClick={() => setOpen(isOpen ? null : r.id)} aria-expanded={isOpen}>
+              <div className="run-track">
+                {d ? (
+                  <svg viewBox="0 0 96 64" width="96" height="64" aria-hidden="true">
+                    <path d={d} fill="none" stroke="var(--run-color)" strokeWidth="2.2"
+                      strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : (
+                  /* A run logged without a GPS trace still happened. */
+                  <span className="run-track-none" aria-hidden="true" />
+                )}
               </div>
-              <div className="run-figures">
-                <span className="run-km">{Number(r.distance_km).toFixed(2)} km</span>
-                {pace && <span className="run-pace">{pace}</span>}
-              </div>
-              {(r.hr_avg || r.elevation_m) && (
-                <div className="run-meta">
-                  {r.hr_avg ? `${r.hr_avg} bpm` : ''}
-                  {r.hr_avg && r.elevation_m ? ' · ' : ''}
-                  {r.elevation_m ? `${r.elevation_m} m up` : ''}
+              <div className="run-body">
+                <div className="run-head">
+                  <span className="run-date">{fmtDate(r.run_date)}</span>
+                  {r.city && <span className="run-city">{r.city}</span>}
                 </div>
-              )}
-            </div>
+                <div className="run-figures">
+                  <span className="run-km">{Number(r.distance_km).toFixed(2)} km</span>
+                  {pace && <span className="run-pace">{pace}</span>}
+                </div>
+                {(r.hr_avg || r.elevation_m) && (
+                  <div className="run-meta">
+                    {r.hr_avg ? `${r.hr_avg} bpm` : ''}
+                    {r.hr_avg && r.elevation_m ? ' · ' : ''}
+                    {r.elevation_m ? `${r.elevation_m} m up` : ''}
+                  </div>
+                )}
+              </div>
+            </button>
+
+            {isOpen && (
+              <div className="run-open">
+                {big ? (
+                  <svg className="run-track-big" viewBox="0 0 320 200" aria-hidden="true">
+                    <path d={big} fill="none" stroke="var(--run-color)" strokeWidth="3"
+                      strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : (
+                  <p className="run-no-track">No GPS trace for this one.</p>
+                )}
+                {/* The label is the only place the run says what it was —
+                    "Tokyo Shinjuku / Yoyogi" — and the row had no room. */}
+                {r.label && <div className="run-label">{r.label}</div>}
+                <div className="run-stats">
+                  <span><strong>{Number(r.distance_km).toFixed(2)}</strong> km</span>
+                  {pace && <span><strong>{pace.replace(' /km', '')}</strong> /km</span>}
+                  {r.hr_avg && <span><strong>{r.hr_avg}</strong> bpm avg</span>}
+                  {r.hr_max && <span><strong>{r.hr_max}</strong> bpm max</span>}
+                  {r.elevation_m ? <span><strong>{r.elevation_m}</strong> m up</span> : null}
+                </div>
+              </div>
+            )}
           </article>
         )
       })}
