@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Polyline, CircleMarker, Marker, Popup } from 'react-leaflet'
+import { MapContainer, TileLayer, Polyline, CircleMarker, Marker } from 'react-leaflet'
 import L from 'leaflet'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
@@ -7,6 +7,7 @@ import { boundsExcludingHome } from '../lib/geo.js'
 import { thumb } from '../lib/imgTransform.js'
 import { tripColor } from '../lib/tripColors.js'
 import { clusterPoints } from '../lib/clusterPoints.js'
+import Icon from '../components/Icon.jsx'
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -65,6 +66,10 @@ export default function MapTab() {
   const [photoDrawLen, setPhotoDrawLen] = useState(0)
   const [zoom, setZoom] = useState(11)
   const [tileStyle, setTileStyle] = useState('map')
+  // Tapping a pin used to pop a Leaflet balloon: no animation, tethered to
+  // the marker, and half of it off-screen near an edge. It's a card about
+  // one thing, so it comes up from the bottom like the recap's sheets do.
+  const [preview, setPreview] = useState(null)
   const mapRef = useRef(null)
   const accent = tripColor(selectedTrip)
   const showPhotos = filter === 'all' || filter === 'photo'
@@ -192,6 +197,9 @@ export default function MapTab() {
           if (!m) return
           setZoom(m.getZoom())
           m.on('zoomend', () => setZoom(m.getZoom()))
+          // Tapping the map itself puts the card away, the way dismissing
+          // anything on a map should work.
+          m.on('click', () => setPreview(null))
         }}
       >
         <TileLayer url={TILE_STYLES[tileStyle]} subdomains={tileStyle === 'map' ? 'abcd' : undefined} />
@@ -234,33 +242,19 @@ export default function MapTab() {
                 center={[p.lat, p.lon]}
                 radius={3.5}
                 pathOptions={{ color: accent, fillColor: accent, fillOpacity: 0.85, weight: 0 }}
-              >
-                <Popup>
-                  <div className="world-pop">
-                    <img
-                      src={p.thumb_url || thumb(p.url, { width: 220, height: 220 })}
-                      alt=""
-                      style={{ width: '100%', borderRadius: 6, display: 'block', marginBottom: 6 }}
-                    />
-                    <div className="world-pop-flight">
-                      {new Date(p.taken_at).toLocaleString('en-GB', {
-                        day: 'numeric',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </div>
-                    {match && (
-                      <button
-                        className="map-pop-jump"
-                        onClick={() => jumpToJournal(tripsById.get(p.trip_id)?.slug, match.entry_date)}
-                      >
-                        → view in journal
-                      </button>
-                    )}
-                  </div>
-                </Popup>
-              </CircleMarker>
+                eventHandlers={{
+                  click: () =>
+                    setPreview({
+                      id: `ph-${p.id}`,
+                      img: p.thumb_url || thumb(p.url, { width: 320, height: 320 }),
+                      title: p.caption || tripsById.get(p.trip_id)?.title || 'Photo',
+                      sub: new Date(p.taken_at).toLocaleString('en-GB', {
+                        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+                      }),
+                      jump: match && { slug: tripsById.get(p.trip_id)?.slug, date: match.entry_date },
+                    }),
+                }}
+              />
             )
           })}
 
@@ -272,24 +266,17 @@ export default function MapTab() {
               key={r.id}
               positions={r.coords}
               pathOptions={{ color: r.color || '#3E7D54', weight: 3, opacity: 0.85 }}
-            >
-              <Popup>
-                <div className="world-pop">
-                  <div className="world-pop-route">{r.label}</div>
-                  <div className="world-pop-flight">
-                    {r.distance_km} km{r.pace ? ` · ${r.pace}` : ''}
-                  </div>
-                  {match && (
-                    <button
-                      className="map-pop-jump"
-                      onClick={() => jumpToJournal(tripsById.get(r.trip_id)?.slug, match.entry_date)}
-                    >
-                      → view in journal
-                    </button>
-                  )}
-                </div>
-              </Popup>
-            </Polyline>
+              eventHandlers={{
+                click: () =>
+                  setPreview({
+                    id: `run-${r.id}`,
+                    accent: r.color || '#3E7D54',
+                    title: r.label,
+                    sub: `${r.distance_km} km${r.pace ? ` · ${r.pace}` : ''}`,
+                    jump: match && { slug: tripsById.get(r.trip_id)?.slug, date: match.entry_date },
+                  }),
+              }}
+            />
           )
         })}
         {visRuns.map((r) => (
@@ -324,26 +311,17 @@ export default function MapTab() {
               center={[p.lat, p.lon]}
               radius={6}
               pathOptions={{ color: '#FFFFFF', fillColor: st.fill, fillOpacity: 0.95, weight: 1.5 }}
-            >
-              <Popup>
-                <div className="world-pop">
-                  <div className="world-pop-route">{p.label}</div>
-                  <div className="world-pop-flight">
-                    {p.kind}
-                    {p.city ? ` · ${p.city}` : ''}
-                    {p.notes ? ` · ${p.notes}` : ''}
-                  </div>
-                  {match && (
-                    <button
-                      className="map-pop-jump"
-                      onClick={() => jumpToJournal(tripsById.get(p.trip_id)?.slug, match.entry_date)}
-                    >
-                      → view in journal
-                    </button>
-                  )}
-                </div>
-              </Popup>
-            </CircleMarker>
+              eventHandlers={{
+                click: () =>
+                  setPreview({
+                    id: `pin-${p.id}`,
+                    accent: st.fill,
+                    title: p.label,
+                    sub: [p.kind, p.city, p.notes].filter(Boolean).join(' · '),
+                    jump: match && { slug: tripsById.get(p.trip_id)?.slug, date: match.entry_date },
+                  }),
+              }}
+            />
           )
         })}
       </MapContainer>
@@ -368,7 +346,9 @@ export default function MapTab() {
         ))}
       </div>
 
-      {dayChips.length > 1 && (
+      {/* The card lands where the scrubber lives; the scrubber steps aside
+          rather than the two fighting over the bottom of the screen. */}
+      {dayChips.length > 1 && !preview && (
         <div className="map-day-scrub" style={{ '--map-accent': accent }}>
           {dayChips.map((e) => (
             <button
@@ -376,10 +356,37 @@ export default function MapTab() {
               className="map-ds-chip"
               onClick={() => mapRef.current?.flyTo([e.lat, e.lon], 13, { duration: 1.1 })}
             >
-              <span className="map-ds-mood">{e.mood || '·'}</span>
-              <span className="map-ds-day">{e.day_number ? `D${e.day_number}` : ''}</span>
+              {/* Was an emoji over "D7". The scrubber still has a job here
+                  — it flies the map to that day — but a date is what
+                  someone is actually looking for. */}
+              <span className="map-ds-day">
+                {new Date(e.entry_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+              </span>
             </button>
           ))}
+        </div>
+      )}
+
+      {preview && (
+        /* Keyed on the item so tapping straight from one pin to another
+           replays the rise rather than swapping the text in place. */
+        <div className="map-preview" key={preview.id} style={{ '--pv-accent': preview.accent || accent }}>
+          {preview.img && <img className="map-preview-img" src={preview.img} alt="" />}
+          <div className="map-preview-body">
+            <div className="map-preview-title">{preview.title}</div>
+            <div className="map-preview-sub">{preview.sub}</div>
+            {preview.jump?.slug && (
+              <button
+                className="map-preview-jump"
+                onClick={() => jumpToJournal(preview.jump.slug, preview.jump.date)}
+              >
+                Read that day
+              </button>
+            )}
+          </div>
+          <button className="map-preview-close" onClick={() => setPreview(null)} aria-label="Close">
+            <Icon name="close" size={14} />
+          </button>
         </div>
       )}
     </div>

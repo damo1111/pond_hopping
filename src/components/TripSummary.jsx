@@ -103,7 +103,7 @@ export default function TripSummary({ tripId, hasEntries }) {
   if (!tripId || (!hasEntries && !summary)) return null
 
   return (
-    <div className="trip-summary">
+    <div className={`trip-summary${loading ? ' working' : ''}`}>
       <div className="trip-summary-inner">
         {summary ? (
           <>
@@ -113,7 +113,7 @@ export default function TripSummary({ tripId, hasEntries }) {
             </div>
             {!loading && (
               <div className="ts-foot">
-                <span>✨ generated {fmtWhen(generatedAt)}</span>
+                <span>Written {fmtWhen(generatedAt)}</span>
                 <span className="ts-foot-actions">
                   <button className="ts-regen" onClick={() => setExpanded((v) => !v)}>
                     {expanded ? 'show less' : 'show more'}
@@ -126,10 +126,10 @@ export default function TripSummary({ tripId, hasEntries }) {
             )}
           </>
         ) : loading ? (
-          <div className="ts-loading">✨ summarizing this trip…</div>
+          <div className="ts-loading">Reading the trip back…</div>
         ) : (
           <button className="ts-generate" onClick={() => generate(tripId)}>
-            ✨ Summarize this trip
+            Summarise this trip
           </button>
         )}
         {error && <div className="ts-error">{error}</div>}

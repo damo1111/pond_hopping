@@ -7,12 +7,24 @@ import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import { coverUrl } from '../lib/imgTransform.js'
 import CountryFlags from '../components/CountryFlags.jsx'
-import TripStoryCard from '../components/TripStoryCard.jsx'
-import { groupTrips, chapterRange, chapterCountries } from '../lib/tripGroups.js'
+import TripRecap from '../components/TripRecap.jsx'
+import { INTRO, arcsShown, chronological } from '../lib/globeIntro.js'
+import { tripPhase } from '../lib/tripPhase.js'
+import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
+import { sectionTrips } from '../lib/tripPhase.js'
+import { homeCoords } from '../lib/homePov.js'
 
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.
 const OVERVIEW_POV = { lat: -8, lng: 122, altitude: 1.9 }
+
+// Long enough that flying to a trip is something you watch rather than a
+// transition you sit through. The trip opens as the globe settles.
+const FLY_MS = 2100
+
+// Once per page load, not once per mount — switching to Plan and back should
+// not replay the opening.
+let introPlayed = false
 
 function fmtDate(iso) {
   if (!iso) return ''
@@ -49,6 +61,21 @@ function countryCentroid(geometry) {
   return [y / largest.length, x / largest.length]
 }
 
+// Inside one trip, direction and who was aboard are the whole point — two
+// people converging on a city from different places should read as two
+// threads, and an out-and-back is a there and a back.
+//
+// Across a lifetime neither survives contact with the data: MEL→SYD and
+// SYD→MEL are the same line on a sphere, drawn twice, then doubled again
+// per traveller. 407 arcs for 148 actual routes, stacked on themselves — a
+// mat rather than a map. So the overview keys routes undirected and
+// person-agnostic, and earns the difference back as width.
+function routeKey(dep, arr, person, withinTrip) {
+  if (withinTrip) return `${dep}-${arr}-${person}`
+  const [a, b] = dep < arr ? [dep, arr] : [arr, dep]
+  return `${a}-${b}`
+}
+
 // Only label countries actually near this trip data — showing all ~180
 // countries on the globe would bury the ones that matter.
 const LABEL_FOCUS_DEG = 18
@@ -57,7 +84,10 @@ function nearAny(point, others) {
 }
 
 export default function WorldTab() {
-  const { tripMeta, selectedTrip, setSelectedTrip, goToTab } = useContext(TripContext)
+  const { tripMeta, tripsLoaded, selectedTrip, setSelectedTrip, goToTab, jumpToJournal, openPlanner } =
+    useContext(TripContext)
+  // The one thing worth opening the app for when nothing is planned.
+  const [memory, setMemory] = useState(null)
   const [flights, setFlights] = useState(null)
   // Booked-but-not-yet-flown legs. These live in planned_events (the
   // planner's world), not the flights table (the travel log's world), so
@@ -80,6 +110,51 @@ export default function WorldTab() {
   // the DOM node is actually attached, silently skipping the measure.
   const [wrapEl, setWrapEl] = useState(null)
   const wrapRef = useCallback((node) => setWrapEl(node), [])
+
+  const sections = useMemo(() => sectionTrips(tripMeta), [tripMeta])
+
+  // Nothing to look at yet, so the globe stops being a record and becomes an
+  // invitation: pointed at wherever they are rather than at where this
+  // account happens to have been, and spinning like it wants to be touched
+  // instead of idling behind six trips.
+  const isEmpty = tripsLoaded && !tripMeta.length
+  const home = useMemo(() => homeCoords(), [])
+  const overviewPov = isEmpty ? { lat: home.lat, lng: home.lng, altitude: 1.9 } : OVERVIEW_POV
+  const idleSpin = isEmpty ? 0.9 : 0.35
+
+  // "Three years ago today". Filtering happens here rather than in SQL
+  // because matching a month-and-day needs an expression index to be worth
+  // pushing down, and there are a couple of hundred entries — revisit if
+  // that ever becomes thousands.
+  useEffect(() => {
+    if (!tripMeta.length) return
+    let alive = true
+    supabase
+      .from('journal_entries')
+      .select('entry_date,title,note,trip_id')
+      .then(({ data }) => {
+        if (!alive || !data) return
+        const now = new Date()
+        const md = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+        const thisYear = now.getFullYear()
+        const bySlug = Object.fromEntries(tripMeta.map((t) => [t.id, t]))
+        const hits = data
+          .filter((e) => e.entry_date?.slice(5, 10) === md && Number(e.entry_date.slice(0, 4)) < thisYear)
+          .sort((a, b) => b.entry_date.localeCompare(a.entry_date))
+        const hit = hits.find((e) => bySlug[e.trip_id])
+        if (!hit) return
+        const trip = bySlug[hit.trip_id]
+        setMemory({
+          ...hit,
+          slug: trip.slug,
+          tripTitle: trip.title,
+          yearsAgo: thisYear - Number(hit.entry_date.slice(0, 4)),
+        })
+      })
+    return () => {
+      alive = false
+    }
+  }, [tripMeta])
 
   useEffect(() => {
     let alive = true
@@ -147,6 +222,50 @@ export default function WorldTab() {
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
   const selectedTripObj = selectedTrip ? tripMeta.find((t) => t.slug === selectedTrip) : null
 
+  // Picking a trip used to fly the globe there and then put a card in front
+  // of it whose only job was to be tapped through. The globe hands over
+  // directly now: it flies in slowly enough to be worth watching, and when
+  // it settles the trip opens — its recap if it's finished, its planner if
+  // it hasn't happened. Closing comes back out to the whole globe.
+  const [recapTrip, setRecapTrip] = useState(null)
+  // The recap is *mounted* the moment you tap and *revealed* when the globe
+  // lands. Mounting it at the end meant it appeared empty and then rebuilt
+  // itself over the next second as five queries came back — a hero, then a
+  // stray figure, then the prose shoving the share button down the page.
+  // Mounting it at the start spends the 2.1s flight on the fetch instead, so
+  // what fades up is finished.
+  const [recapReady, setRecapReady] = useState(false)
+
+  useEffect(() => {
+    if (!selectedTripObj) {
+      setRecapTrip(null)
+      setRecapReady(false)
+      return
+    }
+    const past = tripPhase(selectedTripObj) === 'past'
+    if (past) setRecapTrip(selectedTripObj)
+    const t = setTimeout(() => {
+      if (past) setRecapReady(true)
+      else {
+        openPlanner(selectedTripObj.id)
+        setSelectedTrip(null)
+      }
+    }, FLY_MS)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTrip])
+
+  // The globe keeps rendering every frame behind the recap, where nobody can
+  // see it — a three.js scene on a phone GPU, competing for frames with a
+  // sheet that is trying to slide. Park it once the recap is actually in
+  // front; while it's still flying it very much needs those frames.
+  useEffect(() => {
+    const g = globeEl.current
+    if (!g) return
+    if (recapReady) g.pauseAnimation()
+    else g.resumeAnimation()
+  }, [recapReady])
+
   // Dedupe flights into route segments (repeat sectors share one arc).
   // Travellers are part of the key: on a trip where two people flew in from
   // different places, their legs stay separate arcs so the globe shows two
@@ -165,7 +284,7 @@ export default function WorldTab() {
       const aboard = f.travellers?.length ? f.travellers : ['']
       for (const person of aboard) {
         if (person) who.add(person)
-        const key = `${f.dep_airport}-${f.arr_airport}-${person}`
+        const key = routeKey(f.dep_airport, f.arr_airport, person, !!selectedTrip)
         if (!segs.has(key)) {
           segs.set(key, {
             key,
@@ -179,8 +298,13 @@ export default function WorldTab() {
         }
         segs.get(key).flights.push(f)
       }
-      if (!apts.has(f.dep_airport)) apts.set(f.dep_airport, { code: f.dep_airport, city: f.dep_city, pos: [f.dep_lat, f.dep_lon] })
-      if (!apts.has(f.arr_airport)) apts.set(f.arr_airport, { code: f.arr_airport, city: f.arr_city, pos: [f.arr_lat, f.arr_lon] })
+      for (const [code, city, pos] of [
+        [f.dep_airport, f.dep_city, [f.dep_lat, f.dep_lon]],
+        [f.arr_airport, f.arr_city, [f.arr_lat, f.arr_lon]],
+      ]) {
+        if (!apts.has(code)) apts.set(code, { code, city, pos, visits: 0 })
+        apts.get(code).visits += 1
+      }
     }
 
     // Booked legs from the planner. Coordinates come from AIRPORT_COORDS
@@ -218,11 +342,93 @@ export default function WorldTab() {
     return { segments: [...segs.values()], airports: [...apts.values()], travelers: [...who].sort() }
   }, [flights, planned, selectedTrip, tripsById])
 
+  // The cold open. Once, on the first load of the session: the earth starts
+  // far out and empty, your flights draw themselves onto it oldest-first, and
+  // it comes toward you and settles into the Home framing. Skipped for
+  // someone who tapped a trip before it could start, for an account with no
+  // history to draw, and for anyone who has asked for less motion.
+  const [introAt, setIntroAt] = useState(null)
+  const [introArcs, setIntroArcs] = useState(null) // null = not intro-ing
+
+  useEffect(() => {
+    if (introPlayed || !flights || selectedTrip) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      introPlayed = true
+      return
+    }
+    introPlayed = true
+    setIntroArcs(0)
+    setIntroAt(performance.now())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flights])
+
+  const introRunning = introArcs !== null
+
+  useEffect(() => {
+    if (!introRunning || introAt == null) return
+    const g = globeEl.current
+    if (!g) return
+    const total = segments.length
+    if (!total) {
+      setIntroArcs(null)
+      return
+    }
+
+    const controls = g.controls()
+    controls.autoRotate = true
+    // Faster than the idle drift while it's arriving, so the sphere reads as
+    // turning rather than sitting there.
+    controls.autoRotateSpeed = 1.1
+    g.pointOfView({ ...overviewPov, altitude: INTRO.startAltitude }, 0)
+    // Overlapping: the earth starts closing the distance while the arcs are
+    // still landing, which is what makes it one move rather than two.
+    const fly = setTimeout(() => g.pointOfView(overviewPov, INTRO.flyMs), INTRO.holdMs)
+
+    let raf
+    const tick = (now) => {
+      const n = arcsShown(now - introAt, total)
+      setIntroArcs(n)
+      if (n >= total) {
+        setIntroArcs(null)
+        controls.autoRotateSpeed = idleSpin
+        return
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => {
+      clearTimeout(fly)
+      cancelAnimationFrame(raf)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [introRunning, introAt, segments.length])
+
+  // Any touch ends it: an intro you can't skip is a splash screen.
+  const skipIntro = useCallback(() => {
+    if (introArcs === null) return
+    setIntroArcs(null)
+    const g = globeEl.current
+    if (!g) return
+    g.pointOfView(overviewPov, 420)
+    g.controls().autoRotateSpeed = idleSpin
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [introArcs, overviewPov, idleSpin])
+
+  // Sorted once per data change rather than per frame: during the intro this
+  // is read sixty times a second, and re-sorting 148 routes each time to
+  // reveal one more of them is work for nothing. It has to live up here —
+  // above the `if (!flights)` guard below — because a hook after a
+  // conditional return is a hook that sometimes doesn't run.
+  const introOrder = useMemo(() => chronological(segments), [segments])
+
   // Fly to the selection (or back to the overview) and toggle ambient
   // auto-rotate — spinning while idle, still while inspecting a trip.
   useEffect(() => {
     const g = globeEl.current
     if (!g) return
+    // The intro owns the camera until it's finished; this effect fires on
+    // mount too and would yank the earth to its final altitude on frame one.
+    if (introRunning) return
     const controls = g.controls()
     if (selectedTrip) {
       controls.autoRotate = false
@@ -232,14 +438,15 @@ export default function WorldTab() {
       if (source.length) {
         const lat = source.reduce((s, p) => s + p[0], 0) / source.length
         const lng = source.reduce((s, p) => s + p[1], 0) / source.length
-        g.pointOfView({ lat, lng, altitude: 1.1 }, 1200)
+        g.pointOfView({ lat, lng, altitude: 1.1 }, FLY_MS)
       }
     } else {
       controls.autoRotate = true
-      controls.autoRotateSpeed = 0.35
-      g.pointOfView(OVERVIEW_POV, 1200)
+      controls.autoRotateSpeed = idleSpin
+      g.pointOfView(overviewPov, 1200)
     }
-  }, [selectedTrip, segments])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTrip, segments, isEmpty, home.lat, home.lng, introRunning])
 
   if (!flights) return <div className="tab-loading">loading the world…</div>
 
@@ -247,21 +454,35 @@ export default function WorldTab() {
   // overlap into one indistinguishable line. Lifting each traveller's arcs
   // to a different altitude separates them in 3D, so the paths read as two
   // threads that converge — which is the whole point of a shared trip.
-  const arcsData = segments.map((s) => ({
-    startLat: s.from[0],
-    startLng: s.from[1],
-    endLat: s.to[0],
-    endLng: s.to[1],
-    color: tripColor(s.tripSlug),
-    label: s.label,
-    traveler: s.traveler,
-    planned: !!s.planned,
-    altitude:
-      s.traveler && travelers.length > 1
-        ? 0.16 + travelers.indexOf(s.traveler) * 0.11
-        : 0.22,
-    flights: s.flights,
-  }))
+  const allArcs = segments.map(toArc)
+
+  function toArc(s) {
+    return {
+      startLat: s.from[0],
+      startLng: s.from[1],
+      endLat: s.to[0],
+      endLng: s.to[1],
+      color: tripColor(s.tripSlug),
+      label: s.label,
+      traveler: s.traveler,
+      planned: !!s.planned,
+      altitude:
+        s.traveler && travelers.length > 1
+          ? 0.16 + travelers.indexOf(s.traveler) * 0.11
+          : 0.22,
+      // A route flown 39 times and one flown once used to be the same
+      // half-pixel line. Now the repetition it already contains is what makes
+      // it thick, so the overview reads as a shape rather than a tangle.
+      // Capped, or the commuter routes would be ribbons.
+      stroke: 0.32 + Math.min(s.flights.length, 24) * 0.055,
+      flights: s.flights,
+    }
+  }
+
+  // During the cold open the globe holds only the routes drawn so far, oldest
+  // first — your history assembling itself in the order it happened rather
+  // than a random flood.
+  const arcsData = introRunning ? introOrder.slice(0, introArcs).map(toArc) : allArcs
 
   // Group same-city airports (e.g. Bangkok's BKK + DMK) into one marker —
   // otherwise two duck pins and two "Bangkok" labels land almost on top of
@@ -271,12 +492,68 @@ export default function WorldTab() {
   const cityGroups = new Map()
   for (const a of airports) {
     const key = a.city || a.code
-    if (!cityGroups.has(key)) cityGroups.set(key, { city: a.city || a.code, codes: [a.code], pos: a.pos })
+    if (!cityGroups.has(key)) cityGroups.set(key, { city: a.city || a.code, codes: [a.code], pos: a.pos, visits: 0 })
     else cityGroups.get(key).codes.push(a.code)
+    // A city's visits are the sum across its airports — Bangkok is one
+    // place whether you came through BKK or DMK.
+    cityGroups.get(key).visits += a.visits || 0
   }
   const markerPoints = [...cityGroups.values()]
 
-  const pointsData = markerPoints.map((m) => ({ lat: m.pos[0], lng: m.pos[1], code: m.codes.join('/'), city: m.city }))
+  // 86 duck pins is a smear, not a flourish — the duck was charming at six
+  // airports and became a black mat at eighty-six. Everywhere you've landed
+  // still gets a mark, sized by how often; the duck is kept for the handful
+  // you actually live out of, so it stays special by being rare. Inside a
+  // single trip there are only a few airports, so they all keep theirs.
+  // Ranked, not thresholded: comparing against the last qualifying score
+  // lets every airport tied with it through too, which on a long tail of
+  // one-visit airports is all of them.
+  //
+  // And spread, not just ranked. Straight top-N by visits puts every duck
+  // on the commuter airports — which for this account means Melbourne,
+  // Sydney, Brisbane and London, so the entire Asia-Pacific half of the
+  // globe had none while two corners had a pile. Taking the most-visited
+  // city first and then skipping anything too close to one already chosen
+  // spreads them around the sphere, so wherever the globe is turned there's
+  // a duck rather than a field of dots.
+  const DUCK_TOP = 8
+  const DUCK_SEP_DEG = 14
+  const duckCities = new Set(
+    selectedTrip
+      ? markerPoints.map((m) => m.city)
+      : (() => {
+          const chosen = []
+          for (const m of [...markerPoints].sort((a, b) => b.visits - a.visits)) {
+            if (chosen.length >= DUCK_TOP) break
+            const crowded = chosen.some(
+              (c) =>
+                Math.abs(c.pos[0] - m.pos[0]) < DUCK_SEP_DEG &&
+                Math.abs(c.pos[1] - m.pos[1]) < DUCK_SEP_DEG
+            )
+            if (!crowded) chosen.push(m)
+          }
+          return chosen.map((m) => m.city)
+        })()
+  )
+
+  const pointsData = [
+    ...markerPoints.map((m) => ({
+      lat: m.pos[0],
+      lng: m.pos[1],
+      code: m.codes.join('/'),
+      city: m.city,
+      visits: m.visits,
+      duck: duckCities.has(m.city),
+    })),
+    // One duck on an otherwise bare globe, roughly where they are. It's the
+    // only thing on there, so it doubles as the answer to "is this thing
+    // showing me anything?" — and it's the same pin every airport gets, so
+    // the first one they add joins it rather than replacing it. Dropped as
+    // soon as there's real travel to draw.
+    ...(isEmpty && home.known
+      ? [{ lat: home.lat, lng: home.lng, code: 'You', city: 'roughly here', home: true }]
+      : []),
+  ]
 
   // Country labels only where they're actually near an airport in view
   // (otherwise all ~180 countries would clutter the globe), and skipped
@@ -300,7 +577,11 @@ export default function WorldTab() {
   const labelsData = [...countryLabels, ...cityLabels]
 
   return (
-    <div className="world-wrap globe-wrap" ref={wrapRef}>
+    <div
+      className={`world-wrap globe-wrap${introRunning ? ' introing' : ''}`}
+      ref={wrapRef}
+      onPointerDown={skipIntro}
+    >
       <div className="globe-shift">
       <Globe
         ref={globeEl}
@@ -318,7 +599,7 @@ export default function WorldTab() {
         arcEndLng={(d) => d.endLng}
         arcColor={(d) => d.color}
         arcAltitude={(d) => d.altitude}
-        arcStroke={0.5}
+        arcStroke={(d) => d.stroke}
         // Flown legs read as near-solid; booked-but-not-yet-flown ones as a
         // faster-moving dotted trail, so an upcoming trip is visibly a
         // promise rather than a memory.
@@ -344,8 +625,17 @@ export default function WorldTab() {
         htmlAltitude={0.015}
         htmlElement={(d) => {
           const el = document.createElement('div')
-          el.className = 'globe-duck-pin'
-          el.title = `${d.code} — ${d.city}`
+          if (!d.home && !d.duck) {
+            // Everywhere else: a dot that grows with the number of visits.
+            el.className = 'globe-dot'
+            const r = Math.min(4 + Math.sqrt(d.visits || 1) * 1.6, 11)
+            el.style.width = `${r}px`
+            el.style.height = `${r}px`
+            el.title = `${d.code} — ${d.city}`
+            return el
+          }
+          el.className = `globe-duck-pin${d.home ? ' home' : ''}`
+          el.title = d.home ? 'You, roughly' : `${d.code} — ${d.city}`
           el.innerHTML = '<img src="/duck.png" alt="" />'
           return el
         }}
@@ -361,39 +651,54 @@ export default function WorldTab() {
         onGlobeReady={() => {
           const controls = globeEl.current.controls()
           controls.autoRotate = !selectedTrip
-          controls.autoRotateSpeed = 0.35
-          globeEl.current.pointOfView(OVERVIEW_POV, 0)
+          controls.autoRotateSpeed = idleSpin
+          globeEl.current.pointOfView(overviewPov, 0)
         }}
       />
       </div>
 
-      {selectedTripObj ? (
-        <TripStoryCard
-          trip={selectedTripObj}
-          cover={covers[selectedTripObj.id]}
+      {recapTrip && (
+        <TripRecap
+          trip={recapTrip}
+          cover={covers[recapTrip.id]}
+          reveal={recapReady}
           onClose={() => setSelectedTrip(null)}
-          goToTab={goToTab}
         />
+      )}
+
+      {tripsLoaded && !tripMeta.length ? (
+        <EmptyHome onPlan={() => goToTab('plan')} />
       ) : (
         <div className="world-trips">
-          {groupTrips(tripMeta).map((item) => {
-            if (item.type === 'trip') return <TripCard key={item.trip.slug} t={item.trip} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
+          {memory && <MemoryCard memory={memory} onOpen={() => jumpToJournal(memory.slug, memory.entry_date)} />}
 
-            const { chapter, trips } = item
-            const cover = trips.map((t) => covers[t.id]).find(Boolean)
-            if (expandedChapter === chapter) {
-              return (
-                <div key={chapter} className="wt-chapter-open">
-                  <ChapterSpine chapter={chapter} cover={cover} onClick={() => setExpandedChapter(null)} />
-                  {trips.map((t) => (
-                    <TripCard key={t.slug} t={t} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
-                  ))}
-                </div>
-              )
-            }
+          {/* Past and future used to sit in one undifferentiated row, in
+              hand-curated order, distinguishable only by reading the dates
+              and doing the arithmetic. The strip now says which is which. */}
+          {sections.map((section) => (
+            <div key={section.id} className={`wt-section wt-section--${section.id}`}>
+              <div className="wt-section-label">{section.label}</div>
+              {section.items.map((item) => {
+                if (item.type === 'trip')
+                  return <TripCard key={item.trip.slug} t={item.trip} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
 
-            return <ChapterCard key={chapter} chapter={chapter} trips={trips} cover={cover} onClick={() => setExpandedChapter(chapter)} />
-          })}
+                const { chapter, trips } = item
+                const cover = trips.map((t) => covers[t.id]).find(Boolean)
+                if (expandedChapter === chapter) {
+                  return (
+                    <div key={chapter} className="wt-chapter-open">
+                      <ChapterSpine chapter={chapter} cover={cover} onClick={() => setExpandedChapter(null)} />
+                      {trips.map((t) => (
+                        <TripCard key={t.slug} t={t} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
+                      ))}
+                    </div>
+                  )
+                }
+
+                return <ChapterCard key={chapter} chapter={chapter} trips={trips} cover={cover} onClick={() => setExpandedChapter(chapter)} />
+              })}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -415,6 +720,37 @@ function useBounce() {
 // The collapsed "2024 Gap Year" era card — now led by the era's cover
 // photo with a dimmed scrim so the title/flags read over it, matching the
 // visual weight of a real trip card rather than a flat dashed box.
+// What Home said before this was nothing at all: an empty div under a
+// slowly rotating, arc-less globe. Someone with no trips got no heading, no
+// prompt and no way in.
+function EmptyHome({ onPlan }) {
+  return (
+    <div className="world-empty">
+      <div className="world-empty-title">Nothing on the globe yet</div>
+      <div className="world-empty-body">
+        Every trip you take lands here — the flights, the photos, the day you got lost. Start with
+        one you've already booked, or just somewhere you fancy.
+      </div>
+      <button className="world-empty-btn" onClick={onPlan}>
+        Plan a trip →
+      </button>
+    </div>
+  )
+}
+
+// The reason to open the app on a Tuesday with nothing booked.
+function MemoryCard({ memory, onOpen }) {
+  return (
+    <button className="wt-memory" onClick={onOpen}>
+      <span className="wt-memory-when">
+        {memory.yearsAgo === 1 ? 'A year ago today' : `${memory.yearsAgo} years ago today`}
+      </span>
+      <span className="wt-memory-title">{memory.title || memory.tripTitle}</span>
+      {memory.note && <span className="wt-memory-note">{memory.note}</span>}
+    </button>
+  )
+}
+
 function ChapterCard({ chapter, trips, cover, onClick }) {
   const bounce = useBounce()
   return (

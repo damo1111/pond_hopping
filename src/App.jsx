@@ -14,6 +14,7 @@ import AccountTab from './tabs/AccountTab.jsx'
 import ShareView from './ShareView.jsx'
 import InstallChip from './components/InstallChip.jsx'
 import TripPicker from './components/TripPicker.jsx'
+import Icon from './components/Icon.jsx'
 import AuthSheet from './components/AuthSheet.jsx'
 import Onboarding from './components/Onboarding.jsx'
 import { tripColor } from './lib/tripColors.js'
@@ -27,37 +28,57 @@ const WorldTab = lazy(() => import('./tabs/WorldTab.jsx'))
 
 export const TripContext = createContext({
   tripMeta: [],
+  tripsLoaded: false,
   selectedTrip: null,
   setSelectedTrip: () => {},
   journalJump: null,
   jumpToJournal: () => {},
   clearJournalJump: () => {},
+  plannerJump: null,
+  openPlanner: () => {},
+  clearPlannerJump: () => {},
   goToTab: () => {},
 })
 
-// Six is the most that fits a phone's bottom bar without cramping, so
-// promoting Plan meant demoting something. Flights went, because Plan is
-// now where the Concierge, the booking imports and the planner all live —
-// the forward-looking half of the app — whereas Flights is a beautiful
-// read-only view of what already happened, and the globe on Home already
-// draws every route. It's one tap away under Useful.
+// Every screen here is either about *all* your travel or about *one* trip,
+// and only the first kind belongs in the bottom bar. Journal, Map and Photos
+// are the second kind — they used to sit here with a trip picker bolted on
+// top, which is the tell: a tab that has to ask which trip is a trip view you
+// reached through the wrong door. They're still very much in the app, you
+// just enter them from a trip on Home.
+//
+// Flights goes the other way. It's the one genuinely cross-trip thing we
+// have — 87 airports, most of a lifetime — and it was buried in a drawer
+// next to Currency and Phrases.
 const TABS = [
-  { id: 'world',    label: 'Home',    icon: '🌏' },
-  { id: 'plan',     label: 'Plan',    icon: '🧭' },
-  { id: 'journal',  label: 'Journal', icon: '📔' },
-  { id: 'map',      label: 'Map',     icon: '🗺️' },
-  { id: 'photos',   label: 'Photos',  icon: '📷' },
-  { id: 'useful',   label: 'Useful',  icon: '🧰' },
+  { id: 'world',    label: 'Home',    icon: 'globe' },
+  { id: 'plan',     label: 'Plan',    icon: 'compass' },
+  { id: 'flights',  label: 'Flights', icon: 'plane' },
+  { id: 'useful',   label: 'Useful',  icon: 'kit' },
 ]
 
 const USEFUL_TABS = [
-  { id: 'flights',  label: 'Flights',  icon: '✈️' },
-  { id: 'costs',    label: 'Costs',    icon: '💰' },
-  { id: 'currency', label: 'Currency', icon: '💱' },
-  { id: 'phrases',  label: 'Phrases',  icon: '💬' },
-  { id: 'share',    label: 'Share',    icon: '🔗' },
-  { id: 'account',  label: 'Account',  icon: '👤' },
+  { id: 'costs',    label: 'Costs',    icon: 'coin' },
+  { id: 'currency', label: 'Currency', icon: 'exchange' },
+  { id: 'phrases',  label: 'Phrases',  icon: 'speech' },
+  { id: 'share',    label: 'Share',    icon: 'share' },
+  { id: 'account',  label: 'Account',  icon: 'person' },
 ]
+
+// Reachable only by entering a trip on Home — no longer in the bottom bar.
+const TRIP_TABS = ['journal', 'map', 'photos']
+
+// Where you are and how to leave, in the strip the trip picker used to
+// occupy. Doubles as the answer to "which trip am I looking at?", which the
+// dropdown only ever answered by accident.
+function TripCrumb({ trip, onBack }) {
+  return (
+    <button className="trip-crumb" onClick={onBack}>
+      <span className="trip-crumb-back">←</span>
+      <span className="trip-crumb-title">{trip?.title ?? 'All trips'}</span>
+    </button>
+  )
+}
 
 const SESSION_NOTES = {
   world:    ['session 3', 'Full-bleed map. Every flight route drawn in sequence — the mission briefing.'],
@@ -85,16 +106,17 @@ export default function App() {
   const [booting, setBooting] = useState(true)
   const [bootLeaving, setBootLeaving] = useState(false)
   const [activeTab, setActiveTab] = useState('world')
-  const [usefulTab, setUsefulTab] = useState('flights')
+  const [usefulTab, setUsefulTab] = useState('costs')
   const [tripMeta, setTripMeta] = useState([])
+  const [tripsLoaded, setTripsLoaded] = useState(false)
   const [loadError, setLoadError] = useState(null)
   const [selectedTrip, setSelectedTrip] = useState(null)
   // Deep-link from a Map pin/run into its matching Journal entry.
   const [journalJump, setJournalJump] = useState(null)
-  // Nudges toward the bottom nav right after picking a trip on Home —
-  // that's the moment people don't yet know there's more to explore.
-  const [navPulse, setNavPulse] = useState(false)
-  const [navHint, setNavHint] = useState(false)
+  // A trip card on Home opening straight into that trip's planner. PlanTab
+  // owns the full-screen TripPlanner, so this is the only way to say which
+  // trip from outside it.
+  const [plannerJump, setPlannerJump] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -128,6 +150,11 @@ export default function App() {
         else {
           setTripMeta(data ?? [])
           setLoadError(null)
+          // Only a clean read proves the account is genuinely empty. An
+          // empty tripMeta otherwise just means "hasn't arrived", and Home
+          // would greet a dropped connection with "nothing on the globe
+          // yet" — which reads as data loss, not as a network blip.
+          setTripsLoaded(true)
         }
       } catch (e) {
         if (!cancelled) setLoadError(e?.message || 'Couldn’t reach the server.')
@@ -196,26 +223,13 @@ export default function App() {
     return installVisitSync()
   }, [user])
 
-  // Picking a trip on Home is the one moment people don't yet know there's
-  // more to see — pulse the bottom nav every time, and show a one-off text
-  // hint the very first time (never again after that, via localStorage).
+  // This used to pulse the bottom bar when you picked a trip, because the
+  // trip's journal, map and photos were down there. They're in the sheet
+  // that just opened instead, so pointing away from it would now be
+  // actively wrong.
   useEffect(() => {
     if (activeTab !== 'world' || !selectedTrip) return
     track('trip_select', { trip: selectedTrip })
-    setNavPulse(true)
-    const pulseTimer = setTimeout(() => setNavPulse(false), 1800)
-
-    let hintTimer
-    if (!localStorage.getItem('ph_nav_hint_seen')) {
-      localStorage.setItem('ph_nav_hint_seen', '1')
-      setNavHint(true)
-      hintTimer = setTimeout(() => setNavHint(false), 4200)
-    }
-
-    return () => {
-      clearTimeout(pulseTimer)
-      if (hintTimer) clearTimeout(hintTimer)
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTrip, activeTab])
 
@@ -228,11 +242,18 @@ export default function App() {
   const ctx = useMemo(
     () => ({
       tripMeta,
+      tripsLoaded,
       selectedTrip,
       setSelectedTrip,
       journalJump,
       jumpToJournal,
       clearJournalJump: () => setJournalJump(null),
+      plannerJump,
+      openPlanner: (tripId) => {
+        setPlannerJump({ id: tripId, key: Date.now() })
+        setActiveTab('plan')
+      },
+      clearPlannerJump: () => setPlannerJump(null),
       // Callers (the trip story card, mostly) ask for a destination by name
       // without knowing whether it sits in the bottom bar or under Useful.
       // Resolve that here so moving a tab between the two doesn't break
@@ -246,7 +267,7 @@ export default function App() {
         }
       },
     }),
-    [tripMeta, selectedTrip, journalJump]
+    [tripMeta, tripsLoaded, selectedTrip, journalJump, plannerJump]
   )
 
   // Public read-only share page — no nav, no forms.
@@ -294,9 +315,19 @@ export default function App() {
 
         {authOpen && <AuthSheet onClose={() => setAuthOpen(false)} />}
 
-        {activeTab !== 'world' && (
+        {/* Journal, Map and Photos are always about the trip you came in
+            from, so they say which one and offer the way back rather than a
+            dropdown asking you to pick again. Costs and Share still keep the
+            picker — they're per-trip too, but you can only reach them from
+            the Useful drawer, so there's nothing to have come in from yet. */}
+        {TRIP_TABS.includes(activeTab) ? (
+          <TripCrumb
+            trip={tripMeta.find((t) => t.slug === selectedTrip)}
+            onBack={() => setActiveTab('world')}
+          />
+        ) : activeTab === 'useful' && (usefulTab === 'costs' || usefulTab === 'share') ? (
           <TripPicker tripMeta={tripMeta} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
-        )}
+        ) : null}
 
         {activeTab === 'useful' && (
           <nav className="subnav">
@@ -306,7 +337,7 @@ export default function App() {
                 className={`subnavitem${usefulTab === tab.id ? ' active' : ''}`}
                 onClick={() => setUsefulTab(tab.id)}
               >
-                <span className="subnavitem-i">{tab.icon}</span>
+                <Icon name={tab.icon} size={17} className="subnavitem-i" />
                 {tab.label}
               </button>
             ))}
@@ -331,6 +362,8 @@ export default function App() {
             </Suspense>
           ) : activeTab === 'plan' ? (
             <PlanTab />
+          ) : activeTab === 'flights' ? (
+            <FlightsTab />
           ) : activeTab === 'journal' ? (
             <JournalTab />
           ) : activeTab === 'map' ? (
@@ -338,9 +371,7 @@ export default function App() {
           ) : activeTab === 'photos' ? (
             <PhotosTab />
           ) : activeTab === 'useful' ? (
-            usefulTab === 'flights' ? (
-              <FlightsTab />
-            ) : usefulTab === 'currency' ? (
+            usefulTab === 'currency' ? (
               <CurrencyTab />
             ) : usefulTab === 'phrases' ? (
               <PhrasesTab />
@@ -359,16 +390,14 @@ export default function App() {
           )}
         </main>
 
-        {navHint && <div className="nav-hint">↓ explore Plan, Journal, Map &amp; Photos</div>}
-
-        <nav className={`bottomnav${navPulse ? ' pulse' : ''}`}>
+        <nav className="bottomnav">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               className={`navitem${activeTab === tab.id ? ' active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
             >
-              <span className="navitem-i">{tab.icon}</span>
+              <Icon name={tab.icon} size={22} className="navitem-i" />
               <span className="navitem-l">{tab.label}</span>
             </button>
           ))}
