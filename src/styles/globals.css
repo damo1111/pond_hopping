@@ -14,6 +14,10 @@
   --shadow: 0 1px 2px rgba(26, 22, 17, 0.03), 0 12px 28px -18px rgba(26, 22, 17, 0.18);
   --font-display: 'Raleway', sans-serif;
   --font-mono:    'Space Mono', monospace;
+  /* Prose only — journal entries and trip summaries, the two places where
+     someone is reading rather than scanning. Never a UI face: it doesn't
+     appear on a button, a label or a nav item. */
+  --font-serif:   'Instrument Serif', Georgia, serif;
   --font-brand:   'Space Grotesk', sans-serif;
 
   /* Floating "liquid glass" surfaces — frosted overlays on the map tabs
@@ -712,14 +716,13 @@ button {
   color: var(--text-muted);
   border-radius: 999px;
   padding: 6px 13px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 400;
   transition: border-color 0.15s, color 0.15s;
 }
 
-.subnavitem-i { font-size: 13px; }
+.subnavitem-i { flex: none; }
 
 .subnavitem.active {
   border-color: var(--accent);
@@ -742,19 +745,18 @@ button {
 }
 
 /* emoji icons are greyscale + dim at rest … */
+/* Line icons carry weight through stroke and opacity, not through
+   desaturating somebody else's colour artwork. */
 .navitem-i {
-  font-size: 20px;
-  line-height: 1;
-  filter: grayscale(1);
-  opacity: 0.45;
-  transition: filter 0.15s, opacity 0.15s;
+  opacity: 0.5;
+  transition: opacity 0.15s;
 }
 
 .navitem-l {
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.01em;
 }
 
 /* … and spring to full colour + full opacity when active. */
@@ -763,45 +765,7 @@ button {
 }
 
 .navitem.active .navitem-i {
-  filter: none;
   opacity: 1;
-}
-
-/* Nudge toward Flights/Journal/Map/Photos right after picking a trip
-   on Home — the icons briefly pop full-colour with a soft glow ring. */
-.bottomnav.pulse .navitem:nth-child(2),
-.bottomnav.pulse .navitem:nth-child(3),
-.bottomnav.pulse .navitem:nth-child(4),
-.bottomnav.pulse .navitem:nth-child(5) {
-  animation: nav-pulse 1.6s ease-out;
-}
-.bottomnav.pulse .navitem:nth-child(2) { animation-delay: 0s; }
-.bottomnav.pulse .navitem:nth-child(3) { animation-delay: 0.08s; }
-.bottomnav.pulse .navitem:nth-child(4) { animation-delay: 0.16s; }
-.bottomnav.pulse .navitem:nth-child(5) { animation-delay: 0.24s; }
-
-.bottomnav.pulse .navitem:nth-child(2) .navitem-i,
-.bottomnav.pulse .navitem:nth-child(3) .navitem-i,
-.bottomnav.pulse .navitem:nth-child(4) .navitem-i,
-.bottomnav.pulse .navitem:nth-child(5) .navitem-i {
-  animation: nav-pulse-icon 1.6s ease-out;
-}
-.bottomnav.pulse .navitem:nth-child(2) .navitem-i { animation-delay: 0s; }
-.bottomnav.pulse .navitem:nth-child(3) .navitem-i { animation-delay: 0.08s; }
-.bottomnav.pulse .navitem:nth-child(4) .navitem-i { animation-delay: 0.16s; }
-.bottomnav.pulse .navitem:nth-child(5) .navitem-i { animation-delay: 0.24s; }
-
-@keyframes nav-pulse {
-  0%, 100% { transform: scale(1); box-shadow: none; }
-  35% {
-    transform: scale(1.14);
-    box-shadow: 0 0 0 7px color-mix(in srgb, var(--trip-accent, var(--gold)) 25%, transparent);
-  }
-}
-
-@keyframes nav-pulse-icon {
-  0%, 100% { filter: grayscale(1); opacity: 0.45; }
-  35% { filter: none; opacity: 1; }
 }
 
 .nav-hint {
@@ -1814,6 +1778,24 @@ button {
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
 }
 
+/* The one on an empty globe is the only thing on there, so it's allowed to
+   bob. Once there's real travel to draw it stops being special and goes
+   back to being one pin among many. */
+.globe-duck-pin.home img {
+  width: 34px;
+  height: 34px;
+  animation: home-duck-bob 3.4s ease-in-out infinite;
+}
+
+@keyframes home-duck-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .globe-duck-pin.home img { animation: none; }
+}
+
 /* react-globe.gl always centres the sphere vertically within whatever
    height it's given — since that height spans the full tab (behind the
    floating trip cards/nav), taller screens just show more empty sky
@@ -1999,33 +1981,37 @@ button {
   border-color: var(--accent-dim);
 }
 
+/* Mono is for codes and numbers now — airport identifiers, distances —
+   never for labels. Letter-spaced caps on every piece of chrome stopped
+   reading as a considered accent and started reading as a terminal theme. */
 .je-top {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 400;
   color: var(--text-muted);
 }
 
-.je-mood { font-size: 15px; }
 .je-day { color: var(--accent); }
 .je-city { margin-left: auto; }
 
 .je-title {
+  font-family: var(--font-serif);
   font-weight: 400;
-  font-size: 15px;
-  margin-top: 6px;
+  font-size: 21px;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  margin-top: 5px;
 }
 
 .je-note {
-  font-weight: 300;
-  font-size: 13px;
-  line-height: 1.55;
-  color: var(--text-muted);
-  margin-top: 5px;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.62;
+  color: var(--text);
+  margin-top: 7px;
   white-space: pre-wrap;
 }
 
@@ -2044,8 +2030,8 @@ button {
 }
 
 .je-tag {
-  font-family: var(--font-mono);
-  font-size: 9px;
+  font-family: var(--font-display);
+  font-size: 11px;
   color: var(--accent);
   background: var(--accent-bg);
   border-radius: 999px;
@@ -2164,79 +2150,96 @@ button {
   white-space: pre-wrap;
 }
 
+/* The summary used to sit in an animated aurora border with a sheen
+   sweeping across it, forever. A gradient that never stops moving is
+   decoration; movement only means something when it's telling you
+   something is happening. So the shimmer now belongs to the generating
+   state alone, and the finished piece settles onto paper and behaves like
+   what it is — a paragraph somebody wrote about your trip. */
 .trip-summary {
   position: relative;
-  border-radius: 13px;
-  padding: 1.5px;
-  background: linear-gradient(115deg, #D4AF37, #9B7FD4, #4FA8C9, #D4AF37);
-  background-size: 300% 300%;
-  animation: ts-aurora 12s ease infinite;
+  border-radius: 2px;
+  padding: 2px 0 0;
+  background: none;
+}
+
+/* The rule draws itself in, once, left to right, as the summary lands. */
+.trip-summary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 10%, transparent));
+  transform-origin: left;
+  animation: ts-rule 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes ts-rule {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
 }
 
 .trip-summary-inner {
   position: relative;
-  overflow: hidden;
-  background: var(--accent-bg);
-  border-radius: 11.5px;
-  padding: 12px 14px;
+  padding: 14px 2px 4px;
 }
 
-.trip-summary-inner::before {
-  content: '';
-  position: absolute;
-  inset: 0;
+/* Generating is the one moment where a moving gradient is honest: it maps
+   to work actually happening, and it stops when the work does. */
+.trip-summary.working .trip-summary-inner {
   background: linear-gradient(
-    115deg,
-    transparent 25%,
-    rgba(212, 175, 55, 0.11) 42%,
-    rgba(155, 127, 212, 0.11) 52%,
-    transparent 70%
+    100deg,
+    transparent 30%,
+    color-mix(in srgb, var(--accent) 9%, transparent) 48%,
+    transparent 66%
   );
-  background-size: 260% 260%;
-  animation: ts-sheen 7s ease-in-out infinite;
-  pointer-events: none;
+  background-size: 250% 100%;
+  animation: ts-working 1.9s linear infinite;
+  border-radius: 8px;
 }
 
-@keyframes ts-aurora {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+@keyframes ts-working {
+  from { background-position: 180% 0; }
+  to { background-position: -80% 0; }
 }
 
-@keyframes ts-sheen {
-  0% { background-position: 200% 0%; }
-  100% { background-position: -60% 0%; }
-}
-
-.trip-summary-inner > * {
-  position: relative;
+@media (prefers-reduced-motion: reduce) {
+  .trip-summary::before,
+  .trip-summary.working .trip-summary-inner { animation: none; }
 }
 
 .ts-generate {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--font-display);
+  font-size: 13px;
   color: var(--accent);
   background: none;
   border: none;
   width: 100%;
   text-align: left;
-  padding: 4px;
+  padding: 6px 0;
 }
 
 .ts-loading {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-family: var(--font-display);
+  font-size: 13px;
   color: var(--accent);
-  padding: 4px;
+  padding: 6px 0;
 }
 
 .ts-body {
-  font-size: 13.5px;
-  line-height: 1.55;
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 1.42;
+  letter-spacing: -0.003em;
+  color: var(--text);
   white-space: pre-wrap;
+}
+
+/* First line slightly larger, the way a standfirst sits above body copy. */
+.ts-body::first-line {
+  font-size: 20.5px;
 }
 
 .ts-body.clamp {
@@ -2260,24 +2263,17 @@ button {
   50% { opacity: 0; }
 }
 
+/* No longer needs an opaque plate to stay readable — there's nothing
+   swinging saturated underneath it any more. */
 .ts-foot {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 10px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  /* Solid, not transparent — the animated sheen behind this card can
-     swing quite saturated, and muted grey text on top of it was
-     sometimes unreadable. This bar always sits on a flat, legible base
-     regardless of where the animation is. */
-  background: rgba(255, 255, 255, 0.82);
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text);
+  margin-top: 12px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .ts-foot-actions {
@@ -2287,15 +2283,14 @@ button {
 }
 
 .ts-regen {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 4px 8px;
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--accent-dim);
+  border-radius: 0;
+  padding: 1px 0;
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--accent);
   white-space: nowrap;
 }
 
@@ -2305,49 +2300,25 @@ button {
   color: #C0392B;
 }
 
-.day-scrub {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 2px 2px 6px;
-  -webkit-overflow-scrolling: touch;
-}
-
-.ds-chip {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 7px 10px;
-  border-radius: 10px;
-  background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--trip-accent, var(--gold)) 35%, var(--border));
-}
-
-.ds-mood {
-  font-size: 14px;
-  line-height: 1;
-}
-
-.ds-day {
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.1em;
-  color: var(--trip-accent, var(--text-muted));
-  white-space: nowrap;
-}
-
+/* Was a full-width dashed rectangle. Writing an entry is one action among
+   many on this page, not the page's headline, so it's sized like one. */
 .journal-add-btn {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 13px;
   color: var(--accent);
   background: var(--accent-bg);
-  border: 1px dashed var(--accent-dim);
-  border-radius: 12px;
-  padding: 12px;
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 8px 15px 8px 12px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.journal-add-btn:hover {
+  border-color: var(--accent);
 }
 
 .journal-form {
@@ -2540,15 +2511,10 @@ button {
   box-shadow: var(--shadow);
 }
 
-.map-ds-mood {
-  font-size: 13px;
-  line-height: 1;
-}
-
 .map-ds-day {
-  font-family: var(--font-mono);
-  font-size: 7px;
-  letter-spacing: 0.1em;
+  font-family: var(--font-display);
+  font-size: 11px;
+  white-space: nowrap;
   color: var(--map-accent, var(--text-muted));
 }
 
@@ -3227,6 +3193,115 @@ button {
 
 .world-trips::-webkit-scrollbar { display: none; }
 
+/* Right now / Coming up / Been there. The label runs up the side of its
+   group rather than sitting above it — the strip is horizontal and pinned
+   over the globe, so there's no room for a stacked heading, and a spine
+   reads as belonging to what follows it. */
+.wt-section {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 9px;
+}
+
+.wt-section + .wt-section {
+  margin-left: 4px;
+  padding-left: 13px;
+  border-left: 1px solid var(--border);
+}
+
+.wt-section-label {
+  flex: 0 0 auto;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 2px 0;
+  align-self: center;
+}
+
+/* A trip happening today is the only thing anyone wants from this screen
+   while it's true, so it gets the accent rather than the muted grey. */
+.wt-section--live .wt-section-label {
+  color: var(--accent);
+}
+
+.wt-memory {
+  flex: 0 0 auto;
+  width: 172px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 13px;
+  padding: 11px 13px;
+}
+
+.wt-memory-when {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.wt-memory-title {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.wt-memory-note {
+  font-size: 11px;
+  font-weight: 300;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.world-empty {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(74px + env(safe-area-inset-bottom));
+  z-index: 500;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  padding: 16px 17px;
+}
+
+.world-empty-title {
+  font-size: 15px;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.world-empty-body {
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--text-muted);
+  margin-bottom: 13px;
+}
+
+.world-empty-btn {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 9px 15px;
+}
+
 /* Trip "story" card — rises over the lower globe when a trip is selected,
    turning the fly-to into a way IN to the trip (journal/photos/flights/map)
    rather than a dead-end spin. Sits where the strip was. */
@@ -3273,9 +3348,25 @@ button {
   gap: 12px;
   margin-bottom: 13px;
   padding-right: 30px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+}
+
+/* Big enough to read as artwork rather than as a favicon, since it's now
+   the thing you press. */
+.story-head.openable .story-thumb {
+  width: 72px;
+  height: 72px;
+}
+
+.story-head.openable:active .story-thumb img {
+  transform: scale(1.04);
 }
 
 .story-thumb {
+  position: relative;
   flex: none;
   width: 58px;
   height: 58px;
@@ -3289,6 +3380,23 @@ button {
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.2s;
+}
+
+/* The label sits on the image, the way a Memory is captioned — rather
+   than becoming a fifth button competing with the four below. */
+.story-thumb-mark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 9px 5px 4px;
+  background: linear-gradient(to top, rgba(12, 10, 7, 0.78), transparent);
+  color: #F5F2EB;
+  font-family: var(--font-display);
+  font-size: 8.5px;
+  text-align: center;
+  letter-spacing: 0.01em;
 }
 
 .story-headtext {
@@ -3311,10 +3419,8 @@ button {
 }
 
 .story-dates {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-display);
+  font-size: 11px;
   color: var(--accent);
 }
 
@@ -3340,7 +3446,7 @@ button {
 }
 
 .story-jump-i {
-  font-size: 20px;
+  opacity: 0.75;
 }
 
 .story-jump-label {
@@ -3349,9 +3455,8 @@ button {
 }
 
 .story-jump-sub {
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.04em;
+  font-family: var(--font-display);
+  font-size: 10px;
   color: var(--text-muted);
 }
 
@@ -5834,3 +5939,212 @@ button {
   border-color: var(--gold);
   color: var(--gold);
 }
+
+/* ── Trip recap: a trip, in one page ──────────────────────────── */
+
+.recap {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  background: var(--bg);
+  animation: recap-in 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes recap-in {
+  from { opacity: 0; transform: scale(1.02); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.recap-scroll {
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(28px + env(safe-area-inset-bottom));
+}
+
+.recap-close {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: 14px;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #F5F2EB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Tall on purpose. The cover is the trip; everything under it is footnotes.
+   With no cover photo the scrim would sit on white and come out flat grey,
+   so the fallback is the trip's own accent taken down to near-black. */
+.recap-hero {
+  position: relative;
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--trip-accent, var(--accent)) 38%, #17130D),
+    #0C0A07
+  );
+  height: 62vh;
+  min-height: 340px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.recap-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* A slow drift, so a still photograph doesn't feel like a dead screen. */
+  animation: recap-drift 24s ease-in-out infinite alternate;
+}
+
+@keyframes recap-drift {
+  from { transform: scale(1.06) translate3d(0, 0, 0); }
+  to { transform: scale(1.14) translate3d(-1.5%, -1.5%, 0); }
+}
+
+.recap-hero-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(12, 10, 7, 0.92) 0%,
+    rgba(12, 10, 7, 0.55) 38%,
+    rgba(12, 10, 7, 0.08) 72%,
+    rgba(12, 10, 7, 0.3) 100%
+  );
+}
+
+.recap-hero-text {
+  position: relative;
+  padding: 0 20px 26px;
+  color: #F5F2EB;
+}
+
+.recap-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  opacity: 0.82;
+  margin-bottom: 8px;
+}
+
+.recap-title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 40px;
+  line-height: 1.04;
+  letter-spacing: -0.012em;
+  margin: 0;
+}
+
+.recap-dates {
+  font-family: var(--font-display);
+  font-size: 13px;
+  opacity: 0.78;
+  margin-top: 9px;
+}
+
+.recap-figures {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px 10px;
+  padding: 28px 20px 8px;
+}
+
+.recap-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  opacity: 0;
+  animation: recap-figure-in 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes recap-figure-in {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: none; }
+}
+
+.recap-figure-value {
+  font-family: var(--font-serif);
+  font-size: 30px;
+  line-height: 1;
+  color: var(--text);
+}
+
+.recap-figure-label {
+  font-family: var(--font-display);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.recap-prose {
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 1.44;
+  color: var(--text);
+  margin: 22px 0 0;
+  padding: 0 20px;
+  white-space: pre-wrap;
+}
+
+.recap-cities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 20px 20px 0;
+}
+
+.recap-city {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-radius: 999px;
+  padding: 4px 11px;
+}
+
+.recap-photos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  padding: 22px 0 0;
+}
+
+.recap-photos img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+}
+
+.recap-share {
+  display: block;
+  margin: 26px auto 0;
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 12px 26px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recap,
+  .recap-hero-img,
+  .recap-figure { animation: none; }
+  .recap-figure { opacity: 1; }
+}
+

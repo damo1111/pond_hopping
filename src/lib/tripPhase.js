@@ -1,0 +1,52 @@
+import { groupTrips } from './tripGroups.js'
+
+// A trip is one object moving through states, not four kinds of thing:
+// somewhere you fancy → something you're planning → the days themselves →
+// history. Home should show you the state you're actually in, which means
+// it has to be able to work out which that is.
+//
+// Derived from dates alone. trip_meta carries no status column, and even if
+// it did, a date is harder to leave stale than a flag someone has to
+// remember to flip the morning they fly home.
+
+const day = (d) => (d ? String(d).slice(0, 10) : null)
+
+// 'live' | 'upcoming' | 'someday' | 'past'
+export function tripPhase(trip, today = new Date()) {
+  const now = day(today.toISOString())
+  const start = day(trip.start_date)
+  const end = day(trip.end_date) || start
+
+  // "Peru, one day" is a real state, not a broken trip.
+  if (!start) return 'someday'
+  if (end && end < now) return 'past'
+  if (start > now) return 'upcoming'
+  return 'live'
+}
+
+// Home's sections, in the order they should read. Empty ones are dropped by
+// the caller — a section heading over nothing is worse than no heading.
+//
+// Past keeps sort_order, which is curated by hand and groups into chapters.
+// Upcoming is sorted by date instead: nobody hand-orders the future, and
+// "which is next" is the only question being asked of that row. Someday
+// trails the upcoming ones — same forward-looking half of the app, but with
+// nothing to count down to.
+export function sectionTrips(tripMeta, today = new Date()) {
+  const by = { live: [], upcoming: [], someday: [], past: [] }
+  for (const t of tripMeta) by[tripPhase(t, today)].push(t)
+
+  by.upcoming.sort((a, b) => String(a.start_date).localeCompare(String(b.start_date)))
+
+  return [
+    { id: 'live', label: 'Right now', items: by.live.map((trip) => ({ type: 'trip', trip })) },
+    {
+      id: 'upcoming',
+      label: 'Coming up',
+      items: [...by.upcoming, ...by.someday].map((trip) => ({ type: 'trip', trip })),
+    },
+    // Chapters ("2024 Gap Year") only ever collapse history, so grouping
+    // stays where it always was rather than being applied to all four.
+    { id: 'past', label: 'Been there', items: groupTrips(by.past) },
+  ].filter((s) => s.items.length)
+}

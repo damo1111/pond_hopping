@@ -19,7 +19,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
       manifest: {
-        name: 'POND HOPPING',
+        name: 'Pond Hopping',
         short_name: 'Pond Hopping',
         description: 'Travel logs — starting with the mini gap year, Mar–Jul 2026',
         start_url: '/?source=pwa',
