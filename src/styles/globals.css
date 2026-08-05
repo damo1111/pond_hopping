@@ -3348,9 +3348,25 @@ button {
   gap: 12px;
   margin-bottom: 13px;
   padding-right: 30px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+}
+
+/* Big enough to read as artwork rather than as a favicon, since it's now
+   the thing you press. */
+.story-head.openable .story-thumb {
+  width: 72px;
+  height: 72px;
+}
+
+.story-head.openable:active .story-thumb img {
+  transform: scale(1.04);
 }
 
 .story-thumb {
+  position: relative;
   flex: none;
   width: 58px;
   height: 58px;
@@ -3364,6 +3380,23 @@ button {
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.2s;
+}
+
+/* The label sits on the image, the way a Memory is captioned — rather
+   than becoming a fifth button competing with the four below. */
+.story-thumb-mark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 9px 5px 4px;
+  background: linear-gradient(to top, rgba(12, 10, 7, 0.78), transparent);
+  color: #F5F2EB;
+  font-family: var(--font-display);
+  font-size: 8.5px;
+  text-align: center;
+  letter-spacing: 0.01em;
 }
 
 .story-headtext {
@@ -3386,10 +3419,8 @@ button {
 }
 
 .story-dates {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--font-display);
+  font-size: 11px;
   color: var(--accent);
 }
 
@@ -3415,7 +3446,7 @@ button {
 }
 
 .story-jump-i {
-  font-size: 20px;
+  opacity: 0.75;
 }
 
 .story-jump-label {
@@ -3424,9 +3455,8 @@ button {
 }
 
 .story-jump-sub {
-  font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: 0.04em;
+  font-family: var(--font-display);
+  font-size: 10px;
   color: var(--text-muted);
 }
 
@@ -6118,16 +6148,3 @@ button {
   .recap-figure { opacity: 1; }
 }
 
-/* The way into the recap, on a trip that's actually finished. */
-.story-recap {
-  display: block;
-  width: 100%;
-  margin-top: 10px;
-  font-family: var(--font-display);
-  font-size: 13px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-dim);
-  border-radius: 999px;
-  padding: 10px;
-}

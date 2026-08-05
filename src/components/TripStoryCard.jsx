@@ -10,6 +10,12 @@ import { coverUrl } from '../lib/imgTransform.js'
 // over the lower globe (which stays flown-to the trip), showing the cover,
 // dates, an at-a-glance count, and — the point — direct jumps INTO the
 // trip: its journal, photos, flights, map. No more hunting the bottom nav.
+// Rendered as a button only when it does something. A <button> wrapper on
+// a trip you can't look back on is a lie to anyone using a screen reader.
+function HeadContent({ as: Tag = 'div', children, ...rest }) {
+  return <Tag {...rest}>{children}</Tag>
+}
+
 function fmtRange(t) {
   if (!t.start_date) return 'dates tbc'
   const opt = { day: 'numeric', month: 'short', year: 'numeric' }
@@ -40,10 +46,19 @@ export default function TripStoryCard({ trip, cover, onClose, goToTab }) {
         <Icon name="close" size={13} />
       </button>
 
-      <div className="story-head">
+      {/* On a finished trip the header IS the recap — tap the cover, the
+          way you would a memory in Photos. Nothing to label, nothing extra
+          on the card. An unfinished trip keeps the same block as plain
+          text, because there's nothing to look back on yet. */}
+      <HeadContent
+        as={isPast ? 'button' : 'div'}
+        className={`story-head${isPast ? ' openable' : ''}`}
+        onClick={isPast ? () => setRecapOpen(true) : undefined}
+      >
         {cover && (
           <span className="story-thumb">
             <img src={coverUrl(cover, { width: 220, height: 220 })} alt="" />
+            {isPast && <span className="story-thumb-mark">In one page</span>}
           </span>
         )}
         <span className="story-headtext">
@@ -53,7 +68,7 @@ export default function TripStoryCard({ trip, cover, onClose, goToTab }) {
           <span className="story-title">{trip.title}</span>
           <span className="story-dates">{fmtRange(trip)}</span>
         </span>
-      </div>
+      </HeadContent>
 
       <div className="story-jumps">
         {jumps.map((j) => (
@@ -64,12 +79,6 @@ export default function TripStoryCard({ trip, cover, onClose, goToTab }) {
           </button>
         ))}
       </div>
-
-      {isPast && (
-        <button className="story-recap" onClick={() => setRecapOpen(true)}>
-          Look back on this trip →
-        </button>
-      )}
 
       {recapOpen && <TripRecap trip={trip} cover={cover} onClose={() => setRecapOpen(false)} />}
     </div>
