@@ -1,4 +1,8 @@
+import { useState } from 'react'
 import CountryFlags from './CountryFlags.jsx'
+import Icon from './Icon.jsx'
+import TripRecap from './TripRecap.jsx'
+import { tripPhase } from '../lib/tripPhase.js'
 import { coverUrl } from '../lib/imgTransform.js'
 
 // Polarsteps/FindPenguins-style: tapping a trip on the globe shouldn't
@@ -15,15 +19,19 @@ function fmtRange(t) {
 }
 
 export default function TripStoryCard({ trip, cover, onClose, goToTab }) {
+  const [recapOpen, setRecapOpen] = useState(false)
   if (!trip) return null
+
+  // Only a finished trip has anything to look back on.
+  const isPast = tripPhase(trip) === 'past'
 
   // Only offer jumps that actually lead somewhere for this trip. Map is
   // always worthwhile once a trip is selected; the rest gate on content.
   const jumps = [
-    trip.journal_count > 0 && { tab: 'journal', icon: '📔', label: 'Journal', sub: `${trip.journal_count} ${trip.journal_count === 1 ? 'entry' : 'entries'}` },
-    { tab: 'photos', icon: '📷', label: 'Photos', sub: 'gallery' },
-    { tab: 'map', icon: '🗺️', label: 'Map', sub: trip.run_count > 0 ? `${trip.run_count} runs` : 'route' },
-    trip.flight_count > 0 && { tab: 'flights', icon: '✈️', label: 'Flights', sub: `${trip.flight_count} ${trip.flight_count === 1 ? 'flight' : 'flights'}` },
+    trip.journal_count > 0 && { tab: 'journal', icon: 'book', label: 'Journal', sub: `${trip.journal_count} ${trip.journal_count === 1 ? 'entry' : 'entries'}` },
+    { tab: 'photos', icon: 'photo', label: 'Photos', sub: 'gallery' },
+    { tab: 'map', icon: 'map', label: 'Map', sub: trip.run_count > 0 ? `${trip.run_count} runs` : 'route' },
+    trip.flight_count > 0 && { tab: 'flights', icon: 'plane', label: 'Flights', sub: `${trip.flight_count} ${trip.flight_count === 1 ? 'flight' : 'flights'}` },
   ].filter(Boolean)
 
   return (
@@ -50,12 +58,20 @@ export default function TripStoryCard({ trip, cover, onClose, goToTab }) {
       <div className="story-jumps">
         {jumps.map((j) => (
           <button key={j.tab} className="story-jump" onClick={() => goToTab(j.tab)}>
-            <span className="story-jump-i">{j.icon}</span>
+            <Icon name={j.icon} size={19} className="story-jump-i" />
             <span className="story-jump-label">{j.label}</span>
             <span className="story-jump-sub">{j.sub}</span>
           </button>
         ))}
       </div>
+
+      {isPast && (
+        <button className="story-recap" onClick={() => setRecapOpen(true)}>
+          Look back on this trip →
+        </button>
+      )}
+
+      {recapOpen && <TripRecap trip={trip} cover={cover} onClose={() => setRecapOpen(false)} />}
     </div>
   )
 }
