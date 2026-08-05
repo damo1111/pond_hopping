@@ -6461,8 +6461,10 @@ button {
   display: none;
 }
 
-/* A recap is a look back. Adding a journal entry or a photo belongs on the
-   tab, not in the sheet you opened to read what's already there. */
+/* A recap is a look back. Adding a journal entry or a photo belongs where the
+   trip still lives — the planner has a Photos tab for exactly this — not in
+   the sheet you opened to read what is already there. */
+.recap-layer .ph-add,
 .recap-layer .journal-add-btn,
 .recap-layer .journal-form,
 .recap-layer .flights-review-cta {
@@ -6700,4 +6702,123 @@ button {
 .recap-layer .map-preview,
 .recap-layer .map-day-scrub {
   bottom: calc(12px + env(safe-area-inset-bottom));
+}
+
+/* ── Photo upload ─────────────────────────────────────────────── */
+
+.ph-add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 4px;
+}
+
+.pu-pick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px 16px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #FFFFFF;
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+
+.pu-pick:disabled { opacity: 0.55; }
+
+.pu-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.pu-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.pu-name {
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pu-state { flex: none; letter-spacing: 0.04em; }
+.pu-done .pu-state { color: var(--accent); }
+.pu-failed .pu-state { color: #C0392B; }
+.pu-waiting { opacity: 0.5; }
+
+/* What the run cost and what it bought — the located count especially, since
+   those are the photos that can put themselves on the map. */
+.pu-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.pu-summary strong {
+  font-weight: normal;
+  color: var(--text);
+}
+
+.pu-bad { color: #C0392B; }
+
+/* ── Planner photos ───────────────────────────────────────────── */
+
+.pp { padding-bottom: 20px; }
+
+.pp-empty {
+  margin: 6px 16px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.pp-count {
+  margin: 4px 16px 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.pp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 0 14px;
+}
+
+.pp-grid img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--surface-2);
+  display: block;
 }

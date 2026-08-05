@@ -4,6 +4,7 @@ import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import { thumb, coverUrl } from '../lib/imgTransform.js'
 import CountryFlags from '../components/CountryFlags.jsx'
+import PhotoUpload from '../components/PhotoUpload.jsx'
 
 function fmtRange(t) {
   if (!t.start_date) return 'dates tbc'
@@ -53,9 +54,15 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
 
   if (!show) {
     return (
-      <button className="journal-add-btn" onClick={() => setShow(true)}>
-        + add photo url
-      </button>
+      <div className="ph-add">
+        {/* Straight off the phone is what people actually want. Pasting a URL
+            assumes you had already uploaded it somewhere else, so it stays,
+            but it stops being the headline. */}
+        <PhotoUpload trip={tripMeta.find((t) => t.slug === form.trip) || tripMeta[0]} onDone={onSaved} />
+        <button className="journal-add-btn" onClick={() => setShow(true)}>
+          or paste a photo url
+        </button>
+      </div>
     )
   }
   return (
