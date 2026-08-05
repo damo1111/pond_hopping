@@ -68,7 +68,7 @@ export function recapStats({ trip = {}, flights = [], entries = [], runs = [], p
       to: 'map',
     },
     airports.size && { key: 'airports', value: String(airports.size), label: 'airports' },
-    runKm >= 1 && { key: 'runs', value: round(runKm).toLocaleString('en-GB'), label: 'km run', to: 'map' },
+    runKm >= 1 && { key: 'runs', value: round(runKm).toLocaleString('en-GB'), label: 'km run', to: 'runs' },
     entries.length && {
       key: 'entries',
       value: String(entries.length),

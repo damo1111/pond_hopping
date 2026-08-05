@@ -94,7 +94,10 @@ test('figures counting something you can open know where to send you', () => {
   assert.equal(to.entries, 'journal')
   assert.equal(to.photos, 'photos')
   assert.equal(to.flights, 'flights')
-  assert.equal(to.runs, 'map')
+  // Runs used to point at the map and got the whole Map tab — hotel and
+  // photo filters, flight lines, the runs lost among it. They have their own
+  // sheet now. Cities legitimately want a map.
+  assert.equal(to.runs, 'runs')
   assert.equal(to.cities, 'map')
 })
 

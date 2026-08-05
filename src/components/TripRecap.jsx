@@ -12,6 +12,18 @@ const JournalTab = lazy(() => import('../tabs/JournalTab.jsx'))
 const PhotosTab = lazy(() => import('../tabs/PhotosTab.jsx'))
 const MapTab = lazy(() => import('../tabs/MapTab.jsx'))
 const FlightsTab = lazy(() => import('../tabs/FlightsTab.jsx'))
+const RunsPanel = lazy(() => import('./RunsPanel.jsx'))
+
+// Fetching a 300KB chunk while a sheet is sliding up is a stall you can feel:
+// the animation is competing with a parse. Warm them once the recap has
+// settled and is doing nothing, so opening one is only a render.
+const WARM = [
+  () => import('../tabs/JournalTab.jsx'),
+  () => import('../tabs/PhotosTab.jsx'),
+  () => import('../tabs/FlightsTab.jsx'),
+  () => import('./RunsPanel.jsx'),
+  () => import('../tabs/MapTab.jsx'),
+]
 
 // `full` means the sheet is stretched to the top of its range rather than
 // sized to its content — Leaflet measures a parent with a real height, so
@@ -21,6 +33,7 @@ const LAYERS = {
   photos: { title: 'Photos', View: PhotosTab },
   map: { title: 'Map', View: MapTab, full: true },
   flights: { title: 'Flights', View: FlightsTab },
+  runs: { title: 'Runs', View: RunsPanel },
 }
 
 // Shown over the first few recaps and then never again — long enough to
@@ -52,7 +65,23 @@ export default function TripRecap({ trip, cover, onClose }) {
   // underneath, so closing this comes back here rather than dumping you on
   // a tab with no way back — which is what tapping a figure used to do.
   const [layer, setLayer] = useState(null)
+  // The frosted pane is the expensive part: blurring a backdrop that is
+  // itself mid-animation costs a full re-blur every frame, on a phone, at
+  // exactly the moment the sheet needs those frames. So the sheet rises
+  // over a flat surface and only goes frosted once it has arrived.
+  const [settled, setSettled] = useState(false)
   const [hint, setHint] = useState(false)
+
+  useEffect(() => {
+    setSettled(false)
+  }, [layer])
+
+  // Once the recap is up and idle, pull the sheet chunks in the background.
+  useEffect(() => {
+    const idle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 1200))
+    const id = idle(() => WARM.forEach((load) => load()))
+    return () => window.cancelIdleCallback?.(id)
+  }, [])
 
   useEffect(() => {
     const seen = Number(localStorage.getItem(HINT_KEY) || 0)
@@ -222,7 +251,11 @@ export default function TripRecap({ trip, cover, onClose }) {
       </div>
 
       {layer && (
-        <section className={`recap-layer${LAYERS[layer].full ? ' full' : ''}`} key={layer}>
+        <section
+          className={`recap-layer${LAYERS[layer].full ? ' full' : ''}${settled ? ' settled' : ''}`}
+          key={layer}
+          onAnimationEnd={(e) => e.target === e.currentTarget && setSettled(true)}
+        >
           {/* The frosted pane behind the sheet's content — see
               .recap-layer-glass for why the blur can't sit on the sheet. */}
           <div className="recap-layer-glass" />
@@ -240,7 +273,9 @@ export default function TripRecap({ trip, cover, onClose }) {
             <Suspense fallback={<div className="tab-loading">loading…</div>}>
               {(() => {
                 const { View } = LAYERS[layer]
-                return <View />
+                // The tab views read the selection from context and ignore
+                // this; RunsPanel is built for the sheet and takes the trip.
+                return <View trip={trip} />
               })()}
             </Suspense>
           </div>
