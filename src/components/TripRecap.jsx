@@ -1,10 +1,29 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
 import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
 import CountryFlags from './CountryFlags.jsx'
 import Icon from './Icon.jsx'
+
+// Lazy so the recap doesn't drag four tab views — and Leaflet — into the
+// Home chunk for the many opens where nobody taps a figure.
+const JournalTab = lazy(() => import('../tabs/JournalTab.jsx'))
+const PhotosTab = lazy(() => import('../tabs/PhotosTab.jsx'))
+const MapTab = lazy(() => import('../tabs/MapTab.jsx'))
+const FlightsTab = lazy(() => import('../tabs/FlightsTab.jsx'))
+
+const LAYERS = {
+  journal: { title: 'Journal', View: JournalTab },
+  photos: { title: 'Photos', View: PhotosTab },
+  map: { title: 'Map', View: MapTab },
+  flights: { title: 'Flights', View: FlightsTab },
+}
+
+// Shown over the first few recaps and then never again — long enough to
+// teach that the numbers are the navigation, short of nagging.
+const HINT_KEY = 'ph_recap_hint_seen'
+const HINT_TIMES = 3
 
 // A trip, in one page.
 //
@@ -23,9 +42,26 @@ function fmtRange(t) {
   return b && b !== a ? `${a} – ${b}` : a
 }
 
-export default function TripRecap({ trip, cover, onClose, onGoToTab }) {
+export default function TripRecap({ trip, cover, onClose }) {
   const [data, setData] = useState(null)
   const [copied, setCopied] = useState(false)
+  // Which sub-view is open over the recap. The recap itself stays mounted
+  // underneath, so closing this comes back here rather than dumping you on
+  // a tab with no way back — which is what tapping a figure used to do.
+  const [layer, setLayer] = useState(null)
+  const [hint, setHint] = useState(false)
+
+  useEffect(() => {
+    const seen = Number(localStorage.getItem(HINT_KEY) || 0)
+    if (seen >= HINT_TIMES) return
+    localStorage.setItem(HINT_KEY, String(seen + 1))
+    const show = setTimeout(() => setHint(true), 1100)
+    const hide = setTimeout(() => setHint(false), 6600)
+    return () => {
+      clearTimeout(show)
+      clearTimeout(hide)
+    }
+  }, [])
 
   useEffect(() => {
     if (!trip?.id) return
@@ -117,6 +153,10 @@ export default function TripRecap({ trip, cover, onClose, onGoToTab }) {
           </div>
         </header>
 
+        {hint && stats.figures.some((f) => f.to) && (
+          <div className="recap-hint">Tap any underlined number to open it</div>
+        )}
+
         {stats.figures.length > 0 && (
           <div className="recap-figures">
             {stats.figures.map((f, i) => {
@@ -124,7 +164,7 @@ export default function TripRecap({ trip, cover, onClose, onGoToTab }) {
               // take you to them — "12 photos" opens the gallery, "9 days
               // written up" opens the journal. Which is why the recap needs
               // no row of signpost tiles under it.
-              const go = f.to && onGoToTab
+              const go = !!f.to
               const Tag = go ? 'button' : 'div'
               return (
                 /* Staggered so the numbers land one after another rather
@@ -133,7 +173,7 @@ export default function TripRecap({ trip, cover, onClose, onGoToTab }) {
                   className={`recap-figure${go ? ' linked' : ''}`}
                   key={f.key}
                   style={{ animationDelay: `${120 + i * 70}ms` }}
-                  onClick={go ? () => { onGoToTab(f.to); onClose?.() } : undefined}
+                  onClick={go ? () => setLayer(f.to) : undefined}
                 >
                   <span className="recap-figure-value">{f.value}</span>
                   <span className="recap-figure-label">{f.label}</span>
@@ -177,6 +217,29 @@ export default function TripRecap({ trip, cover, onClose, onGoToTab }) {
           {copied ? 'Link copied' : 'Share this trip'}
         </button>
       </div>
+
+      {layer && (
+        <section className="recap-layer" key={layer}>
+          <header className="recap-layer-bar">
+            <button className="recap-layer-back" onClick={() => setLayer(null)}>
+              <Icon name="chevron" size={16} className="recap-layer-back-i" />
+              <span>{trip.title}</span>
+            </button>
+            <span className="recap-layer-title">{LAYERS[layer].title}</span>
+            <button className="recap-layer-close" onClick={() => setLayer(null)} aria-label="Back to the recap">
+              <Icon name="close" size={15} />
+            </button>
+          </header>
+          <div className="recap-layer-body">
+            <Suspense fallback={<div className="tab-loading">loading…</div>}>
+              {(() => {
+                const { View } = LAYERS[layer]
+                return <View />
+              })()}
+            </Suspense>
+          </div>
+        </section>
+      )}
     </div>,
     document.body
   )

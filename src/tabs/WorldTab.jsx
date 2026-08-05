@@ -433,7 +433,6 @@ export default function WorldTab() {
           trip={selectedTripObj}
           cover={covers[selectedTripObj.id]}
           onClose={() => setSelectedTrip(null)}
-          goToTab={goToTab}
           openPlanner={openPlanner}
         />
       ) : tripsLoaded && !tripMeta.length ? (

@@ -6199,3 +6199,116 @@ button {
   .recap-figure { opacity: 1; }
 }
 
+
+/* ── Recap sub-layer ──────────────────────────────────────────── */
+
+/* Tapping a figure used to close the recap and drop you on a tab with no
+   way back. The destination now opens *over* the recap, which stays
+   mounted underneath, so closing this returns you to where you were. */
+.recap-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  animation: recap-layer-in 340ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes recap-layer-in {
+  from { opacity: 0; transform: translateY(22px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+.recap-layer-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+/* Names the trip you'd go back to, so the way out is a place rather than
+   an arrow pointing at nothing in particular. */
+.recap-layer-back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.recap-layer-back span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recap-layer-back-i {
+  transform: rotate(180deg);
+  flex: none;
+}
+
+.recap-layer-title {
+  margin-left: auto;
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.recap-layer-close {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.recap-layer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Up to three recaps, then never again. */
+.recap-hint {
+  margin: 18px 20px -6px;
+  padding: 9px 13px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--accent);
+  text-align: center;
+  animation: recap-hint-in 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes recap-hint-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recap-layer,
+  .recap-hint { animation: none; }
+}
+
+/* You arrived here from the recap, which is that same paragraph set larger.
+   Printing it again at the top of the journal is the app repeating itself. */
+.recap-layer .trip-summary {
+  display: none;
+}

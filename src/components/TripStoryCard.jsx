@@ -18,7 +18,7 @@ function fmtRange(t) {
   return b ? `${a} – ${b}` : a
 }
 
-export default function TripStoryCard({ trip, cover, onClose, goToTab, openPlanner }) {
+export default function TripStoryCard({ trip, cover, onClose, openPlanner }) {
   const [recapOpen, setRecapOpen] = useState(false)
   if (!trip) return null
 
@@ -63,7 +63,6 @@ export default function TripStoryCard({ trip, cover, onClose, goToTab, openPlann
           trip={trip}
           cover={cover}
           onClose={() => setRecapOpen(false)}
-          onGoToTab={goToTab}
         />
       )}
     </div>
