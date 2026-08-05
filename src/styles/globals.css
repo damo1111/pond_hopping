@@ -1698,6 +1698,7 @@ button {
 
 .meta-edit-row {
   display: flex;
+  align-items: center;
   gap: 5px;
 }
 
@@ -1714,14 +1715,26 @@ button {
 }
 
 .meta-edit-save {
+  /* Was 26px wide with no height, so it stretched to whatever the row was and
+     the tick floated in a tall box. It's a square button the size of the
+     input beside it, with the mark centred by flexbox rather than by a
+     font's idea of where a baseline goes. */
   flex: none;
-  width: 26px;
+  width: 28px;
+  height: 28px;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border: 1px solid var(--accent-dim);
   border-radius: 7px;
   background: var(--accent-bg);
   color: var(--accent);
   font-size: 13px;
 }
+
+.meta-edit-save:disabled { opacity: 0.45; }
 
 .photo-none-edit {
   padding: 16px;
@@ -6914,4 +6927,18 @@ button {
 
 @media (prefers-reduced-motion: reduce) {
   .run-open { animation: none; }
+}
+
+/* Holds the space a run's map is about to fill, so opening a run doesn't
+   shuffle the card once Leaflet arrives. */
+.run-map-loading {
+  height: 240px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.run-map {
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-2);
 }

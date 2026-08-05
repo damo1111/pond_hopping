@@ -1,5 +1,9 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+
+// Leaflet only arrives if someone actually opens a run. The recap already
+// warms this chunk on idle, so by then it's a render rather than a fetch.
+const RunMap = lazy(() => import('./RunMap.jsx'))
 
 // Tapping "64 km run" on a recap used to open the whole Map tab: a general
 // trip map with filters for hotels and photos, a dashed flight line across
@@ -89,7 +93,7 @@ export default function RunsPanel({ trip }) {
       {runs.map((r) => {
         const isOpen = open === r.id
         const d = trackPath(r.coords, 96, 64)
-        const big = isOpen ? trackPath(r.coords, 320, 200, 14) : null
+        const hasTrack = (r.coords || []).length >= 2
         const pace = fmtPace(r.pace)
         return (
           <article
@@ -130,11 +134,13 @@ export default function RunsPanel({ trip }) {
 
             {isOpen && (
               <div className="run-open">
-                {big ? (
-                  <svg className="run-track-big" viewBox="0 0 320 200" aria-hidden="true">
-                    <path d={big} fill="none" stroke="var(--run-color)" strokeWidth="3"
-                      strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                {/* A trace on a blank card is a squiggle. On a map it's a
+                    route — you can see it followed a river, or went up and
+                    came back down the same street. */}
+                {hasTrack ? (
+                  <Suspense fallback={<div className="run-map-loading" />}>
+                    <RunMap coords={r.coords} color={r.color || '#3E7D54'} />
+                  </Suspense>
                 ) : (
                   <p className="run-no-track">No GPS trace for this one.</p>
                 )}
