@@ -241,6 +241,16 @@ export default function WorldTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTrip])
 
+  // The globe keeps rendering every frame behind the recap, where nobody can
+  // see it — a three.js scene on a phone GPU, competing for frames with a
+  // sheet that is trying to slide. Park it while the recap is up.
+  useEffect(() => {
+    const g = globeEl.current
+    if (!g) return
+    if (recapTrip) g.pauseAnimation()
+    else g.resumeAnimation()
+  }, [recapTrip])
+
   // Dedupe flights into route segments (repeat sectors share one arc).
   // Travellers are part of the key: on a trip where two people flew in from
   // different places, their legs stay separate arcs so the globe shows two

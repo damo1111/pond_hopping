@@ -264,10 +264,9 @@ export default function TripRecap({ trip, cover, onClose }) {
               <Icon name="chevron" size={16} className="recap-layer-back-i" />
               <span>{trip.title}</span>
             </button>
+            {/* One way out, not two. The ✕ and the back link did the same
+                thing, and of the pair only the link says where you land. */}
             <span className="recap-layer-title">{LAYERS[layer].title}</span>
-            <button className="recap-layer-close" onClick={() => setLayer(null)} aria-label="Back to the recap">
-              <Icon name="close" size={15} />
-            </button>
           </header>
           <div className="recap-layer-body">
             <Suspense fallback={<div className="tab-loading">loading…</div>}>

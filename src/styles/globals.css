@@ -6373,22 +6373,10 @@ button {
 
 .recap-layer-title {
   margin-left: auto;
+  padding-right: 6px;
   font-family: var(--font-display);
   font-size: 13px;
   color: var(--text);
-}
-
-.recap-layer-close {
-  flex: none;
-  width: 30px;
-  height: 30px;
-  border-radius: 999px;
-  border: 0;
-  background: var(--surface-2);
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .recap-layer-body {
@@ -6604,4 +6592,102 @@ button {
   font-size: 10.5px;
   letter-spacing: 0.03em;
   color: var(--text-muted);
+}
+
+/* ── Map preview card ─────────────────────────────────────────── */
+
+/* A Leaflet popup is a balloon tethered to its marker: no animation, and
+   near an edge half of it is off the map. What a tapped pin deserves is a
+   card, arriving the same way the recap's sheets do. */
+.map-preview {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(26, 22, 17, 0.22);
+  animation: map-preview-in 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes map-preview-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+.map-preview-img {
+  flex: none;
+  width: 68px;
+  height: 68px;
+  border-radius: 12px;
+  object-fit: cover;
+  display: block;
+  background: var(--surface-2);
+}
+
+.map-preview-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.map-preview-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-preview-sub {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-preview-jump {
+  margin-top: 7px;
+  padding: 5px 11px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--pv-accent);
+  color: #FFFFFF;
+  font-family: var(--font-display);
+  font-size: 11.5px;
+}
+
+.map-preview-close {
+  flex: none;
+  align-self: flex-start;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-preview { animation: none; }
+}
+
+/* Inside a recap sheet there is no bottom nav to clear, so the card and the
+   scrubber sit at the bottom of the sheet rather than 76px up from it. */
+.recap-layer .map-preview,
+.recap-layer .map-day-scrub {
+  bottom: calc(12px + env(safe-area-inset-bottom));
 }
