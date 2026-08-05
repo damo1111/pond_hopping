@@ -6312,3 +6312,14 @@ button {
 .recap-layer .trip-summary {
   display: none;
 }
+
+/* Airports that aren't among the most-used: a mark that says "you landed
+   here", sized by how often, without another duck in the pile. */
+.globe-dot {
+  border-radius: 50%;
+  background: var(--gold);
+  border: 1px solid rgba(245, 242, 235, 0.75);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  cursor: pointer;
+}

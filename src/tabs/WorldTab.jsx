@@ -51,6 +51,21 @@ function countryCentroid(geometry) {
   return [y / largest.length, x / largest.length]
 }
 
+// Inside one trip, direction and who was aboard are the whole point — two
+// people converging on a city from different places should read as two
+// threads, and an out-and-back is a there and a back.
+//
+// Across a lifetime neither survives contact with the data: MEL→SYD and
+// SYD→MEL are the same line on a sphere, drawn twice, then doubled again
+// per traveller. 407 arcs for 148 actual routes, stacked on themselves — a
+// mat rather than a map. So the overview keys routes undirected and
+// person-agnostic, and earns the difference back as width.
+function routeKey(dep, arr, person, withinTrip) {
+  if (withinTrip) return `${dep}-${arr}-${person}`
+  const [a, b] = dep < arr ? [dep, arr] : [arr, dep]
+  return `${a}-${b}`
+}
+
 // Only label countries actually near this trip data — showing all ~180
 // countries on the globe would bury the ones that matter.
 const LABEL_FOCUS_DEG = 18
@@ -215,7 +230,7 @@ export default function WorldTab() {
       const aboard = f.travellers?.length ? f.travellers : ['']
       for (const person of aboard) {
         if (person) who.add(person)
-        const key = `${f.dep_airport}-${f.arr_airport}-${person}`
+        const key = routeKey(f.dep_airport, f.arr_airport, person, !!selectedTrip)
         if (!segs.has(key)) {
           segs.set(key, {
             key,
@@ -229,8 +244,13 @@ export default function WorldTab() {
         }
         segs.get(key).flights.push(f)
       }
-      if (!apts.has(f.dep_airport)) apts.set(f.dep_airport, { code: f.dep_airport, city: f.dep_city, pos: [f.dep_lat, f.dep_lon] })
-      if (!apts.has(f.arr_airport)) apts.set(f.arr_airport, { code: f.arr_airport, city: f.arr_city, pos: [f.arr_lat, f.arr_lon] })
+      for (const [code, city, pos] of [
+        [f.dep_airport, f.dep_city, [f.dep_lat, f.dep_lon]],
+        [f.arr_airport, f.arr_city, [f.arr_lat, f.arr_lon]],
+      ]) {
+        if (!apts.has(code)) apts.set(code, { code, city, pos, visits: 0 })
+        apts.get(code).visits += 1
+      }
     }
 
     // Booked legs from the planner. Coordinates come from AIRPORT_COORDS
@@ -311,6 +331,11 @@ export default function WorldTab() {
       s.traveler && travelers.length > 1
         ? 0.16 + travelers.indexOf(s.traveler) * 0.11
         : 0.22,
+    // A route flown 39 times and one flown once used to be the same
+    // half-pixel line. Now the repetition it already contains is what makes
+    // it thick, so the overview reads as a shape rather than a tangle.
+    // Capped, or the commuter routes would be ribbons.
+    stroke: 0.32 + Math.min(s.flights.length, 24) * 0.055,
     flights: s.flights,
   }))
 
@@ -322,13 +347,41 @@ export default function WorldTab() {
   const cityGroups = new Map()
   for (const a of airports) {
     const key = a.city || a.code
-    if (!cityGroups.has(key)) cityGroups.set(key, { city: a.city || a.code, codes: [a.code], pos: a.pos })
+    if (!cityGroups.has(key)) cityGroups.set(key, { city: a.city || a.code, codes: [a.code], pos: a.pos, visits: 0 })
     else cityGroups.get(key).codes.push(a.code)
+    // A city's visits are the sum across its airports — Bangkok is one
+    // place whether you came through BKK or DMK.
+    cityGroups.get(key).visits += a.visits || 0
   }
   const markerPoints = [...cityGroups.values()]
 
+  // 86 duck pins is a smear, not a flourish — the duck was charming at six
+  // airports and became a black mat at eighty-six. Everywhere you've landed
+  // still gets a mark, sized by how often; the duck is kept for the handful
+  // you actually live out of, so it stays special by being rare. Inside a
+  // single trip there are only a few airports, so they all keep theirs.
+  // Ranked, not thresholded: comparing against the sixth-place score lets
+  // every airport tied with it through too, which on a long tail of
+  // one-visit airports is all of them.
+  const DUCK_TOP = 6
+  const duckCities = new Set(
+    selectedTrip
+      ? markerPoints.map((m) => m.city)
+      : [...markerPoints]
+          .sort((a, b) => b.visits - a.visits)
+          .slice(0, DUCK_TOP)
+          .map((m) => m.city)
+  )
+
   const pointsData = [
-    ...markerPoints.map((m) => ({ lat: m.pos[0], lng: m.pos[1], code: m.codes.join('/'), city: m.city })),
+    ...markerPoints.map((m) => ({
+      lat: m.pos[0],
+      lng: m.pos[1],
+      code: m.codes.join('/'),
+      city: m.city,
+      visits: m.visits,
+      duck: duckCities.has(m.city),
+    })),
     // One duck on an otherwise bare globe, roughly where they are. It's the
     // only thing on there, so it doubles as the answer to "is this thing
     // showing me anything?" — and it's the same pin every airport gets, so
@@ -379,7 +432,7 @@ export default function WorldTab() {
         arcEndLng={(d) => d.endLng}
         arcColor={(d) => d.color}
         arcAltitude={(d) => d.altitude}
-        arcStroke={0.5}
+        arcStroke={(d) => d.stroke}
         // Flown legs read as near-solid; booked-but-not-yet-flown ones as a
         // faster-moving dotted trail, so an upcoming trip is visibly a
         // promise rather than a memory.
@@ -405,6 +458,15 @@ export default function WorldTab() {
         htmlAltitude={0.015}
         htmlElement={(d) => {
           const el = document.createElement('div')
+          if (!d.home && !d.duck) {
+            // Everywhere else: a dot that grows with the number of visits.
+            el.className = 'globe-dot'
+            const r = Math.min(4 + Math.sqrt(d.visits || 1) * 1.6, 11)
+            el.style.width = `${r}px`
+            el.style.height = `${r}px`
+            el.title = `${d.code} — ${d.city}`
+            return el
+          }
           el.className = `globe-duck-pin${d.home ? ' home' : ''}`
           el.title = d.home ? 'You, roughly' : `${d.code} — ${d.city}`
           el.innerHTML = '<img src="/duck.png" alt="" />'
