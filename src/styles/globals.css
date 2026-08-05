@@ -5978,6 +5978,17 @@ button {
   inset: 0;
   z-index: 9500;
   background: var(--bg);
+}
+
+/* Mounted the moment you tap so its five queries run during the globe's
+   flight, but held off-screen until the globe lands — otherwise the recap
+   arrives empty and rebuilds itself in front of you. */
+.recap.waiting {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.recap.in {
   animation: recap-in 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -6207,14 +6218,19 @@ button {
    mounted underneath, so closing this returns you to where you were. */
 .recap-layer {
   position: absolute;
-  /* Anchored to the bottom and sized to its content rather than always
-     filling the space: four flight cards in a full-height sheet is one
-     screen of cards and two of empty cream. Capped short of the top —
-     the recap staying visible above it is the whole point. */
+  /* One size, always, stopping short of the top so the recap stays visible
+     above it — that part is the whole point. Sizing to content was snugger
+     for a short list, but
+     every view fetches its own rows, so the sheet rose to the height of the
+     word "loading…" and then grew out from under you when they landed —
+     354px to 593px on the runs. There is no version of that which isn't a
+     jump, so the sheet is a fixed frame and the content fills it. What used
+     to be dead cream below a short list is now frosted glass with the trip
+     showing through, which is the point of the glass. */
+  top: 62px;
   left: 0;
   right: 0;
   bottom: 0;
-  max-height: calc(100% - 62px);
   z-index: 3;
   display: flex;
   flex-direction: column;
@@ -6232,12 +6248,6 @@ button {
 
 .recap-layer.settled {
   will-change: auto;
-}
-
-/* Leaflet measures a parent with a real height, so the map is the one view
-   that has to be told to fill the sheet rather than size it. */
-.recap-layer.full {
-  top: 62px;
 }
 
 /* Frosted rather than opaque, so the trip you came from reads through it —
@@ -6389,7 +6399,7 @@ button {
 
 /* The map fills the sheet edge to edge; padding under it would just be a
    band of glass with nothing in it. */
-.recap-layer.full .recap-layer-body {
+.recap-layer.map .recap-layer-body {
   padding-bottom: 0;
 }
 

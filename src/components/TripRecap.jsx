@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
 import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
+import { SheetContext } from '../lib/sheetContext.js'
 import CountryFlags from './CountryFlags.jsx'
 import Icon from './Icon.jsx'
 
@@ -25,13 +26,10 @@ const WARM = [
   () => import('../tabs/MapTab.jsx'),
 ]
 
-// `full` means the sheet is stretched to the top of its range rather than
-// sized to its content — Leaflet measures a parent with a real height, so
-// the map is the one view that can't size the sheet itself.
 const LAYERS = {
   journal: { title: 'Journal', View: JournalTab },
   photos: { title: 'Photos', View: PhotosTab },
-  map: { title: 'Map', View: MapTab, full: true },
+  map: { title: 'Map', View: MapTab },
   flights: { title: 'Flights', View: FlightsTab },
   runs: { title: 'Runs', View: RunsPanel },
 }
@@ -58,7 +56,7 @@ function fmtRange(t) {
   return b && b !== a ? `${a} – ${b}` : a
 }
 
-export default function TripRecap({ trip, cover, onClose }) {
+export default function TripRecap({ trip, cover, reveal = true, onClose }) {
   const [data, setData] = useState(null)
   const [copied, setCopied] = useState(false)
   // Which sub-view is open over the recap. The recap itself stays mounted
@@ -76,14 +74,18 @@ export default function TripRecap({ trip, cover, onClose }) {
     setSettled(false)
   }, [layer])
 
-  // Once the recap is up and idle, pull the sheet chunks in the background.
+  // Once the recap is actually up and idle, pull the sheet chunks in the
+  // background. Not before: while it's still hidden the globe is flying, and
+  // parsing 300KB of Leaflet is the last thing that flight needs.
   useEffect(() => {
+    if (!reveal) return
     const idle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 1200))
     const id = idle(() => WARM.forEach((load) => load()))
     return () => window.cancelIdleCallback?.(id)
-  }, [])
+  }, [reveal])
 
   useEffect(() => {
+    if (!reveal) return
     const seen = Number(localStorage.getItem(HINT_KEY) || 0)
     if (seen >= HINT_TIMES) return
     localStorage.setItem(HINT_KEY, String(seen + 1))
@@ -93,7 +95,7 @@ export default function TripRecap({ trip, cover, onClose }) {
       clearTimeout(show)
       clearTimeout(hide)
     }
-  }, [])
+  }, [reveal])
 
   useEffect(() => {
     if (!trip?.id) return
@@ -167,7 +169,7 @@ export default function TripRecap({ trip, cover, onClose }) {
   // any position:fixed descendant — so "full screen" quietly became "the
   // bottom third of the card".
   return createPortal(
-    <div className={`recap${layer ? ' layered' : ''}`}>
+    <div className={`recap${layer ? ' layered' : ''}${reveal ? ' in' : ' waiting'}`}>
       <button className="recap-close" onClick={onClose} aria-label="Close">
         <Icon name="close" size={16} />
       </button>
@@ -190,7 +192,10 @@ export default function TripRecap({ trip, cover, onClose }) {
         )}
 
         {stats.figures.length > 0 && (
-          <div className="recap-figures">
+          /* Remounted on reveal so the staggered entrance plays for someone
+             watching, rather than having quietly run while this was hidden
+             behind the globe. */
+          <div className="recap-figures" key={reveal ? 'in' : 'wait'}>
             {stats.figures.map((f, i) => {
               // A number counted from rows you can go and look at should
               // take you to them — "12 photos" opens the gallery, "9 days
@@ -252,7 +257,7 @@ export default function TripRecap({ trip, cover, onClose }) {
 
       {layer && (
         <section
-          className={`recap-layer${LAYERS[layer].full ? ' full' : ''}${settled ? ' settled' : ''}`}
+          className={`recap-layer ${layer}${settled ? ' settled' : ''}`}
           key={layer}
           onAnimationEnd={(e) => e.target === e.currentTarget && setSettled(true)}
         >
@@ -269,14 +274,16 @@ export default function TripRecap({ trip, cover, onClose }) {
             <span className="recap-layer-title">{LAYERS[layer].title}</span>
           </header>
           <div className="recap-layer-body">
-            <Suspense fallback={<div className="tab-loading">loading…</div>}>
-              {(() => {
-                const { View } = LAYERS[layer]
-                // The tab views read the selection from context and ignore
-                // this; RunsPanel is built for the sheet and takes the trip.
-                return <View trip={trip} />
-              })()}
-            </Suspense>
+            <SheetContext.Provider value={true}>
+              <Suspense fallback={<div className="tab-loading">loading…</div>}>
+                {(() => {
+                  const { View } = LAYERS[layer]
+                  // The tab views read the selection from context and ignore
+                  // this; RunsPanel is built for the sheet and takes the trip.
+                  return <View trip={trip} />
+                })()}
+              </Suspense>
+            </SheetContext.Provider>
           </div>
         </section>
       )}

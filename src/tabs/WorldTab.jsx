@@ -223,15 +223,24 @@ export default function WorldTab() {
   // it settles the trip opens — its recap if it's finished, its planner if
   // it hasn't happened. Closing comes back out to the whole globe.
   const [recapTrip, setRecapTrip] = useState(null)
+  // The recap is *mounted* the moment you tap and *revealed* when the globe
+  // lands. Mounting it at the end meant it appeared empty and then rebuilt
+  // itself over the next second as five queries came back — a hero, then a
+  // stray figure, then the prose shoving the share button down the page.
+  // Mounting it at the start spends the 2.1s flight on the fetch instead, so
+  // what fades up is finished.
+  const [recapReady, setRecapReady] = useState(false)
 
   useEffect(() => {
     if (!selectedTripObj) {
       setRecapTrip(null)
+      setRecapReady(false)
       return
     }
     const past = tripPhase(selectedTripObj) === 'past'
+    if (past) setRecapTrip(selectedTripObj)
     const t = setTimeout(() => {
-      if (past) setRecapTrip(selectedTripObj)
+      if (past) setRecapReady(true)
       else {
         openPlanner(selectedTripObj.id)
         setSelectedTrip(null)
@@ -243,13 +252,14 @@ export default function WorldTab() {
 
   // The globe keeps rendering every frame behind the recap, where nobody can
   // see it — a three.js scene on a phone GPU, competing for frames with a
-  // sheet that is trying to slide. Park it while the recap is up.
+  // sheet that is trying to slide. Park it once the recap is actually in
+  // front; while it's still flying it very much needs those frames.
   useEffect(() => {
     const g = globeEl.current
     if (!g) return
-    if (recapTrip) g.pauseAnimation()
+    if (recapReady) g.pauseAnimation()
     else g.resumeAnimation()
-  }, [recapTrip])
+  }, [recapReady])
 
   // Dedupe flights into route segments (repeat sectors share one arc).
   // Travellers are part of the key: on a trip where two people flew in from
@@ -551,6 +561,7 @@ export default function WorldTab() {
         <TripRecap
           trip={recapTrip}
           cover={covers[recapTrip.id]}
+          reveal={recapReady}
           onClose={() => setSelectedTrip(null)}
         />
       )}
