@@ -360,17 +360,35 @@ export default function WorldTab() {
   // still gets a mark, sized by how often; the duck is kept for the handful
   // you actually live out of, so it stays special by being rare. Inside a
   // single trip there are only a few airports, so they all keep theirs.
-  // Ranked, not thresholded: comparing against the sixth-place score lets
-  // every airport tied with it through too, which on a long tail of
+  // Ranked, not thresholded: comparing against the last qualifying score
+  // lets every airport tied with it through too, which on a long tail of
   // one-visit airports is all of them.
-  const DUCK_TOP = 6
+  //
+  // And spread, not just ranked. Straight top-N by visits puts every duck
+  // on the commuter airports — which for this account means Melbourne,
+  // Sydney, Brisbane and London, so the entire Asia-Pacific half of the
+  // globe had none while two corners had a pile. Taking the most-visited
+  // city first and then skipping anything too close to one already chosen
+  // spreads them around the sphere, so wherever the globe is turned there's
+  // a duck rather than a field of dots.
+  const DUCK_TOP = 8
+  const DUCK_SEP_DEG = 14
   const duckCities = new Set(
     selectedTrip
       ? markerPoints.map((m) => m.city)
-      : [...markerPoints]
-          .sort((a, b) => b.visits - a.visits)
-          .slice(0, DUCK_TOP)
-          .map((m) => m.city)
+      : (() => {
+          const chosen = []
+          for (const m of [...markerPoints].sort((a, b) => b.visits - a.visits)) {
+            if (chosen.length >= DUCK_TOP) break
+            const crowded = chosen.some(
+              (c) =>
+                Math.abs(c.pos[0] - m.pos[0]) < DUCK_SEP_DEG &&
+                Math.abs(c.pos[1] - m.pos[1]) < DUCK_SEP_DEG
+            )
+            if (!crowded) chosen.push(m)
+          }
+          return chosen.map((m) => m.city)
+        })()
   )
 
   const pointsData = [
