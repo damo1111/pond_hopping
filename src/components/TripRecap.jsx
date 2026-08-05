@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
-import { coverUrl } from '../lib/imgTransform.js'
+import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
 import CountryFlags from './CountryFlags.jsx'
 
@@ -37,7 +37,18 @@ export default function TripRecap({ trip, cover, onClose }) {
         .eq('status', 'flown'),
       supabase.from('journal_entries').select('city,entry_date,title').eq('trip_id', trip.id),
       supabase.from('runs').select('distance_km').eq('trip_id', trip.id),
-      supabase.from('photos').select('url,caption').eq('trip_id', trip.id).limit(12),
+      // thumb_url is the pre-sized render where one exists; falling back to
+      // coverUrl() was the bug — it appends =w400-h400-c to a Google Photos
+      // link that already carries its own size suffix, and the second one
+      // breaks it. Highlights first, so the recap shows the good ones
+      // rather than the first twelve that happened to be inserted.
+      supabase
+        .from('photos')
+        .select('url,thumb_url,caption,is_highlight,taken_on')
+        .eq('trip_id', trip.id)
+        .order('is_highlight', { ascending: false })
+        .order('taken_on', { ascending: true })
+        .limit(12),
       supabase.from('trip_summaries').select('summary').eq('trip_id', trip.id).maybeSingle(),
     ]).then(([f, e, r, p, s]) => {
       if (!alive) return
@@ -130,7 +141,17 @@ export default function TripRecap({ trip, cover, onClose }) {
         {data?.photos?.length > 0 && (
           <div className="recap-photos">
             {data.photos.map((p) => (
-              <img key={p.url} src={coverUrl(p.url, { width: 400, height: 400 })} alt={p.caption || ''} loading="lazy" />
+              <img
+                key={p.url}
+                src={p.thumb_url || thumb(p.url, { width: 400, height: 400 })}
+                alt={p.caption || ''}
+                loading="lazy"
+                /* A dead URL should leave a gap, not a broken-image icon
+                   sitting in the middle of a page built to be shown off. */
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                }}
+              />
             ))}
           </div>
         )}
