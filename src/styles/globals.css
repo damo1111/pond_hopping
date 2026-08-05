@@ -6590,6 +6590,7 @@ button {
   justify-content: center;
   border-radius: 10px;
   background: var(--surface-2);
+  overflow: hidden;
 }
 
 .run-track-none {
@@ -6941,4 +6942,67 @@ button {
   border-radius: 10px;
   overflow: hidden;
   background: var(--surface-2);
+}
+
+/* ── The cold open ────────────────────────────────────────────── */
+
+/* While your history is drawing itself onto the globe, the arcs are the only
+   thing worth looking at. The labels, the ducks and the trip list all arrive
+   at the end, which is what makes the finish feel like a finish. */
+.globe-wrap.introing .globe-duck-pin,
+.globe-wrap.introing .globe-dot,
+.globe-wrap.introing .scene-container .label-dot,
+.globe-wrap.introing .scene-container text {
+  opacity: 0;
+}
+
+.globe-duck-pin,
+.globe-dot {
+  transition: opacity 700ms ease 120ms;
+}
+
+/* The list is the thing you came for, so it doesn't fight the animation for
+   attention — it rises once the earth has arrived. */
+.world-trips {
+  transition: opacity 620ms ease, transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.globe-wrap.introing ~ .world-trips,
+.globe-wrap.introing .world-trips {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .globe-wrap.introing .globe-duck-pin,
+  .globe-wrap.introing .globe-dot,
+  .globe-wrap.introing ~ .world-trips,
+  .globe-wrap.introing .world-trips {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The map behind a run's thumbnail — a couple of tiles nailed in place and
+   the route drawn over them, rather than a Leaflet instance per row. */
+.run-thumb {
+  position: relative;
+  width: 96px;
+  height: 64px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.run-thumb-tile {
+  position: absolute;
+  width: 256px;
+  height: 256px;
+  max-width: none;
+  display: block;
+}
+
+.run-thumb-line {
+  position: absolute;
+  inset: 0;
 }

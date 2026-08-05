@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+import RunThumb from './RunThumb.jsx'
 
 // Leaflet only arrives if someone actually opens a run. The recap already
 // warms this chunk on idle, so by then it's a render rather than a fetch.
@@ -10,36 +11,6 @@ const RunMap = lazy(() => import('./RunMap.jsx'))
 // the East China Sea, and the runs somewhere in among it. The figure counts
 // runs, so this counts runs back — each one with the shape you actually ran,
 // the pace you ran it at, and what your heart made of it.
-
-// Equirectangular is wrong at continental scale and exactly right at the
-// scale of a morning run, and it costs nothing — no tiles, no Leaflet, so
-// the sheet opens on the frame it's asked to rather than after a fetch.
-function trackPath(coords, w, h, pad = 6) {
-  const pts = (coords || []).filter((c) => Array.isArray(c) && c.length >= 2)
-  if (pts.length < 2) return null
-  const lats = pts.map((c) => c[0])
-  const lons = pts.map((c) => c[1])
-  const midLat = (Math.min(...lats) + Math.max(...lats)) / 2
-  const k = Math.cos((midLat * Math.PI) / 180)
-  const xs = lons.map((l) => l * k)
-  const ys = lats.map((l) => -l)
-  const x0 = Math.min(...xs), x1 = Math.max(...xs)
-  const y0 = Math.min(...ys), y1 = Math.max(...ys)
-  // A there-and-back along one street is a legitimate run and a zero-width
-  // box; falling back to the other axis keeps it from dividing by nothing.
-  const spanX = x1 - x0 || y1 - y0 || 1
-  const spanY = y1 - y0 || x1 - x0 || 1
-  const scale = Math.min((w - pad * 2) / spanX, (h - pad * 2) / spanY)
-  const offX = (w - spanX * scale) / 2
-  const offY = (h - spanY * scale) / 2
-  return pts
-    .map((_, i) => {
-      const x = (xs[i] - x0) * scale + offX
-      const y = (ys[i] - y0) * scale + offY
-      return `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`
-    })
-    .join(' ')
-}
 
 const fmtDate = (d) =>
   d ? new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : ''
@@ -92,7 +63,6 @@ export default function RunsPanel({ trip }) {
 
       {runs.map((r) => {
         const isOpen = open === r.id
-        const d = trackPath(r.coords, 96, 64)
         const hasTrack = (r.coords || []).length >= 2
         const pace = fmtPace(r.pace)
         return (
@@ -103,15 +73,7 @@ export default function RunsPanel({ trip }) {
           >
             <button className="run-row" onClick={() => setOpen(isOpen ? null : r.id)} aria-expanded={isOpen}>
               <div className="run-track">
-                {d ? (
-                  <svg viewBox="0 0 96 64" width="96" height="64" aria-hidden="true">
-                    <path d={d} fill="none" stroke="var(--run-color)" strokeWidth="2.2"
-                      strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  /* A run logged without a GPS trace still happened. */
-                  <span className="run-track-none" aria-hidden="true" />
-                )}
+                <RunThumb coords={r.coords} color={r.color || '#3E7D54'} />
               </div>
               <div className="run-body">
                 <div className="run-head">

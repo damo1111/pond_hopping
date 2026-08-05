@@ -8,6 +8,7 @@ import { tripColor } from '../lib/tripColors.js'
 import { coverUrl } from '../lib/imgTransform.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import TripRecap from '../components/TripRecap.jsx'
+import { INTRO, arcsShown, chronological } from '../lib/globeIntro.js'
 import { tripPhase } from '../lib/tripPhase.js'
 import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
 import { sectionTrips } from '../lib/tripPhase.js'
@@ -20,6 +21,10 @@ const OVERVIEW_POV = { lat: -8, lng: 122, altitude: 1.9 }
 // Long enough that flying to a trip is something you watch rather than a
 // transition you sit through. The trip opens as the globe settles.
 const FLY_MS = 2100
+
+// Once per page load, not once per mount — switching to Plan and back should
+// not replay the opening.
+let introPlayed = false
 
 function fmtDate(iso) {
   if (!iso) return ''
@@ -337,11 +342,93 @@ export default function WorldTab() {
     return { segments: [...segs.values()], airports: [...apts.values()], travelers: [...who].sort() }
   }, [flights, planned, selectedTrip, tripsById])
 
+  // The cold open. Once, on the first load of the session: the earth starts
+  // far out and empty, your flights draw themselves onto it oldest-first, and
+  // it comes toward you and settles into the Home framing. Skipped for
+  // someone who tapped a trip before it could start, for an account with no
+  // history to draw, and for anyone who has asked for less motion.
+  const [introAt, setIntroAt] = useState(null)
+  const [introArcs, setIntroArcs] = useState(null) // null = not intro-ing
+
+  useEffect(() => {
+    if (introPlayed || !flights || selectedTrip) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      introPlayed = true
+      return
+    }
+    introPlayed = true
+    setIntroArcs(0)
+    setIntroAt(performance.now())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flights])
+
+  const introRunning = introArcs !== null
+
+  useEffect(() => {
+    if (!introRunning || introAt == null) return
+    const g = globeEl.current
+    if (!g) return
+    const total = segments.length
+    if (!total) {
+      setIntroArcs(null)
+      return
+    }
+
+    const controls = g.controls()
+    controls.autoRotate = true
+    // Faster than the idle drift while it's arriving, so the sphere reads as
+    // turning rather than sitting there.
+    controls.autoRotateSpeed = 1.1
+    g.pointOfView({ ...overviewPov, altitude: INTRO.startAltitude }, 0)
+    // Overlapping: the earth starts closing the distance while the arcs are
+    // still landing, which is what makes it one move rather than two.
+    const fly = setTimeout(() => g.pointOfView(overviewPov, INTRO.flyMs), INTRO.holdMs)
+
+    let raf
+    const tick = (now) => {
+      const n = arcsShown(now - introAt, total)
+      setIntroArcs(n)
+      if (n >= total) {
+        setIntroArcs(null)
+        controls.autoRotateSpeed = idleSpin
+        return
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => {
+      clearTimeout(fly)
+      cancelAnimationFrame(raf)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [introRunning, introAt, segments.length])
+
+  // Any touch ends it: an intro you can't skip is a splash screen.
+  const skipIntro = useCallback(() => {
+    if (introArcs === null) return
+    setIntroArcs(null)
+    const g = globeEl.current
+    if (!g) return
+    g.pointOfView(overviewPov, 420)
+    g.controls().autoRotateSpeed = idleSpin
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [introArcs, overviewPov, idleSpin])
+
+  // Sorted once per data change rather than per frame: during the intro this
+  // is read sixty times a second, and re-sorting 148 routes each time to
+  // reveal one more of them is work for nothing. It has to live up here —
+  // above the `if (!flights)` guard below — because a hook after a
+  // conditional return is a hook that sometimes doesn't run.
+  const introOrder = useMemo(() => chronological(segments), [segments])
+
   // Fly to the selection (or back to the overview) and toggle ambient
   // auto-rotate — spinning while idle, still while inspecting a trip.
   useEffect(() => {
     const g = globeEl.current
     if (!g) return
+    // The intro owns the camera until it's finished; this effect fires on
+    // mount too and would yank the earth to its final altitude on frame one.
+    if (introRunning) return
     const controls = g.controls()
     if (selectedTrip) {
       controls.autoRotate = false
@@ -359,7 +446,7 @@ export default function WorldTab() {
       g.pointOfView(overviewPov, 1200)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTrip, segments, isEmpty, home.lat, home.lng])
+  }, [selectedTrip, segments, isEmpty, home.lat, home.lng, introRunning])
 
   if (!flights) return <div className="tab-loading">loading the world…</div>
 
@@ -367,26 +454,35 @@ export default function WorldTab() {
   // overlap into one indistinguishable line. Lifting each traveller's arcs
   // to a different altitude separates them in 3D, so the paths read as two
   // threads that converge — which is the whole point of a shared trip.
-  const arcsData = segments.map((s) => ({
-    startLat: s.from[0],
-    startLng: s.from[1],
-    endLat: s.to[0],
-    endLng: s.to[1],
-    color: tripColor(s.tripSlug),
-    label: s.label,
-    traveler: s.traveler,
-    planned: !!s.planned,
-    altitude:
-      s.traveler && travelers.length > 1
-        ? 0.16 + travelers.indexOf(s.traveler) * 0.11
-        : 0.22,
-    // A route flown 39 times and one flown once used to be the same
-    // half-pixel line. Now the repetition it already contains is what makes
-    // it thick, so the overview reads as a shape rather than a tangle.
-    // Capped, or the commuter routes would be ribbons.
-    stroke: 0.32 + Math.min(s.flights.length, 24) * 0.055,
-    flights: s.flights,
-  }))
+  const allArcs = segments.map(toArc)
+
+  function toArc(s) {
+    return {
+      startLat: s.from[0],
+      startLng: s.from[1],
+      endLat: s.to[0],
+      endLng: s.to[1],
+      color: tripColor(s.tripSlug),
+      label: s.label,
+      traveler: s.traveler,
+      planned: !!s.planned,
+      altitude:
+        s.traveler && travelers.length > 1
+          ? 0.16 + travelers.indexOf(s.traveler) * 0.11
+          : 0.22,
+      // A route flown 39 times and one flown once used to be the same
+      // half-pixel line. Now the repetition it already contains is what makes
+      // it thick, so the overview reads as a shape rather than a tangle.
+      // Capped, or the commuter routes would be ribbons.
+      stroke: 0.32 + Math.min(s.flights.length, 24) * 0.055,
+      flights: s.flights,
+    }
+  }
+
+  // During the cold open the globe holds only the routes drawn so far, oldest
+  // first — your history assembling itself in the order it happened rather
+  // than a random flood.
+  const arcsData = introRunning ? introOrder.slice(0, introArcs).map(toArc) : allArcs
 
   // Group same-city airports (e.g. Bangkok's BKK + DMK) into one marker —
   // otherwise two duck pins and two "Bangkok" labels land almost on top of
@@ -481,7 +577,11 @@ export default function WorldTab() {
   const labelsData = [...countryLabels, ...cityLabels]
 
   return (
-    <div className="world-wrap globe-wrap" ref={wrapRef}>
+    <div
+      className={`world-wrap globe-wrap${introRunning ? ' introing' : ''}`}
+      ref={wrapRef}
+      onPointerDown={skipIntro}
+    >
       <div className="globe-shift">
       <Globe
         ref={globeEl}

@@ -1,4 +1,21 @@
-import { MapContainer, TileLayer, Polyline, CircleMarker } from 'react-leaflet'
+import { useEffect } from 'react'
+import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet'
+
+// The card expands and the map mounts into a box that is still 0×0 for a
+// frame. Leaflet measures that and fits the route to nothing, which is why
+// the tiles arrived but the run didn't — a maximum-zoom view of a street
+// nowhere near where you ran. Re-measure once the box has a size, then fit.
+function FitRoute({ bounds }) {
+  const map = useMap()
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      map.invalidateSize()
+      map.fitBounds(bounds, { padding: [16, 16] })
+    })
+    return () => cancelAnimationFrame(id)
+  }, [map, bounds])
+  return null
+}
 
 // A run drawn on nothing is a squiggle. On a map it's a route — you can see it
 // followed a river, or went up and came back down the same street.
@@ -40,6 +57,7 @@ export default function RunMap({ coords, color = '#3E7D54', height = 240 }) {
         keyboard={false}
         style={{ height, width: '100%', background: '#EDE9DF' }}
       >
+        <FitRoute bounds={bounds} />
         <TileLayer url={TILES} subdomains="abcd" />
 
         {/* Casing then core. A single stroke disappears wherever it crosses a
