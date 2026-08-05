@@ -1814,6 +1814,24 @@ button {
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
 }
 
+/* The one on an empty globe is the only thing on there, so it's allowed to
+   bob. Once there's real travel to draw it stops being special and goes
+   back to being one pin among many. */
+.globe-duck-pin.home img {
+  width: 34px;
+  height: 34px;
+  animation: home-duck-bob 3.4s ease-in-out infinite;
+}
+
+@keyframes home-duck-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .globe-duck-pin.home img { animation: none; }
+}
+
 /* react-globe.gl always centres the sphere vertically within whatever
    height it's given — since that height spans the full tab (behind the
    floating trip cards/nav), taller screens just show more empty sky

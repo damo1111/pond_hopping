@@ -10,6 +10,7 @@ import CountryFlags from '../components/CountryFlags.jsx'
 import TripStoryCard from '../components/TripStoryCard.jsx'
 import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
 import { sectionTrips } from '../lib/tripPhase.js'
+import { homeCoords } from '../lib/homePov.js'
 
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.
@@ -86,6 +87,15 @@ export default function WorldTab() {
   const wrapRef = useCallback((node) => setWrapEl(node), [])
 
   const sections = useMemo(() => sectionTrips(tripMeta), [tripMeta])
+
+  // Nothing to look at yet, so the globe stops being a record and becomes an
+  // invitation: pointed at wherever they are rather than at where this
+  // account happens to have been, and spinning like it wants to be touched
+  // instead of idling behind six trips.
+  const isEmpty = tripsLoaded && !tripMeta.length
+  const home = useMemo(() => homeCoords(), [])
+  const overviewPov = isEmpty ? { lat: home.lat, lng: home.lng, altitude: 1.9 } : OVERVIEW_POV
+  const idleSpin = isEmpty ? 0.9 : 0.35
 
   // "Three years ago today". Filtering happens here rather than in SQL
   // because matching a month-and-day needs an expression index to be worth
@@ -276,10 +286,11 @@ export default function WorldTab() {
       }
     } else {
       controls.autoRotate = true
-      controls.autoRotateSpeed = 0.35
-      g.pointOfView(OVERVIEW_POV, 1200)
+      controls.autoRotateSpeed = idleSpin
+      g.pointOfView(overviewPov, 1200)
     }
-  }, [selectedTrip, segments])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTrip, segments, isEmpty, home.lat, home.lng])
 
   if (!flights) return <div className="tab-loading">loading the world…</div>
 
@@ -316,7 +327,17 @@ export default function WorldTab() {
   }
   const markerPoints = [...cityGroups.values()]
 
-  const pointsData = markerPoints.map((m) => ({ lat: m.pos[0], lng: m.pos[1], code: m.codes.join('/'), city: m.city }))
+  const pointsData = [
+    ...markerPoints.map((m) => ({ lat: m.pos[0], lng: m.pos[1], code: m.codes.join('/'), city: m.city })),
+    // One duck on an otherwise bare globe, roughly where they are. It's the
+    // only thing on there, so it doubles as the answer to "is this thing
+    // showing me anything?" — and it's the same pin every airport gets, so
+    // the first one they add joins it rather than replacing it. Dropped as
+    // soon as there's real travel to draw.
+    ...(isEmpty && home.known
+      ? [{ lat: home.lat, lng: home.lng, code: 'You', city: 'roughly here', home: true }]
+      : []),
+  ]
 
   // Country labels only where they're actually near an airport in view
   // (otherwise all ~180 countries would clutter the globe), and skipped
@@ -384,8 +405,8 @@ export default function WorldTab() {
         htmlAltitude={0.015}
         htmlElement={(d) => {
           const el = document.createElement('div')
-          el.className = 'globe-duck-pin'
-          el.title = `${d.code} — ${d.city}`
+          el.className = `globe-duck-pin${d.home ? ' home' : ''}`
+          el.title = d.home ? 'You, roughly' : `${d.code} — ${d.city}`
           el.innerHTML = '<img src="/duck.png" alt="" />'
           return el
         }}
@@ -401,8 +422,8 @@ export default function WorldTab() {
         onGlobeReady={() => {
           const controls = globeEl.current.controls()
           controls.autoRotate = !selectedTrip
-          controls.autoRotateSpeed = 0.35
-          globeEl.current.pointOfView(OVERVIEW_POV, 0)
+          controls.autoRotateSpeed = idleSpin
+          globeEl.current.pointOfView(overviewPov, 0)
         }}
       />
       </div>
