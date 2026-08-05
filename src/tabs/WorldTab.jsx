@@ -7,7 +7,8 @@ import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import { coverUrl } from '../lib/imgTransform.js'
 import CountryFlags from '../components/CountryFlags.jsx'
-import TripStoryCard from '../components/TripStoryCard.jsx'
+import TripRecap from '../components/TripRecap.jsx'
+import { tripPhase } from '../lib/tripPhase.js'
 import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
 import { sectionTrips } from '../lib/tripPhase.js'
 import { homeCoords } from '../lib/homePov.js'
@@ -15,6 +16,10 @@ import { homeCoords } from '../lib/homePov.js'
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.
 const OVERVIEW_POV = { lat: -8, lng: 122, altitude: 1.9 }
+
+// Long enough that flying to a trip is something you watch rather than a
+// transition you sit through. The trip opens as the globe settles.
+const FLY_MS = 2100
 
 function fmtDate(iso) {
   if (!iso) return ''
@@ -212,6 +217,30 @@ export default function WorldTab() {
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
   const selectedTripObj = selectedTrip ? tripMeta.find((t) => t.slug === selectedTrip) : null
 
+  // Picking a trip used to fly the globe there and then put a card in front
+  // of it whose only job was to be tapped through. The globe hands over
+  // directly now: it flies in slowly enough to be worth watching, and when
+  // it settles the trip opens — its recap if it's finished, its planner if
+  // it hasn't happened. Closing comes back out to the whole globe.
+  const [recapTrip, setRecapTrip] = useState(null)
+
+  useEffect(() => {
+    if (!selectedTripObj) {
+      setRecapTrip(null)
+      return
+    }
+    const past = tripPhase(selectedTripObj) === 'past'
+    const t = setTimeout(() => {
+      if (past) setRecapTrip(selectedTripObj)
+      else {
+        openPlanner(selectedTripObj.id)
+        setSelectedTrip(null)
+      }
+    }, FLY_MS)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTrip])
+
   // Dedupe flights into route segments (repeat sectors share one arc).
   // Travellers are part of the key: on a trip where two people flew in from
   // different places, their legs stay separate arcs so the globe shows two
@@ -302,7 +331,7 @@ export default function WorldTab() {
       if (source.length) {
         const lat = source.reduce((s, p) => s + p[0], 0) / source.length
         const lng = source.reduce((s, p) => s + p[1], 0) / source.length
-        g.pointOfView({ lat, lng, altitude: 1.1 }, 1200)
+        g.pointOfView({ lat, lng, altitude: 1.1 }, FLY_MS)
       }
     } else {
       controls.autoRotate = true
@@ -508,14 +537,15 @@ export default function WorldTab() {
       />
       </div>
 
-      {selectedTripObj ? (
-        <TripStoryCard
-          trip={selectedTripObj}
-          cover={covers[selectedTripObj.id]}
+      {recapTrip && (
+        <TripRecap
+          trip={recapTrip}
+          cover={covers[recapTrip.id]}
           onClose={() => setSelectedTrip(null)}
-          openPlanner={openPlanner}
         />
-      ) : tripsLoaded && !tripMeta.length ? (
+      )}
+
+      {tripsLoaded && !tripMeta.length ? (
         <EmptyHome onPlan={() => goToTab('plan')} />
       ) : (
         <div className="world-trips">

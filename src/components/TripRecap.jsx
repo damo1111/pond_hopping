@@ -135,7 +135,7 @@ export default function TripRecap({ trip, cover, onClose }) {
   // any position:fixed descendant — so "full screen" quietly became "the
   // bottom third of the card".
   return createPortal(
-    <div className="recap">
+    <div className={`recap${layer ? ' layered' : ''}`}>
       <button className="recap-close" onClick={onClose} aria-label="Close">
         <Icon name="close" size={16} />
       </button>
@@ -154,7 +154,7 @@ export default function TripRecap({ trip, cover, onClose }) {
         </header>
 
         {hint && stats.figures.some((f) => f.to) && (
-          <div className="recap-hint">Tap any underlined number to open it</div>
+          <div className="recap-hint">The underlined numbers open</div>
         )}
 
         {stats.figures.length > 0 && (

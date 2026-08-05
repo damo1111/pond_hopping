@@ -6207,18 +6207,61 @@ button {
    mounted underneath, so closing this returns you to where you were. */
 .recap-layer {
   position: absolute;
-  inset: 0;
+  /* Inset from the top rather than covering everything, so the recap you
+     came from stays visible behind it and the thing reads as a sheet over
+     a page rather than as a page swap. */
+  inset: 62px 0 0;
   z-index: 3;
   display: flex;
   flex-direction: column;
   background: var(--bg);
-  animation: recap-layer-in 340ms cubic-bezier(0.22, 1, 0.36, 1);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -16px 44px rgba(26, 22, 17, 0.34);
+  overflow: hidden;
+  animation: recap-layer-in 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The recap behind recedes as the sheet rises — that's what makes it read
+   as depth rather than as the next screen. */
+.recap-scroll {
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1), filter 520ms;
+}
+
+/* The recap's own close sits directly above the sheet's, so two ✕ stack in
+   the same corner meaning different things. The one behind is unreachable
+   while the sheet is up, so it gets out of the way. */
+.recap.layered .recap-close {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms;
+}
+
+.recap.layered .recap-scroll {
+  transform: scale(0.94);
+  transform-origin: 50% 0;
+  filter: brightness(0.82);
 }
 
 @keyframes recap-layer-in {
-  from { opacity: 0; transform: translateY(22px) scale(0.985); }
+  from { opacity: 0; transform: translateY(100%); }
   to { opacity: 1; transform: none; }
 }
+
+/* A grab handle, because it now looks like something you could pull down. */
+.recap-layer::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+  border-radius: 999px;
+  background: var(--border);
+  z-index: 1;
+}
+
+.recap-layer-bar { padding-top: 18px; }
 
 .recap-layer-bar {
   flex: none;
@@ -6284,17 +6327,34 @@ button {
 }
 
 /* Up to three recaps, then never again. */
+/* Was a full-bleed banner announcing itself across the page. It's a note
+   about the numbers, so it's a small bubble that points at them. */
 .recap-hint {
-  margin: 18px 20px -6px;
-  padding: 9px 13px;
-  border-radius: 999px;
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-dim);
+  position: relative;
+  width: max-content;
+  max-width: calc(100% - 40px);
+  margin: 16px 0 -8px 20px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  background: #1A1611;
   font-family: var(--font-display);
-  font-size: 12px;
-  color: var(--accent);
-  text-align: center;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: #F5F2EB;
+  box-shadow: 0 6px 18px rgba(26, 22, 17, 0.28);
   animation: recap-hint-in 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.recap-hint::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 22px;
+  width: 10px;
+  height: 10px;
+  background: #1A1611;
+  transform: rotate(45deg);
+  border-radius: 2px;
 }
 
 @keyframes recap-hint-in {
