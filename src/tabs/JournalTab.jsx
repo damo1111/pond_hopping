@@ -2,9 +2,9 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import DayMap from '../components/DayMap.jsx'
-import DayScrubber from '../components/DayScrubber.jsx'
 import TripSummary from '../components/TripSummary.jsx'
 import CountryFlags from '../components/CountryFlags.jsx'
+import Icon from '../components/Icon.jsx'
 import PrivateNote from '../components/PrivateNote.jsx'
 import { useAuth } from '../lib/AuthContext.jsx'
 
@@ -43,8 +43,7 @@ function Entry({ e, autoOpen, jumpKey }) {
       onKeyDown={(ev) => ev.key === 'Enter' && setOpen((o) => !o)}
     >
       <div className="je-top">
-        <span className="je-mood">{e.mood || '·'}</span>
-        <span className="je-day">{e.day_number ? `DAY ${e.day_number}` : ''}</span>
+        <span className="je-day">{e.day_number ? `Day ${e.day_number}` : ''}</span>
         <span className="je-date">{fmtDate(e.entry_date)}</span>
         <span className="je-city">{e.city}</span>
       </div>
@@ -112,7 +111,8 @@ function AddEntry({ tripMeta, selectedTrip, onSaved }) {
   if (!show) {
     return (
       <button className="journal-add-btn" onClick={() => setShow(true)}>
-        + new entry
+        <Icon name="plus" size={15} />
+        New entry
       </button>
     )
   }
@@ -162,7 +162,6 @@ export default function JournalTab() {
   const { tripMeta, selectedTrip, journalJump, clearJournalJump } = useContext(TripContext)
   const [entries, setEntries] = useState(null)
   const [reload, setReload] = useState(0)
-  const [scrubJump, setScrubJump] = useState(null)
 
   useEffect(() => {
     let alive = true
@@ -218,9 +217,6 @@ export default function JournalTab() {
     <div className="journal-tab">
       <AddEntry tripMeta={tripMeta} selectedTrip={selectedTrip} onSaved={() => setReload((r) => r + 1)} />
       {selectedTripId && <TripSummary tripId={selectedTripId} hasEntries={visible.length > 0} />}
-      {selectedTrip && (
-        <DayScrubber entries={visible} onJump={(id) => setScrubJump({ id, key: Date.now() })} />
-      )}
       {!groups.length && (
         <div className="placeholder">
           <div className="placeholder-code">journal</div>
@@ -242,7 +238,6 @@ export default function JournalTab() {
               key={e.id}
               e={e}
               autoOpen={jumpEntry?.id === e.id}
-              jumpKey={scrubJump?.id === e.id ? scrubJump.key : null}
             />
           ))}
         </section>

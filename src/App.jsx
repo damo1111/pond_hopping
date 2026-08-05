@@ -14,6 +14,7 @@ import AccountTab from './tabs/AccountTab.jsx'
 import ShareView from './ShareView.jsx'
 import InstallChip from './components/InstallChip.jsx'
 import TripPicker from './components/TripPicker.jsx'
+import Icon from './components/Icon.jsx'
 import AuthSheet from './components/AuthSheet.jsx'
 import Onboarding from './components/Onboarding.jsx'
 import { tripColor } from './lib/tripColors.js'
@@ -47,18 +48,18 @@ export const TripContext = createContext({
 // have — 87 airports, most of a lifetime — and it was buried in a drawer
 // next to Currency and Phrases.
 const TABS = [
-  { id: 'world',    label: 'Home',    icon: '🌏' },
-  { id: 'plan',     label: 'Plan',    icon: '🧭' },
-  { id: 'flights',  label: 'Flights', icon: '✈️' },
-  { id: 'useful',   label: 'Useful',  icon: '🧰' },
+  { id: 'world',    label: 'Home',    icon: 'globe' },
+  { id: 'plan',     label: 'Plan',    icon: 'compass' },
+  { id: 'flights',  label: 'Flights', icon: 'plane' },
+  { id: 'useful',   label: 'Useful',  icon: 'kit' },
 ]
 
 const USEFUL_TABS = [
-  { id: 'costs',    label: 'Costs',    icon: '💰' },
-  { id: 'currency', label: 'Currency', icon: '💱' },
-  { id: 'phrases',  label: 'Phrases',  icon: '💬' },
-  { id: 'share',    label: 'Share',    icon: '🔗' },
-  { id: 'account',  label: 'Account',  icon: '👤' },
+  { id: 'costs',    label: 'Costs',    icon: 'coin' },
+  { id: 'currency', label: 'Currency', icon: 'exchange' },
+  { id: 'phrases',  label: 'Phrases',  icon: 'speech' },
+  { id: 'share',    label: 'Share',    icon: 'share' },
+  { id: 'account',  label: 'Account',  icon: 'person' },
 ]
 
 // Reachable only by entering a trip on Home — no longer in the bottom bar.
@@ -323,7 +324,7 @@ export default function App() {
                 className={`subnavitem${usefulTab === tab.id ? ' active' : ''}`}
                 onClick={() => setUsefulTab(tab.id)}
               >
-                <span className="subnavitem-i">{tab.icon}</span>
+                <Icon name={tab.icon} size={17} className="subnavitem-i" />
                 {tab.label}
               </button>
             ))}
@@ -383,7 +384,7 @@ export default function App() {
               className={`navitem${activeTab === tab.id ? ' active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
             >
-              <span className="navitem-i">{tab.icon}</span>
+              <Icon name={tab.icon} size={22} className="navitem-i" />
               <span className="navitem-l">{tab.label}</span>
             </button>
           ))}

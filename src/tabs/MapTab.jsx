@@ -376,8 +376,12 @@ export default function MapTab() {
               className="map-ds-chip"
               onClick={() => mapRef.current?.flyTo([e.lat, e.lon], 13, { duration: 1.1 })}
             >
-              <span className="map-ds-mood">{e.mood || '·'}</span>
-              <span className="map-ds-day">{e.day_number ? `D${e.day_number}` : ''}</span>
+              {/* Was an emoji over "D7". The scrubber still has a job here
+                  — it flies the map to that day — but a date is what
+                  someone is actually looking for. */}
+              <span className="map-ds-day">
+                {new Date(e.entry_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+              </span>
             </button>
           ))}
         </div>
