@@ -68,6 +68,7 @@ export default function TripStoryCard({ trip, cover, onClose, goToTab }) {
           <span className="story-title">{trip.title}</span>
           <span className="story-dates">{fmtRange(trip)}</span>
         </span>
+        {isPast && <Icon name="chevron" size={17} className="story-head-go" />}
       </HeadContent>
 
       <div className="story-jumps">

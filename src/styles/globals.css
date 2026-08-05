@@ -1759,7 +1759,15 @@ button {
    bottom nav sitting over it stays light and airy instead of picking up
    a murky tint. */
 .globe-wrap {
-  background: radial-gradient(ellipse at 50% 30%, #eaf4fb 0%, #cfe6f5 55%, #a9cfe8 100%);
+  /* The canvas is lifted 64px by .globe-shift and the sphere doesn't reach
+     the bottom anyway, so the deepest stop of the sky used to sit as a flat
+     band of saturated blue under the trip card — taller the phone, worse the
+     band, and the safe-area inset adds to it. Fading the last stretch into
+     the page colour means whatever the sphere doesn't fill reads as paper
+     rather than as a lot of empty sky. */
+  background:
+    linear-gradient(to bottom, transparent 84%, var(--bg) 97%),
+    radial-gradient(ellipse at 50% 30%, #eaf4fb 0%, #cfe6f5 55%, #a9cfe8 100%);
   overflow: hidden;
 }
 
@@ -3359,6 +3367,28 @@ button {
 .story-head.openable .story-thumb {
   width: 72px;
   height: 72px;
+}
+
+/* And the row itself has to look like a row you can open. The caption on
+   the image says what's behind it; the tint and the chevron say that it
+   opens — which is the part people were missing. */
+.story-head.openable {
+  padding: 8px 34px 8px 8px;
+  margin: -8px -8px 5px;
+  border-radius: 15px;
+  background: var(--accent-bg);
+  transition: background 0.15s;
+}
+
+.story-head.openable:active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.story-head-go {
+  margin-left: auto;
+  flex: none;
+  color: var(--accent);
+  opacity: 0.85;
 }
 
 .story-head.openable:active .story-thumb img {
