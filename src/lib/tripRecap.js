@@ -47,27 +47,35 @@ export function recapStats({ trip = {}, flights = [], entries = [], runs = [], p
     if (f.arr_airport) airports.add(f.arr_airport)
   }
 
+  // `to` is the screen that figure is counting. A number derived from rows
+  // you can go and look at should take you there — which is also why the
+  // recap doesn't need a row of signpost tiles bolted underneath it. The
+  // ones with no `to` (days away, km flown, airports) have nowhere honest
+  // to point, so they stay as plain text rather than pretending.
   const figures = [
     days && { key: 'days', value: String(days), label: days === 1 ? 'day away' : 'days away' },
     flights.length && {
       key: 'flights',
       value: String(flights.length),
       label: flights.length === 1 ? 'flight' : 'flights',
+      to: 'flights',
     },
     km >= 1 && { key: 'km', value: round(km).toLocaleString('en-GB'), label: 'km flown' },
     cities.length && {
       key: 'cities',
       value: String(cities.length),
       label: cities.length === 1 ? 'city' : 'cities',
+      to: 'map',
     },
     airports.size && { key: 'airports', value: String(airports.size), label: 'airports' },
-    runKm >= 1 && { key: 'runs', value: round(runKm).toLocaleString('en-GB'), label: 'km run' },
+    runKm >= 1 && { key: 'runs', value: round(runKm).toLocaleString('en-GB'), label: 'km run', to: 'map' },
     entries.length && {
       key: 'entries',
       value: String(entries.length),
       label: entries.length === 1 ? 'day written up' : 'days written up',
+      to: 'journal',
     },
-    photos.length && { key: 'photos', value: String(photos.length), label: 'photos' },
+    photos.length && { key: 'photos', value: String(photos.length), label: 'photos', to: 'photos' },
   ].filter(Boolean)
 
   return { figures, cities, km: round(km), runKm: round(runKm), days }

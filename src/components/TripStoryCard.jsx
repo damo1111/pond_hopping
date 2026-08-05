@@ -81,7 +81,14 @@ export default function TripStoryCard({ trip, cover, onClose, goToTab }) {
         ))}
       </div>
 
-      {recapOpen && <TripRecap trip={trip} cover={cover} onClose={() => setRecapOpen(false)} />}
+      {recapOpen && (
+        <TripRecap
+          trip={trip}
+          cover={cover}
+          onClose={() => setRecapOpen(false)}
+          onGoToTab={goToTab}
+        />
+      )}
     </div>
   )
 }

@@ -81,3 +81,30 @@ test('a trip too thin to fill a page is not offered a recap', () => {
     true
   )
 })
+
+test('figures counting something you can open know where to send you', () => {
+  const s = recapStats({
+    trip: { start_date: '2025-06-01', end_date: '2025-06-09' },
+    flights: [{ distance_km: 900, dep_airport: 'MEL', arr_airport: 'SYD', arr_city: 'Sydney' }],
+    entries: [{ city: 'Sydney' }],
+    runs: [{ distance_km: 10 }],
+    photos: [{ url: 'x' }],
+  })
+  const to = Object.fromEntries(s.figures.map((f) => [f.key, f.to]))
+  assert.equal(to.entries, 'journal')
+  assert.equal(to.photos, 'photos')
+  assert.equal(to.flights, 'flights')
+  assert.equal(to.runs, 'map')
+  assert.equal(to.cities, 'map')
+})
+
+test('figures with nowhere honest to point stay plain', () => {
+  const s = recapStats({
+    trip: { start_date: '2025-06-01', end_date: '2025-06-09' },
+    flights: [{ distance_km: 900, dep_airport: 'MEL', arr_airport: 'SYD' }],
+  })
+  const to = Object.fromEntries(s.figures.map((f) => [f.key, f.to]))
+  assert.equal(to.days, undefined)
+  assert.equal(to.km, undefined)
+  assert.equal(to.airports, undefined)
+})

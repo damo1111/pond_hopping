@@ -23,7 +23,7 @@ function fmtRange(t) {
   return b && b !== a ? `${a} – ${b}` : a
 }
 
-export default function TripRecap({ trip, cover, onClose }) {
+export default function TripRecap({ trip, cover, onClose, onGoToTab }) {
   const [data, setData] = useState(null)
   const [copied, setCopied] = useState(false)
 
@@ -119,14 +119,27 @@ export default function TripRecap({ trip, cover, onClose }) {
 
         {stats.figures.length > 0 && (
           <div className="recap-figures">
-            {stats.figures.map((f, i) => (
-              /* Staggered so the numbers land one after another rather than
-                 all at once — the whole point is that they're read. */
-              <div className="recap-figure" key={f.key} style={{ animationDelay: `${120 + i * 70}ms` }}>
-                <span className="recap-figure-value">{f.value}</span>
-                <span className="recap-figure-label">{f.label}</span>
-              </div>
-            ))}
+            {stats.figures.map((f, i) => {
+              // A number counted from rows you can go and look at should
+              // take you to them — "12 photos" opens the gallery, "9 days
+              // written up" opens the journal. Which is why the recap needs
+              // no row of signpost tiles under it.
+              const go = f.to && onGoToTab
+              const Tag = go ? 'button' : 'div'
+              return (
+                /* Staggered so the numbers land one after another rather
+                   than all at once — the point is that they're read. */
+                <Tag
+                  className={`recap-figure${go ? ' linked' : ''}`}
+                  key={f.key}
+                  style={{ animationDelay: `${120 + i * 70}ms` }}
+                  onClick={go ? () => { onGoToTab(f.to); onClose?.() } : undefined}
+                >
+                  <span className="recap-figure-value">{f.value}</span>
+                  <span className="recap-figure-label">{f.label}</span>
+                </Tag>
+              )
+            })}
           </div>
         )}
 
