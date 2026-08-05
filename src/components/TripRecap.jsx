@@ -169,13 +169,18 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
         .order('taken_on', { ascending: true })
         .limit(12),
       supabase.from('trip_summaries').select('summary').eq('trip_id', trip.id).maybeSingle(),
-    ]).then(([f, e, r, p, s]) => {
+      // The strip is twelve; the figure has to be all of them. Counting the
+      // twelve gave "12 photos" for a trip with 181. A head request costs one
+      // round trip and no rows.
+      supabase.from('photos').select('id', { count: 'exact', head: true }).eq('trip_id', trip.id),
+    ]).then(([f, e, r, p, s, n]) => {
       if (!alive) return
       setData({
         flights: f.data ?? [],
         entries: e.data ?? [],
         runs: r.data ?? [],
         photos: p.data ?? [],
+        photoCount: n.count ?? null,
         summary: s.data?.summary ?? null,
       })
     })

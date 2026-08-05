@@ -26,10 +26,17 @@ function collectCities({ entries = [], flights = [] }) {
   return [...seen.values()]
 }
 
-export function recapStats({ trip = {}, flights = [], entries = [], runs = [], photos = [] }) {
+// `photos` is the handful fetched to fill the strip, not the trip's whole
+// album — the recap only ever shows a dozen. Counting the array gave "12
+// photos" for a trip with 181 of them, which is the one figure here that was
+// reporting the size of a query rather than the size of the trip. Everything
+// else (flights, entries, runs) is fetched whole, so `photoCount` is the only
+// override needed; when it isn't passed the array is still the best guess.
+export function recapStats({ trip = {}, flights = [], entries = [], runs = [], photos = [], photoCount = null }) {
   const km = flights.reduce((sum, f) => sum + (Number(f.distance_km) || 0), 0)
   const runKm = runs.reduce((sum, r) => sum + (Number(r.distance_km) || 0), 0)
   const cities = collectCities({ entries, flights })
+  const nPhotos = Number.isFinite(photoCount) && photoCount >= 0 ? photoCount : photos.length
 
   // Inclusive of both ends — a trip that leaves on the 1st and returns on
   // the 3rd was three days away, not two.
@@ -75,7 +82,12 @@ export function recapStats({ trip = {}, flights = [], entries = [], runs = [], p
       label: entries.length === 1 ? 'day written up' : 'days written up',
       to: 'journal',
     },
-    photos.length && { key: 'photos', value: String(photos.length), label: 'photos', to: 'photos' },
+    nPhotos && {
+      key: 'photos',
+      value: nPhotos.toLocaleString('en-GB'),
+      label: nPhotos === 1 ? 'photo' : 'photos',
+      to: 'photos',
+    },
   ].filter(Boolean)
 
   return { figures, cities, km: round(km), runKm: round(runKm), days }
