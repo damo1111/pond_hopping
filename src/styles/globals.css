@@ -6207,18 +6207,51 @@ button {
    mounted underneath, so closing this returns you to where you were. */
 .recap-layer {
   position: absolute;
-  /* Inset from the top rather than covering everything, so the recap you
-     came from stays visible behind it and the thing reads as a sheet over
-     a page rather than as a page swap. */
-  inset: 62px 0 0;
+  /* Anchored to the bottom and sized to its content rather than always
+     filling the space: four flight cards in a full-height sheet is one
+     screen of cards and two of empty cream. Capped short of the top —
+     the recap staying visible above it is the whole point. */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: calc(100% - 62px);
   z-index: 3;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -16px 44px rgba(26, 22, 17, 0.34);
   overflow: hidden;
   animation: recap-layer-in 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Leaflet measures a parent with a real height, so the map is the one view
+   that has to be told to fill the sheet rather than size it. */
+.recap-layer.full {
+  top: 62px;
+}
+
+/* Frosted rather than opaque, so the trip you came from reads through it —
+   dimmed and out of focus, but there. It sits on its own element rather
+   than on .recap-layer because backdrop-filter would make the sheet the
+   containing block for position:fixed descendants, and the photo lightbox
+   opens from inside here. */
+.recap-layer-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: saturate(150%) blur(30px);
+  -webkit-backdrop-filter: saturate(150%) blur(30px);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .recap-layer-glass { background: var(--bg); }
+}
+
+.recap-layer-bar,
+.recap-layer-body {
+  position: relative;
+  z-index: 1;
 }
 
 /* The recap behind recedes as the sheet rises — that's what makes it read
@@ -6261,16 +6294,15 @@ button {
   z-index: 1;
 }
 
-.recap-layer-bar { padding-top: 18px; }
-
 .recap-layer-bar {
   flex: none;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  /* Clears the grab handle sitting at the top of the sheet. */
+  padding: 16px 12px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  background: none;
 }
 
 /* Names the trip you'd go back to, so the way out is a place rather than
@@ -6324,6 +6356,13 @@ button {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
+}
+
+/* The map fills the sheet edge to edge; padding under it would just be a
+   band of glass with nothing in it. */
+.recap-layer.full .recap-layer-body {
+  padding-bottom: 0;
 }
 
 /* Up to three recaps, then never again. */
@@ -6370,6 +6409,25 @@ button {
 /* You arrived here from the recap, which is that same paragraph set larger.
    Printing it again at the top of the journal is the app repeating itself. */
 .recap-layer .trip-summary {
+  display: none;
+}
+
+/* Same argument, three more times over. The recap behind is the trip's name,
+   flags and totals at full size; the sheet's own bar names it again on the
+   way out. A third copy at the top of the list — "🇳🇿 NZ Status Run · 4
+   FLIGHTS · 9,478 KM", directly under the figure you tapped to count them —
+   is the screen introducing itself to someone who just arrived from it.
+   The year drawers keep theirs: those are controls, not a masthead. */
+.recap-layer .flight-section-head:not(.fsh-toggle),
+.recap-layer .photos-hero {
+  display: none;
+}
+
+/* A recap is a look back. Adding a journal entry or a photo belongs on the
+   tab, not in the sheet you opened to read what's already there. */
+.recap-layer .journal-add-btn,
+.recap-layer .journal-form,
+.recap-layer .flights-review-cta {
   display: none;
 }
 

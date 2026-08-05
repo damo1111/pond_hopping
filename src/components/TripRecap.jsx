@@ -13,10 +13,13 @@ const PhotosTab = lazy(() => import('../tabs/PhotosTab.jsx'))
 const MapTab = lazy(() => import('../tabs/MapTab.jsx'))
 const FlightsTab = lazy(() => import('../tabs/FlightsTab.jsx'))
 
+// `full` means the sheet is stretched to the top of its range rather than
+// sized to its content — Leaflet measures a parent with a real height, so
+// the map is the one view that can't size the sheet itself.
 const LAYERS = {
   journal: { title: 'Journal', View: JournalTab },
   photos: { title: 'Photos', View: PhotosTab },
-  map: { title: 'Map', View: MapTab },
+  map: { title: 'Map', View: MapTab, full: true },
   flights: { title: 'Flights', View: FlightsTab },
 }
 
@@ -219,7 +222,10 @@ export default function TripRecap({ trip, cover, onClose }) {
       </div>
 
       {layer && (
-        <section className="recap-layer" key={layer}>
+        <section className={`recap-layer${LAYERS[layer].full ? ' full' : ''}`} key={layer}>
+          {/* The frosted pane behind the sheet's content — see
+              .recap-layer-glass for why the blur can't sit on the sheet. */}
+          <div className="recap-layer-glass" />
           <header className="recap-layer-bar">
             <button className="recap-layer-back" onClick={() => setLayer(null)}>
               <Icon name="chevron" size={16} className="recap-layer-back-i" />
