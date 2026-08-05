@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
+import { SheetContext } from '../lib/sheetContext.js'
 
 const NUMS = '0123456789'
 const ALPHAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -52,6 +53,13 @@ function FlapChar({ target, delay }) {
 // A "nod to" a physical split-flap departures board: each character flicks
 // through a few random glyphs before settling, staggered left to right.
 export default function FlapText({ text, className, groupDelay = 0, stagger = 16 }) {
+  // Four flight cards is about sixty flapping characters, each firing six or
+  // seven state updates over a second — nine hundred renders landing exactly
+  // while a sheet is trying to slide, and reading as SOY → CXU while they do.
+  // Charming on the Flights tab. In a sheet it is the jank.
+  const inSheet = useContext(SheetContext)
+  if (inSheet) return <span className={className}>{text}</span>
+
   return (
     <span className={className}>
       {(text || '').split('').map((ch, i) => (

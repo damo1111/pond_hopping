@@ -1698,6 +1698,7 @@ button {
 
 .meta-edit-row {
   display: flex;
+  align-items: center;
   gap: 5px;
 }
 
@@ -1714,14 +1715,26 @@ button {
 }
 
 .meta-edit-save {
+  /* Was 26px wide with no height, so it stretched to whatever the row was and
+     the tick floated in a tall box. It's a square button the size of the
+     input beside it, with the mark centred by flexbox rather than by a
+     font's idea of where a baseline goes. */
   flex: none;
-  width: 26px;
+  width: 28px;
+  height: 28px;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border: 1px solid var(--accent-dim);
   border-radius: 7px;
   background: var(--accent-bg);
   color: var(--accent);
   font-size: 13px;
 }
+
+.meta-edit-save:disabled { opacity: 0.45; }
 
 .photo-none-edit {
   padding: 16px;
@@ -1759,7 +1772,15 @@ button {
    bottom nav sitting over it stays light and airy instead of picking up
    a murky tint. */
 .globe-wrap {
-  background: radial-gradient(ellipse at 50% 30%, #eaf4fb 0%, #cfe6f5 55%, #a9cfe8 100%);
+  /* The canvas is lifted 64px by .globe-shift and the sphere doesn't reach
+     the bottom anyway, so the deepest stop of the sky used to sit as a flat
+     band of saturated blue under the trip card — taller the phone, worse the
+     band, and the safe-area inset adds to it. Fading the last stretch into
+     the page colour means whatever the sphere doesn't fill reads as paper
+     rather than as a lot of empty sky. */
+  background:
+    linear-gradient(to bottom, transparent 84%, var(--bg) 97%),
+    radial-gradient(ellipse at 50% 30%, #eaf4fb 0%, #cfe6f5 55%, #a9cfe8 100%);
   overflow: hidden;
 }
 
@@ -3172,7 +3193,7 @@ button {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: calc(74px + env(safe-area-inset-bottom));
+  bottom: calc(90px + env(safe-area-inset-bottom));
   z-index: 500;
   display: flex;
   gap: 9px;
@@ -3267,7 +3288,7 @@ button {
   position: absolute;
   left: 12px;
   right: 12px;
-  bottom: calc(74px + env(safe-area-inset-bottom));
+  bottom: calc(90px + env(safe-area-inset-bottom));
   z-index: 500;
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(8px);
@@ -3309,7 +3330,7 @@ button {
   position: absolute;
   left: 12px;
   right: 12px;
-  bottom: calc(74px + env(safe-area-inset-bottom));
+  bottom: calc(90px + env(safe-area-inset-bottom));
   z-index: 500;
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(12px);
@@ -3346,7 +3367,6 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 13px;
   padding-right: 30px;
   width: 100%;
   text-align: left;
@@ -3359,6 +3379,30 @@ button {
 .story-head.openable .story-thumb {
   width: 72px;
   height: 72px;
+}
+
+/* And the row itself has to look like a row you can open. The caption on
+   the image says what's behind it; the tint and the chevron say that it
+   opens — which is the part people were missing. */
+.story-head.openable {
+  /* Symmetric now the tiles are gone — a bottom margin left a band of dead
+     white under the tint where the tile row used to be. */
+  padding: 8px 34px 8px 8px;
+  margin: -8px;
+  border-radius: 15px;
+  background: var(--accent-bg);
+  transition: background 0.15s;
+}
+
+.story-head.openable:active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.story-head-go {
+  margin-left: auto;
+  flex: none;
+  color: var(--accent);
+  opacity: 0.85;
 }
 
 .story-head.openable:active .story-thumb img {
@@ -5947,6 +5991,25 @@ button {
   inset: 0;
   z-index: 9500;
   background: var(--bg);
+}
+
+/* A downward drag anywhere in here is the sheet's to interpret, not the
+   browser's. Without this, pulling the sheet's handle on the web triggers
+   Chrome's pull-to-refresh and reloads the page instead. */
+.recap {
+  overscroll-behavior: none;
+  touch-action: pan-y;
+}
+
+/* Mounted the moment you tap so its five queries run during the globe's
+   flight, but held off-screen until the globe lands — otherwise the recap
+   arrives empty and rebuilds itself in front of you. */
+.recap.waiting {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.recap.in {
   animation: recap-in 420ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -6066,9 +6129,29 @@ button {
 .recap-figure {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 2px;
   opacity: 0;
   animation: recap-figure-in 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+}
+
+/* The ones that go somewhere say so with a rule under the label — quieter
+   than a button, but it's the only mark on the block, so it reads. */
+.recap-figure.linked .recap-figure-label {
+  border-bottom: 1px solid var(--accent-dim);
+  padding-bottom: 2px;
+}
+
+.recap-figure.linked .recap-figure-value {
+  color: var(--accent);
+}
+
+.recap-figure.linked:active {
+  opacity: 0.6;
 }
 
 @keyframes recap-figure-in {
@@ -6148,3 +6231,778 @@ button {
   .recap-figure { opacity: 1; }
 }
 
+
+/* ── Recap sub-layer ──────────────────────────────────────────── */
+
+/* Tapping a figure used to close the recap and drop you on a tab with no
+   way back. The destination now opens *over* the recap, which stays
+   mounted underneath, so closing this returns you to where you were. */
+.recap-layer {
+  position: absolute;
+  /* One size, always, stopping short of the top so the recap stays visible
+     above it — that part is the whole point. Sizing to content was snugger
+     for a short list, but
+     every view fetches its own rows, so the sheet rose to the height of the
+     word "loading…" and then grew out from under you when they landed —
+     354px to 593px on the runs. There is no version of that which isn't a
+     jump, so the sheet is a fixed frame and the content fills it. What used
+     to be dead cream below a short list is now frosted glass with the trip
+     showing through, which is the point of the glass. */
+  top: 62px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -16px 44px rgba(26, 22, 17, 0.34);
+  overflow: hidden;
+  animation: recap-layer-in 460ms cubic-bezier(0.32, 0.72, 0, 1);
+  /* Springs back if the pull didn't go far enough; follows the finger 1:1
+     while it is still on the glass. */
+  transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+  /* Promoted for the duration of the rise so the compositor owns it, then
+     handed back. Not just for the memory: while a transform (or a
+     will-change for one) is in play the sheet is the containing block for
+     position:fixed descendants, and the photo lightbox opens from in here.
+     Dropping it on arrival lets the lightbox go full-screen again. */
+  will-change: transform;
+}
+
+.recap-layer.settled {
+  will-change: auto;
+}
+
+/* No easing while the finger is down — a transition here would make the
+   sheet lag behind the thumb. */
+.recap-layer.dragging {
+  transition: none;
+  will-change: transform;
+}
+
+/* Frosted rather than opaque, so the trip you came from reads through it —
+   dimmed and out of focus, but there. It sits on its own element rather
+   than on .recap-layer because backdrop-filter would make the sheet the
+   containing block for position:fixed descendants, and the photo lightbox
+   opens from inside here. */
+.recap-layer-glass {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  /* Nearly opaque during the rise: blurring a backdrop that is itself
+     animating means re-blurring it every frame, which is the jolt. The
+     sheet arrives first, then goes see-through. */
+  background: color-mix(in srgb, var(--bg) 96%, transparent);
+  transition: background 260ms ease;
+}
+
+.recap-layer.settled .recap-layer-glass {
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: saturate(150%) blur(24px);
+  -webkit-backdrop-filter: saturate(150%) blur(24px);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .recap-layer-glass,
+  .recap-layer.settled .recap-layer-glass { background: var(--bg); }
+}
+
+.recap-layer-bar,
+.recap-layer-body {
+  position: relative;
+  z-index: 1;
+}
+
+/* The recap behind recedes as the sheet rises — that's what makes it read
+   as depth rather than as the next screen. Transform only: `filter` on a
+   full page of photographs is a repaint per frame, and the sheet is
+   animating over the top of it at the same time. */
+.recap-scroll {
+  transition: transform 460ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* The dimming that `filter: brightness()` used to do, as a scrim whose
+   opacity the compositor can animate on its own. */
+.recap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: rgba(26, 22, 17, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 460ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.recap.layered::after {
+  opacity: 1;
+}
+
+/* The recap's own close sits directly above the sheet's, so two ✕ stack in
+   the same corner meaning different things. The one behind is unreachable
+   while the sheet is up, so it gets out of the way. */
+.recap.layered .recap-close {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms;
+}
+
+.recap.layered .recap-scroll {
+  transform: scale(0.94);
+  transform-origin: 50% 0;
+}
+
+/* No opacity on the sheet: fading a translucent surface in while it moves
+   means compositing two changing things at once, and the sheet reads as a
+   sheet from the first frame anyway. */
+@keyframes recap-layer-in {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* The grab handle. It is not decoration any more — a pull from the bar, or
+   from the top of the list, takes the sheet down and closes it. */
+.recap-layer::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+  border-radius: 999px;
+  background: var(--border);
+  z-index: 1;
+}
+
+.recap-layer-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Clears the grab handle sitting at the top of the sheet. */
+  padding: 16px 12px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  background: none;
+}
+
+/* Names the trip you'd go back to, so the way out is a place rather than
+   an arrow pointing at nothing in particular. */
+.recap-layer-back {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.recap-layer-back span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recap-layer-back-i {
+  transform: rotate(180deg);
+  flex: none;
+}
+
+.recap-layer-title {
+  margin-left: auto;
+  padding-right: 6px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.recap-layer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  /* Scrolling past the top of the list stops here rather than becoming a
+     page refresh; the pull-to-close gesture picks it up instead. */
+  overscroll-behavior-y: contain;
+}
+
+/* The map fills the sheet edge to edge; padding under it would just be a
+   band of glass with nothing in it. */
+.recap-layer.map .recap-layer-body {
+  padding-bottom: 0;
+}
+
+/* Up to three recaps, then never again. */
+/* Was a full-bleed banner announcing itself across the page. It's a note
+   about the numbers, so it's a small bubble that points at them. */
+.recap-hint {
+  position: relative;
+  width: max-content;
+  max-width: calc(100% - 40px);
+  margin: 16px 0 -8px 20px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  background: #1A1611;
+  font-family: var(--font-display);
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: #F5F2EB;
+  box-shadow: 0 6px 18px rgba(26, 22, 17, 0.28);
+  animation: recap-hint-in 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.recap-hint::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 22px;
+  width: 10px;
+  height: 10px;
+  background: #1A1611;
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+@keyframes recap-hint-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recap-layer,
+  .recap-hint { animation: none; }
+}
+
+/* You arrived here from the recap, which is that same paragraph set larger.
+   Printing it again at the top of the journal is the app repeating itself. */
+.recap-layer .trip-summary {
+  display: none;
+}
+
+/* Same argument, three more times over. The recap behind is the trip's name,
+   flags and totals at full size; the sheet's own bar names it again on the
+   way out. A third copy at the top of the list — "🇳🇿 NZ Status Run · 4
+   FLIGHTS · 9,478 KM", directly under the figure you tapped to count them —
+   is the screen introducing itself to someone who just arrived from it.
+   The year drawers keep theirs: those are controls, not a masthead. */
+.recap-layer .flight-section-head:not(.fsh-toggle),
+.recap-layer .photos-hero {
+  display: none;
+}
+
+/* A recap is a look back. Adding a journal entry or a photo belongs where the
+   trip still lives — the planner has a Photos tab for exactly this — not in
+   the sheet you opened to read what is already there. */
+.recap-layer .ph-add,
+.recap-layer .journal-add-btn,
+.recap-layer .journal-form,
+.recap-layer .flights-review-cta {
+  display: none;
+}
+
+/* Airports that aren't among the most-used: a mark that says "you landed
+   here", sized by how often, without another duck in the pile. */
+.globe-dot {
+  border-radius: 50%;
+  background: var(--gold);
+  border: 1px solid rgba(245, 242, 235, 0.75);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* ── Runs sheet ───────────────────────────────────────────────── */
+
+/* "64 km run" opened the whole Map tab: filters for hotels and photos, a
+   dashed flight line across the East China Sea, and the runs lost among it.
+   The figure counts runs, so this counts them back. */
+.runs-panel {
+  padding: 12px 14px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.runs-total {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 0 4px 2px;
+}
+
+.rt-value {
+  font-family: var(--font-mono);
+  font-size: 26px;
+  color: var(--text);
+}
+
+.rt-label {
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.rt-climb {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.run-card {
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.run-card.open { border-color: var(--run-color); }
+
+/* The row is the button. A card showing a route and a pace looks like it
+   opens, so it does. */
+.run-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+/* The shape you ran, drawn straight from the GPS trace — equirectangular is
+   wrong at continental scale and exact at the scale of a morning run, and it
+   costs no tiles, no Leaflet and no network. */
+.run-track {
+  flex: none;
+  width: 96px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.run-track-none {
+  width: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.run-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.run-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.run-date {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.run-city {
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.run-figures {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 3px;
+}
+
+.run-km {
+  font-family: var(--font-mono);
+  font-size: 19px;
+  color: var(--text);
+}
+
+.run-pace {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--run-color);
+}
+
+.run-meta {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+/* ── Map preview card ─────────────────────────────────────────── */
+
+/* A Leaflet popup is a balloon tethered to its marker: no animation, and
+   near an edge half of it is off the map. What a tapped pin deserves is a
+   card, arriving the same way the recap's sheets do. */
+.map-preview {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(26, 22, 17, 0.22);
+  animation: map-preview-in 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes map-preview-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+.map-preview-img {
+  flex: none;
+  width: 68px;
+  height: 68px;
+  border-radius: 12px;
+  object-fit: cover;
+  display: block;
+  background: var(--surface-2);
+}
+
+.map-preview-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.map-preview-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-preview-sub {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-preview-jump {
+  margin-top: 7px;
+  padding: 5px 11px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--pv-accent);
+  color: #FFFFFF;
+  font-family: var(--font-display);
+  font-size: 11.5px;
+}
+
+.map-preview-close {
+  flex: none;
+  align-self: flex-start;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-preview { animation: none; }
+}
+
+/* Inside a recap sheet there is no bottom nav to clear, so the card and the
+   scrubber sit at the bottom of the sheet rather than 76px up from it. */
+.recap-layer .map-preview,
+.recap-layer .map-day-scrub {
+  bottom: calc(12px + env(safe-area-inset-bottom));
+}
+
+/* ── Photo upload ─────────────────────────────────────────────── */
+
+.ph-add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 4px;
+}
+
+.pu-pick {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 13px 16px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #FFFFFF;
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+
+.pu-pick:disabled { opacity: 0.55; }
+
+.pu-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.pu-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.pu-name {
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pu-state { flex: none; letter-spacing: 0.04em; }
+.pu-done .pu-state { color: var(--accent); }
+.pu-failed .pu-state { color: #C0392B; }
+.pu-waiting { opacity: 0.5; }
+
+/* What the run cost and what it bought — the located count especially, since
+   those are the photos that can put themselves on the map. */
+.pu-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.pu-summary strong {
+  font-weight: normal;
+  color: var(--text);
+}
+
+.pu-bad { color: #C0392B; }
+
+/* ── Planner photos ───────────────────────────────────────────── */
+
+.pp { padding-bottom: 20px; }
+
+.pp-empty {
+  margin: 6px 16px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.pp-count {
+  margin: 4px 16px 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.pp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 0 14px;
+}
+
+.pp-grid img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--surface-2);
+  display: block;
+}
+
+/* ── A run, opened ────────────────────────────────────────────── */
+
+.run-open {
+  padding: 0 12px 12px;
+  animation: run-open-in 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes run-open-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* 96px of squiggle is a thumbnail. This is the route. */
+.run-track-big {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 320 / 200;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.run-no-track {
+  margin: 0;
+  padding: 22px 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.run-label {
+  margin-top: 9px;
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.run-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.run-stats strong {
+  font-weight: normal;
+  font-size: 13px;
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run-open { animation: none; }
+}
+
+/* Holds the space a run's map is about to fill, so opening a run doesn't
+   shuffle the card once Leaflet arrives. */
+.run-map-loading {
+  height: 240px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.run-map {
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+/* ── The cold open ────────────────────────────────────────────── */
+
+/* While your history is drawing itself onto the globe, the arcs are the only
+   thing worth looking at. The labels, the ducks and the trip list all arrive
+   at the end, which is what makes the finish feel like a finish. */
+.globe-wrap.introing .globe-duck-pin,
+.globe-wrap.introing .globe-dot,
+.globe-wrap.introing .scene-container .label-dot,
+.globe-wrap.introing .scene-container text {
+  opacity: 0;
+}
+
+.globe-duck-pin,
+.globe-dot {
+  transition: opacity 700ms ease 120ms;
+}
+
+/* The list is the thing you came for, so it doesn't fight the animation for
+   attention — it rises once the earth has arrived. */
+.world-trips {
+  transition: opacity 620ms ease, transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.globe-wrap.introing ~ .world-trips,
+.globe-wrap.introing .world-trips {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .globe-wrap.introing .globe-duck-pin,
+  .globe-wrap.introing .globe-dot,
+  .globe-wrap.introing ~ .world-trips,
+  .globe-wrap.introing .world-trips {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The map behind a run's thumbnail — a couple of tiles nailed in place and
+   the route drawn over them, rather than a Leaflet instance per row. */
+.run-thumb {
+  position: relative;
+  width: 96px;
+  height: 64px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.run-thumb-tile {
+  position: absolute;
+  width: 256px;
+  height: 256px;
+  max-width: none;
+  display: block;
+}
+
+.run-thumb-line {
+  position: absolute;
+  inset: 0;
+}

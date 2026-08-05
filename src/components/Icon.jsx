@@ -85,6 +85,11 @@ const PATHS = {
   ),
   plus: <path d="M12 5v14M5 12h14" />,
   close: <path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />,
+  chevron: <path d="m9.5 5 7 7-7 7" />,
+  // Drawn rather than the ✓ character, for the same reason ✕ is: a glyph
+  // carries its own side bearings and sits on a baseline, so it never lands in
+  // the middle of a button however you size the box around it.
+  check: <path d="m5 12.5 4.5 4.5L19 7" />,
 }
 
 export default function Icon({ name, size = 22, className = '' }) {

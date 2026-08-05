@@ -81,3 +81,70 @@ test('a trip too thin to fill a page is not offered a recap', () => {
     true
   )
 })
+
+test('figures counting something you can open know where to send you', () => {
+  const s = recapStats({
+    trip: { start_date: '2025-06-01', end_date: '2025-06-09' },
+    flights: [{ distance_km: 900, dep_airport: 'MEL', arr_airport: 'SYD', arr_city: 'Sydney' }],
+    entries: [{ city: 'Sydney' }],
+    runs: [{ distance_km: 10 }],
+    photos: [{ url: 'x' }],
+  })
+  const to = Object.fromEntries(s.figures.map((f) => [f.key, f.to]))
+  assert.equal(to.entries, 'journal')
+  assert.equal(to.photos, 'photos')
+  assert.equal(to.flights, 'flights')
+  // Runs used to point at the map and got the whole Map tab — hotel and
+  // photo filters, flight lines, the runs lost among it. They have their own
+  // sheet now. Cities legitimately want a map.
+  assert.equal(to.runs, 'runs')
+  assert.equal(to.cities, 'map')
+})
+
+test('the photo figure counts the album, not the dozen fetched for the strip', () => {
+  // The recap only ever shows twelve, so counting the array reported the size
+  // of the query: "12 photos" for a trip that has 181.
+  const strip = Array.from({ length: 12 }, (_, i) => ({ url: `p${i}` }))
+  const s = recapStats({
+    trip: { start_date: '2026-06-30', end_date: '2026-07-08' },
+    photos: strip,
+    photoCount: 181,
+  })
+  const photos = s.figures.find((f) => f.key === 'photos')
+  assert.equal(photos.value, '181')
+  assert.equal(photos.label, 'photos')
+})
+
+test('without a count the fetched rows are still the best guess', () => {
+  const s = recapStats({
+    trip: { start_date: '2026-06-30', end_date: '2026-07-08' },
+    photos: [{ url: 'a' }, { url: 'b' }],
+  })
+  assert.equal(s.figures.find((f) => f.key === 'photos').value, '2')
+})
+
+test('one photo is a photo', () => {
+  const s = recapStats({ trip: {}, photos: [{ url: 'a' }], photoCount: 1 })
+  assert.equal(s.figures.find((f) => f.key === 'photos').label, 'photo')
+})
+
+test('a trip with no photos gets no photo figure, even alongside a stale strip', () => {
+  const s = recapStats({ trip: {}, photos: [{ url: 'a' }], photoCount: 0 })
+  assert.equal(s.figures.find((f) => f.key === 'photos'), undefined)
+})
+
+test('a four-figure album is grouped, like the kilometres are', () => {
+  const s = recapStats({ trip: {}, photos: [{ url: 'a' }], photoCount: 1204 })
+  assert.equal(s.figures.find((f) => f.key === 'photos').value, '1,204')
+})
+
+test('figures with nowhere honest to point stay plain', () => {
+  const s = recapStats({
+    trip: { start_date: '2025-06-01', end_date: '2025-06-09' },
+    flights: [{ distance_km: 900, dep_airport: 'MEL', arr_airport: 'SYD' }],
+  })
+  const to = Object.fromEntries(s.figures.map((f) => [f.key, f.to]))
+  assert.equal(to.days, undefined)
+  assert.equal(to.km, undefined)
+  assert.equal(to.airports, undefined)
+})

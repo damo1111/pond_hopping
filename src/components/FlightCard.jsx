@@ -5,6 +5,7 @@ import { fetchAircraftPhoto } from '../lib/planespotters.js'
 import { supabase } from '../lib/supabase.js'
 import TailFin from './TailFin.jsx'
 import FlapText from './FlapText.jsx'
+import Icon from './Icon.jsx'
 import { localTime, localDate } from '../lib/airportTz.js'
 import { nameFor, usePeopleNames } from '../lib/people.js'
 
@@ -146,7 +147,7 @@ export default function FlightCard({ flight, aircraftType }) {
                     disabled={regSaving || !regDraft.trim()}
                     onClick={saveRegistration}
                   >
-                    {regSaving ? '…' : '✓'}
+                    {regSaving ? '…' : <Icon name="check" size={14} />}
                   </button>
                 </div>
               </div>
@@ -243,7 +244,7 @@ function Meta({ label, value, mono, onSave }) {
             placeholder={label}
           />
           <button className="meta-edit-save" disabled={saving || !draft.trim()} onClick={save}>
-            {saving ? '…' : '✓'}
+            {saving ? '…' : <Icon name="check" size={14} />}
           </button>
         </div>
       </div>

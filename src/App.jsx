@@ -34,6 +34,9 @@ export const TripContext = createContext({
   journalJump: null,
   jumpToJournal: () => {},
   clearJournalJump: () => {},
+  plannerJump: null,
+  openPlanner: () => {},
+  clearPlannerJump: () => {},
   goToTab: () => {},
 })
 
@@ -110,6 +113,10 @@ export default function App() {
   const [selectedTrip, setSelectedTrip] = useState(null)
   // Deep-link from a Map pin/run into its matching Journal entry.
   const [journalJump, setJournalJump] = useState(null)
+  // A trip card on Home opening straight into that trip's planner. PlanTab
+  // owns the full-screen TripPlanner, so this is the only way to say which
+  // trip from outside it.
+  const [plannerJump, setPlannerJump] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -241,6 +248,12 @@ export default function App() {
       journalJump,
       jumpToJournal,
       clearJournalJump: () => setJournalJump(null),
+      plannerJump,
+      openPlanner: (tripId) => {
+        setPlannerJump({ id: tripId, key: Date.now() })
+        setActiveTab('plan')
+      },
+      clearPlannerJump: () => setPlannerJump(null),
       // Callers (the trip story card, mostly) ask for a destination by name
       // without knowing whether it sits in the bottom bar or under Useful.
       // Resolve that here so moving a tab between the two doesn't break
@@ -254,7 +267,7 @@ export default function App() {
         }
       },
     }),
-    [tripMeta, tripsLoaded, selectedTrip, journalJump]
+    [tripMeta, tripsLoaded, selectedTrip, journalJump, plannerJump]
   )
 
   // Public read-only share page — no nav, no forms.

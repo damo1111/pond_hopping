@@ -26,10 +26,17 @@ function collectCities({ entries = [], flights = [] }) {
   return [...seen.values()]
 }
 
-export function recapStats({ trip = {}, flights = [], entries = [], runs = [], photos = [] }) {
+// `photos` is the handful fetched to fill the strip, not the trip's whole
+// album — the recap only ever shows a dozen. Counting the array gave "12
+// photos" for a trip with 181 of them, which is the one figure here that was
+// reporting the size of a query rather than the size of the trip. Everything
+// else (flights, entries, runs) is fetched whole, so `photoCount` is the only
+// override needed; when it isn't passed the array is still the best guess.
+export function recapStats({ trip = {}, flights = [], entries = [], runs = [], photos = [], photoCount = null }) {
   const km = flights.reduce((sum, f) => sum + (Number(f.distance_km) || 0), 0)
   const runKm = runs.reduce((sum, r) => sum + (Number(r.distance_km) || 0), 0)
   const cities = collectCities({ entries, flights })
+  const nPhotos = Number.isFinite(photoCount) && photoCount >= 0 ? photoCount : photos.length
 
   // Inclusive of both ends — a trip that leaves on the 1st and returns on
   // the 3rd was three days away, not two.
@@ -47,27 +54,40 @@ export function recapStats({ trip = {}, flights = [], entries = [], runs = [], p
     if (f.arr_airport) airports.add(f.arr_airport)
   }
 
+  // `to` is the screen that figure is counting. A number derived from rows
+  // you can go and look at should take you there — which is also why the
+  // recap doesn't need a row of signpost tiles bolted underneath it. The
+  // ones with no `to` (days away, km flown, airports) have nowhere honest
+  // to point, so they stay as plain text rather than pretending.
   const figures = [
     days && { key: 'days', value: String(days), label: days === 1 ? 'day away' : 'days away' },
     flights.length && {
       key: 'flights',
       value: String(flights.length),
       label: flights.length === 1 ? 'flight' : 'flights',
+      to: 'flights',
     },
     km >= 1 && { key: 'km', value: round(km).toLocaleString('en-GB'), label: 'km flown' },
     cities.length && {
       key: 'cities',
       value: String(cities.length),
       label: cities.length === 1 ? 'city' : 'cities',
+      to: 'map',
     },
     airports.size && { key: 'airports', value: String(airports.size), label: 'airports' },
-    runKm >= 1 && { key: 'runs', value: round(runKm).toLocaleString('en-GB'), label: 'km run' },
+    runKm >= 1 && { key: 'runs', value: round(runKm).toLocaleString('en-GB'), label: 'km run', to: 'runs' },
     entries.length && {
       key: 'entries',
       value: String(entries.length),
       label: entries.length === 1 ? 'day written up' : 'days written up',
+      to: 'journal',
     },
-    photos.length && { key: 'photos', value: String(photos.length), label: 'photos' },
+    nPhotos && {
+      key: 'photos',
+      value: nPhotos.toLocaleString('en-GB'),
+      label: nPhotos === 1 ? 'photo' : 'photos',
+      to: 'photos',
+    },
   ].filter(Boolean)
 
   return { figures, cities, km: round(km), runKm: round(runKm), days }

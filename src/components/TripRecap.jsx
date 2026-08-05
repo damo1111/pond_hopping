@@ -1,10 +1,43 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
 import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
+import { SheetContext } from '../lib/sheetContext.js'
 import CountryFlags from './CountryFlags.jsx'
 import Icon from './Icon.jsx'
+
+// Lazy so the recap doesn't drag four tab views — and Leaflet — into the
+// Home chunk for the many opens where nobody taps a figure.
+const JournalTab = lazy(() => import('../tabs/JournalTab.jsx'))
+const PhotosTab = lazy(() => import('../tabs/PhotosTab.jsx'))
+const MapTab = lazy(() => import('../tabs/MapTab.jsx'))
+const FlightsTab = lazy(() => import('../tabs/FlightsTab.jsx'))
+const RunsPanel = lazy(() => import('./RunsPanel.jsx'))
+
+// Fetching a 300KB chunk while a sheet is sliding up is a stall you can feel:
+// the animation is competing with a parse. Warm them once the recap has
+// settled and is doing nothing, so opening one is only a render.
+const WARM = [
+  () => import('../tabs/JournalTab.jsx'),
+  () => import('../tabs/PhotosTab.jsx'),
+  () => import('../tabs/FlightsTab.jsx'),
+  () => import('./RunsPanel.jsx'),
+  () => import('../tabs/MapTab.jsx'),
+]
+
+const LAYERS = {
+  journal: { title: 'Journal', View: JournalTab },
+  photos: { title: 'Photos', View: PhotosTab },
+  map: { title: 'Map', View: MapTab },
+  flights: { title: 'Flights', View: FlightsTab },
+  runs: { title: 'Runs', View: RunsPanel },
+}
+
+// Shown over the first few recaps and then never again — long enough to
+// teach that the numbers are the navigation, short of nagging.
+const HINT_KEY = 'ph_recap_hint_seen'
+const HINT_TIMES = 3
 
 // A trip, in one page.
 //
@@ -23,9 +56,91 @@ function fmtRange(t) {
   return b && b !== a ? `${a} – ${b}` : a
 }
 
-export default function TripRecap({ trip, cover, onClose }) {
+export default function TripRecap({ trip, cover, reveal = true, onClose }) {
   const [data, setData] = useState(null)
   const [copied, setCopied] = useState(false)
+  // Which sub-view is open over the recap. The recap itself stays mounted
+  // underneath, so closing this comes back here rather than dumping you on
+  // a tab with no way back — which is what tapping a figure used to do.
+  const [layer, setLayer] = useState(null)
+  // The frosted pane is the expensive part: blurring a backdrop that is
+  // itself mid-animation costs a full re-blur every frame, on a phone, at
+  // exactly the moment the sheet needs those frames. So the sheet rises
+  // over a flat surface and only goes frosted once it has arrived.
+  const [settled, setSettled] = useState(false)
+  const [hint, setHint] = useState(false)
+  // How far the sheet has been pulled down, in px. The handle was drawn as an
+  // affordance the sheet didn't honour: it looks like something you can pull,
+  // so on the web a downward drag went to the browser's pull-to-refresh
+  // instead. Now the sheet takes the gesture.
+  const [drag, setDrag] = useState(0)
+  const dragRef = useRef(null)
+  const bodyRef = useRef(null)
+
+  useEffect(() => {
+    setSettled(false)
+    setDrag(0)
+  }, [layer])
+
+  // Far enough down to be deliberate rather than a stray thumb.
+  const CLOSE_AT = 96
+
+  function onPointerDown(e) {
+    // From the bar always; from the body only when it's already at the top,
+    // so pulling the sheet never competes with reading what's in it.
+    const fromBody = bodyRef.current?.contains(e.target)
+    if (fromBody && (bodyRef.current.scrollTop || 0) > 0) return
+    dragRef.current = { y: e.clientY, t: e.timeStamp, moved: false }
+  }
+
+  function onPointerMove(e) {
+    const d = dragRef.current
+    if (!d) return
+    const dy = e.clientY - d.y
+    if (dy <= 0) {
+      if (d.moved) setDrag(0)
+      return
+    }
+    if (!d.moved && dy < 4) return
+    d.moved = true
+    // Resistance, so it feels attached to something rather than free.
+    setDrag(dy < CLOSE_AT ? dy : CLOSE_AT + (dy - CLOSE_AT) * 0.4)
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+  }
+
+  function onPointerUp(e) {
+    const d = dragRef.current
+    dragRef.current = null
+    if (!d?.moved) return
+    const dy = e.clientY - d.y
+    // A short flick closes as surely as a long pull.
+    const velocity = dy / Math.max(1, e.timeStamp - d.t)
+    if (dy > CLOSE_AT || velocity > 0.6) setLayer(null)
+    else setDrag(0)
+  }
+
+  // Once the recap is actually up and idle, pull the sheet chunks in the
+  // background. Not before: while it's still hidden the globe is flying, and
+  // parsing 300KB of Leaflet is the last thing that flight needs.
+  useEffect(() => {
+    if (!reveal) return
+    const idle = window.requestIdleCallback ?? ((fn) => setTimeout(fn, 1200))
+    const id = idle(() => WARM.forEach((load) => load()))
+    return () => window.cancelIdleCallback?.(id)
+  }, [reveal])
+
+  useEffect(() => {
+    if (!reveal) return
+    const seen = Number(localStorage.getItem(HINT_KEY) || 0)
+    if (seen >= HINT_TIMES) return
+    localStorage.setItem(HINT_KEY, String(seen + 1))
+    const show = setTimeout(() => setHint(true), 1100)
+    const hide = setTimeout(() => setHint(false), 6600)
+    return () => {
+      clearTimeout(show)
+      clearTimeout(hide)
+    }
+  }, [reveal])
 
   useEffect(() => {
     if (!trip?.id) return
@@ -54,13 +169,18 @@ export default function TripRecap({ trip, cover, onClose }) {
         .order('taken_on', { ascending: true })
         .limit(12),
       supabase.from('trip_summaries').select('summary').eq('trip_id', trip.id).maybeSingle(),
-    ]).then(([f, e, r, p, s]) => {
+      // The strip is twelve; the figure has to be all of them. Counting the
+      // twelve gave "12 photos" for a trip with 181. A head request costs one
+      // round trip and no rows.
+      supabase.from('photos').select('id', { count: 'exact', head: true }).eq('trip_id', trip.id),
+    ]).then(([f, e, r, p, s, n]) => {
       if (!alive) return
       setData({
         flights: f.data ?? [],
         entries: e.data ?? [],
         runs: r.data ?? [],
         photos: p.data ?? [],
+        photoCount: n.count ?? null,
         summary: s.data?.summary ?? null,
       })
     })
@@ -99,7 +219,7 @@ export default function TripRecap({ trip, cover, onClose }) {
   // any position:fixed descendant — so "full screen" quietly became "the
   // bottom third of the card".
   return createPortal(
-    <div className="recap">
+    <div className={`recap${layer ? ' layered' : ''}${reveal ? ' in' : ' waiting'}`}>
       <button className="recap-close" onClick={onClose} aria-label="Close">
         <Icon name="close" size={16} />
       </button>
@@ -117,16 +237,36 @@ export default function TripRecap({ trip, cover, onClose }) {
           </div>
         </header>
 
+        {hint && stats.figures.some((f) => f.to) && (
+          <div className="recap-hint">The underlined numbers open</div>
+        )}
+
         {stats.figures.length > 0 && (
-          <div className="recap-figures">
-            {stats.figures.map((f, i) => (
-              /* Staggered so the numbers land one after another rather than
-                 all at once — the whole point is that they're read. */
-              <div className="recap-figure" key={f.key} style={{ animationDelay: `${120 + i * 70}ms` }}>
-                <span className="recap-figure-value">{f.value}</span>
-                <span className="recap-figure-label">{f.label}</span>
-              </div>
-            ))}
+          /* Remounted on reveal so the staggered entrance plays for someone
+             watching, rather than having quietly run while this was hidden
+             behind the globe. */
+          <div className="recap-figures" key={reveal ? 'in' : 'wait'}>
+            {stats.figures.map((f, i) => {
+              // A number counted from rows you can go and look at should
+              // take you to them — "12 photos" opens the gallery, "9 days
+              // written up" opens the journal. Which is why the recap needs
+              // no row of signpost tiles under it.
+              const go = !!f.to
+              const Tag = go ? 'button' : 'div'
+              return (
+                /* Staggered so the numbers land one after another rather
+                   than all at once — the point is that they're read. */
+                <Tag
+                  className={`recap-figure${go ? ' linked' : ''}`}
+                  key={f.key}
+                  style={{ animationDelay: `${120 + i * 70}ms` }}
+                  onClick={go ? () => setLayer(f.to) : undefined}
+                >
+                  <span className="recap-figure-value">{f.value}</span>
+                  <span className="recap-figure-label">{f.label}</span>
+                </Tag>
+              )
+            })}
           </div>
         )}
 
@@ -164,6 +304,47 @@ export default function TripRecap({ trip, cover, onClose }) {
           {copied ? 'Link copied' : 'Share this trip'}
         </button>
       </div>
+
+      {layer && (
+        <section
+          className={`recap-layer ${layer}${settled ? ' settled' : ''}${drag ? ' dragging' : ''}`}
+          key={layer}
+          style={drag ? { transform: `translateY(${drag}px)` } : undefined}
+          onAnimationEnd={(e) => e.target === e.currentTarget && setSettled(true)}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={() => {
+            dragRef.current = null
+            setDrag(0)
+          }}
+        >
+          {/* The frosted pane behind the sheet's content — see
+              .recap-layer-glass for why the blur can't sit on the sheet. */}
+          <div className="recap-layer-glass" />
+          <header className="recap-layer-bar">
+            <button className="recap-layer-back" onClick={() => setLayer(null)}>
+              <Icon name="chevron" size={16} className="recap-layer-back-i" />
+              <span>{trip.title}</span>
+            </button>
+            {/* One way out, not two. The ✕ and the back link did the same
+                thing, and of the pair only the link says where you land. */}
+            <span className="recap-layer-title">{LAYERS[layer].title}</span>
+          </header>
+          <div className="recap-layer-body" ref={bodyRef}>
+            <SheetContext.Provider value={true}>
+              <Suspense fallback={<div className="tab-loading">loading…</div>}>
+                {(() => {
+                  const { View } = LAYERS[layer]
+                  // The tab views read the selection from context and ignore
+                  // this; RunsPanel is built for the sheet and takes the trip.
+                  return <View trip={trip} />
+                })()}
+              </Suspense>
+            </SheetContext.Provider>
+          </div>
+        </section>
+      )}
     </div>,
     document.body
   )

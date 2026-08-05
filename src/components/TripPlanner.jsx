@@ -7,12 +7,16 @@ import ExploreView from './planner/ExploreView.jsx'
 import AddItemSheet from './planner/AddItemSheet.jsx'
 import EditEventModal from './planner/EditEventModal.jsx'
 import PlanChat from './PlanChat.jsx'
+import PlannerPhotos from './planner/PlannerPhotos.jsx'
 import { coverUrl } from '../lib/imgTransform.js'
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'itinerary', label: 'Itinerary' },
   { id: 'explore', label: 'Explore' },
+  // The way photos get onto a trip while it is still going on. The recap's
+  // photo sheet is a look back and stays read-only.
+  { id: 'photos', label: 'Photos' },
 ]
 
 export default function TripPlanner({ tripId, onClose, onChanged }) {
@@ -191,6 +195,8 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
             }}
           />
         )}
+
+        {tab === 'photos' && <PlannerPhotos trip={trip} />}
       </main>
 
       {tab === 'itinerary' && (

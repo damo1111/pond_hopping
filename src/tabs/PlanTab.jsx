@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { TripContext } from '../App.jsx'
 import { useAuth } from '../lib/AuthContext.jsx'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PlanChat from '../components/PlanChat.jsx'
@@ -238,6 +239,15 @@ export default function PlanTab() {
   const [wishlist, setWishlist] = useState(null)
   const [creating, setCreating] = useState(false) // PlanChat for a brand-new trip
   const [plannerId, setPlannerId] = useState(null) // full-screen TripPlanner for an existing draft
+  const { plannerJump, clearPlannerJump } = useContext(TripContext)
+
+  // Home hands over a trip id when one of its cards is tapped; PlanTab owns
+  // the planner, so this is where that lands.
+  useEffect(() => {
+    if (!plannerJump?.id) return
+    setPlannerId(plannerJump.id)
+    clearPlannerJump()
+  }, [plannerJump, clearPlannerJump])
   const [pendingImports, setPendingImports] = useState([])
   const [reviewingImports, setReviewingImports] = useState(false)
 
