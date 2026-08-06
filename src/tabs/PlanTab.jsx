@@ -6,13 +6,10 @@ import CountryFlags from '../components/CountryFlags.jsx'
 import PlanChat from '../components/PlanChat.jsx'
 import TripPlanner from '../components/TripPlanner.jsx'
 import EmailImportsReview from '../components/planner/EmailImportsReview.jsx'
-import { thumb, coverUrl } from '../lib/imgTransform.js'
-
-const WISHLIST_STATUS = [
-  { id: 'idea', label: 'Idea' },
-  { id: 'planned', label: 'Planned' },
-  { id: 'done', label: 'Done' },
-]
+import Icon from '../components/Icon.jsx'
+import PlanCard from '../components/plan/PlanCard.jsx'
+import { planLane } from '../lib/planLane.js'
+import { neverBeen } from '../lib/neverBeen.js'
 
 function slugify(title) {
   return (
@@ -25,49 +22,6 @@ function slugify(title) {
   )
 }
 
-function DraftTripCard({ t, events, cover, members, myEmail, onOpen, onChat }) {
-  const doneCount = events.filter((e) => e.done).length
-  // A member-gated trip carries its ownership on the card: whose trip it
-  // is, and what your role in it is ("Seeby's trip · you're the planner").
-  const owner = members?.find((m) => m.role === 'owner')
-  const me = myEmail ? members?.find((m) => m.email.toLowerCase() === myEmail.toLowerCase()) : null
-  // Full display name, not first name — in a two-David household,
-  // "David's trip" identifies nobody.
-  const whose = owner ? (owner.email.toLowerCase() === myEmail?.toLowerCase() ? 'Your' : `${owner.display_name || owner.email}'s`) : null
-  const roleLabel = me && me.role !== 'owner' ? ` · you're the ${me.role}` : ''
-  return (
-    <div className={`plan-trip-card${cover ? ' has-cover' : ''}`}>
-      {cover && <img className="plan-trip-card-img" src={coverUrl(cover, { width: 700, height: 400 })} alt="" loading="lazy" />}
-      <button className="plan-trip-card-main" onClick={onOpen}>
-        <div className="plan-trip-card-glass">
-          <div className="plan-trip-top">
-            <CountryFlags countries={t.countries} size={18} />
-            <span className="plan-trip-badge">
-              {whose ? `🔒 ${whose} trip${roleLabel}` : `✏️ Planning${t.traveler ? ` · ${t.traveler}` : ''}`}
-            </span>
-          </div>
-          <div className="plan-trip-title">{t.title}</div>
-          {t.subtitle && <div className="plan-trip-subtitle">{t.subtitle}</div>}
-          <div className="plan-trip-stats">
-            {t.start_date ? `~${new Date(t.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : 'dates tbc'}
-            {t.end_date ? ` – ${new Date(t.end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}` : ''}
-            {' · '}
-            {events.length ? `${doneCount}/${events.length} planned` : 'nothing logged yet'}
-          </div>
-        </div>
-      </button>
-      <button
-        className="plan-trip-card-chat"
-        onClick={(e) => {
-          e.stopPropagation()
-          onChat()
-        }}
-      >
-        continue planning →
-      </button>
-    </div>
-  )
-}
 
 // Wikipedia's REST summary API is free, keyless, and CORS-enabled — a
 // plain client-side fetch. Firing it off the title field is a lightweight
@@ -132,15 +86,15 @@ function WishlistForm({ onAdded }) {
 
   if (!show) {
     return (
-      <button className="plan-add-btn" onClick={() => setShow(true)}>
-        + add to wishlist
+      <button className="plan-add-idea" onClick={() => setShow(true)}>
+        + Add an idea
       </button>
     )
   }
 
   return (
-    <form className="plan-card" onSubmit={save}>
-      <div className="plan-card-title">Someday…</div>
+    <form className="plan-wish-form" onSubmit={save}>
+      <div className="plan-wish-form-title">Someday…</div>
       <input className="plan-input" placeholder="Place or experience — a country or city is enough" required value={form.title} onChange={onTitleChange} />
       {lookingUp && <div className="plan-input-hint">finding a photo…</div>}
       {autoFound && !lookingUp && <div className="plan-input-hint">found a photo automatically.</div>}
@@ -158,76 +112,16 @@ function WishlistForm({ onAdded }) {
   )
 }
 
-function WishlistItem({ item, onChange, onOpenChat }) {
-  const [converting, setConverting] = useState(false)
 
-  async function cycleStatus() {
-    const idx = WISHLIST_STATUS.findIndex((s) => s.id === item.status)
-    const next = WISHLIST_STATUS[(idx + 1) % WISHLIST_STATUS.length].id
-    await supabase.from('wishlist_items').update({ status: next }).eq('id', item.id)
-    onChange()
-  }
-  async function remove() {
-    await supabase.from('wishlist_items').delete().eq('id', item.id)
-    onChange()
-  }
-
-  async function turnIntoTrip() {
-    if (item.trip_id) {
-      onOpenChat(item.trip_id)
-      return
-    }
-    setConverting(true)
-    const { data: trip, error } = await supabase
-      .from('trips')
-      .insert({
-        slug: slugify(item.title),
-        title: item.title,
-        subtitle: item.notes || null,
-        countries: [],
-        status: 'draft',
-        sort_order: 0,
-      })
-      .select('id')
-      .single()
-    if (!error && trip) {
-      if (item.image_url) {
-        await supabase.from('photo_cache').upsert({ trip_id: trip.id, urls: [item.image_url], status: 'ok', updated_at: new Date().toISOString() })
-      }
-      await supabase.from('wishlist_items').update({ trip_id: trip.id, status: 'planned' }).eq('id', item.id)
-      onChange()
-      onOpenChat(trip.id)
-    }
-    setConverting(false)
-  }
-
-  return (
-    <div className="wishlist-card">
-      {item.image_url ? (
-        <div className="wishlist-cover">
-          <img src={thumb(item.image_url, { width: 300, height: 180 })} alt="" loading="lazy" />
-        </div>
-      ) : (
-        <div className="wishlist-cover wishlist-cover-empty">🌍</div>
-      )}
-      <div className="wishlist-body">
-        <div className="wishlist-title">{item.title}</div>
-        {item.country && <div className="wishlist-country">{item.country}</div>}
-        {item.notes && <div className="wishlist-notes">{item.notes}</div>}
-        <div className="wishlist-actions">
-          <button className={`wishlist-status wishlist-status-${item.status}`} onClick={cycleStatus}>
-            {WISHLIST_STATUS.find((s) => s.id === item.status)?.label || item.status}
-          </button>
-          <button className="wishlist-remove" onClick={remove}>
-            remove
-          </button>
-        </div>
-        <button className="wishlist-convert" onClick={turnIntoTrip} disabled={converting}>
-          {converting ? 'creating…' : item.trip_id ? '→ continue this trip' : '→ turn into a trip'}
-        </button>
-      </div>
-    </div>
-  )
+// A member-gated trip carries its ownership on the card. Full display name,
+// not first name — in a two-David household, "David's trip" identifies nobody.
+function whoseTrip(members, myEmail) {
+  const owner = members?.find((m) => m.role === 'owner')
+  if (!owner) return null
+  const mine = owner.email.toLowerCase() === (myEmail || '').toLowerCase()
+  const me = myEmail ? members.find((m) => m.email.toLowerCase() === myEmail.toLowerCase()) : null
+  const role = me && me.role !== 'owner' ? ` · you're the ${me.role}` : ''
+  return `${mine ? 'Your' : `${owner.display_name || owner.email}'s`} trip${role}`
 }
 
 export default function PlanTab() {
@@ -237,6 +131,9 @@ export default function PlanTab() {
   const [covers, setCovers] = useState({})
   const [members, setMembers] = useState({}) // trip_id -> trip_members rows (RLS: only trips you belong to)
   const [wishlist, setWishlist] = useState(null)
+  // Only for the empty state's suggestion: which corners of the world this
+  // account has actually landed in. Coordinates only — nothing else is read.
+  const [flownLegs, setFlownLegs] = useState([])
   const [creating, setCreating] = useState(false) // PlanChat for a brand-new trip
   const [plannerId, setPlannerId] = useState(null) // full-screen TripPlanner for an existing draft
   const { plannerJump, clearPlannerJump } = useContext(TripContext)
@@ -311,68 +208,110 @@ export default function PlanTab() {
     loadDrafts()
     loadWishlist()
     loadPendingImports()
+    supabase
+      .from('flights')
+      .select('dep_lat,dep_lon,arr_lat,arr_lon')
+      .eq('status', 'flown')
+      .then(({ data }) => setFlownLegs(data ?? []))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
+  // A someday turning into a trip is the lifecycle's first hinge, so it lives
+  // on the card rather than behind a menu: tap the idea, get a planner.
+  async function promote(item) {
+    if (item.trip_id) return setPlannerId(item.trip_id)
+    const { data: trip, error } = await supabase
+      .from('trips')
+      .insert({ slug: slugify(item.title), title: item.title, subtitle: item.notes || null,
+        countries: [], status: 'draft', sort_order: 0 })
+      .select('id')
+      .single()
+    if (error || !trip) return
+    if (item.image_url) {
+      await supabase.from('photo_cache').upsert({
+        trip_id: trip.id, urls: [item.image_url], status: 'ok', updated_at: new Date().toISOString(),
+      })
+    }
+    await supabase.from('wishlist_items').update({ trip_id: trip.id, status: 'planned' }).eq('id', item.id)
+    loadWishlist()
+    loadDrafts()
+    setPlannerId(trip.id)
+  }
+
   if (!draftTrips || !wishlist) return <div className="tab-loading">loading plans…</div>
+
+  const lane = planLane({ trips: draftTrips, wishlist, events: plannedEvents })
+  const suggestion = neverBeen(flownLegs)
 
   return (
     <div className="plan-tab">
       {pendingImports.length > 0 && (
         <button className="plan-import-banner" onClick={() => setReviewingImports(true)}>
-          📧 {pendingImports.length} booking{pendingImports.length > 1 ? 's' : ''} found from a forwarded email — review
+          <Icon name="speech" size={15} />
+          <span>{pendingImports.length} booking{pendingImports.length > 1 ? 's' : ''} from a forwarded email — review</span>
         </button>
       )}
 
-      <section className="plan-section">
-        <div className="plan-section-head">
-          <div className="plan-section-title">Trips in the works</div>
-          <button className="plan-add-btn" onClick={() => setCreating(true)}>
-            + plan a trip
+      {/* One lane, not two sections. "Trips in the works" and "Wishlist" were
+          the same spectrum split in half, each with its own heading and its
+          own dashed button. Someday → Planning → Booked is the lifecycle the
+          rest of the app already runs on. */}
+      <header className="plan-head">
+        <h1 className="plan-h1">What&apos;s next</h1>
+        <button className="plan-new" onClick={() => setCreating(true)}>
+          <Icon name="plus" size={15} />
+          <span>Plan a trip</span>
+        </button>
+      </header>
+
+      {!user && (
+        <div className="plan-note">Private trips are hidden — sign in from the Account tab to see yours.</div>
+      )}
+
+      {lane.length === 0 ? (
+        <div className="plan-blank">
+          <div className="plan-blank-title">Nothing on the horizon.</div>
+          {suggestion && (
+            <p className="plan-blank-note">
+              You&apos;ve landed in {suggestion.visited} of {suggestion.total} corners of the world. Never{' '}
+              {suggestion.name}, though — {suggestion.prompt}.
+            </p>
+          )}
+          <button className="plan-new plan-new-big" onClick={() => setCreating(true)}>
+            <Icon name="plus" size={16} />
+            <span>Start something</span>
           </button>
         </div>
-        {!user && (
-          <div className="plan-empty plan-signin-hint">🔒 Private trips are hidden — sign in from the Account tab to see yours.</div>
-        )}
-        {draftTrips.length === 0 && (
-          <div className="plan-empty">Nothing being planned right now — start one above, free-text or a quick form, whichever you'd rather.</div>
-        )}
-        <div className="plan-trip-list">
-          {draftTrips.map((t) => (
-            <DraftTripCard
-              key={t.id}
-              t={t}
-              events={plannedEvents.filter((e) => e.trip_id === t.id)}
-              cover={covers[t.id]}
-              members={members[t.id]}
-              myEmail={user?.email}
-              onOpen={() => setPlannerId(t.id)}
-              onChat={() => setPlannerId(t.id)}
+      ) : (
+        <div className="plan-lane">
+          {lane.map((row, i) => (
+            <PlanCard
+              key={`${row.kind}-${row.id}`}
+              row={row}
+              index={i}
+              cover={covers[row.id]}
+              whose={row.kind === 'trip' ? whoseTrip(members[row.id], user?.email) : null}
+              onOpen={() => (row.kind === 'trip' ? setPlannerId(row.id) : promote(row.wish))}
             />
           ))}
         </div>
-      </section>
+      )}
 
-      <section className="plan-section">
-        <div className="plan-section-head">
-          <div className="plan-section-title">Wishlist</div>
-          <WishlistForm onAdded={loadWishlist} />
-        </div>
-        {wishlist.length === 0 && <div className="plan-empty">Nowhere on the someday-list yet.</div>}
-        <div className="wishlist-grid">
-          {wishlist.map((item) => (
-            <WishlistItem
-              key={item.id}
-              item={item}
-              onChange={() => {
-                loadWishlist()
-                loadDrafts()
-              }}
-              onOpenChat={(tripId) => setPlannerId(tripId)}
-            />
-          ))}
-        </div>
-      </section>
+      {/* An empty wishlist used to read "Nowhere on the someday-list yet",
+          which is a dead end on a screen that is already mostly white. This is
+          drawn from the reader's own flights — the one suggestion this app can
+          make that nobody else could. */}
+      {lane.length > 0 && wishlist.length === 0 && suggestion && (
+        <button className="plan-suggest" onClick={() => setCreating(true)}>
+          <span className="ps-eyebrow">Someday</span>
+          <span className="ps-title">You&apos;ve never been to {suggestion.name}</span>
+          <span className="ps-note">{suggestion.prompt}</span>
+        </button>
+      )}
+
+      <div className="plan-foot">
+        <WishlistForm onAdded={loadWishlist} />
+      </div>
 
       {creating && (
         <PlanChat
