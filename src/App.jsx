@@ -37,6 +37,7 @@ export const TripContext = createContext({
   clearJournalJump: () => {},
   plannerJump: null,
   openPlanner: () => {},
+  openAuth: () => {},
   clearPlannerJump: () => {},
   goToTab: () => {},
 })
@@ -254,6 +255,10 @@ export default function App() {
       jumpToJournal,
       clearJournalJump: () => setJournalJump(null),
       plannerJump,
+      // Sign-in used to be reachable only from the duck in the header, which
+      // says nothing about why you would want to. Anything that needs an
+      // account can now ask for one where the need arises.
+      openAuth: () => setAuthOpen(true),
       openPlanner: (tripId) => {
         setPlannerJump({ id: tripId, key: Date.now() })
         setActiveTab('plan')

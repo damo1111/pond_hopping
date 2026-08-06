@@ -136,7 +136,7 @@ export default function PlanTab() {
   const [flownLegs, setFlownLegs] = useState([])
   const [creating, setCreating] = useState(false) // PlanChat for a brand-new trip
   const [plannerId, setPlannerId] = useState(null) // full-screen TripPlanner for an existing draft
-  const { plannerJump, clearPlannerJump } = useContext(TripContext)
+  const { plannerJump, clearPlannerJump, openAuth } = useContext(TripContext)
 
   // Home hands over a trip id when one of its cards is tapped; PlanTab owns
   // the planner, so this is where that lands.
@@ -258,14 +258,25 @@ export default function PlanTab() {
           rest of the app already runs on. */}
       <header className="plan-head">
         <h1 className="plan-h1">What&apos;s next</h1>
-        <button className="plan-new" onClick={() => setCreating(true)}>
+        <button className="plan-new" onClick={() => (user ? setCreating(true) : openAuth())}>
           <Icon name="plus" size={15} />
           <span>Plan a trip</span>
         </button>
       </header>
 
+      {/* This used to be a sentence pointing at another tab three taps away,
+          which is not a prompt, it is a shrug. Sign-in is now a button, next
+          to the reason you would want it. */}
       {!user && (
-        <div className="plan-note">Private trips are hidden — sign in from the Account tab to see yours.</div>
+        <div className="plan-signin">
+          <div className="plan-signin-body">
+            You&apos;re looking at an example. Sign in to start your own — trips, flights and
+            photos, kept to your account.
+          </div>
+          <button className="plan-signin-btn" onClick={openAuth}>
+            Sign in or create an account
+          </button>
+        </div>
       )}
 
       {lane.length === 0 ? (
@@ -277,7 +288,7 @@ export default function PlanTab() {
               {suggestion.name}, though — {suggestion.prompt}.
             </p>
           )}
-          <button className="plan-new plan-new-big" onClick={() => setCreating(true)}>
+          <button className="plan-new plan-new-big" onClick={() => (user ? setCreating(true) : openAuth())}>
             <Icon name="plus" size={16} />
             <span>Start something</span>
           </button>
@@ -302,7 +313,7 @@ export default function PlanTab() {
           drawn from the reader's own flights — the one suggestion this app can
           make that nobody else could. */}
       {lane.length > 0 && wishlist.length === 0 && suggestion && (
-        <button className="plan-suggest" onClick={() => setCreating(true)}>
+        <button className="plan-suggest" onClick={() => (user ? setCreating(true) : openAuth())}>
           <span className="ps-eyebrow">Someday</span>
           <span className="ps-title">You&apos;ve never been to {suggestion.name}</span>
           <span className="ps-note">{suggestion.prompt}</span>
