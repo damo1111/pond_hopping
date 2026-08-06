@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase.js'
 import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
 import { SheetContext } from '../lib/sheetContext.js'
+import { beginDrag, extendDrag, finishDrag } from '../lib/sheetDrag.js'
+import { record as debug, clear as clearDebug, read as readDebug, isOn as debugOn, subscribe as onDebug } from '../lib/gestureDebug.js'
 import CountryFlags from './CountryFlags.jsx'
 import Icon from './Icon.jsx'
 
@@ -56,6 +58,22 @@ function fmtRange(t) {
   return b && b !== a ? `${a} – ${b}` : a
 }
 
+// Switched on from Account, off for everyone else. Shows what the sheet's
+// drag actually received on the device it is running on, because three
+// rounds of reasoning about Android's WebView from a desktop browser got the
+// wrong answer three times.
+function GestureReadout() {
+  const [, bump] = useState(0)
+  useEffect(() => onDebug(() => bump((n) => n + 1)), [])
+  if (!debugOn()) return null
+  const lines = readDebug()
+  return (
+    <div className="gesture-readout">
+      {lines.length ? lines.map((l, i) => <div key={i}>{l}</div>) : <div>drag the sheet…</div>}
+    </div>
+  )
+}
+
 export default function TripRecap({ trip, cover, reveal = true, onClose }) {
   const [data, setData] = useState(null)
   const [copied, setCopied] = useState(false)
@@ -83,70 +101,55 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
     setDrag(0)
   }, [layer])
 
-  // Far enough down to be deliberate rather than a stray thumb.
-  const CLOSE_AT = 96
-
   // ── One gesture, fed by whichever events the engine actually sends ────────
   //
   // A finger on Android produces pointer events *and* touch events, and each
   // family can fail in a way the other doesn't. Pointer events get cancelled
-  // the moment the browser decides a vertical drag over a scrollable element
-  // is a scroll — which is why pulling down from inside the flights list did
-  // nothing. Touch events survive that, but only a non-passive touchmove can
-  // call preventDefault, and an engine that has already begun scrolling will
-  // ignore it.
+  // the moment the browser decides a vertical drag is a scroll. Touch events
+  // survive that, but only a non-passive touchmove can call preventDefault,
+  // and an engine that has already begun scrolling ignores it.
   //
-  // So neither family is trusted on its own. Both drive one shared gesture
-  // object, and every operation on it is idempotent: two sources reporting
-  // the same finger at the same place set the same drag, and only the first
-  // one to finish decides. Making one family exclusive is what broke the
-  // handle — it had been working on pointer events all along.
+  // So neither is trusted alone. Both feed one gesture object, and every
+  // operation on it is idempotent — two sources reporting the same finger at
+  // the same place reach the same answer, and only the first ending decides.
+  //
+  // The decision itself is in sheetDrag.js, with tests. It belongs there
+  // because the version that lived here was wrong three times running while
+  // every browser test passed: the case that was broken — the engine
+  // claiming the gesture and firing a cancel mid-pull — is not something a
+  // synthetic finger can be made to do.
   const gesture = dragRef
 
   function begin(y, t, target, sawTouch) {
-    // From the bar always; from the body only when it's already at the top,
-    // so pulling the sheet never competes with reading what's in it.
-    const fromBody = bodyRef.current?.contains(target)
-    if (fromBody && (bodyRef.current.scrollTop || 0) > 0) return
     const g = gesture.current
     // Already tracking this same finger from the other event family.
     if (g && Math.abs(g.y - y) < 2) { g.sawTouch = g.sawTouch || sawTouch; return }
-    gesture.current = { y, t, dy: 0, at: t, claimed: false, sawTouch }
+    const next = beginDrag({
+      y, t,
+      inBody: !!bodyRef.current?.contains(target),
+      scrollTop: bodyRef.current?.scrollTop || 0,
+    })
+    if (next) next.sawTouch = sawTouch
+    gesture.current = next
   }
 
   // Returns true when the gesture is ours, which is the caller's cue to take
   // the event away from the browser.
   function extend(y, t) {
-    const g = gesture.current
-    if (!g) return false
-    const dy = y - g.y
-    // Only a downward pull is ours. An upward one is the list scrolling, and
-    // letting go of it here is what keeps reading unaffected.
-    if (dy <= 0) {
-      if (g.claimed) setDrag(0)
-      gesture.current = null
-      return false
-    }
-    if (!g.claimed && dy < 6) return false
-    g.claimed = true
-    g.dy = dy
-    g.at = t
-    // Resistance past the threshold, so it feels attached to something.
-    setDrag(dy < CLOSE_AT ? dy : CLOSE_AT + (dy - CLOSE_AT) * 0.4)
-    return true
+    const sawTouch = gesture.current?.sawTouch
+    const { state, drag: d, mine } = extendDrag(gesture.current, { y, t })
+    if (state) state.sawTouch = sawTouch
+    gesture.current = state
+    if (d !== null) setDrag(d)
+    return mine
   }
 
-  // Read off the last position we actually rendered rather than off the
-  // finishing event: touchcancel carries no touch at all, and pointerup after
-  // a capture loss can carry a stale one.
-  function finish() {
+  function finish(endY) {
     const g = gesture.current
     gesture.current = null
-    if (!g?.claimed) return
-    // A short flick closes as surely as a long pull.
-    const velocity = g.dy / Math.max(1, g.at - g.t)
-    if (g.dy > CLOSE_AT || velocity > 0.6) setLayer(null)
-    else setDrag(0)
+    const verdict = finishDrag(g, endY)
+    if (verdict === 'close') setLayer(null)
+    else if (verdict === 'spring') setDrag(0)
   }
 
   useEffect(() => {
@@ -155,16 +158,33 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
 
     const onStart = (e) => {
       if (e.touches.length !== 1) return
+      clearDebug()
+      debug(`touchstart y=${Math.round(e.touches[0].clientY)} on ${e.target?.className || e.target?.tagName}`)
       begin(e.touches[0].clientY, e.timeStamp, e.target, true)
     }
     const onMove = (e) => {
-      if (extend(e.touches[0].clientY, e.timeStamp) && e.cancelable) e.preventDefault()
+      const mine = extend(e.touches[0].clientY, e.timeStamp)
+      debug(`touchmove dy=${Math.round(e.touches[0].clientY - (gesture.current?.y ?? e.touches[0].clientY))} mine=${mine} cancelable=${e.cancelable}`)
+      if (mine && e.cancelable) e.preventDefault()
     }
-    const onEnd = () => finish()
-    // A cancelled gesture is not a decision — spring back rather than close.
-    const onCancel = () => {
-      gesture.current = null
-      setDrag(0)
+    const endY = (e) => e.changedTouches?.[0]?.clientY
+    const onEnd = (e) => {
+      debug(`touchend y=${Math.round(endY(e) ?? -1)}`)
+      finish(endY(e))
+    }
+    // I previously sprang back here, on the reasoning that a cancelled
+    // gesture is not a decision. That was wrong, and it is why the handle
+    // stayed broken on a real phone through two rounds of fixes: Android's
+    // WebView claims the drag and fires touchcancel *mid-pull*, so a
+    // deliberate 150px haul down the sheet was being thrown away. Desktop
+    // Chromium never cancels once the bar is touch-action: none, so every
+    // test passed against a bug that only existed on the device.
+    //
+    // A cancel after a long downward pull is a decision. Judge it on the
+    // distance like any other ending.
+    const onCancel = (e) => {
+      debug(`touchCANCEL y=${Math.round(endY(e) ?? -1)}`)
+      finish(endY(e))
     }
 
     el.addEventListener('touchstart', onStart, { passive: true })
@@ -188,18 +208,18 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
     if (extend(e.clientY, e.timeStamp)) e.currentTarget.setPointerCapture?.(e.pointerId)
   }
 
-  function onPointerUp() {
-    finish()
+  function onPointerUp(e) {
+    finish(e.clientY)
   }
 
   // The browser cancels the pointer stream as soon as it claims the drag as a
-  // scroll. If touch events are also feeding this gesture they are still
-  // live and still preventing that scroll, so this says nothing — but with a
-  // mouse, or an engine sending pointer events only, it means the drag is over.
-  function onPointerCancel() {
+  // scroll. If touch events are also feeding this gesture they are still live,
+  // so let the touch side finish it — otherwise judge it on the distance, the
+  // same as any other ending.
+  function onPointerCancel(e) {
+    debug(`pointercancel y=${Math.round(e.clientY)} sawTouch=${!!gesture.current?.sawTouch}`)
     if (gesture.current?.sawTouch) return
-    gesture.current = null
-    setDrag(0)
+    finish(e.clientY)
   }
 
   // Once the recap is actually up and idle, pull the sheet chunks in the
@@ -403,6 +423,7 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
           {/* The frosted pane behind the sheet's content — see
               .recap-layer-glass for why the blur can't sit on the sheet. */}
           <div className="recap-layer-glass" />
+          <GestureReadout />
           <header className="recap-layer-bar">
             <button className="recap-layer-back" onClick={() => setLayer(null)}>
               <Icon name="chevron" size={16} className="recap-layer-back-i" />
