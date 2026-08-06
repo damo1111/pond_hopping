@@ -7695,3 +7695,75 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .recap { transition: none; }
 }
+
+/* ── When the app fails to draw ───────────────────────────────
+   Plain on purpose: this renders when something else did not, so it leans on
+   as little of the rest of the stylesheet as possible. */
+.crash {
+  position: fixed;
+  inset: 0;
+  z-index: 200000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px;
+  text-align: center;
+  background: #f5f2eb;
+  color: #1a1611;
+  font-family: var(--font-display, sans-serif);
+  overflow-y: auto;
+}
+
+.crash-duck { width: 52px; height: 52px; }
+
+.crash-title { font-size: 20px; font-weight: 500; }
+
+.crash-body {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #8b8375;
+  max-width: 320px;
+}
+
+.crash-detail {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  line-height: 1.5;
+  color: #8b8375;
+  background: #ede9df;
+  border-radius: 10px;
+  padding: 10px 12px;
+  max-width: 320px;
+  max-height: 140px;
+  overflow: auto;
+  white-space: pre-wrap;
+  text-align: left;
+}
+
+.crash-btn {
+  margin-top: 4px;
+  min-width: 220px;
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #1a1611;
+  color: #f5f2eb;
+  font-family: inherit;
+  font-size: 15px;
+}
+
+.crash-btn--quiet {
+  background: none;
+  color: #8b8375;
+  border: 1px solid #e4ded1;
+}
+
+.crash-build {
+  margin-top: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: #b8ae9a;
+}
