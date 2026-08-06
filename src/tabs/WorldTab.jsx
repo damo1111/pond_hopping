@@ -13,6 +13,8 @@ import { tripPhase } from '../lib/tripPhase.js'
 import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
 import { sectionTrips } from '../lib/tripPhase.js'
 import { homeCoords } from '../lib/homePov.js'
+import { shouldBadge, shouldTour, TOUR_SEEN_KEY } from '../lib/demoTour.js'
+import DemoTour from '../components/DemoTour.jsx'
 
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.
@@ -128,6 +130,24 @@ export default function WorldTab() {
   // account happens to have been, and spinning like it wants to be touched
   // instead of idling behind six trips.
   const isEmpty = tripsLoaded && !tripMeta.length
+
+  // The walkthrough of the example trip. Decided once when the trips land
+  // rather than on every render: it should not blink back on the instant
+  // someone deletes their last real trip, and it must never re-run after
+  // being dismissed. shouldTour holds the actual rules — see demoTour.js.
+  const [tourOn, setTourOn] = useState(false)
+  useEffect(() => {
+    let dismissed = false
+    try {
+      dismissed = localStorage.getItem(TOUR_SEEN_KEY) === '1'
+    } catch {
+      // A browser that won't read localStorage gets the tour every launch,
+      // which is the harmless direction to fail in.
+    }
+    if (shouldTour({ trips: tripMeta, tripsLoaded, dismissed })) setTourOn(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tripsLoaded])
+
   const home = useMemo(() => homeCoords(), [])
   const overviewPov = isEmpty ? { lat: home.lat, lng: home.lng, altitude: 1.9 } : OVERVIEW_POV
   const idleSpin = isEmpty ? 0.9 : 0.35
@@ -688,6 +708,10 @@ export default function WorldTab() {
         />
       )}
 
+      {/* Only while the example is the only trip here, and never once the
+          recap is open over the top of it. */}
+      {tourOn && !selectedTrip && <DemoTour onDone={() => setTourOn(false)} />}
+
       {tripsLoaded && !tripMeta.length ? (
         <EmptyHome onPlan={() => goToTab('plan')} />
       ) : (
@@ -830,7 +854,7 @@ function TripCard({ t, covers, selectedTrip, setSelectedTrip }) {
   const bounce = useBounce()
   return (
     <button
-      className={`wt-card${active ? ' active' : ''}${bounce.className}`}
+      className={`wt-card${active ? ' active' : ''}${shouldBadge(t) ? ' wt-card--demo' : ''}${bounce.className}`}
       onClick={() => {
         bounce.onPress()
         setSelectedTrip(active ? null : t.slug)
@@ -842,6 +866,10 @@ function TripCard({ t, covers, selectedTrip, setSelectedTrip }) {
           <img src={coverUrl(covers[t.id], { width: 400, height: 220 })} alt="" loading="lazy" />
         </span>
       )}
+      {/* Says what it is for as long as it is there, not only during the
+          tour. Six months from now, someone scrolling past "HK & South Korea"
+          among their own trips should not have to wonder whether they went. */}
+      {shouldBadge(t) && <span className="wt-demo-badge">Example</span>}
       <span className="wt-flags">
         <CountryFlags countries={t.countries} size={20} />
       </span>

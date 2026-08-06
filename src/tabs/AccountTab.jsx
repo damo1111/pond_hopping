@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { visitStatus, enableVisits, disableVisits, syncVisits } from '../lib/visits.js'
+import { isOn as gestureDebugOn, toggle as toggleGestureDebug } from '../lib/gestureDebug.js'
 
 const ROLES = [
   { id: 'family', label: 'Family' },
@@ -394,6 +395,20 @@ function BuildStamp() {
   )
 }
 
+// Turns on a readout inside the recap sheets showing which touch events the
+// drag is actually receiving. It exists because the close gesture stayed
+// broken on a real phone through three fixes that all passed on a desktop
+// browser — the two engines disagree about what a downward drag produces and
+// whether it can be cancelled, and only the phone can settle it.
+function GestureDebugToggle() {
+  const [on, setOn] = useState(() => gestureDebugOn())
+  return (
+    <button className="build-stamp" onClick={() => setOn(toggleGestureDebug())}>
+      gesture readout · {on ? 'on — open a sheet and drag it' : 'off'}
+    </button>
+  )
+}
+
 export default function AccountTab() {
   const { user, authLoading } = useAuth()
   if (authLoading) return <div className="tab-loading">loading…</div>
@@ -401,6 +416,7 @@ export default function AccountTab() {
     <div className="account-wrap">
       {user ? <SignedIn /> : <SignInForm />}
       <BuildStamp />
+      <GestureDebugToggle />
     </div>
   )
 }

@@ -389,9 +389,11 @@ export default function App() {
 
         <nav className="bottomnav">
           {TABS.map((tab) => (
+            // navitem-<id> is an anchor, not a style — the demo tour points
+            // at a named tab and needs a way to find it.
             <button
               key={tab.id}
-              className={`navitem${activeTab === tab.id ? ' active' : ''}`}
+              className={`navitem navitem-${tab.id}${activeTab === tab.id ? ' active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
             >
               <Icon name={tab.icon} size={22} className="navitem-i" />
