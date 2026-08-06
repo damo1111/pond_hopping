@@ -12,6 +12,7 @@ import ShareTab from './tabs/ShareTab.jsx'
 import PlanTab from './tabs/PlanTab.jsx'
 import AccountTab from './tabs/AccountTab.jsx'
 import ShareView from './ShareView.jsx'
+import ShowcaseView from './ShowcaseView.jsx'
 import InstallChip from './components/InstallChip.jsx'
 import TripPicker from './components/TripPicker.jsx'
 import Icon from './components/Icon.jsx'
@@ -93,6 +94,10 @@ const SESSION_NOTES = {
   phrases:  ['session 10', 'Korean + Cantonese, tap to copy.'],
   share:    ['session 11', 'Read-only share links for friends.'],
 }
+
+// One revocable link to the whole log, for showing someone. Read before the
+// app mounts, like the per-trip share, so it never flashes the real UI first.
+const SHOWCASE_TOKEN = new URLSearchParams(window.location.search).get('showcase')
 
 const SHARE_PARAMS = (() => {
   const q = new URLSearchParams(window.location.search)
@@ -281,6 +286,8 @@ export default function App() {
   )
 
   // Public read-only share page — no nav, no forms.
+  if (SHOWCASE_TOKEN) return <ShowcaseView token={SHOWCASE_TOKEN} />
+
   if (SHARE_PARAMS) {
     return <ShareView slug={SHARE_PARAMS.slug} show={SHARE_PARAMS.show} />
   }

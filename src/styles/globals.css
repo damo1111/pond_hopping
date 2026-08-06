@@ -7767,3 +7767,224 @@ button {
   letter-spacing: 0.12em;
   color: #b8ae9a;
 }
+
+/* ── The showcase: everything, read-only, behind one link ───────── */
+
+.showcase {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: calc(20px + var(--safe-area-inset-top, env(safe-area-inset-top))) 16px
+           calc(40px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
+}
+
+.showcase-head { text-align: center; margin-bottom: 22px; }
+
+.showcase-sub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.showcase-totals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px 8px;
+  padding: 18px 4px 26px;
+}
+
+.showcase-total-v {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.showcase-total-l {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.showcase-trips { display: flex; flex-direction: column; gap: 12px; }
+
+.showcase-trip {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.showcase-trip-head {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+.showcase-cover { display: block; }
+
+.showcase-cover img {
+  display: block;
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+}
+
+.showcase-trip-text { display: block; padding: 12px 14px 14px; }
+
+.showcase-trip-title {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 21px;
+  line-height: 1.15;
+  margin-top: 4px;
+}
+
+.showcase-trip-dates {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin-top: 4px;
+}
+
+.showcase-trip-meta {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.showcase-body { padding: 0 14px 16px; }
+
+.showcase-summary {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0 0 14px;
+}
+
+.showcase-photos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.showcase-photos img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.showcase-section { margin-bottom: 16px; }
+
+.showcase-section h3 {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+  font-weight: 400;
+}
+
+.showcase-flight {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.showcase-flight-route { font-family: var(--font-mono); font-size: 13px; }
+
+.showcase-flight-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.showcase-entry { padding: 8px 0; }
+
+.showcase-entry-head {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.showcase-entry-title { font-size: 15px; margin-top: 2px; }
+
+.showcase-entry-note {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+}
+
+.showcase-foot {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  padding-top: 26px;
+}
+
+.showcase-dead {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  padding: 30px;
+}
+
+.showcase-dead-title { font-size: 19px; }
+
+.showcase-dead-body { font-size: 14px; color: var(--text-muted); max-width: 300px; }
+
+/* Managing them, in the Share tab. */
+.showcase-link {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.showcase-link-label { font-size: 14px; }
+
+.showcase-link-url {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  word-break: break-all;
+  margin-top: 4px;
+}
+
+.showcase-link-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+.showcase-link-actions .account-btn { flex: 1; margin: 0; }
+
+.share-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 10px 0;
+}
