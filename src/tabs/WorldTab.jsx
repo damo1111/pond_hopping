@@ -22,6 +22,16 @@ const OVERVIEW_POV = { lat: -8, lng: 122, altitude: 1.9 }
 // transition you sit through. The trip opens as the globe settles.
 const FLY_MS = 2100
 
+// The cold open is off.
+//
+// It measured fine in a desktop browser and reads as jittery on a real phone,
+// where the WebView is a slower engine and this is the heaviest thing the app
+// ever asks of it — three seconds of WebGL while a hundred and fifty arcs
+// mount. The timing logic and its tests stay (globeIntro.js) so turning it
+// back on is one line, but it does not run until the globe itself is smooth
+// on the device that matters.
+const INTRO_ENABLED = false
+
 // Once per page load, not once per mount — switching to Plan and back should
 // not replay the opening.
 let introPlayed = false
@@ -255,6 +265,18 @@ export default function WorldTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTrip])
 
+  // A phone screen reports a device pixel ratio near 3, and globe.gl clamps
+  // that to 2 — still four times the fragments of 1x, every frame, for a
+  // sphere nobody is inspecting at pixel level. 1.5 is indistinguishable on a
+  // 400px-wide globe and cuts the shading work by nearly half, which is the
+  // largest single lever on how this feels in a WebView.
+  useEffect(() => {
+    const g = globeEl.current
+    if (!g?.renderer) return
+    const r = g.renderer()
+    if (r?.setPixelRatio) r.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1))
+  }, [dims.width, dims.height])
+
   // The globe keeps rendering every frame behind the recap, where nobody can
   // see it — a three.js scene on a phone GPU, competing for frames with a
   // sheet that is trying to slide. Park it once the recap is actually in
@@ -351,7 +373,7 @@ export default function WorldTab() {
   const [introArcs, setIntroArcs] = useState(null) // null = not intro-ing
 
   useEffect(() => {
-    if (introPlayed || !flights || selectedTrip) return
+    if (!INTRO_ENABLED || introPlayed || !flights || selectedTrip) return
     if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       introPlayed = true
       return

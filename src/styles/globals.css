@@ -4668,6 +4668,58 @@ button {
   background: var(--bg);
   display: flex;
   flex-direction: column;
+  /* Tapping a trip on Home flies the globe to it for two seconds and then
+     handed over to this, which appeared with no transition whatsoever — a
+     cut, in the middle of a sequence that had been nothing but motion. The
+     shell fades on quickly (it's only paper; there is nothing to admire),
+     and the trip itself lifts in below once the read lands. */
+  animation: tp-shell-in 200ms ease-out;
+}
+
+@keyframes tp-shell-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* The contents are inserted a beat later — when the trip query comes back —
+   so their animations start then rather than over an empty frame. Two
+   groups, not five: every extra stagger step is another element the
+   compositor is animating at once, and this has to hold up on a phone. */
+.tp-modal--ready .tp-header,
+.tp-modal--ready .tp-tabs {
+  animation: tp-rise 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.tp-modal--ready .tp-dayswitch,
+.tp-modal--ready .tp-body {
+  animation: tp-rise 460ms cubic-bezier(0.22, 1, 0.36, 1) 70ms both;
+}
+
+/* The cover photo settles rather than rises — it's behind everything, and a
+   backdrop that slides reads as the page having come loose. */
+.tp-modal--ready .tp-cover {
+  animation: tp-cover-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes tp-rise {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes tp-cover-in {
+  from { opacity: 0; transform: scale(1.05); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-modal,
+  .tp-modal--ready .tp-header,
+  .tp-modal--ready .tp-tabs,
+  .tp-modal--ready .tp-dayswitch,
+  .tp-modal--ready .tp-body,
+  .tp-modal--ready .tp-cover {
+    animation: none;
+  }
 }
 
 /* The trip photo, full-bleed behind the planner's chrome.
