@@ -1,5 +1,121 @@
-import { useContext, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { TripContext } from '../App.jsx'
+import { supabase } from '../lib/supabase.js'
+import { useAuth } from '../lib/AuthContext.jsx'
+
+// One link to the whole log, rather than one per trip.
+//
+// The per-trip links below still exist, but they only work on a trip that is
+// public — and trips are private by default now, which is what makes this the
+// useful one: it shows everything you have, to whoever holds the link, until
+// you turn it off.
+function ShowcaseLinks() {
+  const { user } = useAuth()
+  const [links, setLinks] = useState(null)
+  const [label, setLabel] = useState('')
+  const [costs, setCosts] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(null)
+
+  const load = () =>
+    supabase
+      .from('showcase_links')
+      .select('*')
+      .is('revoked_at', null)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setLinks(data ?? []))
+
+  useEffect(() => {
+    if (!user) return setLinks([])
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email])
+
+  async function create() {
+    setBusy(true)
+    await supabase
+      .from('showcase_links')
+      .insert({ owner_email: user.email, label: label.trim() || null, include_costs: costs })
+    setLabel('')
+    setCosts(false)
+    await load()
+    setBusy(false)
+  }
+
+  async function revoke(token) {
+    await supabase
+      .from('showcase_links')
+      .update({ revoked_at: new Date().toISOString() })
+      .eq('token', token)
+    await load()
+  }
+
+  const urlFor = (t) => `${window.location.origin}/?showcase=${t}`
+
+  async function copy(t) {
+    try {
+      await navigator.clipboard.writeText(urlFor(t))
+      setCopied(t)
+      setTimeout(() => setCopied(null), 1500)
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (!user) {
+    return (
+      <div className="fx-card">
+        <div className="ios-sheet-title">Show someone everything</div>
+        <div className="ios-sheet-sub">Sign in to make a link to your travel log.</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="fx-card">
+      <div className="ios-sheet-title">Show someone everything</div>
+      <div className="ios-sheet-sub">
+        One read-only link to every trip — no account needed at the other end, and you can turn it
+        off whenever you like. Private notes are never included.
+      </div>
+
+      <input
+        className="account-input"
+        placeholder="What's it for? (e.g. work)"
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+      />
+      <label className="share-toggle">
+        <input type="checkbox" checked={costs} onChange={(e) => setCosts(e.target.checked)} />
+        <span>Include what each trip cost</span>
+      </label>
+      <button className="ios-sheet-done" onClick={create} disabled={busy}>
+        {busy ? 'Making…' : 'Make a link'}
+      </button>
+
+      {links?.map((l) => (
+        <div className="showcase-link" key={l.token}>
+          <div className="showcase-link-label">
+            {l.label || 'Untitled'}
+            {l.include_costs ? ' · with costs' : ''}
+          </div>
+          <div className="showcase-link-url">{urlFor(l.token)}</div>
+          <div className="showcase-link-actions">
+            <button className="account-btn ghost" onClick={() => copy(l.token)}>
+              {copied === l.token ? 'Copied' : 'Copy'}
+            </button>
+            <button className="account-btn ghost" onClick={() => revoke(l.token)}>
+              Turn off
+            </button>
+          </div>
+        </div>
+      ))}
+      {links && links.length === 0 && (
+        <div className="ios-sheet-sub" style={{ marginBottom: 0 }}>No links yet.</div>
+      )}
+    </div>
+  )
+}
 
 const SECTIONS = [
   { id: 'journal', label: 'Diary', def: true },
@@ -29,6 +145,8 @@ export default function ShareTab() {
 
   return (
     <div className="share-tab">
+      <ShowcaseLinks />
+
       <div className="fx-card">
         <div className="ios-sheet-title">Share a trip</div>
         <div className="ios-sheet-sub">

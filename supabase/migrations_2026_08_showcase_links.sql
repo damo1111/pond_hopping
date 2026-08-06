@@ -1,0 +1,44 @@
+-- ============================================================
+-- One revocable link to the whole log
+--
+-- Applied to production 2026-08-06.
+-- ============================================================
+--
+-- Trips are private by default now, which is right, and it also killed the
+-- only way to show anybody anything: the per-trip ?share= links read through
+-- the anon key and return nothing for a private trip. Verified — an
+-- anonymous read of china-japan returns 0 rows. Anyone previously sent one of
+-- those links now gets an empty page.
+--
+-- This is the replacement, deliberately a different shape: one link for
+-- everything, revocable, rather than a permanent public flag on each trip.
+-- Same mechanism as the MCP and calendar tokens already in this schema — an
+-- opaque token resolved inside a SECURITY DEFINER function, so the client
+-- ships nothing but the anon key.
+--
+-- (The full statements are in the applied migration
+--  "showcase_links"; this file is the record of what and why.)
+--
+-- The table: token, owner_email, label, include_costs, expires_at,
+-- revoked_at. RLS restricts management to the owner. Nothing selects it
+-- anonymously — the token is resolved inside the function, never returned to
+-- a client, so links cannot be enumerated.
+--
+-- showcase_email(t)   → the address a token speaks for, or null. Expiry and
+--                       revocation checked here so every caller gets them.
+-- showcase_payload(t) → trips the owner is a member of, with flights,
+--                       journal, photos (24/trip), runs and optionally costs.
+--
+-- What it never returns, on any trip, under any token: private_notes. Those
+-- are the most personal rows in the database and no link should reach them.
+-- Run coordinates are excluded too — nothing on the page draws them and they
+-- are most of the weight.
+--
+-- ── Verified after applying ───────────────────────────────────────────────
+--
+--   valid token, as anon   14 trips · 52 flights · 99 entries · 68 runs · 96 KB
+--   costs                  absent (link created with include_costs false)
+--   private note phrases   "Mum was exhausted", "Collinson", "LPs (paperwork)"
+--                          all absent from the payload
+--   unknown token          null
+--   revoked token          null

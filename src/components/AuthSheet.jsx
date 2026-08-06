@@ -7,6 +7,11 @@ import { useAuth } from '../lib/AuthContext.jsx'
 // 6-digit code, verified in-place so it never leaves the installed PWA),
 // just surfaced somewhere people will actually find it. Signed in, it's
 // a quick who-am-I + sign-out; signed out, it's the two-step sign-in.
+//
+// It is also the sign-*up*, and always has been: signInWithOtp creates the
+// user when the address is new. Nothing said so, which meant a stranger
+// looking at the demo had no visible way in — the heading offered to sign
+// them in to an account they had no idea they could make.
 export default function AuthSheet({ onClose }) {
   const { user, profile } = useAuth()
   const [email, setEmail] = useState('')
@@ -94,8 +99,12 @@ export default function AuthSheet({ onClose }) {
           </form>
         ) : (
           <form onSubmit={send}>
-            <div className="ios-sheet-title">Sign in to Pond Hopping</div>
-            <div className="ios-sheet-sub">Private trips only show when you're signed in. No password — we email you a 6-digit code.</div>
+            <div className="ios-sheet-title">Sign in or create an account</div>
+            <div className="ios-sheet-sub">
+              Same box for both — if we haven't seen your email before, this makes your account.
+              No password: we send a 6-digit code. Your trips are private to you unless you
+              choose to share them.
+            </div>
             <input
               className="account-input"
               type="email"
