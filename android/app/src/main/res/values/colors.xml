@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-        The app's paper background, matching --bg in globals.css.
+        The app's paper background, matching the bg custom property in globals.css.
 
         Capacitor 8's SystemBars plugin pads the WebView's parent by the system
         bar insets whenever the device's WebView is older than version 140 —
-        older WebViews get env(safe-area-inset-*) wrong, so it insets the view
+        older WebViews get the CSS safe-area insets wrong, so it insets the view
         instead and reports the safe area as zero. That padding is what showed
         as a white band above the header and below the nav: the CoordinatorLayout
         behind the WebView had no background, so the window's default light grey
