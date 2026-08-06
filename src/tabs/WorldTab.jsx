@@ -24,6 +24,24 @@ const OVERVIEW_POV = { lat: -8, lng: 122, altitude: 1.9 }
 // transition you sit through. The trip opens as the globe settles.
 const FLY_MS = 2100
 
+// How long you wait, after tapping a trip, before the thing you tapped opens.
+//
+// It used to be the whole FLY_MS: the globe flew for 2.1 seconds and only
+// then did the trip appear. Two seconds of a phone rendering a WebGL sphere
+// is the single least smooth thing this app does, and the reward for sitting
+// through it is a screen that then covers the sphere completely — so the
+// flight was both the jank and invisible in the end.
+//
+// The globe still flies. It just isn't in the way any more: the trip opens
+// out of the card you tapped, promptly, and the sphere carries on behind it
+// until the recap lands and pauses it.
+// A floor and a ceiling rather than a fixed wait. The recap says when its
+// five queries have landed; below the floor an instant swap reads as a
+// glitch rather than a transition, and above the ceiling a slow connection
+// should stop holding the door shut and let the page fill in as it arrives.
+const OPEN_MIN_MS = 200
+const OPEN_MAX_MS = 900
+
 // The cold open is off.
 //
 // It measured fine in a desktop browser and reads as jittery on a real phone,
@@ -252,19 +270,19 @@ export default function WorldTab() {
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
   const selectedTripObj = selectedTrip ? tripMeta.find((t) => t.slug === selectedTrip) : null
 
-  // Picking a trip used to fly the globe there and then put a card in front
-  // of it whose only job was to be tapped through. The globe hands over
-  // directly now: it flies in slowly enough to be worth watching, and when
-  // it settles the trip opens — its recap if it's finished, its planner if
-  // it hasn't happened. Closing comes back out to the whole globe.
   const [recapTrip, setRecapTrip] = useState(null)
-  // The recap is *mounted* the moment you tap and *revealed* when the globe
-  // lands. Mounting it at the end meant it appeared empty and then rebuilt
-  // itself over the next second as five queries came back — a hero, then a
-  // stray figure, then the prose shoving the share button down the page.
-  // Mounting it at the start spends the 2.1s flight on the fetch instead, so
-  // what fades up is finished.
+  // The recap is *mounted* the moment you tap and *revealed* a beat later.
+  // Mounting it at the end meant it appeared empty and then rebuilt itself
+  // over the next second as five queries came back — a hero, then a stray
+  // figure, then the prose shoving the share button down the page. Mounting
+  // it at the start spends the wait on the fetch instead, so what arrives is
+  // finished.
   const [recapReady, setRecapReady] = useState(false)
+  // Where the tapped card was, so the recap can come out of it rather than
+  // materialise in the middle of the screen.
+  const [origin, setOrigin] = useState(null)
+  // Set by the effect below; called by the recap when its data lands.
+  const loadedRef = useRef(null)
 
   useEffect(() => {
     if (!selectedTripObj) {
@@ -274,14 +292,28 @@ export default function WorldTab() {
     }
     const past = tripPhase(selectedTripObj) === 'past'
     if (past) setRecapTrip(selectedTripObj)
-    const t = setTimeout(() => {
-      if (past) setRecapReady(true)
-      else {
+    if (!past) {
+      const t = setTimeout(() => {
         openPlanner(selectedTripObj.id)
         setSelectedTrip(null)
-      }
-    }, FLY_MS)
-    return () => clearTimeout(t)
+      }, OPEN_MIN_MS)
+      return () => clearTimeout(t)
+    }
+    // Opens when the recap has something to show, never sooner than the
+    // floor and never later than the ceiling.
+    const start = Date.now()
+    let floor = null
+    const ceiling = setTimeout(() => setRecapReady(true), OPEN_MAX_MS)
+    loadedRef.current = () => {
+      const waited = Date.now() - start
+      if (waited >= OPEN_MIN_MS) setRecapReady(true)
+      else floor = setTimeout(() => setRecapReady(true), OPEN_MIN_MS - waited)
+    }
+    return () => {
+      clearTimeout(ceiling)
+      if (floor) clearTimeout(floor)
+      loadedRef.current = null
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTrip])
 
@@ -704,6 +736,8 @@ export default function WorldTab() {
           trip={recapTrip}
           cover={covers[recapTrip.id]}
           reveal={recapReady}
+          origin={origin}
+          onLoaded={() => loadedRef.current?.()}
           onClose={() => setSelectedTrip(null)}
         />
       )}
@@ -726,7 +760,7 @@ export default function WorldTab() {
               <div className="wt-section-label">{section.label}</div>
               {section.items.map((item) => {
                 if (item.type === 'trip')
-                  return <TripCard key={item.trip.slug} t={item.trip} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
+                  return <TripCard key={item.trip.slug} t={item.trip} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} onOrigin={setOrigin} />
 
                 const { chapter, trips } = item
                 const cover = trips.map((t) => covers[t.id]).find(Boolean)
@@ -735,7 +769,7 @@ export default function WorldTab() {
                     <div key={chapter} className="wt-chapter-open">
                       <ChapterSpine chapter={chapter} cover={cover} onClick={() => setExpandedChapter(null)} />
                       {trips.map((t) => (
-                        <TripCard key={t.slug} t={t} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
+                        <TripCard key={t.slug} t={t} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} onOrigin={setOrigin} />
                       ))}
                     </div>
                   )
@@ -849,14 +883,18 @@ function ChapterSpine({ chapter, cover, onClick }) {
   )
 }
 
-function TripCard({ t, covers, selectedTrip, setSelectedTrip }) {
+function TripCard({ t, covers, selectedTrip, setSelectedTrip, onOrigin }) {
   const active = selectedTrip === t.slug
   const bounce = useBounce()
   return (
     <button
       className={`wt-card${active ? ' active' : ''}${shouldBadge(t) ? ' wt-card--demo' : ''}${bounce.className}`}
-      onClick={() => {
+      onClick={(e) => {
         bounce.onPress()
+        // Measured at the moment of the tap, from the element that was
+        // tapped — the carousel scrolls, so anything remembered earlier
+        // would point somewhere the card no longer is.
+        onOrigin?.(e.currentTarget.getBoundingClientRect())
         setSelectedTrip(active ? null : t.slug)
       }}
       onAnimationEnd={bounce.onAnimationEnd}

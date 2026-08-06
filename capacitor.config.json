@@ -1,5 +1,10 @@
 {
   "appId": "app.eend.pond",
   "appName": "Pond Hopping",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "disable"
+    }
+  }
 }
