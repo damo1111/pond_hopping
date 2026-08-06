@@ -2,7 +2,6 @@ import { useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import CountryFlags from '../components/CountryFlags.jsx'
-import { useAuth } from '../lib/AuthContext.jsx'
 
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Hotel', 'Activity', 'Flight', 'Other']
 const CURRENCIES = ['AUD', 'KRW', 'HKD', 'JPY', 'CNY', 'USD', 'GBP']
@@ -101,13 +100,8 @@ function AddCost({ tripMeta, selectedTrip, onSaved }) {
 
 export default function CostsTab() {
   const { tripMeta, selectedTrip } = useContext(TripContext)
-  const { user } = useAuth()
   const [costs, setCosts] = useState(null)
   const [reload, setReload] = useState(0)
-  // Costs are dollar figures — hidden unless actually signed in, so the
-  // app is safe to show off/share without exposing them to anyone just
-  // browsing the main app URL.
-  const unlocked = Boolean(user)
 
   useEffect(() => {
     let alive = true
@@ -124,20 +118,6 @@ export default function CostsTab() {
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
 
   if (!costs) return <div className="tab-loading">loading costs…</div>
-
-  // No reveal button — fully inaccessible from the UI until real
-  // per-recipient access control is built. The data itself is untouched.
-  if (!unlocked) {
-    return (
-      <div className="costs-tab">
-        <div className="placeholder cost-lock">
-          <div className="cost-lock-icon">🔒</div>
-          <div className="placeholder-code">costs</div>
-          <div className="placeholder-note">Private while access controls are being built.</div>
-        </div>
-      </div>
-    )
-  }
 
   const visible = costs.filter((c) => !selectedTrip || tripsById.get(c.trip_id)?.slug === selectedTrip)
   const total = visible.reduce((s, c) => s + Number(c.amount_aud || 0), 0)

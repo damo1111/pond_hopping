@@ -6329,6 +6329,22 @@ button {
   padding: 28px 20px 8px;
 }
 
+/* Three equal columns, but every cell was left-aligned inside its own — so
+   a short value like "4" left most of its column empty and the block ran out
+   of content well before the right margin. Read as a slab shoved to the left.
+   Aligning by position instead makes each row span the full width: left,
+   centre, right. The last row is two of three and simply ends, which is what
+   an incomplete row should look like rather than a hole. */
+.recap-figure:nth-child(3n + 2) {
+  align-items: center;
+  text-align: center;
+}
+
+.recap-figure:nth-child(3n) {
+  align-items: flex-end;
+  text-align: right;
+}
+
 .recap-figure {
   display: flex;
   flex-direction: column;
@@ -7621,4 +7637,61 @@ button {
   padding: 6px 8px;
   max-height: 40%;
   overflow: hidden;
+}
+
+/* ── Sign-in, asked for where the need arises ─────────────────── */
+
+.plan-signin {
+  margin: 4px 16px 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--accent-bg);
+}
+
+.plan-signin-body {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.plan-signin-btn {
+  margin-top: 10px;
+  width: 100%;
+  padding: 11px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+
+/* The recap's own grab handle. The sheets have had one for weeks; the page
+   underneath them had a close button and no hint that it could be pulled. */
+.recap-grab {
+  position: absolute;
+  top: calc(8px + var(--safe-area-inset-top, env(safe-area-inset-top)));
+  left: 50%;
+  width: 40px;
+  height: 4px;
+  margin-left: -20px;
+  border-radius: 999px;
+  background: rgba(245, 242, 235, 0.55);
+  box-shadow: 0 1px 3px rgba(26, 22, 17, 0.35);
+  z-index: 6;
+  pointer-events: none;
+}
+
+/* Follows the finger 1:1 while it is down, springs back when it isn't. */
+.recap {
+  transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.recap.dragging {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recap { transition: none; }
 }

@@ -95,6 +95,14 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
   const dragRef = useRef(null)
   const bodyRef = useRef(null)
   const sheetRef = useRef(null)
+  // The recap itself — the page under the sheets. It had a close button and
+  // nothing else: no handle, no gesture. Every fix to "the drag doesn't work"
+  // has been to the sheets, which is the wrong screen if this is the one
+  // being pulled.
+  const recapRef = useRef(null)
+  const scrollRef = useRef(null)
+  const recapGesture = useRef(null)
+  const [recapDrag, setRecapDrag] = useState(0)
 
   useEffect(() => {
     setSettled(false)
@@ -259,6 +267,64 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
       }
     : undefined
 
+  // Pull the whole recap down to close it, on the same terms as the sheets
+  // and through the same tested decision — see sheetDrag.js. Only when no
+  // sheet is open over the top, and only from the top of the page, so it
+  // never competes with reading.
+  useEffect(() => {
+    if (layer || !reveal) return
+
+    const inRecap = (y, x) => {
+      const el = recapRef.current
+      if (!el) return false
+      const r = el.getBoundingClientRect()
+      return y >= r.top && y <= r.bottom && x >= r.left && x <= r.right
+    }
+
+    const onStart = (e) => {
+      if (e.touches.length !== 1) return
+      const t = e.touches[0]
+      if (!inRecap(t.clientY, t.clientX)) return
+      recapGesture.current = beginDrag({
+        y: t.clientY,
+        t: e.timeStamp,
+        inBody: !!scrollRef.current?.contains(e.target),
+        scrollTop: scrollRef.current?.scrollTop || 0,
+      })
+    }
+    const onMove = (e) => {
+      if (!recapGesture.current || !e.touches.length) return
+      const { state, drag: d, mine } = extendDrag(recapGesture.current, {
+        y: e.touches[0].clientY,
+        t: e.timeStamp,
+      })
+      recapGesture.current = state
+      if (d !== null) setRecapDrag(d)
+      if (mine && e.cancelable) e.preventDefault()
+    }
+    const end = (e) => {
+      if (!recapGesture.current) return
+      const g = recapGesture.current
+      recapGesture.current = null
+      const verdict = finishDrag(g, e.changedTouches?.[0]?.clientY)
+      if (verdict === 'close') onClose?.()
+      else if (verdict === 'spring') setRecapDrag(0)
+    }
+
+    const cap = { capture: true, passive: false }
+    document.addEventListener('touchstart', onStart, { capture: true, passive: true })
+    document.addEventListener('touchmove', onMove, cap)
+    document.addEventListener('touchend', end, cap)
+    document.addEventListener('touchcancel', end, cap)
+    return () => {
+      document.removeEventListener('touchstart', onStart, true)
+      document.removeEventListener('touchmove', onMove, true)
+      document.removeEventListener('touchend', end, true)
+      document.removeEventListener('touchcancel', end, true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layer, reveal])
+
   // Once the recap is actually up and idle, pull the sheet chunks in the
   // background. Not before: while it's still hidden the globe is flying, and
   // parsing 300KB of Leaflet is the last thing that flight needs.
@@ -368,14 +434,19 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
     // it. Two custom properties and a scale is the whole trick — one element,
     // transform and opacity only, nothing the compositor can't own.
     <div
-      className={`recap${layer ? ' layered' : ''}${reveal ? ' in' : ' waiting'}`}
-      style={originVars}
+      ref={recapRef}
+      className={`recap${layer ? ' layered' : ''}${reveal ? ' in' : ' waiting'}${recapDrag ? ' dragging' : ''}`}
+      style={recapDrag ? { ...originVars, transform: `translateY(${recapDrag}px)` } : originVars}
     >
+      {/* Says the page can be pulled down, which the close button alone never
+          did. Over a full-bleed photo, so it carries its own contrast. */}
+      <div className="recap-grab" aria-hidden="true" />
+
       <button className="recap-close" onClick={onClose} aria-label="Close">
         <Icon name="close" size={16} />
       </button>
 
-      <div className="recap-scroll">
+      <div className="recap-scroll" ref={scrollRef}>
         <header className="recap-hero">
           {cover && <img className="recap-hero-img" src={coverUrl(cover, { width: 900, height: 1200 })} alt="" />}
           <div className="recap-hero-scrim" />
