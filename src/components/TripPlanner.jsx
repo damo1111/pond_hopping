@@ -83,12 +83,17 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
     onChanged?.()
   }
 
+  // The shell arrives first — paper, nothing on it — and the trip lifts into
+  // it when the read comes back. It's the same DOM node either way, so the
+  // shell's fade plays once on arrival and the contents get their own
+  // entrance a moment later, instead of the whole planner snapping into
+  // existence half-built the way it used to.
   if (!trip) return <div className="tp-modal"><div className="tp-loading">loading trip…</div></div>
 
   const showDaySwitch = tab === 'itinerary' || tab === 'overview'
 
   return (
-    <div className={`tp-modal${cover && tab === 'overview' ? ' tp-modal--hero' : ''}`}>
+    <div className={`tp-modal tp-modal--ready${cover && tab === 'overview' ? ' tp-modal--hero' : ''}`}>
       {/* The trip photo, painted behind everything and masked so it fades out
           before it reaches the back button and title, and again into the page
           below. Sitting behind the chrome rather than under it is what stops

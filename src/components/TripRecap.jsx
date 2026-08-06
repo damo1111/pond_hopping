@@ -76,6 +76,7 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
   const [drag, setDrag] = useState(0)
   const dragRef = useRef(null)
   const bodyRef = useRef(null)
+  const sheetRef = useRef(null)
 
   useEffect(() => {
     setSettled(false)
@@ -85,7 +86,80 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
   // Far enough down to be deliberate rather than a stray thumb.
   const CLOSE_AT = 96
 
+  // Pointer events are enough for a mouse and useless for a finger. The moment
+  // a vertical drag starts over a scrollable element the browser claims the
+  // gesture as a scroll and fires pointercancel, which is exactly why pulling
+  // down from inside the flights list did nothing while pulling the bar
+  // worked. Touch listeners, registered non-passively so the pull can be
+  // claimed back with preventDefault, are the only way to have both.
+  useEffect(() => {
+    const el = sheetRef.current
+    if (!el) return
+    let start = null
+
+    const atTop = () => (bodyRef.current?.scrollTop || 0) <= 0
+    const fromBody = (t) => bodyRef.current?.contains(t)
+
+    const onStart = (e) => {
+      if (e.touches.length !== 1) return
+      if (fromBody(e.target) && !atTop()) return
+      start = { y: e.touches[0].clientY, t: e.timeStamp, dy: 0, at: e.timeStamp, claimed: false }
+    }
+
+    const onMove = (e) => {
+      if (!start) return
+      const dy = e.touches[0].clientY - start.y
+      // Only a downward pull is ours. An upward one is the list scrolling,
+      // and letting go of it here is what keeps reading unaffected.
+      if (dy <= 0) {
+        if (start.claimed) setDrag(0)
+        start = null
+        return
+      }
+      if (!start.claimed && dy < 6) return
+      start.claimed = true
+      start.dy = dy
+      start.at = e.timeStamp
+      if (e.cancelable) e.preventDefault()
+      setDrag(dy < CLOSE_AT ? dy : CLOSE_AT + (dy - CLOSE_AT) * 0.4)
+    }
+
+    // Reading the finish off the moves rather than off touchend's
+    // changedTouches: a cancel carries no touch at all, and it's the last
+    // position we actually rendered that the decision should be made on.
+    const onEnd = () => {
+      const s = start
+      start = null
+      if (!s?.claimed) return
+      const velocity = s.dy / Math.max(1, s.at - s.t)
+      if (s.dy > CLOSE_AT || velocity > 0.6) setLayer(null)
+      else setDrag(0)
+    }
+
+    // A cancelled gesture is not a decision — spring back rather than close.
+    const onCancel = () => {
+      start = null
+      setDrag(0)
+    }
+
+    el.addEventListener('touchstart', onStart, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd)
+    el.addEventListener('touchcancel', onCancel)
+    return () => {
+      el.removeEventListener('touchstart', onStart)
+      el.removeEventListener('touchmove', onMove)
+      el.removeEventListener('touchend', onEnd)
+      el.removeEventListener('touchcancel', onCancel)
+    }
+  }, [layer])
+
+  // A finger produces both touch *and* pointer events, and the touch listeners
+  // above are the ones that can claim the gesture back off the scroller. Two
+  // state machines racing over one drag is how you get a sheet that jumps.
+  // This path is for a mouse only.
   function onPointerDown(e) {
+    if (e.pointerType && e.pointerType !== 'mouse') return
     // From the bar always; from the body only when it's already at the top,
     // so pulling the sheet never competes with reading what's in it.
     const fromBody = bodyRef.current?.contains(e.target)
@@ -309,6 +383,7 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
         <section
           className={`recap-layer ${layer}${settled ? ' settled' : ''}${drag ? ' dragging' : ''}`}
           key={layer}
+          ref={sheetRef}
           style={drag ? { transform: `translateY(${drag}px)` } : undefined}
           onAnimationEnd={(e) => e.target === e.currentTarget && setSettled(true)}
           onPointerDown={onPointerDown}
