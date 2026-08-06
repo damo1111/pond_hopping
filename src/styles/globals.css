@@ -109,7 +109,7 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
+  padding: calc(var(--safe-area-inset-top, env(safe-area-inset-top)) + 10px) 16px 10px;
 }
 
 /* Home tab only — fades from the warm paper tone into the same
@@ -157,7 +157,7 @@ button {
   width: 100%;
   max-width: 440px;
   border-radius: 22px 22px 0 0;
-  padding: 18px 22px calc(20px + env(safe-area-inset-bottom));
+  padding: 18px 22px calc(20px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
 }
 
 .ios-sheet-grip {
@@ -662,14 +662,14 @@ button {
   flex: 1;
   overflow-y: auto;
   /* clear the floating bottom nav */
-  padding-bottom: calc(86px + env(safe-area-inset-bottom));
+  padding-bottom: calc(86px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
 }
 
 /* ── Bottom nav: floating glass capsule, not an edge-to-edge bar ── */
 
 .bottomnav {
   position: fixed;
-  bottom: calc(12px + env(safe-area-inset-bottom));
+  bottom: calc(12px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   left: 50%;
   transform: translateX(-50%);
   width: calc(100% - 24px);
@@ -771,7 +771,7 @@ button {
 .nav-hint {
   position: fixed;
   left: 50%;
-  bottom: calc(76px + env(safe-area-inset-bottom));
+  bottom: calc(76px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   transform: translateX(-50%);
   background: #1A1611;
   color: #F5F2EB;
@@ -2654,7 +2654,7 @@ button {
   left: 12px;
   right: 12px;
   /* Sit above the floating bottom nav, not behind/under it. */
-  bottom: calc(76px + env(safe-area-inset-bottom));
+  bottom: calc(76px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   z-index: 500;
   display: flex;
   gap: 6px;
@@ -3342,7 +3342,7 @@ button {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: calc(90px + env(safe-area-inset-bottom));
+  bottom: calc(90px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   z-index: 500;
   display: flex;
   gap: 9px;
@@ -3437,7 +3437,7 @@ button {
   position: absolute;
   left: 12px;
   right: 12px;
-  bottom: calc(90px + env(safe-area-inset-bottom));
+  bottom: calc(90px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   z-index: 500;
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(8px);
@@ -3479,7 +3479,7 @@ button {
   position: absolute;
   left: 12px;
   right: 12px;
-  bottom: calc(90px + env(safe-area-inset-bottom));
+  bottom: calc(90px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   z-index: 500;
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(12px);
@@ -4100,7 +4100,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: calc(env(safe-area-inset-top) + 20px) 18px calc(env(safe-area-inset-bottom) + 20px);
+  padding: calc(var(--safe-area-inset-top, env(safe-area-inset-top)) + 20px) 18px calc(var(--safe-area-inset-bottom, env(safe-area-inset-bottom)) + 20px);
   overflow-y: auto;
 }
 
@@ -4950,7 +4950,7 @@ button {
   align-items: center;
   gap: 8px;
   padding: 12px 12px 8px;
-  padding-top: max(12px, env(safe-area-inset-top));
+  padding-top: max(12px, var(--safe-area-inset-top, env(safe-area-inset-top)));
 }
 
 .tp-back {
@@ -5130,7 +5130,7 @@ button {
 .tp-fab {
   position: absolute;
   right: 18px;
-  bottom: calc(20px + env(safe-area-inset-bottom));
+  bottom: calc(20px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   width: 54px;
   height: 54px;
   border-radius: 50%;
@@ -5151,7 +5151,7 @@ button {
   position: absolute;
   inset: 0;
   overflow-y: auto;
-  padding: 8px 14px calc(90px + env(safe-area-inset-bottom));
+  padding: 8px 14px calc(90px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
 }
 
 .tl-day {
@@ -5446,7 +5446,7 @@ button {
   position: absolute;
   inset: 0;
   overflow-y: auto;
-  padding-bottom: calc(30px + env(safe-area-inset-bottom));
+  padding-bottom: calc(30px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
 }
 
 /* The hero is now just the wording. The photograph behind it is .tp-cover,
@@ -5734,7 +5734,7 @@ button {
   position: absolute;
   inset: 0;
   overflow-y: auto;
-  padding: 16px 16px calc(30px + env(safe-area-inset-bottom));
+  padding: 16px 16px calc(30px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
 }
 
 .ex-ai {
@@ -5847,7 +5847,7 @@ button {
   max-width: 560px;
   background: var(--surface);
   border-radius: 18px 18px 0 0;
-  padding: 8px 16px calc(20px + env(safe-area-inset-bottom));
+  padding: 8px 16px calc(20px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   max-height: 88vh;
   overflow-y: auto;
 }
@@ -6195,25 +6195,42 @@ button {
   pointer-events: none;
 }
 
+/* Out of the card you tapped, rather than onto it.
+   The recap used to fade up from scale(1.02) — a dissolve, with no
+   relationship to where the press happened, and only after the globe had
+   finished a two-second flight. Now it travels: from the card's centre, at
+   the card's rough size, to full screen. --recap-ox/oy are set inline from
+   the tapped element's rectangle; without them it still works, just from
+   the middle. */
 .recap.in {
-  animation: recap-in 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: recap-in 400ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center center;
 }
 
 @keyframes recap-in {
-  from { opacity: 0; transform: scale(1.02); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: translate3d(var(--recap-ox, 0px), var(--recap-oy, 0px), 0) scale(0.55);
+  }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recap.in { animation: recap-fade 200ms ease both; }
+  @keyframes recap-fade { from { opacity: 0 } to { opacity: 1 } }
 }
 
 .recap-scroll {
   height: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(28px + env(safe-area-inset-bottom));
+  padding-bottom: calc(28px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
 }
 
 .recap-close {
   position: absolute;
-  top: calc(12px + env(safe-area-inset-top));
+  top: calc(12px + var(--safe-area-inset-top, env(safe-area-inset-top)));
   right: 14px;
   z-index: 2;
   width: 34px;
@@ -6444,6 +6461,13 @@ button {
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -16px 44px rgba(26, 22, 17, 0.34);
   overflow: hidden;
+  /* Nothing on this sheet is a scroller except the list inside it, and the
+     engine must not be allowed to think otherwise. Putting `none` on the bar
+     alone was not enough: the grab handle is a ::before on *this* element, so
+     a thumb aimed at the pill could land on padding that still inherited
+     pan-y — and once the engine starts a pan, preventDefault on the touchmove
+     is ignored and the drag is gone before we ever see it. */
+  touch-action: none;
   animation: recap-layer-in 460ms cubic-bezier(0.32, 0.72, 0, 1);
   /* Springs back if the pull didn't go far enough; follows the finger 1:1
      while it is still on the glass. */
@@ -6498,6 +6522,12 @@ button {
 .recap-layer-body {
   position: relative;
   z-index: 1;
+}
+
+/* The one place a gesture *is* the browser's. Re-granted rather than
+   inherited, because the sheet above now refuses everything. */
+.recap-layer-body {
+  touch-action: pan-y;
 }
 
 /* The recap behind recedes as the sheet rises — that's what makes it read
@@ -6571,12 +6601,7 @@ button {
   padding: 16px 12px 10px;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   background: none;
-  /* The handle is not a scroller and must never be mistaken for one. With
-     pan-y inherited from .recap the engine is entitled to start scrolling
-     the moment a finger moves down here, and once it has, preventDefault on
-     the touchmove is ignored — the drag is lost before we see it. none says
-     there is no gesture here for the browser to take. */
-  touch-action: none;
+  /* See .recap-layer: the whole sheet refuses gestures except the list. */
 }
 
 /* Names the trip you'd go back to, so the way out is a place rather than
@@ -6618,7 +6643,7 @@ button {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  padding-bottom: calc(14px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   /* Scrolling past the top of the list stops here rather than becoming a
      page refresh; the pull-to-close gesture picks it up instead. */
   overscroll-behavior-y: contain;
@@ -6855,7 +6880,7 @@ button {
   position: absolute;
   left: 12px;
   right: 12px;
-  bottom: calc(76px + env(safe-area-inset-bottom));
+  bottom: calc(76px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   z-index: 600;
   display: flex;
   align-items: center;
@@ -6941,7 +6966,7 @@ button {
    scrubber sit at the bottom of the sheet rather than 76px up from it. */
 .recap-layer .map-preview,
 .recap-layer .map-day-scrub {
-  bottom: calc(12px + env(safe-area-inset-bottom));
+  bottom: calc(12px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
 }
 
 /* ── Photo upload ─────────────────────────────────────────────── */

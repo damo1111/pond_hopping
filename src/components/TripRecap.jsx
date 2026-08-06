@@ -74,7 +74,7 @@ function GestureReadout() {
   )
 }
 
-export default function TripRecap({ trip, cover, reveal = true, onClose }) {
+export default function TripRecap({ trip, cover, reveal = true, origin = null, onLoaded, onClose }) {
   const [data, setData] = useState(null)
   const [copied, setCopied] = useState(false)
   // Which sub-view is open over the recap. The recap itself stays mounted
@@ -152,23 +152,47 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
     else if (verdict === 'spring') setDrag(0)
   }
 
+  // Listened for on the document, in the capture phase, and hit-tested
+  // against the sheet's own rectangle.
+  //
+  // Attaching to the sheet element and trusting e.target is what this used to
+  // do, and it made the drag depend on three things that turned out not to
+  // hold on a real phone: that the listener was on the element the thumb
+  // landed on, that nothing between them stopped propagation, and that the
+  // node the ref pointed at was the node being touched. Capture on the
+  // document depends on none of that — it is the first thing to see every
+  // touch on the page, and geometry cannot be wrong about where a finger is.
   useEffect(() => {
-    const el = sheetRef.current
-    if (!el) return
+    if (!layer) return
+
+    const inSheet = (y, x) => {
+      const el = sheetRef.current
+      if (!el) return false
+      const r = el.getBoundingClientRect()
+      return y >= r.top && y <= r.bottom && x >= r.left && x <= r.right
+    }
 
     const onStart = (e) => {
       if (e.touches.length !== 1) return
+      const t = e.touches[0]
+      if (!inSheet(t.clientY, t.clientX)) return
       clearDebug()
-      debug(`touchstart y=${Math.round(e.touches[0].clientY)} on ${e.target?.className || e.target?.tagName}`)
-      begin(e.touches[0].clientY, e.timeStamp, e.target, true)
+      debug(`touchstart y=${Math.round(t.clientY)} on ${e.target?.className || e.target?.tagName}`)
+      begin(t.clientY, e.timeStamp, e.target, true)
     }
     const onMove = (e) => {
-      const mine = extend(e.touches[0].clientY, e.timeStamp)
-      debug(`touchmove dy=${Math.round(e.touches[0].clientY - (gesture.current?.y ?? e.touches[0].clientY))} mine=${mine} cancelable=${e.cancelable}`)
+      // Every touch on the page reaches here now, so leave early unless one
+      // of ours is actually in flight.
+      if (!gesture.current || !e.touches.length) return
+      const y = e.touches[0].clientY
+      const dy = Math.round(y - gesture.current.y)
+      const mine = extend(y, e.timeStamp)
+      debug(`touchmove dy=${dy} mine=${mine} cancelable=${e.cancelable}`)
       if (mine && e.cancelable) e.preventDefault()
     }
     const endY = (e) => e.changedTouches?.[0]?.clientY
     const onEnd = (e) => {
+      if (!gesture.current) return
       debug(`touchend y=${Math.round(endY(e) ?? -1)}`)
       finish(endY(e))
     }
@@ -183,19 +207,21 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
     // A cancel after a long downward pull is a decision. Judge it on the
     // distance like any other ending.
     const onCancel = (e) => {
+      if (!gesture.current) return
       debug(`touchCANCEL y=${Math.round(endY(e) ?? -1)}`)
       finish(endY(e))
     }
 
-    el.addEventListener('touchstart', onStart, { passive: true })
-    el.addEventListener('touchmove', onMove, { passive: false })
-    el.addEventListener('touchend', onEnd)
-    el.addEventListener('touchcancel', onCancel)
+    const cap = { capture: true, passive: false }
+    document.addEventListener('touchstart', onStart, { capture: true, passive: true })
+    document.addEventListener('touchmove', onMove, cap)
+    document.addEventListener('touchend', onEnd, cap)
+    document.addEventListener('touchcancel', onCancel, cap)
     return () => {
-      el.removeEventListener('touchstart', onStart)
-      el.removeEventListener('touchmove', onMove)
-      el.removeEventListener('touchend', onEnd)
-      el.removeEventListener('touchcancel', onCancel)
+      document.removeEventListener('touchstart', onStart, true)
+      document.removeEventListener('touchmove', onMove, true)
+      document.removeEventListener('touchend', onEnd, true)
+      document.removeEventListener('touchcancel', onCancel, true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layer])
@@ -221,6 +247,17 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
     if (gesture.current?.sawTouch) return
     finish(e.clientY)
   }
+
+  // The card's centre relative to the screen's, which is what the opening
+  // animation travels along. Falls back to a plain scale-up from the middle
+  // when we don't know where the tap came from — a deep link, or the recap
+  // reached any way other than by pressing a card.
+  const originVars = origin
+    ? {
+        '--recap-ox': `${Math.round(origin.left + origin.width / 2 - window.innerWidth / 2)}px`,
+        '--recap-oy': `${Math.round(origin.top + origin.height / 2 - window.innerHeight / 2)}px`,
+      }
+    : undefined
 
   // Once the recap is actually up and idle, pull the sheet chunks in the
   // background. Not before: while it's still hidden the globe is flying, and
@@ -278,6 +315,10 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
       supabase.from('photos').select('id', { count: 'exact', head: true }).eq('trip_id', trip.id),
     ]).then(([f, e, r, p, s, n]) => {
       if (!alive) return
+      // Says the page is worth showing. The opener waits on this rather than
+      // on a fixed delay, so a fast connection opens as soon as there is
+      // something to open and a slow one is not held hostage by a guess.
+      onLoaded?.()
       setData({
         flights: f.data ?? [],
         entries: e.data ?? [],
@@ -322,7 +363,14 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
   // any position:fixed descendant — so "full screen" quietly became "the
   // bottom third of the card".
   return createPortal(
-    <div className={`recap${layer ? ' layered' : ''}${reveal ? ' in' : ' waiting'}`}>
+    // style carries where the tapped card was, as a vector from the middle of
+    // the screen, so the recap grows out of it instead of appearing on top of
+    // it. Two custom properties and a scale is the whole trick — one element,
+    // transform and opacity only, nothing the compositor can't own.
+    <div
+      className={`recap${layer ? ' layered' : ''}${reveal ? ' in' : ' waiting'}`}
+      style={originVars}
+    >
       <button className="recap-close" onClick={onClose} aria-label="Close">
         <Icon name="close" size={16} />
       </button>
