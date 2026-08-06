@@ -79,12 +79,16 @@ test('an upward move releases the gesture to the list', () => {
   assert.equal(r.mine, false)
 })
 
+// This used to also assert r.state === null — that ending the gesture was the
+// right response to an upward move. It is not: a thumb that overshoots and
+// comes back should be able to carry on pulling, and the same rule was what
+// discarded the gesture on a settling jitter. Resting is right; ending is not.
 test('an upward move after a claimed pull resets the sheet to rest', () => {
   let s = start()
   ;({ state: s } = extendDrag(s, { y: 140, t: 16 }))
   const r = extendDrag(s, { y: 90, t: 32 })
   assert.equal(r.drag, 0)
-  assert.equal(r.state, null)
+  assert.notEqual(r.state, null)
 })
 
 test('movement under the slop is not yet a pull', () => {
@@ -120,4 +124,53 @@ test('resistance follows the finger, then stiffens', () => {
 test('finishing a gesture that never began is ignored, not a crash', () => {
   assert.equal(finishDrag(null, 400), 'ignore')
   assert.equal(finishDrag(undefined, undefined), 'ignore')
+})
+
+// ── The one that mattered ────────────────────────────────────────────────
+//
+// Every synthetic drag in the browser tests is perfectly monotonic, so none
+// of them ever produced the thing a real thumb does constantly: a stray
+// upward pixel as it presses down, before the pull begins. That used to
+// destroy the gesture outright and no amount of dragging afterwards could
+// bring it back.
+
+test('a stray upward pixel before the pull does not kill the gesture', () => {
+  let s = start(200, 0)
+  // The thumb settles: 2px up.
+  let r = extendDrag(s, { y: 198, t: 10 })
+  assert.notEqual(r.state, null, 'gesture was discarded on a 2px jitter')
+  s = r.state
+  // Then the actual pull.
+  for (let i = 1; i <= 6; i++) ({ state: s } = extendDrag(s, { y: 200 + i * 30, t: 10 + i * 16 }))
+  assert.equal(finishDrag(s, 380), 'close')
+})
+
+test('several pixels of settle in both directions still survive', () => {
+  let s = start(200, 0)
+  for (const y of [199, 201, 198, 202, 200]) {
+    const r = extendDrag(s, { y, t: 8 })
+    assert.notEqual(r.state, null, `discarded at y=${y}`)
+    s = r.state
+  }
+  for (let i = 1; i <= 6; i++) ({ state: s } = extendDrag(s, { y: 200 + i * 30, t: 8 + i * 16 }))
+  assert.equal(finishDrag(s, 380), 'close')
+})
+
+test('a deliberate upward move still releases the gesture to the list', () => {
+  const s = start(200, 0)
+  const r = extendDrag(s, { y: 160, t: 16 })
+  assert.equal(r.state, null)
+  assert.equal(r.mine, false)
+})
+
+test('dragging back up after claiming holds at rest and stays draggable', () => {
+  let s = start(200, 0)
+  ;({ state: s } = extendDrag(s, { y: 260, t: 16 }))
+  const back = extendDrag(s, { y: 190, t: 32 })
+  assert.equal(back.drag, 0)
+  assert.notEqual(back.state, null, 'lifting back up should not end the gesture')
+  // ...and pulling down again still closes.
+  let s2 = back.state
+  ;({ state: s2 } = extendDrag(s2, { y: 340, t: 48 }))
+  assert.equal(finishDrag(s2, 340), 'close')
 })

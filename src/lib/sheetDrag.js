@@ -55,8 +55,26 @@ export function beginDrag({ y, t, inBody, scrollTop }) {
 export function extendDrag(state, { y, t }) {
   if (!state) return { state: null, drag: null, mine: false }
   const dy = y - state.y
-  if (dy <= 0) return { state: null, drag: state.claimed ? 0 : null, mine: false }
-  if (!state.claimed && dy < SLOP) return { state, drag: null, mine: false }
+
+  // A finger is not a straight line. Pressing down and then dragging almost
+  // always produces a first move of a pixel or two *upward* as the thumb
+  // settles and rolls, and this used to read that as "not my gesture" and
+  // throw the whole thing away — permanently, before the pull had even
+  // started. Nothing afterwards could recover it, which is what "the handle
+  // does nothing" was. Synthetic drags are perfectly monotonic, so no test
+  // ever produced it.
+  //
+  // Below the slop, in either direction, the gesture is simply undecided.
+  if (Math.abs(dy) < SLOP && !state.claimed) return { state, drag: null, mine: false }
+
+  // A deliberate *upward* move before we have claimed anything is the list
+  // scrolling. Let it go — that is what keeps reading unaffected.
+  if (dy <= -SLOP && !state.claimed) return { state: null, drag: null, mine: false }
+
+  // Dragged back up past the start after claiming: hold at rest, but keep the
+  // gesture, so pulling down again still works without lifting off.
+  if (dy <= 0) return { state, drag: 0, mine: true }
+
   const next = { ...state, claimed: true, dy: Math.max(state.dy, dy), at: t }
   return { state: next, drag: resistance(dy), mine: true }
 }

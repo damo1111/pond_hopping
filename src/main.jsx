@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import Boundary from './components/Boundary.jsx'
 import { AuthProvider } from './lib/AuthContext.jsx'
 import 'leaflet/dist/leaflet.css'
 import './styles/globals.css'
@@ -38,8 +39,13 @@ if ('serviceWorker' in navigator) {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
+    {/* Outside AuthProvider on purpose: a session that cannot be read, or a
+        profile fetch that throws, is exactly the kind of failure that used to
+        leave a blank page with no way back. */}
+    <Boundary>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </Boundary>
   </React.StrictMode>
 )
