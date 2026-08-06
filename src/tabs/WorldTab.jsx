@@ -15,6 +15,7 @@ import { sectionTrips } from '../lib/tripPhase.js'
 import { homeCoords } from '../lib/homePov.js'
 import { shouldBadge, shouldTour, TOUR_SEEN_KEY } from '../lib/demoTour.js'
 import DemoTour from '../components/DemoTour.jsx'
+import GetTripsIn from '../components/GetTripsIn.jsx'
 
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.
@@ -153,6 +154,16 @@ export default function WorldTab() {
   // rather than on every render: it should not blink back on the instant
   // someone deletes their last real trip, and it must never re-run after
   // being dismissed. shouldTour holds the actual rules — see demoTour.js.
+  // The way in. Reachable whether or not the globe is empty — someone with
+  // the demo trip and nothing else needs this just as much as someone with
+  // nothing at all.
+  const [routesOpen, setRoutesOpen] = useState(false)
+  const [apiToken, setApiToken] = useState(null)
+  useEffect(() => {
+    if (!routesOpen || apiToken) return
+    supabase.rpc('my_api_token').then(({ data }) => setApiToken(data ?? null))
+  }, [routesOpen, apiToken])
+
   const [tourOn, setTourOn] = useState(false)
   useEffect(() => {
     let dismissed = false
@@ -746,11 +757,36 @@ export default function WorldTab() {
           recap is open over the top of it. */}
       {tourOn && !selectedTrip && <DemoTour onDone={() => setTourOn(false)} />}
 
+      {routesOpen && (
+        <GetTripsIn
+          mcpUrl={apiToken ? `https://pond.eend.app/api/mcp?key=${apiToken}` : null}
+          onCreated={() => window.location.reload()}
+          onClose={(go) => {
+            setRoutesOpen(false)
+            if (go === 'plan') goToTab('plan')
+          }}
+        />
+      )}
+
       {tripsLoaded && !tripMeta.length ? (
-        <EmptyHome onPlan={() => goToTab('plan')} />
+        <EmptyHome onPlan={() => goToTab('plan')} onGetIn={() => setRoutesOpen(true)} />
       ) : (
         <div className="world-trips">
           {memory && <MemoryCard memory={memory} onOpen={() => jumpToJournal(memory.slug, memory.entry_date)} />}
+
+          {/* The door, sitting in the strip where the trips are rather than
+              buried in a tab. It stays put once there are real trips —
+              nobody's log is ever finished — but it leads the row while the
+              only thing there is somebody else's example. */}
+          <div className="wt-section wt-section--add">
+            <div className="wt-section-label">Yours</div>
+            <button className="wt-card wt-card--add" onClick={() => setRoutesOpen(true)}>
+              <span className="wt-add-mark">+</span>
+              <span className="wt-title">Add a trip</span>
+              <span className="wt-subtitle">One you've taken, or one you're on</span>
+              <span className="wt-dates">photos · a booking · your AI</span>
+            </button>
+          </div>
 
           {/* Past and future used to sit in one undifferentiated row, in
               hand-curated order, distinguishable only by reading the dates
@@ -803,7 +839,7 @@ function useBounce() {
 // What Home said before this was nothing at all: an empty div under a
 // slowly rotating, arc-less globe. Someone with no trips got no heading, no
 // prompt and no way in.
-function EmptyHome({ onPlan }) {
+function EmptyHome({ onPlan, onGetIn }) {
   return (
     <div className="world-empty">
       <div className="world-empty-title">Nothing on the globe yet</div>
@@ -811,9 +847,14 @@ function EmptyHome({ onPlan }) {
         Every trip you take lands here — the flights, the photos, the day you got lost. Start with
         one you've already booked, or just somewhere you fancy.
       </div>
-      <button className="world-empty-btn" onClick={onPlan}>
-        Plan a trip →
-      </button>
+      <div className="world-empty-btns">
+        <button className="world-empty-btn" onClick={onGetIn}>
+          Add a trip you've taken
+        </button>
+        <button className="world-empty-btn world-empty-btn--quiet" onClick={onPlan}>
+          Plan a new one
+        </button>
+      </div>
     </div>
   )
 }

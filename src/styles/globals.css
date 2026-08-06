@@ -7988,3 +7988,122 @@ button {
   color: var(--text-muted);
   margin: 10px 0;
 }
+
+/* ── Getting your trips in ────────────────────────────────────── */
+
+.wt-card--add {
+  justify-content: center;
+  border-style: dashed;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+
+.wt-add-mark {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  line-height: 1;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+
+.world-empty-btns { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+
+.world-empty-btn--quiet {
+  background: none;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.routes-sheet, .route-sheet { max-height: 86vh; overflow-y: auto; }
+
+.route {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  align-items: flex-start;
+  padding: 13px 14px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: inherit;
+  text-decoration: none;
+}
+
+.route-icon { font-size: 20px; line-height: 1.2; flex: none; }
+
+.route-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+
+.route-title { font-size: 15px; }
+
+.route-body { font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+
+.route-copy {
+  align-self: flex-start;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  word-break: break-all;
+}
+
+.route-note {
+  margin-top: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.route-field { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+
+.route-field > span {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.route-dates { display: flex; gap: 10px; }
+.route-dates .route-field { flex: 1; min-width: 0; }
+
+.route-clusters { margin-top: 12px; }
+
+.route-clusters-note { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+
+.route-cluster {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  padding: 9px 11px;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.route-cluster.active {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--accent-bg);
+}
+
+.route-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+  margin: 12px 0 8px;
+}
+
+.route-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 240ms ease;
+}
