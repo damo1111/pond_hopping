@@ -22,6 +22,9 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- The first frame, before the WebView has painted anything, and the
+             area Capacitor pads out on older WebViews. -->
+        <item name="android:windowBackground">@color/pondPaper</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
