@@ -86,59 +86,84 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
   // Far enough down to be deliberate rather than a stray thumb.
   const CLOSE_AT = 96
 
-  // Pointer events are enough for a mouse and useless for a finger. The moment
-  // a vertical drag starts over a scrollable element the browser claims the
-  // gesture as a scroll and fires pointercancel, which is exactly why pulling
-  // down from inside the flights list did nothing while pulling the bar
-  // worked. Touch listeners, registered non-passively so the pull can be
-  // claimed back with preventDefault, are the only way to have both.
+  // ── One gesture, fed by whichever events the engine actually sends ────────
+  //
+  // A finger on Android produces pointer events *and* touch events, and each
+  // family can fail in a way the other doesn't. Pointer events get cancelled
+  // the moment the browser decides a vertical drag over a scrollable element
+  // is a scroll — which is why pulling down from inside the flights list did
+  // nothing. Touch events survive that, but only a non-passive touchmove can
+  // call preventDefault, and an engine that has already begun scrolling will
+  // ignore it.
+  //
+  // So neither family is trusted on its own. Both drive one shared gesture
+  // object, and every operation on it is idempotent: two sources reporting
+  // the same finger at the same place set the same drag, and only the first
+  // one to finish decides. Making one family exclusive is what broke the
+  // handle — it had been working on pointer events all along.
+  const gesture = dragRef
+
+  function begin(y, t, target, sawTouch) {
+    // From the bar always; from the body only when it's already at the top,
+    // so pulling the sheet never competes with reading what's in it.
+    const fromBody = bodyRef.current?.contains(target)
+    if (fromBody && (bodyRef.current.scrollTop || 0) > 0) return
+    const g = gesture.current
+    // Already tracking this same finger from the other event family.
+    if (g && Math.abs(g.y - y) < 2) { g.sawTouch = g.sawTouch || sawTouch; return }
+    gesture.current = { y, t, dy: 0, at: t, claimed: false, sawTouch }
+  }
+
+  // Returns true when the gesture is ours, which is the caller's cue to take
+  // the event away from the browser.
+  function extend(y, t) {
+    const g = gesture.current
+    if (!g) return false
+    const dy = y - g.y
+    // Only a downward pull is ours. An upward one is the list scrolling, and
+    // letting go of it here is what keeps reading unaffected.
+    if (dy <= 0) {
+      if (g.claimed) setDrag(0)
+      gesture.current = null
+      return false
+    }
+    if (!g.claimed && dy < 6) return false
+    g.claimed = true
+    g.dy = dy
+    g.at = t
+    // Resistance past the threshold, so it feels attached to something.
+    setDrag(dy < CLOSE_AT ? dy : CLOSE_AT + (dy - CLOSE_AT) * 0.4)
+    return true
+  }
+
+  // Read off the last position we actually rendered rather than off the
+  // finishing event: touchcancel carries no touch at all, and pointerup after
+  // a capture loss can carry a stale one.
+  function finish() {
+    const g = gesture.current
+    gesture.current = null
+    if (!g?.claimed) return
+    // A short flick closes as surely as a long pull.
+    const velocity = g.dy / Math.max(1, g.at - g.t)
+    if (g.dy > CLOSE_AT || velocity > 0.6) setLayer(null)
+    else setDrag(0)
+  }
+
   useEffect(() => {
     const el = sheetRef.current
     if (!el) return
-    let start = null
-
-    const atTop = () => (bodyRef.current?.scrollTop || 0) <= 0
-    const fromBody = (t) => bodyRef.current?.contains(t)
 
     const onStart = (e) => {
       if (e.touches.length !== 1) return
-      if (fromBody(e.target) && !atTop()) return
-      start = { y: e.touches[0].clientY, t: e.timeStamp, dy: 0, at: e.timeStamp, claimed: false }
+      begin(e.touches[0].clientY, e.timeStamp, e.target, true)
     }
-
     const onMove = (e) => {
-      if (!start) return
-      const dy = e.touches[0].clientY - start.y
-      // Only a downward pull is ours. An upward one is the list scrolling,
-      // and letting go of it here is what keeps reading unaffected.
-      if (dy <= 0) {
-        if (start.claimed) setDrag(0)
-        start = null
-        return
-      }
-      if (!start.claimed && dy < 6) return
-      start.claimed = true
-      start.dy = dy
-      start.at = e.timeStamp
-      if (e.cancelable) e.preventDefault()
-      setDrag(dy < CLOSE_AT ? dy : CLOSE_AT + (dy - CLOSE_AT) * 0.4)
+      if (extend(e.touches[0].clientY, e.timeStamp) && e.cancelable) e.preventDefault()
     }
-
-    // Reading the finish off the moves rather than off touchend's
-    // changedTouches: a cancel carries no touch at all, and it's the last
-    // position we actually rendered that the decision should be made on.
-    const onEnd = () => {
-      const s = start
-      start = null
-      if (!s?.claimed) return
-      const velocity = s.dy / Math.max(1, s.at - s.t)
-      if (s.dy > CLOSE_AT || velocity > 0.6) setLayer(null)
-      else setDrag(0)
-    }
-
+    const onEnd = () => finish()
     // A cancelled gesture is not a decision — spring back rather than close.
     const onCancel = () => {
-      start = null
+      gesture.current = null
       setDrag(0)
     }
 
@@ -152,45 +177,29 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
       el.removeEventListener('touchend', onEnd)
       el.removeEventListener('touchcancel', onCancel)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layer])
 
-  // A finger produces both touch *and* pointer events, and the touch listeners
-  // above are the ones that can claim the gesture back off the scroller. Two
-  // state machines racing over one drag is how you get a sheet that jumps.
-  // This path is for a mouse only.
   function onPointerDown(e) {
-    if (e.pointerType && e.pointerType !== 'mouse') return
-    // From the bar always; from the body only when it's already at the top,
-    // so pulling the sheet never competes with reading what's in it.
-    const fromBody = bodyRef.current?.contains(e.target)
-    if (fromBody && (bodyRef.current.scrollTop || 0) > 0) return
-    dragRef.current = { y: e.clientY, t: e.timeStamp, moved: false }
+    begin(e.clientY, e.timeStamp, e.target, false)
   }
 
   function onPointerMove(e) {
-    const d = dragRef.current
-    if (!d) return
-    const dy = e.clientY - d.y
-    if (dy <= 0) {
-      if (d.moved) setDrag(0)
-      return
-    }
-    if (!d.moved && dy < 4) return
-    d.moved = true
-    // Resistance, so it feels attached to something rather than free.
-    setDrag(dy < CLOSE_AT ? dy : CLOSE_AT + (dy - CLOSE_AT) * 0.4)
-    e.currentTarget.setPointerCapture?.(e.pointerId)
+    if (extend(e.clientY, e.timeStamp)) e.currentTarget.setPointerCapture?.(e.pointerId)
   }
 
-  function onPointerUp(e) {
-    const d = dragRef.current
-    dragRef.current = null
-    if (!d?.moved) return
-    const dy = e.clientY - d.y
-    // A short flick closes as surely as a long pull.
-    const velocity = dy / Math.max(1, e.timeStamp - d.t)
-    if (dy > CLOSE_AT || velocity > 0.6) setLayer(null)
-    else setDrag(0)
+  function onPointerUp() {
+    finish()
+  }
+
+  // The browser cancels the pointer stream as soon as it claims the drag as a
+  // scroll. If touch events are also feeding this gesture they are still
+  // live and still preventing that scroll, so this says nothing — but with a
+  // mouse, or an engine sending pointer events only, it means the drag is over.
+  function onPointerCancel() {
+    if (gesture.current?.sawTouch) return
+    gesture.current = null
+    setDrag(0)
   }
 
   // Once the recap is actually up and idle, pull the sheet chunks in the
@@ -389,10 +398,7 @@ export default function TripRecap({ trip, cover, reveal = true, onClose }) {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
-          onPointerCancel={() => {
-            dragRef.current = null
-            setDrag(0)
-          }}
+          onPointerCancel={onPointerCancel}
         >
           {/* The frosted pane behind the sheet's content — see
               .recap-layer-glass for why the blur can't sit on the sheet. */}

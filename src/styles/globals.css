@@ -818,11 +818,160 @@ button {
   pointer-events: none;
 }
 
+/* ── The cold open ─────────────────────────────────────────────
+   Every animation below is opacity, transform or stroke-dashoffset —
+   the three things a compositor can run without touching layout or
+   paint. That is the whole design constraint: it has to hold sixty
+   frames on the oldest WebView the app will ever meet. */
+
+.boot-stage {
+  position: relative;
+  width: 200px;
+  height: 200px;
+}
+
+.boot-globe {
+  position: absolute;
+  inset: 0;
+  width: 200px;
+  height: 200px;
+  overflow: visible;
+}
+
+.bg-line {
+  stroke: var(--accent-dim, #b8ae9a);
+  stroke-width: 1;
+  opacity: 0.55;
+  /* Long enough to cover the longest path here; the exact number doesn't
+     matter as long as it exceeds the geometry. */
+  stroke-dasharray: 460;
+  stroke-dashoffset: 460;
+  animation: boot-draw 900ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.bg-l2 { animation-delay: 90ms; }
+.bg-l3 { animation-delay: 150ms; }
+.bg-l4 { animation-delay: 210ms; }
+.bg-l5 { animation-delay: 260ms; }
+
+@keyframes boot-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.boot-arc {
+  stroke: var(--accent, #c9a227);
+  stroke-width: 2;
+  stroke-dasharray: 5 7;
+  /* One dash pattern's worth per step, so the dashes appear to run along
+     the route rather than the whole line sliding. */
+  stroke-dashoffset: 240;
+  opacity: 0;
+  animation: boot-arc-in 1000ms cubic-bezier(0.4, 0, 0.2, 1) 420ms forwards;
+}
+
+@keyframes boot-arc-in {
+  0%   { opacity: 0; stroke-dashoffset: 240; }
+  12%  { opacity: 1; }
+  100% { opacity: 1; stroke-dashoffset: 0; }
+}
+
+.boot-pin {
+  fill: var(--accent, #c9a227);
+  opacity: 0;
+  animation: boot-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.boot-pin-a { animation-delay: 380ms; }
+
+@keyframes boot-pop {
+  from { opacity: 0; transform: scale(0.2); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.boot-ring {
+  stroke: var(--accent, #c9a227);
+  stroke-width: 1.5;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: boot-ripple 1500ms cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.boot-ring-1 { animation-delay: 1360ms; }
+.boot-ring-2 { animation-delay: 1600ms; }
+.boot-ring-3 { animation-delay: 1840ms; }
+
+@keyframes boot-ripple {
+  0%   { opacity: 0.7; transform: scale(0.2); }
+  70%  { opacity: 0; transform: scale(2.2); }
+  100% { opacity: 0; transform: scale(2.2); }
+}
+
+/* The duck rides the arc, then settles with a couple of small bobs — the
+   water it just landed on. Percentages trace the same curve as the path
+   above; they were read off it rather than guessed.
+
+   Two elements, because the flight and the bob are both transforms and an
+   element only has one. The obvious shortcut — bobbing with margin-top — is
+   a layout property, so it would re-lay-out the stage sixty times a second
+   on the exact device this was rewritten for. */
+.boot-duck-fly {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: 34px;
+  height: 34px;
+  opacity: 0;
+  animation: boot-fly 1100ms cubic-bezier(0.4, 0, 0.25, 1) 400ms forwards;
+}
+
+.boot-duck {
+  display: block;
+  width: 34px;
+  height: 34px;
+  animation: boot-bob 2600ms ease-in-out 1500ms infinite;
+}
+
+@keyframes boot-fly {
+  0%   { opacity: 0; transform: translate(29px, 123px) scale(0.7); }
+  15%  { opacity: 1; }
+  35%  { transform: translate(66px, 74px) scale(0.88); }
+  65%  { transform: translate(106px, 45px) scale(1); }
+  100% { opacity: 1; transform: translate(141px, 57px) scale(1); }
+}
+
+@keyframes boot-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(2.5px); }
+}
+
 .boot-title {
   font-family: var(--font-brand);
   font-size: 26px;
   letter-spacing: 0.01em;
   text-transform: uppercase;
+  /* Arrives wide and closes up, so the name resolves rather than appears. */
+  opacity: 0;
+  animation: boot-name 900ms cubic-bezier(0.22, 1, 0.36, 1) 1180ms forwards;
+}
+
+@keyframes boot-name {
+  from { opacity: 0; letter-spacing: 0.34em; }
+  to   { opacity: 1; letter-spacing: 0.01em; }
+}
+
+/* Nothing above is load-bearing — the app is already mounted underneath. */
+@media (prefers-reduced-motion: reduce) {
+  .bg-line { stroke-dashoffset: 0; animation: none; }
+  .boot-arc { opacity: 1; stroke-dashoffset: 0; animation: none; }
+  .boot-pin { opacity: 1; animation: none; }
+  .boot-ring { animation: none; }
+  .boot-duck-fly { opacity: 1; transform: translate(141px, 57px); animation: none; }
+  .boot-duck { animation: none; }
+  .boot-title { opacity: 1; animation: none; }
 }
 
 /* ── Placeholder panels (pre-build tabs) ───────────────────── */
@@ -6422,6 +6571,12 @@ button {
   padding: 16px 12px 10px;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   background: none;
+  /* The handle is not a scroller and must never be mistaken for one. With
+     pan-y inherited from .recap the engine is entitled to start scrolling
+     the moment a finger moves down here, and once it has, preventDefault on
+     the touchmove is ignored — the drag is lost before we see it. none says
+     there is no gesture here for the browser to take. */
+  touch-action: none;
 }
 
 /* Names the trip you'd go back to, so the way out is a place rather than
