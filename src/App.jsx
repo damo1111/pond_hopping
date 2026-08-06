@@ -17,6 +17,7 @@ import TripPicker from './components/TripPicker.jsx'
 import Icon from './components/Icon.jsx'
 import AuthSheet from './components/AuthSheet.jsx'
 import Onboarding from './components/Onboarding.jsx'
+import BootScreen from './components/BootScreen.jsx'
 import { tripColor } from './lib/tripColors.js'
 import { track } from './lib/analytics.js'
 import { AuthProvider, useAuth } from './lib/AuthContext.jsx'
@@ -131,7 +132,11 @@ export default function App() {
     //
     // The trips arrive when they arrive; the app is perfectly capable of
     // rendering an empty carousel for a moment.
-    const minBoot = 1200
+    // Long enough for the cold open to finish its sentence: the sphere draws,
+    // the route crosses it, the duck lands, and the name resolves at ~2.0s.
+    // Cutting it at 1.2s was why the old screen read as a still image with a
+    // twitch rather than as an opening.
+    const minBoot = 2050
     const leave = setTimeout(() => {
       if (cancelled) return
       setBootLeaving(true)
@@ -283,15 +288,7 @@ export default function App() {
     <TripContext.Provider value={ctx}>
       {needsOnboarding && <Onboarding onDone={() => setActiveTab('world')} />}
 
-      {booting && (
-        <div className={`boot${bootLeaving ? ' leaving' : ''}`}>
-          <img className="boot-duck" src="/duck.png" alt="" />
-          <div className="boot-title">
-            <span className="app-title-thin">Pond</span>
-            <span className="app-title-bold">Hopping</span>
-          </div>
-        </div>
-      )}
+      {booting && <BootScreen leaving={bootLeaving} />}
 
       <div className="app">
         <header className={`app-header${activeTab === 'world' ? ' app-header--world' : ''}`}>
