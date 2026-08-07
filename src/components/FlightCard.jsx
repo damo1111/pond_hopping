@@ -189,7 +189,6 @@ export default function FlightCard({ flight, aircraftType }) {
             <Meta label="Reg" value={f.registration} mono onSave={(v) => saveField('registration', v.toUpperCase())} />
             <Meta label="Cabin" value={f.cabin} onSave={(v) => saveField('cabin', v)} />
             <Meta label="Seat" value={f.seat} mono onSave={(v) => saveField('seat', v)} />
-            <Meta label="Config" value={f.config} mono onSave={(v) => saveField('config', v)} />
             <Meta label="Depart" value={localTime(f.dep_time, f.dep_airport)} mono />
             <Meta label="Arrive" value={localTime(f.arr_time, f.arr_airport)} mono />
             <Meta label="Duration" value={fmtDuration(durationMin(f))} mono />

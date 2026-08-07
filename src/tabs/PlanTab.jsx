@@ -270,8 +270,7 @@ export default function PlanTab() {
       {!user && (
         <div className="plan-signin">
           <div className="plan-signin-body">
-            You&apos;re looking at an example. Sign in to start your own — trips, flights and
-            photos, kept to your account.
+            This one&apos;s an example. Sign in to start your own.
           </div>
           <button className="plan-signin-btn" onClick={openAuth}>
             Sign in or create an account

@@ -115,8 +115,16 @@ function nearAny(point, others) {
 }
 
 export default function WorldTab() {
-  const { tripMeta, tripsLoaded, selectedTrip, setSelectedTrip, goToTab, jumpToJournal, openPlanner } =
-    useContext(TripContext)
+  const {
+    tripMeta,
+    tripsLoaded,
+    selectedTrip,
+    setSelectedTrip,
+    goToTab,
+    jumpToJournal,
+    openPlanner,
+    introOpen,
+  } = useContext(TripContext)
   // The one thing worth opening the app for when nothing is planned.
   const [memory, setMemory] = useState(null)
   const [flights, setFlights] = useState(null)
@@ -173,9 +181,13 @@ export default function WorldTab() {
       // A browser that won't read localStorage gets the tour every launch,
       // which is the harmless direction to fail in.
     }
+    // Not while the intro is up: the tour points at things, and pointing at
+    // something behind a full-screen card is both invisible and, once the
+    // card goes, already half over.
+    if (introOpen) return
     if (shouldTour({ trips: tripMeta, tripsLoaded, dismissed })) setTourOn(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripsLoaded])
+  }, [tripsLoaded, introOpen])
 
   const home = useMemo(() => homeCoords(), [])
   const overviewPov = isEmpty ? { lat: home.lat, lng: home.lng, altitude: 1.9 } : OVERVIEW_POV
@@ -784,7 +796,7 @@ export default function WorldTab() {
               <span className="wt-add-mark">+</span>
               <span className="wt-title">Add a trip</span>
               <span className="wt-subtitle">One you've taken, or one you're on</span>
-              <span className="wt-dates">photos · a booking · your AI</span>
+              <span className="wt-dates">photos · email · ai</span>
             </button>
           </div>
 

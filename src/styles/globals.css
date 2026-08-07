@@ -805,7 +805,10 @@ button {
   align-items: center;
   justify-content: center;
   gap: 14px;
-  z-index: 1000;
+  /* Above the intro cards, which mount underneath it and are therefore
+     already painted when this lifts. Anything lower and the hand-off shows
+     a frame of the app in between. */
+  z-index: 100005;
   /* Fully opaque from the first frame — no fade-in here. The app
      underneath is already mounted (just visually hidden by this
      overlay) so an opacity animation on the overlay itself briefly
@@ -7991,11 +7994,28 @@ button {
 
 /* ── Getting your trips in ────────────────────────────────────── */
 
+/* The door, not a ghost. It was 70% transparent over a blue gradient, which
+   read as a missing card rather than an empty one — the dashed border is
+   enough to say "add" without the fill giving up as well. */
 .wt-card--add {
   justify-content: center;
   border-style: dashed;
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border-color: var(--accent-dim);
+  background: rgba(255, 255, 255, 0.94);
 }
+
+/* Every other tile's subtitle is a place name and fits on one line, so it is
+   set to ellipsis. This one is a sentence, and truncating it mid-word — "or
+   one you'r…" — is worse than letting it take the two lines it needs. */
+.wt-card--add .wt-title,
+.wt-card--add .wt-subtitle {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.wt-card--add .wt-subtitle { line-height: 1.45; margin-top: 1px; }
+.wt-card--add .wt-dates { margin-top: 6px; white-space: nowrap; }
 
 .wt-add-mark {
   font-family: var(--font-serif);
@@ -8333,15 +8353,34 @@ button {
   to   { opacity: 1 }
 }
 
-.intro-card {
-  max-width: 340px;
-  text-align: center;
-  animation: intro-card-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+/* A rail of three, moved as one. Cross-fading a single card in place made
+   each step feel like a page reload; sliding says they are three sides of
+   one thing, and gives the thumb something to push. */
+.intro-viewport {
+  width: 100%;
+  max-width: 360px;
+  overflow: hidden;
+  /* The gesture is horizontal; vertical stays with the browser. */
+  touch-action: pan-y;
 }
 
-@keyframes intro-card-in {
-  from { opacity: 0; transform: translateY(14px) scale(0.98) }
-  to   { opacity: 1; transform: none }
+.intro-track {
+  display: flex;
+  align-items: flex-start;
+  will-change: transform;
+}
+
+/* Only while nothing is being dragged — a transition during a drag lags the
+   finger by exactly its own duration. */
+.intro-track.settling {
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.intro-card {
+  flex: 0 0 100%;
+  min-width: 0;
+  padding: 0 10px;
+  text-align: center;
 }
 
 /* The circle behind the drawing, doing the same job as the flat colour
@@ -8514,3 +8553,24 @@ button {
 }
 
 .run-strava-arrow { font-size: 11px; opacity: 0.8; }
+
+/* The reason to sign up, at the bottom of the list of things you cannot do
+   without doing so. It replaced a grey sentence whose only companion was a
+   button marked "Not now". */
+.route-cta {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--accent-bg);
+  border: 1px solid var(--border);
+}
+
+.route-cta-line { font-size: 14.5px; margin-bottom: 4px; }
+
+.route-cta-sub {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  text-wrap: pretty;
+}

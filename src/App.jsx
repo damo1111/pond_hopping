@@ -297,6 +297,7 @@ export default function App() {
     () => ({
       tripMeta: shownTrips,
       allTrips: tripMeta,
+      introOpen: showIntro,
       demoPref,
       setDemoPref: (v) => {
         writePreference(v)
@@ -331,7 +332,7 @@ export default function App() {
         }
       },
     }),
-    [tripMeta, shownTrips, demoPref, tripsLoaded, selectedTrip, journalJump, plannerJump]
+    [tripMeta, shownTrips, demoPref, showIntro, tripsLoaded, selectedTrip, journalJump, plannerJump]
   )
 
   // Public read-only share page — no nav, no forms.
@@ -350,8 +351,12 @@ export default function App() {
       {/* Before anything is asked of anybody, including signing in: "what is
           this?" comes before "who are you?", and a signed-out visitor is
           exactly who most needs the answer. Above onboarding, so a brand new
-          account meets the pitch before the form. */}
-      {showIntro && !booting && <IntroCards onDone={() => setShowIntro(false)} />}
+          account meets the pitch before the form.
+
+          Mounted during the boot animation rather than after it, and painted
+          underneath — waiting for boot to finish meant the globe, the trip
+          strip and the tour all got a frame of their own on the way past. */}
+      {showIntro && <IntroCards onDone={() => setShowIntro(false)} />}
 
       {needsOnboarding && !showIntro && <Onboarding onDone={() => setActiveTab('world')} />}
 
