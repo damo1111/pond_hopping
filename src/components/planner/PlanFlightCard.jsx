@@ -19,7 +19,7 @@ const STATUS = {
   boarding: { label: 'Boarding', cls: 'ontime' },
   landed: { label: 'Landed', cls: 'muted' },
   cancelled: { label: 'Cancelled', cls: 'delayed' },
-  unbooked: { label: 'Not booked yet', cls: 'muted' },
+  unbooked: { label: 'Not booked', cls: 'muted' },
 }
 
 const DELAY_RISK = [

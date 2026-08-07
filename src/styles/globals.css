@@ -5343,9 +5343,12 @@ button {
   margin-bottom: 10px;
 }
 
+/* Anchored to the left edge, not the right. The thumb sits at the very
+   left of the card, so a pill pinned to its right-hand side grows leftwards
+   — straight off the card — and "Not booked yet" arrived as "T BOOKED YET". */
 .pf-status {
   position: absolute;
-  right: -4px;
+  left: -4px;
   top: -4px;
   font-family: var(--font-mono);
   font-size: 7px;
