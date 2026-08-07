@@ -10,6 +10,7 @@ import {
   openLocationSettings,
 } from '../lib/visits.js'
 import { isOn as gestureDebugOn, toggle as toggleGestureDebug } from '../lib/gestureDebug.js'
+import { pushDiagnostics, registerPush } from '../lib/push.js'
 
 const ROLES = [
   { id: 'family', label: 'Family' },
@@ -329,6 +330,67 @@ function TimelineCard() {
   )
 }
 
+// Push registration fails in four silent ways, on a device with no console.
+// AuthContext calls registerPush on every signed-in launch and discards the
+// answer, so an empty push_tokens table could mean the permission was
+// refused, the plugin was missing, FCM never replied, or the row was
+// rejected — and there was no way to tell which from the outside.
+//
+// This asks the same question by hand and prints the answer.
+function PushCard() {
+  const { user } = useAuth()
+  const [info, setInfo] = useState(null)
+  const [result, setResult] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    pushDiagnostics().then(setInfo)
+  }, [])
+
+  if (!info?.native) return null
+
+  async function retry() {
+    setBusy(true)
+    setResult(null)
+    try {
+      setResult(await registerPush(user?.email))
+      setInfo(await pushDiagnostics())
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="account-card">
+      <div className="account-card-title">Notifications</div>
+      <div className="account-card-body">
+        Told when a forwarded booking turns into an itinerary. Nothing else sends one.
+      </div>
+
+      <div className="push-rows">
+        <div className="push-row">
+          <span>Device</span>
+          <b>{info.platform}</b>
+        </div>
+        <div className="push-row">
+          <span>Permission</span>
+          <b>{info.permission}</b>
+        </div>
+        {result && (
+          <div className="push-row">
+            <span>Last attempt</span>
+            <b>{result.ok ? `registered · ${result.token}` : result.reason}</b>
+          </div>
+        )}
+      </div>
+
+      <button className="account-btn ghost" onClick={retry} disabled={busy}>
+        {busy ? 'asking…' : 'Register this device'}
+      </button>
+    </div>
+  )
+}
+
 function SignedIn() {
   const { user, profile } = useAuth()
   const [connections, setConnections] = useState(null)
@@ -374,6 +436,7 @@ function SignedIn() {
 
       <ConnectCard />
 
+      <PushCard />
       <TimelineCard />
 
       <InviteForm onInvited={load} />

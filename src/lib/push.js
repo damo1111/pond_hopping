@@ -9,6 +9,26 @@ import { supabase } from './supabase.js'
 // Tokens rotate — on reinstall, on restore, occasionally on their own — so
 // this re-registers on every launch and upserts rather than treating a
 // token as something you store once.
+/**
+ * What this device thinks is true about notifications.
+ *
+ * Registration fails in four different ways and every one of them is silent:
+ * the caller in AuthContext throws the result away, and there is no console
+ * to read on a phone. So the answer has to be readable in the app itself.
+ */
+export async function pushDiagnostics() {
+  const out = { platform: Capacitor.getPlatform(), native: Capacitor.isNativePlatform() }
+  if (!out.native) return { ...out, permission: 'n/a', note: 'the web build never registers' }
+  try {
+    const { PushNotifications } = await import('@capacitor/push-notifications')
+    out.permission = (await PushNotifications.checkPermissions())?.receive ?? 'unknown'
+  } catch (err) {
+    out.permission = 'no-plugin'
+    out.note = String(err)
+  }
+  return out
+}
+
 export async function registerPush(email) {
   if (!email || !Capacitor.isNativePlatform()) return { ok: false, reason: 'not-native' }
 
@@ -30,7 +50,10 @@ export async function registerPush(email) {
       // Listeners must be attached before register() or the token event
       // can fire before anything is listening for it.
       PushNotifications.addListener('registration', async ({ value }) => {
-        await supabase.from('push_tokens').upsert(
+        // The write was unchecked, so a token that arrived and then failed
+        // RLS looked exactly like a token that never arrived — which is two
+        // very different problems wearing the same empty table.
+        const { error } = await supabase.from('push_tokens').upsert(
           {
             token: value,
             email,
@@ -39,7 +62,11 @@ export async function registerPush(email) {
           },
           { onConflict: 'token' }
         )
-        resolve({ ok: true })
+        resolve(
+          error
+            ? { ok: false, reason: `save failed: ${error.message}`, gotToken: true }
+            : { ok: true, token: `${String(value).slice(0, 12)}…` }
+        )
       })
       PushNotifications.addListener('registrationError', (err) =>
         resolve({ ok: false, reason: String(err?.error || err) })
