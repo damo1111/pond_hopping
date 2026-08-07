@@ -8288,3 +8288,16 @@ button {
 .push-row:last-child { border-bottom: none; }
 .push-row span { color: var(--text-muted); }
 .push-row b { font-family: var(--font-mono); font-size: 11.5px; font-weight: 500; text-align: right; word-break: break-word; }
+
+/* The sentence to send them, shown rather than described — nothing is
+   emailed from the app, so this is the whole mechanism. */
+.invite-message {
+  margin: 10px 0;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}

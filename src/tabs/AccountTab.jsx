@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import {
@@ -107,31 +108,84 @@ function SignInForm() {
   )
 }
 
+// This never sent an email. There is no mailer in the project at all — the
+// only outbound anything is a push notification — so "Send invite" wrote a
+// row and stopped, and the person on the other end was never told. They
+// found out by signing in with that address one day and noticing.
+//
+// Rather than pretend, the button now says what it does: it puts them on
+// the list, and hands you the sentence to send them yourself.
 function InviteForm({ onInvited }) {
   const { user } = useAuth()
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('family')
   const [sending, setSending] = useState(false)
+  const [invited, setInvited] = useState(null)
+  const [copied, setCopied] = useState(false)
   const [error, setError] = useState(null)
+
+  const message = (who) =>
+    `I've added you to Pond Hopping, my travel log — open https://pond.eend.app and sign in with ${who}. It emails you a code, there's no password.`
 
   async function send(e) {
     e.preventDefault()
     setSending(true)
     setError(null)
+    const who = email.trim().toLowerCase()
     const { error } = await supabase
       .from('connections')
-      .insert({ user_id: user.id, invitee_email: email.trim().toLowerCase(), role })
+      .insert({ user_id: user.id, invitee_email: who, role })
     setSending(false)
     if (error) setError(error.message)
     else {
       setEmail('')
+      setInvited(who)
       onInvited()
     }
+  }
+
+  async function share() {
+    const text = message(invited)
+    try {
+      if (navigator.share) return await navigator.share({ text })
+    } catch {
+      /* dismissed the share sheet — fall through to copying */
+    }
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch {
+      /* a browser that won't copy still shows the text below */
+    }
+  }
+
+  if (invited) {
+    return (
+      <div className="account-card">
+        <div className="account-card-title">Now tell them</div>
+        <div className="account-card-body">
+          <b>{invited}</b> is on the list — but nothing has been emailed to them. Send them this and
+          they're in.
+        </div>
+        <div className="invite-message">{message(invited)}</div>
+        <button className="account-btn" onClick={share}>
+          {copied ? 'Copied' : 'Share this'}
+        </button>
+        <button className="account-btn ghost" onClick={() => setInvited(null)}>
+          Add someone else
+        </button>
+      </div>
+    )
   }
 
   return (
     <form className="account-card" onSubmit={send}>
       <div className="account-card-title">Invite someone</div>
+      <div className="account-card-body">
+        Adds them to your list so they can see what you've shared. You send them the link yourself —
+        nothing is emailed from here.
+      </div>
       <input
         className="account-input"
         type="email"
@@ -148,7 +202,7 @@ function InviteForm({ onInvited }) {
         ))}
       </select>
       <button className="account-btn" type="submit" disabled={sending}>
-        {sending ? 'Sending…' : 'Send invite'}
+        {sending ? 'Adding…' : 'Add them'}
       </button>
       {error && <div className="account-error">{error}</div>}
     </form>
@@ -217,9 +271,17 @@ function ConnectCard() {
 
   if (!token) return null
 
-  // webcal:// rather than https:// so a tap opens the calendar app with a
-  // subscribe prompt instead of downloading a one-off .ics file.
-  const calendar = `webcal://pond.eend.app/api/calendar/${token}.ics`
+  // webcal:// opens the calendar app with a subscribe prompt instead of
+  // downloading a one-off .ics — on iOS and macOS, where something is
+  // registered to handle the scheme. On Android nothing is: the tap goes
+  // nowhere at all, no error, no chooser, which is exactly what it looked
+  // like. Google Calendar's add-by-URL page is the Android equivalent, and
+  // it takes the https form of the same feed.
+  const feed = `pond.eend.app/api/calendar/${token}.ics`
+  const android = Capacitor.getPlatform() === 'android' || /Android/i.test(navigator.userAgent || '')
+  const calendar = android
+    ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(`https://${feed}`)}`
+    : `webcal://${feed}`
   const mcp = `https://pond.eend.app/api/mcp?key=${token}`
 
   return (
@@ -229,8 +291,10 @@ function ConnectCard() {
       <div className="account-card-body">
         Subscribe to your trips in Apple, Google or Outlook Calendar. Updates itself as plans change.
       </div>
-      <a className="account-btn" href={calendar}>Add to calendar</a>
-      <button className="account-btn ghost" onClick={() => copy('cal', calendar)}>
+      <a className="account-btn" href={calendar} target={android ? '_blank' : undefined} rel="noreferrer">
+        {android ? 'Add to Google Calendar' : 'Add to calendar'}
+      </a>
+      <button className="account-btn ghost" onClick={() => copy('cal', `https://${feed}`)}>
         {copied === 'cal' ? 'Copied' : 'Copy calendar link'}
       </button>
 
