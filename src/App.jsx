@@ -20,6 +20,7 @@ import AuthSheet from './components/AuthSheet.jsx'
 import Onboarding from './components/Onboarding.jsx'
 import BootScreen from './components/BootScreen.jsx'
 import IntroCards, { introSeen } from './components/IntroCards.jsx'
+import { readPreference, visibleTrips, writePreference } from './lib/demoVisibility.js'
 import { tripColor } from './lib/tripColors.js'
 import { track } from './lib/analytics.js'
 import { AuthProvider, useAuth } from './lib/AuthContext.jsx'
@@ -61,13 +62,20 @@ const TABS = [
   { id: 'useful',   label: 'Useful',  icon: 'kit' },
 ]
 
+// Four, not five. The fifth scrolled off the edge of a Pixel, and it was
+// Account — the one thing in the drawer you reach for repeatedly, and the
+// only one that isn't about a trip. It lives under the duck now, which is
+// where a person is, and where the sign-in dot has always been.
 const USEFUL_TABS = [
   { id: 'costs',    label: 'Costs',    icon: 'coin' },
   { id: 'currency', label: 'Currency', icon: 'exchange' },
   { id: 'phrases',  label: 'Phrases',  icon: 'speech' },
   { id: 'share',    label: 'Share',    icon: 'share' },
-  { id: 'account',  label: 'Account',  icon: 'person' },
 ]
+
+// Still reachable by name — it just isn't in the row any more. Kept apart
+// so that removing a tab from the nav never quietly breaks a jump to it.
+const USEFUL_ROUTES = [...USEFUL_TABS, { id: 'account' }]
 
 // Reachable only by entering a trip on Home — no longer in the bottom bar.
 const TRIP_TABS = ['journal', 'map', 'photos']
@@ -118,6 +126,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('world')
   const [usefulTab, setUsefulTab] = useState('costs')
   const [tripMeta, setTripMeta] = useState([])
+  // 'auto' | 'show' | 'hide'. Read once; the Account switch updates it in
+  // place so the globe changes under you rather than on next launch.
+  const [demoPref, setDemoPref] = useState(() => readPreference())
   const [tripsLoaded, setTripsLoaded] = useState(false)
   const [loadError, setLoadError] = useState(null)
   const [selectedTrip, setSelectedTrip] = useState(null)
@@ -253,9 +264,20 @@ export default function App() {
     setJournalJump({ tripSlug, date, key: Date.now() })
   }
 
+  // The example steps aside once you have trips of your own — computed once
+  // here rather than at each consumer, or you get a demo that has left the
+  // globe and is still in the trip picker.
+  const shownTrips = useMemo(() => visibleTrips(tripMeta, demoPref), [tripMeta, demoPref])
+
   const ctx = useMemo(
     () => ({
-      tripMeta,
+      tripMeta: shownTrips,
+      allTrips: tripMeta,
+      demoPref,
+      setDemoPref: (v) => {
+        writePreference(v)
+        setDemoPref(v)
+      },
       tripsLoaded,
       selectedTrip,
       setSelectedTrip,
@@ -277,7 +299,7 @@ export default function App() {
       // Resolve that here so moving a tab between the two doesn't break
       // every jump link in the app.
       goToTab: (tab) => {
-        if (USEFUL_TABS.some((t) => t.id === tab)) {
+        if (USEFUL_ROUTES.some((t) => t.id === tab)) {
           setUsefulTab(tab)
           setActiveTab('useful')
         } else {
@@ -285,7 +307,7 @@ export default function App() {
         }
       },
     }),
-    [tripMeta, tripsLoaded, selectedTrip, journalJump, plannerJump]
+    [tripMeta, shownTrips, demoPref, tripsLoaded, selectedTrip, journalJump, plannerJump]
   )
 
   // Public read-only share page — no nav, no forms.
@@ -315,7 +337,11 @@ export default function App() {
         <header className={`app-header${activeTab === 'world' ? ' app-header--world' : ''}`}>
           <button
             className={`header-duck-btn${user ? ' signed-in' : ''}`}
-            onClick={() => setAuthOpen(true)}
+            onClick={() => {
+              if (!user) return setAuthOpen(true)
+              setUsefulTab('account')
+              setActiveTab('useful')
+            }}
             aria-label={user ? 'Account' : 'Sign in'}
             title={user ? user.email : 'Sign in'}
           >
@@ -340,14 +366,14 @@ export default function App() {
             the Useful drawer, so there's nothing to have come in from yet. */}
         {TRIP_TABS.includes(activeTab) ? (
           <TripCrumb
-            trip={tripMeta.find((t) => t.slug === selectedTrip)}
+            trip={shownTrips.find((t) => t.slug === selectedTrip)}
             onBack={() => setActiveTab('world')}
           />
         ) : activeTab === 'useful' && (usefulTab === 'costs' || usefulTab === 'share') ? (
-          <TripPicker tripMeta={tripMeta} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
+          <TripPicker tripMeta={shownTrips} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
         ) : null}
 
-        {activeTab === 'useful' && (
+        {activeTab === 'useful' && usefulTab !== 'account' && (
           <nav className="subnav">
             {USEFUL_TABS.map((tab) => (
               <button

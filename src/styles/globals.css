@@ -8388,6 +8388,7 @@ button {
   font-weight: 600;
   letter-spacing: -0.015em;
   margin: 0 0 10px;
+  text-wrap: balance;
 }
 
 .intro-body {
@@ -8395,6 +8396,7 @@ button {
   line-height: 1.6;
   color: var(--text-muted);
   margin: 0;
+  text-wrap: balance;
 }
 
 .intro-dots { display: flex; gap: 7px; margin: 26px 0 18px; }
@@ -8422,4 +8424,67 @@ button {
   background: none;
   font-size: 14px;
   color: var(--text-muted);
+}
+
+/* Centred prose with a last line of two short words looks like a mistake,
+   and on a phone it happens constantly — one word too many and "of it."
+   gets a line to itself. `balance` evens the lines out across the block, so
+   the break lands somewhere deliberate instead of wherever the width ran
+   out. `pretty` is the fallback for the wider blocks balance gives up on:
+   it only guarantees the last line isn't a runt, which is the actual
+   complaint. Browsers with neither wrap exactly as they did before.
+
+   Applied to display copy, not to body content people have written — a
+   journal entry should wrap like text, not like a poster. */
+.intro-title,
+.intro-body,
+.tour-title,
+.tour-body,
+.ios-sheet-title,
+.ios-sheet-sub,
+.account-card-title,
+.track-title,
+.world-empty-title {
+  text-wrap: balance;
+}
+
+.account-card-body,
+.route-body,
+.track-body,
+.track-next,
+.route-note,
+.world-empty-body,
+.invite-message {
+  text-wrap: pretty;
+}
+
+/* Said once, at the top, on any screen showing the example's data. Not a
+   warning — it is genuinely useful to have something to look at — just an
+   answer to "whose £400 dinner is this?". */
+.demo-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--accent-bg);
+  border: 1px solid var(--border);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.demo-banner-tag {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 3px 7px;
+  margin-top: 1px;
 }

@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import CountryFlags from '../components/CountryFlags.jsx'
+import { isDemo } from '../lib/demoTour.js'
 
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Hotel', 'Activity', 'Flight', 'Other']
 const CURRENCIES = ['AUD', 'KRW', 'HKD', 'JPY', 'CNY', 'USD', 'GBP']
@@ -122,6 +123,11 @@ export default function CostsTab() {
   const visible = costs.filter((c) => !selectedTrip || tripsById.get(c.trip_id)?.slug === selectedTrip)
   const total = visible.reduce((s, c) => s + Number(c.amount_aud || 0), 0)
 
+  // A page of somebody else's spending, presented in your currency with no
+  // hint whose it is, is the single most misleading screen in the app —
+  // these are real numbers from a real trip that isn't yours.
+  const showingDemo = visible.some((c) => isDemo(tripsById.get(c.trip_id)))
+
   const byCat = CATEGORIES.map((cat) => ({
     cat,
     total: visible.filter((c) => c.category === cat).reduce((s, c) => s + Number(c.amount_aud || 0), 0),
@@ -138,6 +144,14 @@ export default function CostsTab() {
 
   return (
     <div className="costs-tab">
+      {showingDemo && (
+        <div className="demo-banner">
+          <span className="demo-banner-tag">Example</span>
+          Someone else's spending, shown so the page isn't blank. It goes when you add a trip of your
+          own.
+        </div>
+      )}
+
       <AddCost tripMeta={tripMeta} selectedTrip={selectedTrip} onSaved={() => setReload((r) => r + 1)} />
 
       <div className="fx-card cost-total-card">

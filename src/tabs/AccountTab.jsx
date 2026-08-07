@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
@@ -12,6 +12,9 @@ import {
 } from '../lib/visits.js'
 import { isOn as gestureDebugOn, toggle as toggleGestureDebug } from '../lib/gestureDebug.js'
 import { pushDiagnostics, registerPush } from '../lib/push.js'
+import { TripContext } from '../App.jsx'
+import { demoSwitchNote, hiddenByArrival } from '../lib/demoVisibility.js'
+import { ownTrips } from '../lib/demoTour.js'
 
 const ROLES = [
   { id: 'family', label: 'Family' },
@@ -394,6 +397,45 @@ function TimelineCard() {
   )
 }
 
+// The example trip leaves by itself once you have trips of your own — which
+// is right, and also the kind of thing that makes people think they have
+// lost something. So the switch exists mainly to be found: it says where
+// Hong Kong went, and lets you have it back.
+//
+// Only shown once there is an example to talk about.
+function DemoCard() {
+  const { allTrips, demoPref, setDemoPref } = useContext(TripContext)
+  const trips = allTrips ?? []
+  if (!trips.some((t) => t.is_demo)) return null
+
+  const real = ownTrips(trips).length
+  const on = demoPref === 'show' || (demoPref === 'auto' && real === 0)
+
+  return (
+    <div className="account-card">
+      <div className="account-card-title">The example trip</div>
+      <div className="account-card-body">
+        Hong Kong &amp; South Korea is a real log left here so the app has something to show before
+        you've added anything. It isn't yours, and it can't be edited.
+      </div>
+
+      <button
+        className={`account-btn${on ? ' ghost' : ''}`}
+        onClick={() => setDemoPref?.(on ? 'hide' : 'show')}
+      >
+        {on ? 'Hide the example' : 'Show the example'}
+      </button>
+
+      <div className="account-hint">{demoSwitchNote({ trips, pref: demoPref })}</div>
+      {hiddenByArrival({ trips, pref: demoPref }) && (
+        <div className="account-hint">
+          It went of its own accord when your first trip arrived — nothing was deleted.
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Push registration fails in four silent ways, on a device with no console.
 // AuthContext calls registerPush on every signed-in launch and discards the
 // answer, so an empty push_tokens table could mean the permission was
@@ -530,6 +572,7 @@ function SignedIn() {
 
       <ConnectCard />
 
+      <DemoCard />
       <PushCard />
       <TimelineCard />
 

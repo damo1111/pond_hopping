@@ -66,7 +66,7 @@ const CARDS = [
     id: 'globe',
     duck: { left: '70%', top: '18%', size: 42, flip: false },
     title: 'Watch it fill',
-    body: 'Every flight becomes a line on the globe, every day becomes a map of where you actually went. Seventeen years of it, if you have seventeen years of it.',
+    body: 'Every flight becomes a line on the globe, and every day a map of where you actually went. Seventeen years of it, if you’ve got them.',
     art: (
       <svg viewBox="0 0 120 120" aria-hidden="true">
         <Sphere />
