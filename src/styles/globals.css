@@ -8044,6 +8044,11 @@ button {
 
 .routes-sheet, .route-sheet { max-height: 86vh; overflow-y: auto; }
 
+/* The way out sits under the way in, not against it. Without this the ghost
+   button rides up on the CTA card's own edge and the two read as one
+   control. */
+.routes-sheet > .account-btn.ghost { margin-top: 16px; }
+
 .route {
   display: flex;
   gap: 12px;
