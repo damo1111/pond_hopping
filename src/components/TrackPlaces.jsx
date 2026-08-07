@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Capacitor } from '@capacitor/core'
-import { enableVisits, visitStatus, visitsSupported } from '../lib/visits.js'
+import {
+  enableVisits,
+  openLocationSettings,
+  visitStatus,
+  visitsNeedSettings,
+  visitsSupported,
+} from '../lib/visits.js'
 
 // Asked at the only moment it makes sense: a trip has just been created, and
 // the days it covers haven't happened yet.
@@ -11,11 +16,14 @@ import { enableVisits, visitStatus, visitsSupported } from '../lib/visits.js'
 // `location_visits`. The day map reads it now, so saying yes visibly pays
 // off, and the asking has moved to where the payoff is.
 //
-// Everything the system dialog cannot say gets said here first. iOS gives you
-// one sentence and no second chance: a "no" is permanent until somebody finds
-// their way into Settings. So the real question is asked in plain English,
-// with the answer to "who can see this" given before it is wanted, and only
-// then is the system prompt raised.
+// Everything the system dialog cannot say gets said here first. Both phones
+// give you one sentence and no second chance: a "no" is permanent until
+// somebody finds their way into Settings. So the real question is asked in
+// plain English, with the answer to "who can see this" given before it is
+// wanted, and only then is the system prompt raised. What comes next differs
+// by platform and is described accurately rather than generically — Android
+// asks twice and sends you to a settings page for the second half, and being
+// surprised by that is how people end up half-granted and confused.
 
 /**
  * Whether this device has anything to say on the subject — checked before a
@@ -23,7 +31,7 @@ import { enableVisits, visitStatus, visitsSupported } from '../lib/visits.js'
  * whose only content renders to nothing.
  */
 export function offersTracking() {
-  return visitsSupported() || Capacitor.isNativePlatform()
+  return visitsSupported()
 }
 
 export default function TrackPlaces({ compact = false, onDone }) {
@@ -39,27 +47,27 @@ export default function TrackPlaces({ compact = false, onDone }) {
     }
   }, [])
 
-  // Nowhere this can work, so nothing is promised. Android's background
-  // location is a different API with a Play Console declaration behind it,
-  // and Safari has no background geolocation at all — but a phone that can't
-  // record can still bring its Google Timeline in afterwards, which is worth
-  // one line rather than silence.
-  if (!visitsSupported()) {
-    if (!Capacitor.isNativePlatform()) return null
-    return (
-      <div className="track-note">
-        Recording places as you go is on the iPhone app for now. On this phone, bring your Google
-        Timeline in when you get back — it's the same map, after the fact.
-      </div>
-    )
-  }
+  // A browser tab that isn't open records nothing, on any platform, so the
+  // web is offered nothing rather than a switch that quietly does very
+  // little. Both apps can do this properly.
+  if (!visitsSupported() || status === undefined || status === null) return null
 
-  if (status === undefined || status === null) return null
+  const android = visitsNeedSettings()
 
   if (status.enabled) {
     return (
       <div className="track-note">
         Places are being noted for this trip already. Each day's map fills itself in.
+        {android && status.authorization === 'whenInUse' && (
+          <>
+            {' '}
+            Only while the app is open, though —{' '}
+            <button className="track-link" onClick={openLocationSettings}>
+              allow it all the time
+            </button>{' '}
+            and the days you never got round to opening it count too.
+          </>
+        )}
       </div>
     )
   }
@@ -67,8 +75,14 @@ export default function TrackPlaces({ compact = false, onDone }) {
   if (status.authorization === 'denied' || status.authorization === 'restricted') {
     return (
       <div className="track-note">
-        Location is switched off for Pond Hopping, so the days can't fill themselves in. Settings →
-        Privacy &amp; Security → Location Services → Pond Hopping.
+        Location is switched off for Pond Hopping, so the days can't fill themselves in.{' '}
+        {android ? (
+          <button className="track-link" onClick={openLocationSettings}>
+            Turn it back on in Settings
+          </button>
+        ) : (
+          <>Settings → Privacy &amp; Security → Location Services → Pond Hopping.</>
+        )}
       </div>
     )
   }
@@ -103,8 +117,8 @@ export default function TrackPlaces({ compact = false, onDone }) {
           alone, and deletable.
         </li>
         <li>
-          <b>Barely touches the battery.</b> No map open, no GPS running — iOS wakes the app a
-          handful of times a day.
+          <b>Barely touches the battery.</b> No map open, no GPS running — the phone wakes the app
+          a handful of times a day and that's the lot.
         </li>
         <li>
           <b>Off whenever.</b> One tap in Account, and it stops.
@@ -112,8 +126,18 @@ export default function TrackPlaces({ compact = false, onDone }) {
       </ul>
 
       <div className="track-next">
-        iOS will ask next. <b>While Using the App</b> is enough to start — it offers to extend that
-        later, once it's seen the app actually use it.
+        {android ? (
+          <>
+            Android will ask next, and it asks twice: location first, then <b>Allow all the time</b>{' '}
+            on your app's settings page. The first one alone is enough to start — it records while
+            the app is open, and you can come back for the second.
+          </>
+        ) : (
+          <>
+            iOS will ask next. <b>While Using the App</b> is enough to start — it offers to extend
+            that later, once it's seen the app actually use it.
+          </>
+        )}
       </div>
 
       <button className="ios-sheet-done" onClick={turnOn} disabled={busy}>

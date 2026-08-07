@@ -8259,3 +8259,16 @@ button {
   line-height: 1.5;
   color: var(--text-muted);
 }
+
+/* An inline "take me to Settings" inside a sentence, because on Android that
+   is genuinely where the second half of the permission lives and a button
+   floating below the paragraph reads as a different subject. */
+.track-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
-import { visitStatus, enableVisits, disableVisits, syncVisits } from '../lib/visits.js'
+import {
+  visitStatus,
+  enableVisits,
+  disableVisits,
+  syncVisits,
+  visitsNeedSettings,
+  openLocationSettings,
+} from '../lib/visits.js'
 import { isOn as gestureDebugOn, toggle as toggleGestureDebug } from '../lib/gestureDebug.js'
 
 const ROLES = [
@@ -280,8 +287,14 @@ function TimelineCard() {
 
       {blocked ? (
         <div className="account-hint">
-          Location is switched off for Pond Hopping. Settings → Privacy &amp; Security → Location
-          Services → Pond Hopping.
+          Location is switched off for Pond Hopping.{' '}
+          {visitsNeedSettings() ? (
+            <button className="track-link" onClick={openLocationSettings}>
+              Turn it back on in Settings
+            </button>
+          ) : (
+            <>Settings → Privacy &amp; Security → Location Services → Pond Hopping.</>
+          )}
         </div>
       ) : (
         <button
@@ -295,8 +308,20 @@ function TimelineCard() {
 
       {status.enabled && status.authorization === 'whenInUse' && (
         <div className="account-hint">
-          Recording while the app is open. iOS offers to extend that to the background on its own
-          schedule, once it's seen the app genuinely use it — say yes when it asks.
+          {visitsNeedSettings() ? (
+            <>
+              Recording while the app is open.{' '}
+              <button className="track-link" onClick={openLocationSettings}>
+                Allow it all the time
+              </button>{' '}
+              and the days you never got round to opening it count too.
+            </>
+          ) : (
+            <>
+              Recording while the app is open. iOS offers to extend that to the background on its
+              own schedule, once it's seen the app genuinely use it — say yes when it asks.
+            </>
+          )}
         </div>
       )}
       {status.pending > 0 && <div className="account-hint">{status.pending} waiting to upload.</div>}

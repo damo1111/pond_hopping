@@ -1,18 +1,32 @@
 import { Capacitor, registerPlugin } from '@capacitor/core'
 import { supabase } from './supabase.js'
 
-// Background location, iOS only — and deliberately so for now. Safari has
-// no background geolocation at all, so the PWA can never do this, and
-// Android's equivalent is a different API with a different permission
-// story and a Play Console declaration to go with it. One platform, one
-// tester, one honest proof that the idea works.
+// Background location, on both apps. Not on the web: Safari and Chrome have
+// no background geolocation at all, so a PWA can never do this — a tab that
+// isn't open records nothing, and pretending otherwise would be the worst
+// kind of promise.
 //
-// The native half is ios/App/App/VisitTracker.swift; read the note at the
-// top of it for why the buffering lives down there rather than up here.
+// The two native halves are ios/App/App/VisitTracker.swift and
+// android/app/src/main/java/app/eend/pond/VisitTracker.java. They arrive at
+// the same place by very different routes — iOS is handed stops by CLVisit,
+// Android works them out from a slow trickle of fixes — but they expose the
+// same six methods and the same five authorization strings, so nothing above
+// this line knows or cares which one is answering.
 const VisitTracker = registerPlugin('VisitTracker')
 
-export const visitsSupported = () =>
-  Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios'
+export const visitsSupported = () => Capacitor.isNativePlatform()
+
+/** Android asks in two goes; the second one lives in Settings from 11 on. */
+export const visitsNeedSettings = () =>
+  Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
+
+export async function openLocationSettings() {
+  try {
+    await VisitTracker.settings()
+  } catch {
+    // iOS has no such method, and nothing here should depend on it.
+  }
+}
 
 // { enabled, authorization, pending } — or null anywhere the plugin isn't.
 export async function visitStatus() {
@@ -31,9 +45,11 @@ export async function enableVisits() {
   if (authorization === 'denied' || authorization === 'restricted') {
     return { enabled: false, authorization }
   }
-  // "whenInUse" is worth starting on: iOS offers the upgrade to Always by
-  // itself, later, once it can see the app genuinely uses this — and until
-  // then visits still arrive whenever the app is open.
+  // "whenInUse" is worth starting on either way: visits still arrive
+  // whenever the app is open, and the upgrade to always-on can come later.
+  // iOS offers it by itself once it has seen the app genuinely use this;
+  // Android sends people to Settings for it, which is what
+  // openLocationSettings() is for.
   return await VisitTracker.start()
 }
 

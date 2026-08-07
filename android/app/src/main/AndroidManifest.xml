@@ -24,6 +24,25 @@
 
         </activity>
 
+        <!-- Where a location fix lands when the app isn't running. Not
+             exported: the system delivers to it by explicit component, and
+             nothing else has any business waking it. -->
+        <receiver
+            android:name=".VisitReceiver"
+            android:exported="false" />
+
+        <!-- A reboot cancels every PendingIntent location request on the
+             device, silently, and the only symptom is a switch that still
+             says "on" while nothing is ever recorded again. -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -38,4 +57,19 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Visit recording, all opt-in and all off until asked for in the app.
+         Coarse is enough for "which town", and is what a phone with wifi
+         positioning and no GPS fix will give; fine makes the stop radius
+         mean something. Background is what lets a day nobody opened the app
+         be recorded at all — the only days really worth recording.
+
+         This APK is sideloaded from the project's own releases rather than
+         published on Play, so the background permission needs no Play
+         Console declaration or review. If it is ever published, that
+         declaration becomes required. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 </manifest>
