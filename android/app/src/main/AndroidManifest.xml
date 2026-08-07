@@ -58,6 +58,15 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Android 13 made showing a notification a runtime permission, and a
+         runtime permission that is not declared here cannot be granted: the
+         request returns "denied" immediately, without a dialog and without an
+         error. The Capacitor push plugin asks for this one by alias but never
+         declares it, so on any modern phone the permission call has been
+         failing silently since the day it was added. targetSdk is 36, so
+         there is no legacy path that avoids it. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Visit recording, all opt-in and all off until asked for in the app.
          Coarse is enough for "which town", and is what a phone with wifi
          positioning and no GPS fix will give; fine makes the stop radius
