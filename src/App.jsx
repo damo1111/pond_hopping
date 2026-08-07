@@ -19,6 +19,7 @@ import Icon from './components/Icon.jsx'
 import AuthSheet from './components/AuthSheet.jsx'
 import Onboarding from './components/Onboarding.jsx'
 import BootScreen from './components/BootScreen.jsx'
+import IntroCards, { introSeen } from './components/IntroCards.jsx'
 import { tripColor } from './lib/tripColors.js'
 import { track } from './lib/analytics.js'
 import { AuthProvider, useAuth } from './lib/AuthContext.jsx'
@@ -111,6 +112,8 @@ export default function App() {
   const { user, authLoading, profile } = useAuth()
   const [authOpen, setAuthOpen] = useState(false)
   const [booting, setBooting] = useState(true)
+  // Read once, at mount, so dismissing it doesn't fight a re-render.
+  const [showIntro, setShowIntro] = useState(() => !introSeen())
   const [bootLeaving, setBootLeaving] = useState(false)
   const [activeTab, setActiveTab] = useState('world')
   const [usefulTab, setUsefulTab] = useState('costs')
@@ -298,7 +301,13 @@ export default function App() {
 
   return (
     <TripContext.Provider value={ctx}>
-      {needsOnboarding && <Onboarding onDone={() => setActiveTab('world')} />}
+      {/* Before anything is asked of anybody, including signing in: "what is
+          this?" comes before "who are you?", and a signed-out visitor is
+          exactly who most needs the answer. Above onboarding, so a brand new
+          account meets the pitch before the form. */}
+      {showIntro && !booting && <IntroCards onDone={() => setShowIntro(false)} />}
+
+      {needsOnboarding && !showIntro && <Onboarding onDone={() => setActiveTab('world')} />}
 
       {booting && <BootScreen leaving={bootLeaving} />}
 
