@@ -17,6 +17,7 @@
 // value in Vercel. Anything without it is rejected before touching OpenAI
 // or Supabase.
 import { extractBookingItems } from './_lib/extractBookingItems.js'
+import { pdfAttachments } from './_lib/attachments.js'
 import { sendPush } from './_lib/sendPush.js'
 
 const SUPABASE_URL = 'https://qslksdgxoibzrisywvqk.supabase.co'
@@ -125,17 +126,22 @@ export default async function handler(req, res) {
 
   const { from: fromAddress, subject, text } = normalise(req.body || {})
 
+  // "Your itinerary is attached" with a PDF and nothing else is a whole
+  // genre of confirmation email. The body being empty is no longer a
+  // reason to stop.
+  const files = await pdfAttachments(req.body || {})
+
   // Always 200 back to the provider once authorized — a 4xx/5xx makes them
   // retry the same email repeatedly. Failures are logged, not thrown.
-  if (!text) {
+  if (!text && !files.length) {
     res.status(200).json({ ok: true, skipped: 'no body text' })
     return
   }
 
   try {
-    const items = await extractBookingItems({ text })
+    const items = await extractBookingItems({ text, files })
     if (!items.length) {
-      res.status(200).json({ ok: true, skipped: 'nothing extracted' })
+      res.status(200).json({ ok: true, skipped: 'nothing extracted', files: files.length })
       return
     }
 
@@ -163,7 +169,12 @@ export default async function handler(req, res) {
         from_address: fromAddress,
         owner_email: owner,
         subject,
-        raw_text: text.slice(0, 12000),
+        // The review screen shows this back to the person. An empty body
+        // with a PDF beside it would read as a bug, so say what arrived.
+        raw_text: [text, files.length ? `\n\n[${files.length} PDF attachment${files.length > 1 ? 's' : ''}: ${files.map((f) => f.name).join(', ')}]` : '']
+          .join('')
+          .trim()
+          .slice(0, 12000),
         items,
         matched_trip_id: matchedTripId,
         status: 'pending',
@@ -187,7 +198,7 @@ export default async function handler(req, res) {
       }).catch((e) => ({ error: String(e) }))
     }
 
-    res.status(200).json({ ok: true, found: items.length, matchedTripId, push })
+    res.status(200).json({ ok: true, found: items.length, files: files.length, matchedTripId, push })
   } catch (err) {
     console.error(err)
     // Still 200 — the provider would otherwise hammer retries on a
