@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacy — Pond Hopping</title>
+<!--
+  A plain static file rather than a route in the app, deliberately. The Play
+  Console needs a URL that resolves for a reviewer with no account, no
+  JavaScript and no patience, and it has to keep resolving on a day the app
+  itself is broken. Vercel serves files before it applies the SPA rewrite, so
+  this is reachable at /privacy.html without touching any routing.
+-->
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #F2EFE6;
+    --surface: #FFFDF8;
+    --ink: #1A1611;
+    --muted: #6B6255;
+    --gold: #A8842C;
+    --line: #E2DBCB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14120E;
+      --surface: #1D1A15;
+      --ink: #F0EBE0;
+      --muted: #A79C8A;
+      --gold: #D0A94A;
+      --line: #302B22;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 20px 80px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 680px; margin: 0 auto; }
+  h1 { font-size: 28px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 36px; font-size: 15px; }
+  h2 { font-size: 18px; font-weight: 600; margin: 36px 0 10px; }
+  p, li { color: var(--ink); }
+  li { margin-bottom: 8px; }
+  ul { padding-left: 20px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin: 24px 0;
+  }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 15px; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+  a { color: var(--gold); }
+  footer { margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+  .wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Privacy</h1>
+<p class="sub">Pond Hopping · last updated 7 August 2026</p>
+
+<div class="card">
+  <p style="margin:0">
+    Pond Hopping is a personal travel log. It holds what you put into it and shows it to
+    you. There is no advertising, no analytics, no tracking across other apps or sites,
+    and nothing here is sold or shared for marketing.
+  </p>
+</div>
+
+<h2>What is stored</h2>
+<ul>
+  <li><b>Your email address</b>, because signing in is a code sent to it. There is no password.</li>
+  <li><b>What you write</b> — trips, dates, journal entries, flights, costs, wishlists, plans.</li>
+  <li><b>Photos you upload</b>, along with the date and, where the photo carries one, the
+      location recorded by the camera that took it. Photos are resized on your device
+      before they are uploaded.</li>
+  <li><b>Places you stopped</b>, but only if you switch that on. See below.</li>
+  <li><b>A notification token</b> for your device, if you allow notifications, so the app can
+      tell you when something arrives.</li>
+</ul>
+
+<h2>Location</h2>
+<p>
+  Recording places is off until you turn it on, and it can be turned off again at any time
+  in Account. When it is on:
+</p>
+<ul>
+  <li>What is recorded is <b>where you stopped and roughly how long you stayed</b> — not a
+      continuous trail of your movements.</li>
+  <li>It is <b>visible only to you</b>. It is not included in a trip you share with someone,
+      and it is not included in a public or shopfront link.</li>
+  <li>Background location is used so a day you never opened the app still gets recorded.
+      That is the only reason it is requested.</li>
+  <li>Turning it off stops the recording. Ask and everything recorded is deleted.</li>
+</ul>
+<p>
+  If you import a Google Timeline export, the file is read <b>on your device</b>. Only the
+  trips you tick are ever sent anywhere; the rest of the file is never uploaded.
+</p>
+
+<h2>Who else is involved</h2>
+<div class="wrap">
+<table>
+  <tr><th>Service</th><th>What it sees</th></tr>
+  <tr>
+    <td>Supabase</td>
+    <td>Hosts the database and the photo storage. Everything above is held there.</td>
+  </tr>
+  <tr>
+    <td>Vercel</td>
+    <td>Hosts the website and the app's server functions.</td>
+  </tr>
+  <tr>
+    <td>CARTO / OpenStreetMap</td>
+    <td>Supplies the map images. Drawing a map asks them for the tiles covering the area
+        being shown, which tells them roughly where on a map you are looking.</td>
+  </tr>
+  <tr>
+    <td>OpenAI</td>
+    <td>Only when you use the planner's chat or paste a booking for it to read. The text you
+        send it, and the trip it relates to, are processed to produce the reply.</td>
+  </tr>
+  <tr>
+    <td>Google (Firebase)</td>
+    <td>Delivers push notifications, if you have allowed them.</td>
+  </tr>
+  <tr>
+    <td>Google (Gmail)</td>
+    <td>Only if you connect it. It is used to find booking confirmations, and only those.</td>
+  </tr>
+</table>
+</div>
+
+<h2>Sharing</h2>
+<p>
+  A trip is private until you share it. You choose who: a named person, or a link you can
+  revoke. Recorded locations, private notes and costs are excluded from shared views unless
+  you explicitly include them. Revoking a link stops it working immediately.
+</p>
+
+<h2>Keeping and deleting</h2>
+<p>
+  Your data is kept until you delete it. You can delete individual trips, entries and photos
+  in the app. Ask and your account and everything in it will be deleted — there is no
+  retention period after that, and no backup kept on purpose.
+</p>
+
+<h2>Children</h2>
+<p>Pond Hopping is not intended for use by children under 13.</p>
+
+<h2>Changes</h2>
+<p>
+  If this changes in a way that affects what is collected or who sees it, the date at the
+  top of this page changes and the app will say so.
+</p>
+
+<footer>
+  Questions, or to have your data deleted:
+  <a href="mailto:privacy@eend.app">privacy@eend.app</a>
+</footer>
+
+</main>
+</body>
+</html>

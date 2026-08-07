@@ -15,6 +15,13 @@ apply plugin: 'com.android.application'
 def keystoreFile = System.getenv("POND_KEYSTORE_FILE")
 def hasSharedKey = keystoreFile != null && !keystoreFile.isEmpty() && file(keystoreFile).exists()
 
+// Play rejects an upload whose versionCode it has seen before, permanently
+// and per number — so a hardcoded 1 allows exactly one release ever. CI
+// passes the run number, which only ever goes up; a local build keeps 1,
+// because a local build is never the thing being uploaded.
+def ciVersionCode = System.getenv("POND_VERSION_CODE")
+def ciVersionName = System.getenv("POND_VERSION_NAME")
+
 android {
     namespace = "app.eend.pond"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -22,8 +29,8 @@ android {
         applicationId "app.eend.pond"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode ciVersionCode ? ciVersionCode.toInteger() : 1
+        versionName ciVersionName ?: "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
