@@ -216,14 +216,28 @@ jobs:
       # or if this goes to production, drop the "Point the Android shell at
       # the live site" step for this build and the assets ship inside the
       # bundle instead.
+      # Gated on the keystore alone, not on the Play credentials, because the
+      # very first upload has to be made by hand and the console will not
+      # create a service account for an app that does not exist yet. Without
+      # a downloadable bundle before any Play setup, that is a deadlock.
       - name: Build the release bundle for Play
-        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' && env.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
         env:
           POND_VERSION_CODE: ${{ github.run_number }}
           POND_VERSION_NAME: 1.0.${{ github.run_number }}
         run: |
           cd android
           ./gradlew --no-daemon bundleRelease
+
+      # Attached to the same rolling release as the APK, so the first manual
+      # upload is a download from a URL rather than a local Android toolchain.
+      - name: Publish the bundle alongside the APK
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/bundle/release/app-release.aab pond-hopping.aab
+          gh release upload latest pond-hopping.aab --clobber
 
       - name: Upload to the internal testing track
         if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' && env.PLAY_SERVICE_ACCOUNT_JSON != '' }}
