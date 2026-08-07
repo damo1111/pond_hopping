@@ -7998,7 +7998,6 @@ button {
    read as a missing card rather than an empty one — the dashed border is
    enough to say "add" without the fill giving up as well. */
 .wt-card--add {
-  justify-content: center;
   border-style: dashed;
   border-color: var(--accent-dim);
   background: rgba(255, 255, 255, 0.94);
@@ -8014,7 +8013,7 @@ button {
   text-overflow: clip;
 }
 
-.wt-card--add .wt-subtitle { line-height: 1.45; margin-top: 1px; }
+.wt-card--add .wt-subtitle { line-height: 1.45; margin-top: 1px; text-wrap: balance; }
 .wt-card--add .wt-dates { margin-top: 6px; white-space: nowrap; }
 
 .wt-add-mark {
@@ -8574,3 +8573,13 @@ button {
   margin-bottom: 12px;
   text-wrap: pretty;
 }
+
+/* Sits exactly where a real trip's flags sit, at the same height, so the
+   strip keeps its rhythm rather than having one tile that starts lower than
+   the rest. */
+.wt-add-art { display: block; height: 20px; margin-bottom: 3px; }
+.wt-add-art svg { height: 20px; width: auto; overflow: visible; }
+.wt-add-arc { stroke: var(--accent); stroke-width: 1.6; stroke-dasharray: 3 3.5; opacity: 0.85; }
+.wt-add-from { fill: var(--accent); }
+.wt-add-to circle { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-dasharray: 2.6 2.8; }
+.wt-add-to path { stroke: var(--accent); stroke-width: 1.8; }

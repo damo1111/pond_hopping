@@ -127,7 +127,7 @@ export default function PlanFlightCard({ event, onEditEvent, onSaveDetail }) {
     <div className={`flight-card pf-card${open ? ' open' : ''}`}>
       <button className="flight-head board" onClick={() => setOpen((o) => !o)}>
         <span className="fh-thumb">
-          <TailFin airline={d.airline} size={22} />
+          <TailFin airline={d.airline || d.flight_number} size={22} />
           <span className={`pf-status pf-status-${status.cls}`}>{status.label}</span>
         </span>
         <span className="fh-main">

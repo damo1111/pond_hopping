@@ -793,7 +793,21 @@ export default function WorldTab() {
           <div className="wt-section wt-section--add">
             <div className="wt-section-label">Yours</div>
             <button className="wt-card wt-card--add" onClick={() => setRoutesOpen(true)}>
-              <span className="wt-add-mark">+</span>
+              {/* Every other tile leads with its flags. This one led with
+                  nothing but a plus, so it read as a card that had failed to
+                  load rather than one waiting to be filled. The mark is the
+                  globe's own dashed route, drawn to the same height the flags
+                  occupy, with the hop not yet arrived. */}
+              <span className="wt-add-art" aria-hidden="true">
+                <svg viewBox="0 0 56 22" role="img">
+                  <path className="wt-add-arc" d="M4 17C13 3 33 1 44 8" fill="none" strokeLinecap="round" />
+                  <circle className="wt-add-from" cx="4" cy="17" r="2.6" />
+                  <g className="wt-add-to">
+                    <circle cx="47" cy="9" r="6.4" />
+                    <path d="M47 5.6v6.8M43.6 9h6.8" strokeLinecap="round" />
+                  </g>
+                </svg>
+              </span>
               <span className="wt-title">Add a trip</span>
               <span className="wt-subtitle">One you've taken, or one you're on</span>
               <span className="wt-dates">photos · email · ai</span>

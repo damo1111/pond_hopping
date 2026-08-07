@@ -93,7 +93,7 @@ export default function FlightCard({ flight, aircraftType }) {
     <div className={`flight-card${open ? ' open' : ''}`}>
       <button className="flight-head board" onClick={() => setOpen((o) => !o)}>
         <span className="fh-thumb">
-          <TailFin airline={f.airline} size={22} />
+          <TailFin airline={f.airline || f.flight_number} size={22} />
         </span>
         <span className="fh-main">
           <span className="fh-row1">
