@@ -233,14 +233,15 @@ public final class VisitTracker {
         Location.distanceBetween(anchorLat, anchorLon, fix.getLatitude(), fix.getLongitude(), result);
 
         if (result[0] <= STAY_RADIUS_M) {
-            p.edit()
-                .putLong(ANCHOR_LAST, Math.max(last, now))
-                // The best accuracy seen while sitting here, which is what
-                // the row is eventually stored with.
-                .putFloat(ANCHOR_ACC, acc < 0 || (fix.hasAccuracy() && fix.getAccuracy() < acc) ? fix.getAccuracy() : acc)
-                .apply();
-            if (Math.max(last, now) - first >= MIN_STAY_MS) {
-                record(ctx, anchorLat, anchorLon, acc, first, 0L);
+            // The best accuracy seen while sitting here, which is what the
+            // row is eventually stored with. A fix with no accuracy at all
+            // is not an accuracy of zero.
+            float best = acc;
+            if (fix.hasAccuracy() && (best < 0 || fix.getAccuracy() < best)) best = fix.getAccuracy();
+            long until = Math.max(last, now);
+            p.edit().putLong(ANCHOR_LAST, until).putFloat(ANCHOR_ACC, best).apply();
+            if (until - first >= MIN_STAY_MS) {
+                record(ctx, anchorLat, anchorLon, best, first, 0L);
             }
             return;
         }

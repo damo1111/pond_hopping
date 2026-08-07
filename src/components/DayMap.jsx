@@ -11,6 +11,15 @@ function fmtDur(min) {
   return `${min}m`
 }
 
+/** The calendar day a timestamp fell on where the reader is standing. */
+function localDay(iso) {
+  if (!iso) return null
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return null
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 // A stop the phone noticed by itself, in the shape the imported ones already
 // use. The times are rendered in the reader's own timezone, which is the only
 // one available — a CLVisit records an instant, not a wall clock.
@@ -44,8 +53,12 @@ export default function DayMap({ tripId, date }) {
 
   useEffect(() => {
     let alive = true
-    const dayStart = `${date}T00:00:00`
-    const dayEnd = `${date}T23:59:59.999`
+    // A day either side, then filtered locally below. A bare timestamp in a
+    // PostgREST filter is read as UTC, and a stop at eight in the morning in
+    // Tokyo is eleven at night in UTC the day before — which is every
+    // morning of a trip to Asia landing on the wrong day's map.
+    const dayStart = new Date(Date.parse(`${date}T00:00:00Z`) - 86400000).toISOString()
+    const dayEnd = new Date(Date.parse(`${date}T00:00:00Z`) + 2 * 86400000).toISOString()
     Promise.all([
       supabase.from('day_tracks').select('path,visits').eq('trip_id', tripId).eq('track_date', date).limit(1),
       supabase.from('runs').select('label,distance_km,pace,color,coords').eq('trip_id', tripId).eq('run_date', date),
@@ -60,7 +73,10 @@ export default function DayMap({ tripId, date }) {
       if (!alive) return
       setTrack(t.data?.[0] ?? null)
       setRuns(r.data ?? [])
-      setRecorded((v.data ?? []).map(asVisit))
+      // The reader's own timezone is the one the times are shown in, and
+      // while you are on the trip it is the trip's — so it is the one the
+      // day is decided in too.
+      setRecorded((v.data ?? []).filter((row) => localDay(row.arrived_at) === date).map(asVisit))
     })
     return () => {
       alive = false
