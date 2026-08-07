@@ -27,6 +27,20 @@ jobs:
     # permanent public download URL.
     permissions:
       contents: write
+
+    # At the job rather than the step, because `secrets` cannot be read from
+    # a step's `if:` — only `env` can, and a step's own `env:` block is not
+    # reliably in scope for its own condition. Every optional step below is
+    # gated on one of these being non-empty, so the build works untouched
+    # with none of them set.
+    env:
+      FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+      FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      POND_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      POND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      POND_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -76,6 +90,29 @@ jobs:
       - name: Sync Capacitor → Android
         run: npx cap sync android
 
+      # Android refuses to install an update signed by a different key, and a
+      # fresh runner has no debug keystore, so Gradle generates a brand new
+      # one every single build. Left alone, every APK is a different app as
+      # far as the phone is concerned: each install means uninstalling the
+      # last one first, and Firebase App Distribution's whole "tap to update"
+      # story never works once.
+      #
+      # One key, held as a secret, fixes that permanently. To make one:
+      #
+      #   keytool -genkeypair -v -keystore pond.keystore -alias pond \
+      #     -keyalg RSA -keysize 2048 -validity 10000
+      #   base64 -w0 pond.keystore    # macOS: base64 -i pond.keystore
+      #
+      # Then add ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+      # ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD as repository secrets, and
+      # keep the .keystore file somewhere safe — losing it means every tester
+      # uninstalls and reinstalls once, and would end a Play listing outright.
+      - name: Use the shared signing key, if one is configured
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/pond.keystore"
+          echo "POND_KEYSTORE_FILE=$RUNNER_TEMP/pond.keystore" >> "$GITHUB_ENV"
+
       - name: Assemble debug APK
         run: |
           cd android
@@ -117,9 +154,6 @@ jobs:
       # FIREBASE_SERVICE_ACCOUNT_KEY secrets are added in repo Settings.
       - name: Distribute to Firebase App Distribution
         if: ${{ env.FIREBASE_APP_ID != '' && env.FIREBASE_SERVICE_ACCOUNT_KEY != '' }}
-        env:
-          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
-          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
           appId: ${{ env.FIREBASE_APP_ID }}

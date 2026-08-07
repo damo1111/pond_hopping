@@ -1,5 +1,20 @@
 apply plugin: 'com.android.application'
 
+// One signing key across every build, when CI has been given one.
+//
+// Without it Gradle invents a fresh debug keystore on each machine, and
+// Android treats an APK signed by a different key as a different app: the
+// update refuses to install, and the only way through is uninstalling first.
+// That is survivable for one person with a cable and fatal for anything that
+// looks like TestFlight.
+//
+// Absent the environment variables — which is every local build, and CI
+// until the secrets are added — nothing here applies and the debug build
+// signs itself exactly as it did before. See .github/workflows/android.yml
+// for how to make the key.
+def keystoreFile = System.getenv("POND_KEYSTORE_FILE")
+def hasSharedKey = keystoreFile != null && !keystoreFile.isEmpty() && file(keystoreFile).exists()
+
 android {
     namespace = "app.eend.pond"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -16,10 +31,26 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        if (hasSharedKey) {
+            shared {
+                storeFile file(keystoreFile)
+                storePassword System.getenv("POND_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("POND_KEY_ALIAS")
+                keyPassword System.getenv("POND_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
+        debug {
+            // The distributed build is the debug one — see the workflow for
+            // why — so this is the build type that has to be stably signed.
+            if (hasSharedKey) signingConfig signingConfigs.shared
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasSharedKey) signingConfig signingConfigs.shared
         }
     }
 }
