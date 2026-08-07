@@ -793,20 +793,32 @@ export default function WorldTab() {
           <div className="wt-section wt-section--add">
             <div className="wt-section-label">Yours</div>
             <button className="wt-card wt-card--add" onClick={() => setRoutesOpen(true)}>
-              {/* Every other tile leads with its flags. This one led with
-                  nothing but a plus, so it read as a card that had failed to
-                  load rather than one waiting to be filled. The mark is the
-                  globe's own dashed route, drawn to the same height the flags
-                  occupy, with the hop not yet arrived. */}
-              <span className="wt-add-art" aria-hidden="true">
-                <svg viewBox="0 0 56 22" role="img">
-                  <path className="wt-add-arc" d="M4 17C13 3 33 1 44 8" fill="none" strokeLinecap="round" />
-                  <circle className="wt-add-from" cx="4" cy="17" r="2.6" />
+              {/* A real tile opens with a photograph 78px tall. This one
+                  opened with a small mark and then 78px of nothing, which is
+                  why it read as broken rather than empty. So it gets a cover
+                  of its own, in the same box: the globe the app is built
+                  around, a hop not yet taken, and the duck waiting on it. */}
+              <span className="wt-cover wt-add-cover" aria-hidden="true">
+                <svg viewBox="0 0 172 78" preserveAspectRatio="xMidYMid slice" role="img">
+                  <g className="wt-add-globe" fill="none" strokeLinecap="round">
+                    <circle cx="86" cy="60" r="44" />
+                    <ellipse cx="86" cy="60" rx="17" ry="44" />
+                    <ellipse cx="86" cy="60" rx="32" ry="44" />
+                    <path d="M42 60h88M47 44h78M47 76h78" />
+                  </g>
+                  <path
+                    className="wt-add-arc"
+                    d="M36 44C56 14 116 12 138 34"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                  <circle className="wt-add-from" cx="36" cy="44" r="3.2" />
                   <g className="wt-add-to">
-                    <circle cx="47" cy="9" r="6.4" />
-                    <path d="M47 5.6v6.8M43.6 9h6.8" strokeLinecap="round" />
+                    <circle cx="139" cy="34" r="7" />
+                    <path d="M139 30.2v7.6M135.2 34h7.6" strokeLinecap="round" />
                   </g>
                 </svg>
+                <img className="wt-add-duck" src="/duck.png" alt="" />
               </span>
               <span className="wt-title">Add a trip</span>
               <span className="wt-subtitle">One you've taken, or one you're on</span>

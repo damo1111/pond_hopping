@@ -8574,12 +8574,36 @@ button {
   text-wrap: pretty;
 }
 
-/* Sits exactly where a real trip's flags sit, at the same height, so the
-   strip keeps its rhythm rather than having one tile that starts lower than
-   the rest. */
-.wt-add-art { display: block; height: 20px; margin-bottom: 3px; }
-.wt-add-art svg { height: 20px; width: auto; overflow: visible; }
-.wt-add-arc { stroke: var(--accent); stroke-width: 1.6; stroke-dasharray: 3 3.5; opacity: 0.85; }
+/* The same 78px box a real trip fills with a photograph — drawn rather than
+   photographed, because the one thing this tile cannot have is a picture of
+   somewhere you have been. */
+.wt-add-cover {
+  position: relative;
+  display: block;
+  background: linear-gradient(170deg, var(--accent-bg), var(--surface-2));
+}
+
+.wt-add-cover svg { width: 100%; height: 100%; display: block; }
+
+.wt-add-globe { stroke: var(--accent); stroke-width: 1.2; opacity: 0.5; }
+.wt-add-arc { stroke: var(--accent); stroke-width: 1.8; stroke-dasharray: 4 4.5; opacity: 0.9; }
 .wt-add-from { fill: var(--accent); }
-.wt-add-to circle { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-dasharray: 2.6 2.8; }
-.wt-add-to path { stroke: var(--accent); stroke-width: 1.8; }
+.wt-add-to circle { fill: var(--surface); stroke: var(--accent); stroke-width: 1.6; }
+.wt-add-to path { stroke: var(--accent); stroke-width: 1.9; }
+
+/* Standing on the horizon, facing the hop it hasn't made yet.
+   Scoped tightly because `.wt-cover img` stretches any image inside a cover
+   to fill it, which turned the duck into a silhouette the size of the tile. */
+.wt-add-cover .wt-add-duck {
+  position: absolute;
+  left: 11px;
+  bottom: 5px;
+  width: 30px;
+  height: auto;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.18));
+  animation: intro-bob 3.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-add-duck { animation: none }
+}
