@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import CountryFlags from './CountryFlags.jsx'
+import TrackPlaces, { offersTracking } from './TrackPlaces.jsx'
 import { supabase } from '../lib/supabase.js'
 import { API_BASE } from '../lib/apiBase.js'
 
@@ -62,6 +63,10 @@ function QuickForm({ tripId, onSaved, onCancel }) {
   const [loading, setLoading] = useState(Boolean(tripId))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  // Set only when this form has just *made* a trip. That is the one moment
+  // where offering to record the places on it is a sentence rather than an
+  // interruption: the trip is real and hasn't happened yet.
+  const [created, setCreated] = useState(null)
   const [form, setForm] = useState({ title: '', subtitle: '', traveler: '', start_date: '', end_date: '' })
 
   useEffect(() => {
@@ -106,10 +111,25 @@ function QuickForm({ tripId, onSaved, onCancel }) {
       setError(error.message)
       return
     }
+    if (!tripId && offersTracking()) return setCreated(newId)
     onSaved(newId)
   }
 
   if (loading) return <div className="plan-chat-form">loading…</div>
+
+  if (created) {
+    return (
+      <div className="plan-chat-form">
+        <div className="plan-input-hint">Trip created.</div>
+        <TrackPlaces onDone={() => onSaved(created)} />
+        <div className="plan-form-actions">
+          <button className="plan-btn ghost" type="button" onClick={() => onSaved(created)}>
+            Done
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <form className="plan-chat-form" onSubmit={save}>

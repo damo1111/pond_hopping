@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+import TrackPlaces from './TrackPlaces.jsx'
 import { readExif } from '../lib/exif.js'
 import { prepare, store } from '../lib/photoIngest.js'
 import { savingsLabel } from '../lib/photoResize.js'
@@ -247,6 +248,8 @@ export default function StartFromPhotos({ onDone, onClose }) {
               {progress.total} photos ·{' '}
               {savingsLabel(progress.original, progress.bytes) || 'uploaded'}
             </div>
+            {/* If this is the trip they're on, the rest of it can log itself. */}
+            <TrackPlaces compact />
             <button className="ios-sheet-done" onClick={onClose}>
               Have a look
             </button>

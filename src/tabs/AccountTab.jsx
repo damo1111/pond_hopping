@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
-import { visitStatus, enableVisits, disableVisits, syncVisits } from '../lib/visits.js'
+import {
+  visitStatus,
+  enableVisits,
+  disableVisits,
+  syncVisits,
+  visitsNeedSettings,
+  openLocationSettings,
+} from '../lib/visits.js'
 import { isOn as gestureDebugOn, toggle as toggleGestureDebug } from '../lib/gestureDebug.js'
+import { pushDiagnostics, registerPush } from '../lib/push.js'
 
 const ROLES = [
   { id: 'family', label: 'Family' },
@@ -280,8 +288,14 @@ function TimelineCard() {
 
       {blocked ? (
         <div className="account-hint">
-          Location is switched off for Pond Hopping. Settings → Privacy &amp; Security → Location
-          Services → Pond Hopping.
+          Location is switched off for Pond Hopping.{' '}
+          {visitsNeedSettings() ? (
+            <button className="track-link" onClick={openLocationSettings}>
+              Turn it back on in Settings
+            </button>
+          ) : (
+            <>Settings → Privacy &amp; Security → Location Services → Pond Hopping.</>
+          )}
         </div>
       ) : (
         <button
@@ -295,11 +309,84 @@ function TimelineCard() {
 
       {status.enabled && status.authorization === 'whenInUse' && (
         <div className="account-hint">
-          Recording while the app is open. iOS offers to extend that to the background on its own
-          schedule, once it's seen the app genuinely use it — say yes when it asks.
+          {visitsNeedSettings() ? (
+            <>
+              Recording while the app is open.{' '}
+              <button className="track-link" onClick={openLocationSettings}>
+                Allow it all the time
+              </button>{' '}
+              and the days you never got round to opening it count too.
+            </>
+          ) : (
+            <>
+              Recording while the app is open. iOS offers to extend that to the background on its
+              own schedule, once it's seen the app genuinely use it — say yes when it asks.
+            </>
+          )}
         </div>
       )}
       {status.pending > 0 && <div className="account-hint">{status.pending} waiting to upload.</div>}
+    </div>
+  )
+}
+
+// Push registration fails in four silent ways, on a device with no console.
+// AuthContext calls registerPush on every signed-in launch and discards the
+// answer, so an empty push_tokens table could mean the permission was
+// refused, the plugin was missing, FCM never replied, or the row was
+// rejected — and there was no way to tell which from the outside.
+//
+// This asks the same question by hand and prints the answer.
+function PushCard() {
+  const { user } = useAuth()
+  const [info, setInfo] = useState(null)
+  const [result, setResult] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    pushDiagnostics().then(setInfo)
+  }, [])
+
+  if (!info?.native) return null
+
+  async function retry() {
+    setBusy(true)
+    setResult(null)
+    try {
+      setResult(await registerPush(user?.email))
+      setInfo(await pushDiagnostics())
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="account-card">
+      <div className="account-card-title">Notifications</div>
+      <div className="account-card-body">
+        Told when a forwarded booking turns into an itinerary. Nothing else sends one.
+      </div>
+
+      <div className="push-rows">
+        <div className="push-row">
+          <span>Device</span>
+          <b>{info.platform}</b>
+        </div>
+        <div className="push-row">
+          <span>Permission</span>
+          <b>{info.permission}</b>
+        </div>
+        {result && (
+          <div className="push-row">
+            <span>Last attempt</span>
+            <b>{result.ok ? `registered · ${result.token}` : result.reason}</b>
+          </div>
+        )}
+      </div>
+
+      <button className="account-btn ghost" onClick={retry} disabled={busy}>
+        {busy ? 'asking…' : 'Register this device'}
+      </button>
     </div>
   )
 }
@@ -349,6 +436,7 @@ function SignedIn() {
 
       <ConnectCard />
 
+      <PushCard />
       <TimelineCard />
 
       <InviteForm onInvited={load} />

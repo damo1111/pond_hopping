@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../lib/AuthContext.jsx'
 import StartFromPhotos from './StartFromPhotos.jsx'
+import StartFromTimeline from './StartFromTimeline.jsx'
 
 // Every road into this app already existed. Every one of them was behind a
 // trip you hadn't created yet.
@@ -20,6 +21,7 @@ const INBOX = import.meta.env.VITE_BOOKINGS_INBOX || 'bookings@eend.app'
 export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
   const { user } = useAuth()
   const [route, setRoute] = useState(null)
+  const [made, setMade] = useState(false)
   const [copied, setCopied] = useState(null)
 
   async function copy(what, text) {
@@ -32,16 +34,23 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
     }
   }
 
+  // Made, but not yet acted on. The parent's response to a new trip is to
+  // reload the globe, which tears this sheet down — so it is held until the
+  // sheet is dismissed. Otherwise the screen that says what happened, and
+  // offers to record the rest of the trip, is destroyed the instant it
+  // renders and nobody ever sees either.
+  const close = () => {
+    setRoute(null)
+    if (made) onCreated?.()
+    else onClose?.()
+  }
+
   if (route === 'photos') {
-    return (
-      <StartFromPhotos
-        onDone={onCreated}
-        onClose={() => {
-          setRoute(null)
-          onClose?.()
-        }}
-      />
-    )
+    return <StartFromPhotos onDone={() => setMade(true)} onClose={close} />
+  }
+
+  if (route === 'timeline') {
+    return <StartFromTimeline onDone={() => setMade(true)} onClose={close} />
   }
 
   return (
@@ -63,6 +72,21 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
             <span className="route-body">
               A trip you've taken, or one you're on. I read the dates out of the photos and build
               the trip around them. Shrunk on your phone first, so it's quick.
+            </span>
+          </span>
+        </button>
+
+        {/* Second because it is the only one that does the whole back
+            catalogue at once — and the only one that needs no permission,
+            no photos still on the phone, and works the same on Android. */}
+        <button className="route" onClick={() => setRoute('timeline')}>
+          <span className="route-icon">🗺</span>
+          <span className="route-text">
+            <span className="route-title">Bring your Google Timeline in</span>
+            <span className="route-body">
+              If Google has been keeping your timeline, every trip you've taken is already in it.
+              Export it, drop the file here, and pick the ones worth keeping. It's read on your
+              phone — nothing is sent until you've ticked them.
             </span>
           </span>
         </button>

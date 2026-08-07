@@ -27,6 +27,22 @@ jobs:
     # permanent public download URL.
     permissions:
       contents: write
+
+    # At the job rather than the step, because `secrets` cannot be read from
+    # a step's `if:` — only `env` can, and a step's own `env:` block is not
+    # reliably in scope for its own condition. Every optional step below is
+    # gated on one of these being non-empty, so the build works untouched
+    # with none of them set.
+    env:
+      FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+      FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+      GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      POND_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      POND_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      POND_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -73,10 +89,49 @@ jobs:
             console.log(c);
           '
 
+      # Push notifications have never actually worked on Android: the app asks
+      # FCM for a device token, FCM needs this file to know which project to
+      # answer for, and without it registration simply never returns. The
+      # permission prompt appears, the user says yes, and no token is ever
+      # stored. The file is gitignored because it identifies a specific
+      # Firebase project, so it arrives as a secret instead.
+      #
+      # Before cap sync, because the google-services Gradle plugin is applied
+      # at configure time based on whether the file exists.
+      - name: Write google-services.json, if configured
+        if: env.GOOGLE_SERVICES_JSON != ''
+        run: printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+
       - name: Sync Capacitor → Android
         run: npx cap sync android
 
+      # Android refuses to install an update signed by a different key, and a
+      # fresh runner has no debug keystore, so Gradle generates a brand new
+      # one every single build. Left alone, every APK is a different app as
+      # far as the phone is concerned: each install means uninstalling the
+      # last one first, and Firebase App Distribution's whole "tap to update"
+      # story never works once.
+      #
+      # One key, held as a secret, fixes that permanently. To make one:
+      #
+      #   keytool -genkeypair -v -keystore pond.keystore -alias pond \
+      #     -keyalg RSA -keysize 2048 -validity 10000
+      #   base64 -w0 pond.keystore    # macOS: base64 -i pond.keystore
+      #
+      # Then add ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+      # ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD as repository secrets, and
+      # keep the .keystore file somewhere safe — losing it means every tester
+      # uninstalls and reinstalls once, and would end a Play listing outright.
+      - name: Use the shared signing key, if one is configured
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        run: |
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/pond.keystore"
+          echo "POND_KEYSTORE_FILE=$RUNNER_TEMP/pond.keystore" >> "$GITHUB_ENV"
+
       - name: Assemble debug APK
+        env:
+          POND_VERSION_CODE: ${{ github.run_number }}
+          POND_VERSION_NAME: 1.0.${{ github.run_number }}
         run: |
           cd android
           chmod +x gradlew
@@ -117,9 +172,6 @@ jobs:
       # FIREBASE_SERVICE_ACCOUNT_KEY secrets are added in repo Settings.
       - name: Distribute to Firebase App Distribution
         if: ${{ env.FIREBASE_APP_ID != '' && env.FIREBASE_SERVICE_ACCOUNT_KEY != '' }}
-        env:
-          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
-          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
           appId: ${{ env.FIREBASE_APP_ID }}
@@ -127,3 +179,72 @@ jobs:
           groups: family
           file: android/app/build/outputs/apk/debug/app-debug.apk
           releaseNotes: Auto-built from ${{ github.sha }}
+
+      # ---------------------------------------------------------------- Play
+      #
+      # The Play Console's internal testing track: testers install and update
+      # through the Play Store like any other app, which is as close to
+      # TestFlight as Android gets. Everything below is skipped until the
+      # secrets exist, so a repository without them builds exactly as before.
+      #
+      # Play will not take an APK for a new app, only an Android App Bundle,
+      # and will not take an unsigned one — so this needs the same shared
+      # keystore as above, which becomes the *upload* key. Play re-signs with
+      # its own key on the way out; losing the upload key is recoverable by
+      # asking Google for a reset, unlike losing the signing key of a
+      # sideloaded APK.
+      #
+      # To set it up, once:
+      #   1. play.google.com/console — £20 one-off, create the app, package
+      #      name app.eend.pond.
+      #   2. Console → Users and permissions → Invite → a service account, or
+      #      Setup → API access → link a Google Cloud project and create one.
+      #      Grant it "Release apps to testing tracks".
+      #   3. That service account's JSON key → PLAY_SERVICE_ACCOUNT_JSON.
+      #
+      # The first upload of any app must be made by hand in the console —
+      # the API refuses to create the very first release. After that this
+      # runs on every push.
+      #
+      # Note that the bundle inherits the remote-URL config set above, so the
+      # Play build is a window onto pond.eend.app exactly like the sideloaded
+      # APK. That is deliberate: it keeps the property that a Vercel deploy is
+      # in the app on the next launch, rather than needing a Play release for
+      # every text change. The risk is that Play's minimum-functionality
+      # policy takes a dim view of thin web wrappers. Internal testing is
+      # barely reviewed so it is very unlikely to bite there; if it ever does,
+      # or if this goes to production, drop the "Point the Android shell at
+      # the live site" step for this build and the assets ship inside the
+      # bundle instead.
+      # Gated on the keystore alone, not on the Play credentials, because the
+      # very first upload has to be made by hand and the console will not
+      # create a service account for an app that does not exist yet. Without
+      # a downloadable bundle before any Play setup, that is a deadlock.
+      - name: Build the release bundle for Play
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        env:
+          POND_VERSION_CODE: ${{ github.run_number }}
+          POND_VERSION_NAME: 1.0.${{ github.run_number }}
+        run: |
+          cd android
+          ./gradlew --no-daemon bundleRelease
+
+      # Attached to the same rolling release as the APK, so the first manual
+      # upload is a download from a URL rather than a local Android toolchain.
+      - name: Publish the bundle alongside the APK
+        if: env.ANDROID_KEYSTORE_BASE64 != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/bundle/release/app-release.aab pond-hopping.aab
+          gh release upload latest pond-hopping.aab --clobber
+
+      - name: Upload to the internal testing track
+        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' && env.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ env.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: app.eend.pond
+          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed

@@ -8107,3 +8107,184 @@ button {
   border-radius: 999px;
   transition: width 240ms ease;
 }
+
+/* Where the export lives, in the order you'd tap it. Two columns so the
+   label stays out of the way of the instruction. */
+.route-how {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.route-how-row {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.route-how-row + .route-how-row { border-top: 1px solid var(--border); }
+
+.route-how-k {
+  flex: none;
+  width: 72px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-top: 3px;
+}
+
+.route-how-v { color: var(--text-muted); min-width: 0; }
+.route-how-v b { color: var(--text); font-weight: 500; }
+
+/* The list of candidate trips. Long — a decade of timeline is a lot of
+   weekends — so it scrolls inside the sheet rather than pushing the button
+   off the bottom of it. */
+.route-trips {
+  margin-top: 12px;
+  max-height: 46vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.route-trip {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 11px;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  opacity: 0.55;
+  transition: opacity 160ms ease, border-color 160ms ease;
+}
+
+.route-trip.on { opacity: 1; border-color: var(--accent); }
+
+.route-trip-tick {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--accent);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.route-trip.on .route-trip-tick { border-color: var(--accent); background: var(--accent-bg); }
+
+.route-trip-body { min-width: 0; flex: 1; }
+
+.route-trip-title {
+  width: 100%;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 14.5px;
+  padding: 0;
+}
+
+.route-trip-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+.route-trip-dup { font-size: 11.5px; color: var(--accent); margin-top: 3px; }
+
+/* Consent, asked in context. Reads as a card rather than a dialog because it
+   is genuinely optional — the trip already exists either way. */
+.track-card {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.track-card.compact { margin-top: 16px; }
+
+.track-title { font-size: 15px; margin-bottom: 5px; }
+
+.track-body { font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+
+.track-points {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+}
+
+.track-points li {
+  position: relative;
+  padding-left: 16px;
+  margin-top: 7px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.track-points li::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 8px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.track-points b { color: var(--text); font-weight: 500; }
+
+.track-next {
+  margin-top: 12px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--accent-bg);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.track-next b { color: var(--text); font-weight: 500; }
+
+.track-note {
+  margin-top: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* An inline "take me to Settings" inside a sentence, because on Android that
+   is genuinely where the second half of the permission lives and a button
+   floating below the paragraph reads as a different subject. */
+.track-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* A phone has no console, so the answer has to be on the screen. */
+.push-rows { margin: 10px 0 12px; }
+
+.push-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.push-row:last-child { border-bottom: none; }
+.push-row span { color: var(--text-muted); }
+.push-row b { font-family: var(--font-mono); font-size: 11.5px; font-weight: 500; text-align: right; word-break: break-word; }

@@ -24,6 +24,25 @@
 
         </activity>
 
+        <!-- Where a location fix lands when the app isn't running. Not
+             exported: the system delivers to it by explicit component, and
+             nothing else has any business waking it. -->
+        <receiver
+            android:name=".VisitReceiver"
+            android:exported="false" />
+
+        <!-- A reboot cancels every PendingIntent location request on the
+             device, silently, and the only symptom is a switch that still
+             says "on" while nothing is ever recorded again. -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -38,4 +57,28 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Android 13 made showing a notification a runtime permission, and a
+         runtime permission that is not declared here cannot be granted: the
+         request returns "denied" immediately, without a dialog and without an
+         error. The Capacitor push plugin asks for this one by alias but never
+         declares it, so on any modern phone the permission call has been
+         failing silently since the day it was added. targetSdk is 36, so
+         there is no legacy path that avoids it. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Visit recording, all opt-in and all off until asked for in the app.
+         Coarse is enough for "which town", and is what a phone with wifi
+         positioning and no GPS fix will give; fine makes the stop radius
+         mean something. Background is what lets a day nobody opened the app
+         be recorded at all — the only days really worth recording.
+
+         This APK is sideloaded from the project's own releases rather than
+         published on Play, so the background permission needs no Play
+         Console declaration or review. If it is ever published, that
+         declaration becomes required. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 </manifest>

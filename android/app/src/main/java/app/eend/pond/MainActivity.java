@@ -46,8 +46,18 @@ public class MainActivity extends BridgeActivity {
      */
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // Before super.onCreate, which is when the bridge is built and the
+        // plugin registry is read. Registered after that point, the plugin
+        // exists as far as Java is concerned and is invisible to JS.
+        registerPlugin(VisitTrackerPlugin.class);
+
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         super.onCreate(savedInstanceState);
+
+        // The plugin's load() does this too. Both are here because the two
+        // paths that matter are different: this covers the app being opened,
+        // that covers the bridge being built at all.
+        VisitTracker.resumeIfEnabled(this);
 
         // Behind the WebView for the frames before the page has painted, and
         // behind the bars, which are transparent.
