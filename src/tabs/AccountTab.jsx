@@ -353,7 +353,23 @@ function PushCard() {
     setBusy(true)
     setResult(null)
     try {
-      setResult(await registerPush(user?.email))
+      // Who PostgREST thinks is asking. Tested directly with a proper JWT
+      // for this user, the insert policy's predicate passes — so a refusal
+      // means the request arrived without the session on it, and when no
+      // policy applies to the role that is the exact message you get back.
+      const { data: seen, error: seenErr } = await supabase
+        .from('profiles')
+        .select('id,email')
+        .eq('id', user?.id)
+        .maybeSingle()
+      const { data: sess } = await supabase.auth.getSession()
+
+      setResult({
+        ...(await registerPush(user?.email)),
+        serverSees: seenErr ? `error: ${seenErr.message}` : seen?.email || 'nobody',
+        clientEmail: user?.email || 'none',
+        hasToken: sess?.session?.access_token ? 'yes' : 'no',
+      })
       setInfo(await pushDiagnostics())
     } finally {
       setBusy(false)
@@ -377,10 +393,24 @@ function PushCard() {
           <b>{info.permission}</b>
         </div>
         {result && (
-          <div className="push-row">
-            <span>Last attempt</span>
-            <b>{result.ok ? `registered · ${result.token}` : result.reason}</b>
-          </div>
+          <>
+            <div className="push-row">
+              <span>Last attempt</span>
+              <b>{result.ok ? `registered · ${result.token}` : result.reason}</b>
+            </div>
+            <div className="push-row">
+              <span>Signed in as</span>
+              <b>{result.clientEmail}</b>
+            </div>
+            <div className="push-row">
+              <span>Server sees</span>
+              <b>{result.serverSees}</b>
+            </div>
+            <div className="push-row">
+              <span>Access token</span>
+              <b>{result.hasToken}</b>
+            </div>
+          </>
         )}
       </div>
 
