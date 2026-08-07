@@ -8496,3 +8496,21 @@ button {
   padding: 3px 7px;
   margin-top: 1px;
 }
+
+/* Strava's own orange rather than the app's gold: this is the one control
+   that leaves the app, and it should look borrowed. */
+.run-strava {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(252, 76, 2, 0.35);
+  background: rgba(252, 76, 2, 0.08);
+  color: #FC4C02;
+  font-size: 12.5px;
+  text-decoration: none;
+}
+
+.run-strava-arrow { font-size: 11px; opacity: 0.8; }

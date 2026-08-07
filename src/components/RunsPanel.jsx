@@ -31,7 +31,7 @@ export default function RunsPanel({ trip }) {
     let alive = true
     supabase
       .from('runs')
-      .select('id,label,city,run_date,distance_km,pace,hr_avg,hr_max,elevation_m,color,coords')
+      .select('id,label,city,run_date,distance_km,pace,hr_avg,hr_max,elevation_m,color,coords,strava_activity_id')
       .eq('trip_id', trip.id)
       .order('run_date', { ascending: true })
       .then(({ data }) => alive && setRuns(data ?? []))
@@ -116,6 +116,24 @@ export default function RunsPanel({ trip }) {
                   {r.hr_max && <span><strong>{r.hr_max}</strong> bpm max</span>}
                   {r.elevation_m ? <span><strong>{r.elevation_m}</strong> m up</span> : null}
                 </div>
+
+                {/* The id has been sitting in the row since these were
+                    imported — on 54 of 68 runs — and nothing ever used it.
+                    Splits, laps, segments and everything else Strava knows
+                    are one tap away and were never going to be rebuilt
+                    here. */}
+                {r.strava_activity_id && (
+                  <a
+                    className="run-strava"
+                    href={`https://www.strava.com/activities/${r.strava_activity_id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    See it on Strava
+                    <span className="run-strava-arrow" aria-hidden="true">↗</span>
+                  </a>
+                )}
               </div>
             )}
           </article>
