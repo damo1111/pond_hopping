@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Delete your account — Pond Hopping</title>
+<!--
+  Required by the Play Console, which asks for a URL that names the app,
+  gives the steps prominently, and says what is deleted and what is kept.
+  Static, like privacy.html, so it resolves for a reviewer with no account
+  and no JavaScript.
+-->
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #F2EFE6;
+    --surface: #FFFDF8;
+    --ink: #1A1611;
+    --muted: #6B6255;
+    --gold: #A8842C;
+    --line: #E2DBCB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14120E;
+      --surface: #1D1A15;
+      --ink: #F0EBE0;
+      --muted: #A79C8A;
+      --gold: #D0A94A;
+      --line: #302B22;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 20px 80px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 680px; margin: 0 auto; }
+  h1 { font-size: 28px; font-weight: 600; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 32px; font-size: 15px; }
+  h2 { font-size: 18px; font-weight: 600; margin: 34px 0 10px; }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 8px; }
+  a { color: var(--gold); }
+  .steps {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px 24px 20px 40px;
+    margin: 20px 0 8px;
+    counter-reset: step;
+    list-style: none;
+  }
+  .steps li {
+    position: relative;
+    margin-bottom: 14px;
+    padding-left: 4px;
+  }
+  .steps li:last-child { margin-bottom: 0; }
+  .steps li::before {
+    counter-increment: step;
+    content: counter(step);
+    position: absolute;
+    left: -28px;
+    top: 1px;
+    width: 21px;
+    height: 21px;
+    border-radius: 50%;
+    background: var(--gold);
+    color: #FFFDF8;
+    font-size: 12px;
+    font-weight: 600;
+    display: grid;
+    place-items: center;
+  }
+  .mail {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: var(--gold);
+    color: #FFFDF8;
+    text-decoration: none;
+    font-size: 15px;
+  }
+  footer { margin-top: 44px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Delete your Pond Hopping account</h1>
+<p class="sub">Pond Hopping · pond.eend.app</p>
+
+<p>
+  You can have your Pond Hopping account, and everything in it, deleted at any time. You do
+  not need to give a reason.
+</p>
+
+<h2>How to ask</h2>
+
+<ol class="steps">
+  <li>
+    Send an email to <b>hello@eend.app</b> from the address you sign in to Pond Hopping with.
+    Sending it from that address is how we know the request is yours.
+  </li>
+  <li>Put <b>Delete my account</b> in the subject line.</li>
+  <li>
+    You will get a reply confirming it within <b>7 days</b>, and everything will be deleted
+    within <b>30 days</b> of your request.
+  </li>
+</ol>
+
+<p><a class="mail" href="mailto:hello@eend.app?subject=Delete%20my%20account">Email hello@eend.app</a></p>
+
+<h2>What gets deleted</h2>
+<p>All of it. Specifically:</p>
+<ul>
+  <li>Your account and sign-in details, and your profile</li>
+  <li>Every trip, and its journal entries, notes, dates and plans</li>
+  <li>Every photograph you have uploaded, and its captions and locations</li>
+  <li>Flights, runs — including distance, pace and heart rate — and recorded costs</li>
+  <li>Any places recorded by the app, and any imported timeline days</li>
+  <li>Forwarded booking emails, including their original text</li>
+  <li>Notification tokens for your devices, so nothing can be sent to them again</li>
+  <li>Any sharing links you have created, which stop working immediately</li>
+  <li>Your connections to other people, and any invitations you sent</li>
+</ul>
+
+<h2>What is kept, and for how long</h2>
+<ul>
+  <li>
+    <b>Nothing of yours is kept on purpose.</b> There is no archived copy, and no retention
+    period after deletion.
+  </li>
+  <li>
+    Routine infrastructure backups taken by our hosting providers may still contain your data
+    for a short period. These are not readable by us as individual records and are cycled out
+    <b>within 30 days</b>.
+  </li>
+  <li>
+    Content that was never yours stays — the example trip shown to new visitors belongs to the
+    app, not to your account.
+  </li>
+  <li>
+    If someone else shared a trip with you, that trip is theirs and remains theirs. Only your
+    access to it is removed.
+  </li>
+</ul>
+
+<h2>Deleting only some of it</h2>
+<p>
+  If you would rather keep your account, you can delete individual trips, journal entries and
+  photographs yourself inside the app, and switch off place recording in Account at any time.
+</p>
+
+<footer>
+  Questions: <a href="mailto:hello@eend.app">hello@eend.app</a> ·
+  <a href="/privacy.html">Privacy</a>
+</footer>
+
+</main>
+</body>
+</html>
