@@ -39,6 +39,28 @@ export async function visitStatus() {
   }
 }
 
+// Consent, remembered here rather than inferred from whether the recorder
+// happens to be running. The recorder starts and stops with your trips; the
+// answer to "may we" is given once and only changed by you.
+const CONSENT_KEY = 'pond:visits'
+
+export function hasConsented(store = globalThis.localStorage) {
+  try {
+    return store?.getItem(CONSENT_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+export function setConsent(yes, store = globalThis.localStorage) {
+  try {
+    if (yes) store?.setItem(CONSENT_KEY, '1')
+    else store?.removeItem(CONSENT_KEY)
+  } catch {
+    /* nothing to do */
+  }
+}
+
 export async function enableVisits() {
   if (!visitsSupported()) return { enabled: false, reason: 'unsupported' }
   const { authorization } = await VisitTracker.request()

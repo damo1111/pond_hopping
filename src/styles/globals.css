@@ -8306,17 +8306,22 @@ button {
    Three cards answering what goes in, what it becomes, and who sees it.
    Full-bleed rather than a sheet: this is the first thing anybody sees and
    it should not look like a dialog interrupting something. */
+/* Three cards of different copy lengths would otherwise put the title,
+   the dots and the button in three different places, and flipping between
+   them looks like the page is twitching. So the rows are fixed: the art
+   block is a constant height, the body reserves four lines whether it uses
+   them or not, and the actions are pinned to the bottom. Only the words
+   move. */
 .intro-layer {
   position: fixed;
   inset: 0;
   /* Above the sheets and the nav — this is the first screen, not an
      overlay on top of a working app. The boot screen alone outranks it. */
   z-index: 100003;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  justify-items: center;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
   padding: calc(var(--safe-area-inset-top, env(safe-area-inset-top)) + 24px) 24px
            calc(var(--safe-area-inset-bottom, env(safe-area-inset-bottom)) + 28px);
   background: var(--bg);
@@ -8397,9 +8402,12 @@ button {
   color: var(--text-muted);
   margin: 0;
   text-wrap: balance;
+  /* Four lines, always — the longest of the three. A card with three lines
+     leaves the fourth empty rather than dragging everything above it down. */
+  min-height: calc(15px * 1.6 * 4);
 }
 
-.intro-dots { display: flex; gap: 7px; margin: 26px 0 18px; }
+.intro-dots { display: flex; gap: 7px; margin: 0 0 18px; }
 
 .intro-dot {
   width: 7px;

@@ -47,54 +47,56 @@ const Sphere = () => (
 const CARDS = [
   {
     id: 'in',
-    duck: { left: '68%', top: '62%', size: 46, flip: false },
+    duck: { left: '66%', top: '63%', size: 44, flip: false },
     title: 'Tip it in',
     body: 'Photos from a trip you took. A Google Timeline export going back years. A booking you forward without reading. Whatever you already have — it works the trip out from there.',
     art: (
       <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g transform="translate(60 60) scale(1.08) translate(-53 -58)">
         <g className="intro-stack">
-          <rect x="30" y="46" width="42" height="34" rx="5" transform="rotate(-9 51 63)" />
-          <rect x="42" y="40" width="42" height="34" rx="5" transform="rotate(6 63 57)" />
-          <rect x="38" y="34" width="42" height="34" rx="5" />
+          <rect x="20" y="34" width="52" height="42" rx="6" transform="rotate(-10 46 55)" />
+          <rect x="34" y="26" width="52" height="42" rx="6" transform="rotate(7 60 47)" />
+          <rect x="32" y="20" width="52" height="42" rx="6" />
         </g>
-        <circle className="intro-lens" cx="59" cy="51" r="8" />
-        <path className="intro-arrow" d="M60 84v18m0 0-7-7m7 7 7-7" fill="none" strokeLinecap="round" />
+        <circle className="intro-lens" cx="58" cy="41" r="9" />
+        <path className="intro-arrow" d="M60 74v22m0 0-8-8m8 8 8-8" fill="none" strokeLinecap="round" />
+        </g>
       </svg>
     ),
   },
   {
     id: 'globe',
-    duck: { left: '70%', top: '18%', size: 42, flip: false },
+    duck: { left: '66%', top: '17%', size: 44, flip: false },
     title: 'Watch it fill',
     body: 'Every flight becomes a line on the globe, and every day a map of where you actually went. Seventeen years of it, if you’ve got them.',
     art: (
       <svg viewBox="0 0 120 120" aria-hidden="true">
         <Sphere />
-        <path className="intro-arc" d="M26 78C44 34 82 26 100 44" fill="none" strokeLinecap="round" />
-        <circle className="intro-pin" cx="26" cy="78" r="3.5" />
-        <circle className="intro-pin" cx="100" cy="44" r="3.5" />
+        <path className="intro-arc" d="M22 78C42 30 82 24 98 42" fill="none" strokeLinecap="round" />
+        <circle className="intro-pin" cx="22" cy="78" r="4" />
+        <circle className="intro-pin" cx="98" cy="42" r="4" />
       </svg>
     ),
   },
   {
     id: 'share',
-    duck: { left: '64%', top: '66%', size: 44, flip: true },
+    duck: { left: '66%', top: '63%', size: 44, flip: true },
     title: 'Or don’t',
     body: 'Everything is private until you decide otherwise. Then it’s one link — to a trip, or to the lot — that you can take back whenever you like.',
     art: (
       <svg viewBox="0 0 120 120" aria-hidden="true">
         <g className="intro-rings" fill="none">
-          <circle cx="60" cy="66" r="16" />
-          <circle cx="60" cy="66" r="27" />
-          <circle cx="60" cy="66" r="38" />
+          <circle cx="60" cy="60" r="21" />
+          <circle cx="60" cy="60" r="31" />
+          <circle cx="60" cy="60" r="40" />
         </g>
         <path
           className="intro-lock"
-          d="M52 58v-6a8 8 0 0 1 16 0v6"
+          d="M50 54v-8a10 10 0 0 1 20 0v8"
           fill="none"
           strokeLinecap="round"
         />
-        <rect className="intro-lock-body" x="48" y="58" width="24" height="19" rx="4" />
+        <rect className="intro-lock-body" x="45" y="54" width="30" height="24" rx="6" />
       </svg>
     ),
   },
@@ -161,11 +163,15 @@ export default function IntroCards({ onDone }) {
         <button className="ios-sheet-done" onClick={() => (last ? finish() : setI(i + 1))}>
           {last ? 'Let’s go' : 'Next'}
         </button>
-        {!last && (
-          <button className="intro-skip" onClick={finish}>
-            Skip
-          </button>
-        )}
+        <button
+          className="intro-skip"
+          onClick={finish}
+          aria-hidden={last}
+          tabIndex={last ? -1 : 0}
+          style={last ? { visibility: 'hidden' } : undefined}
+        >
+          Skip
+        </button>
       </div>
     </div>
   )

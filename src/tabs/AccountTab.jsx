@@ -9,7 +9,10 @@ import {
   syncVisits,
   visitsNeedSettings,
   openLocationSettings,
+  hasConsented,
+  setConsent,
 } from '../lib/visits.js'
+import { recordingStatus } from '../lib/visitWindow.js'
 import { isOn as gestureDebugOn, toggle as toggleGestureDebug } from '../lib/gestureDebug.js'
 import { pushDiagnostics, registerPush } from '../lib/push.js'
 import { TripContext } from '../App.jsx'
@@ -318,39 +321,53 @@ function ConnectCard() {
 // an iOS build that predates the plugin — visitStatus() returns null in both
 // cases rather than offering a switch that can't be flipped.
 function TimelineCard() {
+  const { tripMeta } = useContext(TripContext)
   const [status, setStatus] = useState(undefined)
+  const [consented, setConsented] = useState(() => hasConsented())
   const [busy, setBusy] = useState(false)
 
-  async function refresh() {
-    setStatus(await visitStatus())
-  }
-
   useEffect(() => {
-    refresh()
+    visitStatus().then(setStatus)
   }, [])
 
   if (status === undefined || status === null) return null
 
+  const blocked = status.authorization === 'denied' || status.authorization === 'restricted'
+  const state = recordingStatus({ consented, trips: tripMeta })
+
+  // Yes is a permission prompt and a start; no is a stop. In between, the
+  // dates decide — which is the whole point of not having a stop button.
   async function toggle() {
     setBusy(true)
     try {
-      if (status.enabled) await disableVisits()
-      else await enableVisits()
+      if (consented) {
+        setConsent(false)
+        setConsented(false)
+        await disableVisits()
+      } else {
+        setConsent(true)
+        setConsented(true)
+        const r = await enableVisits()
+        if (r?.enabled === false && r?.authorization) {
+          // Refused at the OS level — consent here means nothing without it.
+          setConsent(false)
+          setConsented(false)
+        }
+      }
       await syncVisits()
     } finally {
-      await refresh()
+      setStatus(await visitStatus())
       setBusy(false)
     }
   }
 
-  const blocked = status.authorization === 'denied' || status.authorization === 'restricted'
-
   return (
     <div className="account-card">
-      <div className="account-card-title">Travel timeline (beta)</div>
+      <div className="account-card-title">Places on your trips</div>
       <div className="account-card-body">
-        Notes the places you stop and how long you stayed, so a trip fills in its own map without
-        you logging anything. Nobody else can see it — not even people you've shared a trip with.
+        Notes where you stop and how long you stayed, so each day of a trip gets its own map without
+        you logging anything. It runs while you're away and stops when you're home — there's nothing
+        to remember to switch off. Nobody else can see it, not even people you've shared a trip with.
       </div>
 
       {blocked ? (
@@ -365,20 +382,18 @@ function TimelineCard() {
           )}
         </div>
       ) : (
-        <button
-          className={`account-btn${status.enabled ? ' ghost' : ''}`}
-          onClick={toggle}
-          disabled={busy}
-        >
-          {busy ? 'one sec…' : status.enabled ? 'Stop recording' : 'Start recording'}
+        <button className={`account-btn${consented ? ' ghost' : ''}`} onClick={toggle} disabled={busy}>
+          {busy ? 'one sec…' : consented ? 'Stop noting places' : 'Note places on my trips'}
         </button>
       )}
 
-      {status.enabled && status.authorization === 'whenInUse' && (
+      <div className="account-hint">{state.note}</div>
+
+      {consented && status.authorization === 'whenInUse' && (
         <div className="account-hint">
           {visitsNeedSettings() ? (
             <>
-              Recording while the app is open.{' '}
+              Only while the app is open, for now.{' '}
               <button className="track-link" onClick={openLocationSettings}>
                 Allow it all the time
               </button>{' '}
@@ -386,23 +401,18 @@ function TimelineCard() {
             </>
           ) : (
             <>
-              Recording while the app is open. iOS offers to extend that to the background on its
-              own schedule, once it's seen the app genuinely use it — say yes when it asks.
+              Only while the app is open, for now — iOS offers to extend that on its own schedule
+              once it has seen the app use it. Say yes when it asks.
             </>
           )}
         </div>
       )}
+
       {status.pending > 0 && <div className="account-hint">{status.pending} waiting to upload.</div>}
     </div>
   )
 }
 
-// The example trip leaves by itself once you have trips of your own — which
-// is right, and also the kind of thing that makes people think they have
-// lost something. So the switch exists mainly to be found: it says where
-// Hong Kong went, and lets you have it back.
-//
-// Only shown once there is an example to talk about.
 function DemoCard() {
   const { allTrips, demoPref, setDemoPref } = useContext(TripContext)
   const trips = allTrips ?? []

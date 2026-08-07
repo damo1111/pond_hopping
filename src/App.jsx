@@ -24,7 +24,8 @@ import { readPreference, visibleTrips, writePreference } from './lib/demoVisibil
 import { tripColor } from './lib/tripColors.js'
 import { track } from './lib/analytics.js'
 import { AuthProvider, useAuth } from './lib/AuthContext.jsx'
-import { installVisitSync } from './lib/visits.js'
+import { disableVisits, enableVisits, hasConsented, installVisitSync, visitStatus, visitsSupported } from './lib/visits.js'
+import { nextAction } from './lib/visitWindow.js'
 
 // The 3D globe pulls in three.js — only the Home tab needs it, so it's
 // code-split into its own chunk instead of bloating everyone's first load.
@@ -247,6 +248,29 @@ export default function App() {
     if (!user) return
     return installVisitSync()
   }, [user])
+
+  // Recording follows the trips, not a switch you have to remember. Consent
+  // is given once; the dates decide when it is actually on. Checked on every
+  // launch and whenever the trips change, which is the only moment either
+  // half of the question can have changed.
+  useEffect(() => {
+    if (!user || !visitsSupported()) return
+    let alive = true
+    ;(async () => {
+      const status = await visitStatus()
+      if (!alive || !status) return
+      const act = nextAction({
+        consented: hasConsented(),
+        enabled: status.enabled,
+        trips: tripMeta,
+      })
+      if (act === 'start') await enableVisits()
+      if (act === 'stop') await disableVisits()
+    })()
+    return () => {
+      alive = false
+    }
+  }, [user, tripMeta])
 
   // This used to pulse the bottom bar when you picked a trip, because the
   // trip's journal, map and photos were down there. They're in the sheet
