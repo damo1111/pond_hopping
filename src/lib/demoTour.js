@@ -57,20 +57,20 @@ export const STEPS = [
   {
     id: 'welcome',
     anchor: '.wt-card',
-    title: 'This trip isn’t yours',
-    body: 'It’s a real log left here as an example, so the app has something to show before you’ve added anything. Tap it to see what a finished trip looks like.',
+    title: 'Someone else’s pond',
+    body: 'A real trip, parked here so the place isn’t empty when you turn up. Have a paddle round — it’s properly finished, photos and all. Then it clears off.',
   },
   {
     id: 'globe',
     anchor: '.globe-shift',
-    title: 'Every flight, drawn',
-    body: 'The globe carries every route you’ve flown. Right now it’s showing the example’s four.',
+    title: 'Every hop, drawn',
+    body: 'One line per flight you’ve taken. Four so far, and all of them borrowed. Yours will look better.',
   },
   {
     id: 'plan',
     anchor: '.navitem-plan',
-    title: 'Start with where you’re going',
-    body: 'Plan is where a trip begins — dates, flights, somewhere to stay. Add one and this example steps aside.',
+    title: 'Where to next?',
+    body: 'Plan is where a trip starts — a date, a rough idea, a flight if you’ve booked one. Add one and the borrowed trip paddles off.',
   },
 ]
 

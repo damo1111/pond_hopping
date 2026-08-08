@@ -1,0 +1,230 @@
+import { useEffect, useRef, useState } from 'react'
+
+// What this thing is, before you're asked to do anything with it.
+//
+// The demo tour explains the demo. Nothing explained the app — so a new
+// arrival met a globe, a stranger's trip, and a bottom bar, and had to infer
+// the point. Three cards, swiped or tapped through, answering the only three
+// questions anyone actually has: what goes in, what it turns into, and who
+// else gets to see it.
+//
+// The art is drawn here rather than fetched: the same meridian sphere,
+// dashed great-circle arc and duck the boot screen already uses, so this
+// looks like the app instead of like stock illustration. It also means no
+// image requests on the one screen you want to appear instantly, and it
+// recolours itself in dark mode for free.
+
+const SEEN_KEY = 'pond:intro'
+
+export const introSeen = (store = globalThis.localStorage) => {
+  try {
+    return store?.getItem(SEEN_KEY) === '1'
+  } catch {
+    // A browser with storage switched off shows the cards every time, which
+    // is a far better failure than never showing them at all.
+    return false
+  }
+}
+
+export const markIntroSeen = (store = globalThis.localStorage) => {
+  try {
+    store?.setItem(SEEN_KEY, '1')
+  } catch {
+    /* nothing to do */
+  }
+}
+
+const Sphere = () => (
+  <g className="intro-sphere" fill="none" strokeLinecap="round">
+    <circle cx="60" cy="60" r="40" />
+    <ellipse cx="60" cy="60" rx="16" ry="40" />
+    <ellipse cx="60" cy="60" rx="34" ry="40" />
+    <path d="M20 60h80M27 40h66M27 80h66" />
+  </g>
+)
+
+
+const CARDS = [
+  {
+    id: 'in',
+    duck: { left: '66%', top: '63%', size: 44, flip: false },
+    title: 'Tip it in',
+    body: 'Photos from a trip you took. A Google Timeline export going back years. A booking you forward without reading. Whatever you already have — it works the trip out from there.',
+    art: (
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g transform="translate(60 60) scale(1.08) translate(-53 -58)">
+        <g className="intro-stack">
+          <rect x="20" y="34" width="52" height="42" rx="6" transform="rotate(-10 46 55)" />
+          <rect x="34" y="26" width="52" height="42" rx="6" transform="rotate(7 60 47)" />
+          <rect x="32" y="20" width="52" height="42" rx="6" />
+        </g>
+        <circle className="intro-lens" cx="58" cy="41" r="9" />
+        <path className="intro-arrow" d="M60 74v22m0 0-8-8m8 8 8-8" fill="none" strokeLinecap="round" />
+        </g>
+      </svg>
+    ),
+  },
+  {
+    id: 'globe',
+    duck: { left: '66%', top: '17%', size: 44, flip: false },
+    title: 'Watch it fill',
+    body: 'Every flight becomes a line on the globe, and every day a map of where you actually went. Seventeen years of it, if you’ve got them.',
+    art: (
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <Sphere />
+        <path className="intro-arc" d="M22 78C42 30 82 24 98 42" fill="none" strokeLinecap="round" />
+        <circle className="intro-pin" cx="22" cy="78" r="4" />
+        <circle className="intro-pin" cx="98" cy="42" r="4" />
+      </svg>
+    ),
+  },
+  {
+    id: 'share',
+    duck: { left: '66%', top: '63%', size: 44, flip: true },
+    title: 'Or don’t',
+    body: 'Everything is private until you decide otherwise. Then it’s one link — to a trip, or to the lot — that you can take back whenever you like.',
+    art: (
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <g className="intro-rings" fill="none">
+          <circle cx="60" cy="60" r="21" />
+          <circle cx="60" cy="60" r="31" />
+          <circle cx="60" cy="60" r="40" />
+        </g>
+        <path
+          className="intro-lock"
+          d="M50 54v-8a10 10 0 0 1 20 0v8"
+          fill="none"
+          strokeLinecap="round"
+        />
+        <rect className="intro-lock-body" x="45" y="54" width="30" height="24" rx="6" />
+      </svg>
+    ),
+  },
+]
+
+export default function IntroCards({ onDone }) {
+  const [i, setI] = useState(0)
+  // Live finger offset in pixels, on top of the settled position. Null when
+  // no finger is down, which is also how the transition knows to come back.
+  const [drag, setDrag] = useState(null)
+  const from = useRef(null)
+  const last = i === CARDS.length - 1
+  const go = (n) => setI(Math.max(0, Math.min(CARDS.length - 1, n)))
+
+  // Escape is the fastest way out on a desktop, and this is the first thing
+  // anybody sees — being unable to dismiss it would be a poor introduction.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') finish()
+      if (e.key === 'ArrowRight') go(i + 1)
+      if (e.key === 'ArrowLeft') go(i - 1)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  })
+
+  function finish() {
+    markIntroSeen()
+    onDone?.()
+  }
+
+  // Swipe, because three cards in a row that only move when you press a
+  // button are three slides, not a carousel — and everyone's thumb tries it.
+  function onStart(e) {
+    const t = e.touches?.[0]
+    if (t) from.current = { x: t.clientX, y: t.clientY, at: Date.now(), axis: null }
+  }
+
+  function onMove(e) {
+    const t = e.touches?.[0]
+    if (!t || !from.current) return
+    const dx = t.clientX - from.current.x
+    const dy = t.clientY - from.current.y
+    // Decide once whether this is a swipe or a scroll, and stick to it.
+    if (!from.current.axis) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+      from.current.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
+    }
+    if (from.current.axis !== 'x') return
+    // Resistance at the two ends, so the first and last card feel like ends
+    // rather than like something broken.
+    const overrun = (i === 0 && dx > 0) || (last && dx < 0)
+    setDrag(overrun ? dx * 0.32 : dx)
+  }
+
+  function onEnd() {
+    const start = from.current
+    from.current = null
+    if (!start || start.axis !== 'x' || drag === null) return setDrag(null)
+    const dt = Math.max(1, Date.now() - start.at)
+    const flick = Math.abs(drag) / dt > 0.45 && Math.abs(drag) > 24
+    if (flick || Math.abs(drag) > 70) go(i + (drag < 0 ? 1 : -1))
+    setDrag(null)
+  }
+
+  return (
+    <div className="intro-layer" role="dialog" aria-modal="true" aria-label="What this is">
+      <div
+        className="intro-viewport"
+        onTouchStart={onStart}
+        onTouchMove={onMove}
+        onTouchEnd={onEnd}
+        onTouchCancel={onEnd}
+      >
+        <div
+          className={`intro-track${drag === null ? ' settling' : ''}`}
+          style={{ transform: `translate3d(calc(${-i * 100}% + ${drag ?? 0}px), 0, 0)` }}
+        >
+          {CARDS.map((c, n) => (
+            <div className="intro-card" key={c.id} aria-hidden={n !== i}>
+              <div className="intro-art">
+                {c.art}
+                {c.duck && (
+                  <img
+                    className="intro-duck"
+                    src="/duck.png"
+                    alt=""
+                    style={{
+                      left: c.duck.left,
+                      top: c.duck.top,
+                      width: c.duck.size,
+                      transform: c.duck.flip ? 'scaleX(-1)' : undefined,
+                    }}
+                  />
+                )}
+              </div>
+              <h2 className="intro-title">{c.title}</h2>
+              <p className="intro-body">{c.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="intro-dots">
+        {CARDS.map((c, n) => (
+          <button
+            key={c.id}
+            className={`intro-dot${n === i ? ' on' : ''}`}
+            aria-label={`Card ${n + 1}`}
+            onClick={() => go(n)}
+          />
+        ))}
+      </div>
+
+      <div className="intro-actions">
+        <button className="ios-sheet-done" onClick={() => (last ? finish() : go(i + 1))}>
+          {last ? 'Let’s go' : 'Next'}
+        </button>
+        <button
+          className="intro-skip"
+          onClick={finish}
+          aria-hidden={last}
+          tabIndex={last ? -1 : 0}
+          style={last ? { visibility: 'hidden' } : undefined}
+        >
+          Skip
+        </button>
+      </div>
+    </div>
+  )
+}

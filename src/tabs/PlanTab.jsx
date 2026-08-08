@@ -266,13 +266,11 @@ export default function PlanTab() {
 
       {/* This used to be a sentence pointing at another tab three taps away,
           which is not a prompt, it is a shrug. Sign-in is now a button, next
-          to the reason you would want it. */}
+          to the reason you would want it. One line above the button, because
+          two lines of preamble is a paragraph nobody reads before tapping. */}
       {!user && (
         <div className="plan-signin">
-          <div className="plan-signin-body">
-            You&apos;re looking at an example. Sign in to start your own — trips, flights and
-            photos, kept to your account.
-          </div>
+          <div className="plan-signin-body">Sign in to start your own.</div>
           <button className="plan-signin-btn" onClick={openAuth}>
             Sign in or create an account
           </button>

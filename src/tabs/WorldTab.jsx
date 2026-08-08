@@ -115,8 +115,16 @@ function nearAny(point, others) {
 }
 
 export default function WorldTab() {
-  const { tripMeta, tripsLoaded, selectedTrip, setSelectedTrip, goToTab, jumpToJournal, openPlanner } =
-    useContext(TripContext)
+  const {
+    tripMeta,
+    tripsLoaded,
+    selectedTrip,
+    setSelectedTrip,
+    goToTab,
+    jumpToJournal,
+    openPlanner,
+    introOpen,
+  } = useContext(TripContext)
   // The one thing worth opening the app for when nothing is planned.
   const [memory, setMemory] = useState(null)
   const [flights, setFlights] = useState(null)
@@ -173,9 +181,13 @@ export default function WorldTab() {
       // A browser that won't read localStorage gets the tour every launch,
       // which is the harmless direction to fail in.
     }
+    // Not while the intro is up: the tour points at things, and pointing at
+    // something behind a full-screen card is both invisible and, once the
+    // card goes, already half over.
+    if (introOpen) return
     if (shouldTour({ trips: tripMeta, tripsLoaded, dismissed })) setTourOn(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripsLoaded])
+  }, [tripsLoaded, introOpen])
 
   const home = useMemo(() => homeCoords(), [])
   const overviewPov = isEmpty ? { lat: home.lat, lng: home.lng, altitude: 1.9 } : OVERVIEW_POV
@@ -781,10 +793,36 @@ export default function WorldTab() {
           <div className="wt-section wt-section--add">
             <div className="wt-section-label">Yours</div>
             <button className="wt-card wt-card--add" onClick={() => setRoutesOpen(true)}>
-              <span className="wt-add-mark">+</span>
+              {/* A real tile opens with a photograph 78px tall. This one
+                  opened with a small mark and then 78px of nothing, which is
+                  why it read as broken rather than empty. So it gets a cover
+                  of its own, in the same box: the globe the app is built
+                  around, a hop not yet taken, and the duck waiting on it. */}
+              <span className="wt-cover wt-add-cover" aria-hidden="true">
+                <svg viewBox="0 0 172 78" preserveAspectRatio="xMidYMid slice" role="img">
+                  <g className="wt-add-globe" fill="none" strokeLinecap="round">
+                    <circle cx="86" cy="60" r="44" />
+                    <ellipse cx="86" cy="60" rx="17" ry="44" />
+                    <ellipse cx="86" cy="60" rx="32" ry="44" />
+                    <path d="M42 60h88M47 44h78M47 76h78" />
+                  </g>
+                  <path
+                    className="wt-add-arc"
+                    d="M36 44C56 14 116 12 138 34"
+                    fill="none"
+                    strokeLinecap="round"
+                  />
+                  <circle className="wt-add-from" cx="36" cy="44" r="3.2" />
+                  <g className="wt-add-to">
+                    <circle cx="139" cy="34" r="7" />
+                    <path d="M139 30.2v7.6M135.2 34h7.6" strokeLinecap="round" />
+                  </g>
+                </svg>
+                <img className="wt-add-duck" src="/duck.png" alt="" />
+              </span>
               <span className="wt-title">Add a trip</span>
               <span className="wt-subtitle">One you've taken, or one you're on</span>
-              <span className="wt-dates">photos · a booking · your AI</span>
+              <span className="wt-dates">photos · email · ai</span>
             </button>
           </div>
 

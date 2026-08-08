@@ -92,6 +92,24 @@ hands you an address on its own domain, so there is no DNS change at all:
 `api/inbound-email.js` normalises CloudMailin, Postmark and SendGrid
 payload shapes, so swapping provider later needs no code change.
 
+## Attachments
+
+Plenty of confirmations say "your itinerary is attached" and put nothing
+useful in the body, so PDFs are read too — handed straight to the
+extraction model, which copes with a scan as well as with generated text.
+Whichever provider sits in front has to actually send them:
+
+* **CloudMailin** — its JSON format must be set to include attachments
+  inline (base64). The attachment-store option works as well;
+  `api/_lib/attachments.js` fetches by URL when a row carries one instead
+  of bytes.
+* **This Worker** — nothing to configure, it forwards them itself.
+
+Limits are deliberately tight: PDFs only, at most 4 per email, 3.5 MB each
+and ~3.8 MB in total. Vercel rejects a request body over 4.5 MB and base64
+inflates by a third, so anything bigger is skipped rather than sinking the
+whole email — the body text and the other attachments still get through.
+
 This Worker stays here in case `eend.app` ever does move to Cloudflare for
 other reasons — at which point it's a better fit, since the address can
 then live on your own domain.

@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useContext, useState } from 'react'
 import { useAuth } from '../lib/AuthContext.jsx'
+import { TripContext } from '../App.jsx'
 import StartFromPhotos from './StartFromPhotos.jsx'
 import StartFromTimeline from './StartFromTimeline.jsx'
 
@@ -20,6 +21,7 @@ const INBOX = import.meta.env.VITE_BOOKINGS_INBOX || 'bookings@eend.app'
 
 export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
   const { user } = useAuth()
+  const { openAuth } = useContext(TripContext)
   const [route, setRoute] = useState(null)
   const [made, setMade] = useState(false)
   const [copied, setCopied] = useState(null)
@@ -39,6 +41,11 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
   // sheet is dismissed. Otherwise the screen that says what happened, and
   // offers to record the rest of the trip, is destroyed the instant it
   // renders and nobody ever sees either.
+  // Signed out, every one of these ends at the same wall — the insert fails
+  // because there is nobody to own the trip. Better to ask at the door than
+  // to let somebody pick forty photos and read the dates out of them first.
+  const gate = (go) => () => (user ? go() : openAuth?.())
+
   const close = () => {
     setRoute(null)
     if (made) onCreated?.()
@@ -65,7 +72,7 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
 
         {/* First because it is the only one that works for a trip you have
             already taken, which is most of anyone's travel. */}
-        <button className="route" onClick={() => setRoute('photos')}>
+        <button className="route" onClick={gate(() => setRoute('photos'))}>
           <span className="route-icon">🖼</span>
           <span className="route-text">
             <span className="route-title">Start from photos</span>
@@ -79,7 +86,7 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
         {/* Second because it is the only one that does the whole back
             catalogue at once — and the only one that needs no permission,
             no photos still on the phone, and works the same on Android. */}
-        <button className="route" onClick={() => setRoute('timeline')}>
+        <button className="route" onClick={gate(() => setRoute('timeline'))}>
           <span className="route-icon">🗺</span>
           <span className="route-text">
             <span className="route-title">Bring your Google Timeline in</span>
@@ -111,7 +118,7 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
           </span>
         </a>
 
-        <button className="route" onClick={() => onClose?.('plan')}>
+        <button className="route" onClick={gate(() => onClose?.('plan'))}>
           <span className="route-icon">📋</span>
           <span className="route-text">
             <span className="route-title">Paste a confirmation</span>
@@ -136,16 +143,29 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
           </button>
         )}
 
-        {!user && (
-          <div className="route-note">
-            You'll need an account before any of these can save anything — it's an email address
-            and a code, no password.
-          </div>
+        {/* The ask, rather than a note about the ask. This was a grey
+            sentence at the bottom and a "Not now" button — which is to say,
+            the only call to action on the screen was to leave. */}
+        {!user ? (
+          <>
+            <div className="route-cta">
+              <div className="route-cta-line">Any of these need somewhere to put it.</div>
+              <div className="route-cta-sub">
+                An email address and a six-digit code. No password, nothing to remember.
+              </div>
+              <button className="ios-sheet-done" onClick={() => openAuth?.()}>
+                Create an account
+              </button>
+            </div>
+            <button className="account-btn ghost" onClick={onClose}>
+              Have a look round first
+            </button>
+          </>
+        ) : (
+          <button className="account-btn ghost" onClick={onClose}>
+            Not now
+          </button>
         )}
-
-        <button className="account-btn ghost" onClick={onClose}>
-          Not now
-        </button>
       </div>
     </div>
   )

@@ -805,7 +805,10 @@ button {
   align-items: center;
   justify-content: center;
   gap: 14px;
-  z-index: 1000;
+  /* Above the intro cards, which mount underneath it and are therefore
+     already painted when this lifts. Anything lower and the hand-off shows
+     a frame of the app in between. */
+  z-index: 100005;
   /* Fully opaque from the first frame — no fade-in here. The app
      underneath is already mounted (just visually hidden by this
      overlay) so an opacity animation on the overlay itself briefly
@@ -4972,8 +4975,15 @@ button {
   text-overflow: ellipsis;
 }
 
+/* An emoji sits on the text baseline, which leaves it high in its box and a
+   shade off to one side — invisible on its own, obvious the moment there's a
+   circle drawn round it. Centre the glyph in the box, not on a baseline. */
 .tp-menu {
+  display: grid;
+  place-items: center;
+  padding: 0;
   font-size: 18px;
+  line-height: 1;
   width: 34px;
   height: 34px;
   border-radius: 50%;
@@ -5340,9 +5350,12 @@ button {
   margin-bottom: 10px;
 }
 
+/* Anchored to the left edge, not the right. The thumb sits at the very
+   left of the card, so a pill pinned to its right-hand side grows leftwards
+   — straight off the card — and "Not booked yet" arrived as "T BOOKED YET". */
 .pf-status {
   position: absolute;
-  right: -4px;
+  left: -4px;
   top: -4px;
   font-family: var(--font-mono);
   font-size: 7px;
@@ -7991,11 +8004,27 @@ button {
 
 /* ── Getting your trips in ────────────────────────────────────── */
 
+/* The door, not a ghost. It was 70% transparent over a blue gradient, which
+   read as a missing card rather than an empty one — the dashed border is
+   enough to say "add" without the fill giving up as well. */
 .wt-card--add {
-  justify-content: center;
   border-style: dashed;
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border-color: var(--accent-dim);
+  background: rgba(255, 255, 255, 0.94);
 }
+
+/* Every other tile's subtitle is a place name and fits on one line, so it is
+   set to ellipsis. This one is a sentence, and truncating it mid-word — "or
+   one you'r…" — is worse than letting it take the two lines it needs. */
+.wt-card--add .wt-title,
+.wt-card--add .wt-subtitle {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.wt-card--add .wt-subtitle { line-height: 1.45; margin-top: 1px; text-wrap: balance; }
+.wt-card--add .wt-dates { margin-top: 6px; white-space: nowrap; }
 
 .wt-add-mark {
   font-family: var(--font-serif);
@@ -8014,6 +8043,11 @@ button {
 }
 
 .routes-sheet, .route-sheet { max-height: 86vh; overflow-y: auto; }
+
+/* The way out sits under the way in, not against it. Without this the ghost
+   button rides up on the CTA card's own edge and the two read as one
+   control. */
+.routes-sheet > .account-btn.ghost { margin-top: 16px; }
 
 .route {
   display: flex;
@@ -8288,3 +8322,303 @@ button {
 .push-row:last-child { border-bottom: none; }
 .push-row span { color: var(--text-muted); }
 .push-row b { font-family: var(--font-mono); font-size: 11.5px; font-weight: 500; text-align: right; word-break: break-word; }
+
+/* The sentence to send them, shown rather than described — nothing is
+   emailed from the app, so this is the whole mechanism. */
+.invite-message {
+  margin: 10px 0;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------- intro
+   Three cards answering what goes in, what it becomes, and who sees it.
+   Full-bleed rather than a sheet: this is the first thing anybody sees and
+   it should not look like a dialog interrupting something. */
+/* Three cards of different copy lengths would otherwise put the title,
+   the dots and the button in three different places, and flipping between
+   them looks like the page is twitching. So the rows are fixed: the art
+   block is a constant height, the body reserves four lines whether it uses
+   them or not, and the actions are pinned to the bottom. Only the words
+   move. */
+.intro-layer {
+  position: fixed;
+  inset: 0;
+  /* Above the sheets and the nav — this is the first screen, not an
+     overlay on top of a working app. The boot screen alone outranks it. */
+  z-index: 100003;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  justify-items: center;
+  align-items: center;
+  padding: calc(var(--safe-area-inset-top, env(safe-area-inset-top)) + 24px) 24px
+           calc(var(--safe-area-inset-bottom, env(safe-area-inset-bottom)) + 28px);
+  background: var(--bg);
+  animation: intro-in 320ms ease both;
+}
+
+@keyframes intro-in {
+  from { opacity: 0 }
+  to   { opacity: 1 }
+}
+
+/* A rail of three, moved as one. Cross-fading a single card in place made
+   each step feel like a page reload; sliding says they are three sides of
+   one thing, and gives the thumb something to push. */
+.intro-viewport {
+  width: 100%;
+  max-width: 360px;
+  overflow: hidden;
+  /* The gesture is horizontal; vertical stays with the browser. */
+  touch-action: pan-y;
+}
+
+.intro-track {
+  display: flex;
+  align-items: flex-start;
+  will-change: transform;
+}
+
+/* Only while nothing is being dragged — a transition during a drag lags the
+   finger by exactly its own duration. */
+.intro-track.settling {
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.intro-card {
+  flex: 0 0 100%;
+  min-width: 0;
+  padding: 0 10px;
+  text-align: center;
+}
+
+/* The circle behind the drawing, doing the same job as the flat colour
+   discs in the reference — a shape to sit the illustration inside. */
+.intro-art {
+  width: 208px;
+  height: 208px;
+  margin: 0 auto 26px;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  display: grid;
+  place-items: center;
+}
+
+.intro-art svg { width: 152px; height: 152px; overflow: visible; }
+
+.intro-sphere { stroke: var(--accent); stroke-width: 1.4; opacity: 0.75; }
+.intro-arc { stroke: var(--text); stroke-width: 2; stroke-dasharray: 5 6; opacity: 0.8; }
+.intro-pin { fill: var(--accent); }
+.intro-rings circle { stroke: var(--accent); stroke-width: 1.3; opacity: 0.42; }
+.intro-rings circle:first-child { opacity: 0.8; }
+.intro-stack rect { fill: var(--surface); stroke: var(--accent); stroke-width: 1.6; }
+.intro-lens { fill: none; stroke: var(--accent); stroke-width: 1.6; }
+.intro-arrow { stroke: var(--accent); stroke-width: 2; }
+.intro-lock { stroke: var(--accent); stroke-width: 2.4; }
+.intro-lock-body { fill: var(--accent); opacity: 0.9; }
+/* The header's duck, not a second drawing of one. Positioned against the
+   disc so it reads as standing in the scene rather than beside it. */
+.intro-art { position: relative; }
+
+.intro-duck {
+  position: absolute;
+  transform-origin: center;
+  animation: intro-bob 2.6s ease-in-out infinite;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.16));
+}
+
+@keyframes intro-bob {
+  0%, 100% { translate: 0 0 }
+  50%      { translate: 0 -5px }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-duck { animation: none }
+}
+
+.intro-title {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0 0 10px;
+  text-wrap: balance;
+}
+
+.intro-body {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin: 0;
+  text-wrap: balance;
+  /* Four lines, always — the longest of the three. A card with three lines
+     leaves the fourth empty rather than dragging everything above it down. */
+  min-height: calc(15px * 1.6 * 4);
+}
+
+.intro-dots { display: flex; gap: 7px; margin: 0 0 18px; }
+
+.intro-dot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 200ms ease, width 200ms ease;
+}
+
+.intro-dot.on { background: var(--accent); width: 20px; border-radius: 999px; }
+
+.intro-actions { width: 100%; max-width: 340px; }
+
+.intro-skip {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  border: none;
+  background: none;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* Centred prose with a last line of two short words looks like a mistake,
+   and on a phone it happens constantly — one word too many and "of it."
+   gets a line to itself. `balance` evens the lines out across the block, so
+   the break lands somewhere deliberate instead of wherever the width ran
+   out. `pretty` is the fallback for the wider blocks balance gives up on:
+   it only guarantees the last line isn't a runt, which is the actual
+   complaint. Browsers with neither wrap exactly as they did before.
+
+   Applied to display copy, not to body content people have written — a
+   journal entry should wrap like text, not like a poster. */
+.intro-title,
+.intro-body,
+.tour-title,
+.tour-body,
+.ios-sheet-title,
+.ios-sheet-sub,
+.account-card-title,
+.track-title,
+.world-empty-title {
+  text-wrap: balance;
+}
+
+.account-card-body,
+.route-body,
+.track-body,
+.track-next,
+.route-note,
+.world-empty-body,
+.invite-message {
+  text-wrap: pretty;
+}
+
+/* Said once, at the top, on any screen showing the example's data. Not a
+   warning — it is genuinely useful to have something to look at — just an
+   answer to "whose £400 dinner is this?". */
+.demo-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--accent-bg);
+  border: 1px solid var(--border);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.demo-banner-tag {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 3px 7px;
+  margin-top: 1px;
+}
+
+/* Strava's own orange rather than the app's gold: this is the one control
+   that leaves the app, and it should look borrowed. */
+.run-strava {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 8px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(252, 76, 2, 0.35);
+  background: rgba(252, 76, 2, 0.08);
+  color: #FC4C02;
+  font-size: 12.5px;
+  text-decoration: none;
+}
+
+.run-strava-arrow { font-size: 11px; opacity: 0.8; }
+
+/* The reason to sign up, at the bottom of the list of things you cannot do
+   without doing so. It replaced a grey sentence whose only companion was a
+   button marked "Not now". */
+.route-cta {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--accent-bg);
+  border: 1px solid var(--border);
+}
+
+.route-cta-line { font-size: 14.5px; margin-bottom: 4px; }
+
+.route-cta-sub {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  text-wrap: pretty;
+}
+
+/* The same 78px box a real trip fills with a photograph — drawn rather than
+   photographed, because the one thing this tile cannot have is a picture of
+   somewhere you have been. */
+.wt-add-cover {
+  position: relative;
+  display: block;
+  background: linear-gradient(170deg, var(--accent-bg), var(--surface-2));
+}
+
+.wt-add-cover svg { width: 100%; height: 100%; display: block; }
+
+.wt-add-globe { stroke: var(--accent); stroke-width: 1.2; opacity: 0.5; }
+.wt-add-arc { stroke: var(--accent); stroke-width: 1.8; stroke-dasharray: 4 4.5; opacity: 0.9; }
+.wt-add-from { fill: var(--accent); }
+.wt-add-to circle { fill: var(--surface); stroke: var(--accent); stroke-width: 1.6; }
+.wt-add-to path { stroke: var(--accent); stroke-width: 1.9; }
+
+/* Standing on the horizon, facing the hop it hasn't made yet.
+   Scoped tightly because `.wt-cover img` stretches any image inside a cover
+   to fill it, which turned the duck into a silhouette the size of the tile. */
+.wt-add-cover .wt-add-duck {
+  position: absolute;
+  left: 11px;
+  bottom: 5px;
+  width: 30px;
+  height: auto;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.18));
+  animation: intro-bob 3.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-add-duck { animation: none }
+}

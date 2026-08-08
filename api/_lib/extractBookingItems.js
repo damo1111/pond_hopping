@@ -47,10 +47,26 @@ const EXTRACT_TOOL = {
   },
 }
 
+// The model reads PDFs itself, which is the whole reason attachments are
+// passed through rather than run through a text extractor first: an e-ticket
+// is as often a scan as it is generated text, and a layout-aware read of a
+// two-column itinerary beats whatever a PDF-to-text pass makes of it.
+function fileParts(files) {
+  return files
+    .filter((f) => f?.base64)
+    .map((f) => ({
+      type: 'file',
+      file: { filename: f.name || 'attachment.pdf', file_data: `data:application/pdf;base64,${f.base64}` },
+    }))
+}
+
 // start/end are optional — pass them when the trip is already known (the
 // paste flow) to have the model reason about the window; omit them for
 // blind inbound-email extraction, where matching to a trip happens after.
-export async function extractBookingItems({ text, start, end }) {
+// files are PDF attachments (see _lib/attachments.js), read alongside the
+// body text rather than instead of it: the forward's own covering note
+// often carries the context the attachment leaves out.
+export async function extractBookingItems({ text, start, end, files = [] }) {
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   const windowLine = start && end
     ? `Trip window: ${start} to ${end} (inclusive). Only record items whose date falls between ${start} and ${end} (a day either side is fine for red-eyes).\n`
@@ -60,17 +76,38 @@ export async function extractBookingItems({ text, start, end }) {
     `A confirmation is often sent months before travel — ignore when it was sent; use the travel dates written in the text.\n` +
     windowLine +
     `The text may contain one booking or several. Skip marketing, newsletters, cancelled bookings and anything that isn't a real booking.\n` +
-    `Normalise titles like the app does: flights "BA16 SYD → LHR", stays "Airbnb — <name>, <town>", dinners "Dinner at <place>".`
+    `Normalise titles like the app does: flights "BA16 SYD → LHR", stays "Airbnb — <name>, <town>", dinners "Dinner at <place>".` +
+    (files.length
+      ? `\nAttached PDFs are part of the same forward — read them as carefully as the body, and do not record the same booking twice if it appears in both.`
+      : '')
 
-  const response = await client.chat.completions.create({
-    model: MODEL,
-    messages: [
-      { role: 'system', content: sys },
-      { role: 'user', content: String(text).slice(0, 12000) },
-    ],
-    tools: [EXTRACT_TOOL],
-    tool_choice: { type: 'function', function: { name: 'record_trip_items' } },
-  })
+  const attachments = fileParts(files)
+  const userContent = attachments.length
+    ? [{ type: 'text', text: String(text || '(no message body)').slice(0, 12000) }, ...attachments]
+    : String(text).slice(0, 12000)
+
+  const ask = (content) =>
+    client.chat.completions.create({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: sys },
+        { role: 'user', content },
+      ],
+      tools: [EXTRACT_TOOL],
+      tool_choice: { type: 'function', function: { name: 'record_trip_items' } },
+    })
+
+  // A rejected or oversized attachment must not cost us the body text as
+  // well — an email that forwards both is the common case, and half an
+  // import beats none.
+  let response
+  try {
+    response = await ask(userContent)
+  } catch (err) {
+    if (!attachments.length || !String(text || '').trim()) throw err
+    console.error('extraction with attachments failed, retrying text-only:', err.message)
+    response = await ask(String(text).slice(0, 12000))
+  }
 
   const call = response.choices[0]?.message?.tool_calls?.[0]
   let items = []
