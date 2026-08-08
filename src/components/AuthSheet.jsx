@@ -5,6 +5,8 @@ import { useAuth } from '../lib/AuthContext.jsx'
 // The front door to the app's account, opened by tapping the duck.
 // Same passwordless OTP flow the Account tab has always used (email →
 // emailed code, verified in-place so it never leaves the installed PWA),
+// just surfaced somewhere people will actually find it. Signed in, it's
+// a quick who-am-I + sign-out; signed out, it's the two-step sign-in.
 //
 // The copy deliberately never says how many digits. That length is a
 // Supabase setting (Auth → Sign In / Providers → Email OTP Length), not
@@ -12,20 +14,22 @@ import { useAuth } from '../lib/AuthContext.jsx'
 // label here promised six — so the app was telling people the wrong
 // number and then accepting what they typed anyway. Saying "a code"
 // cannot go stale.
-// just surfaced somewhere people will actually find it. Signed in, it's
-// a quick who-am-I + sign-out; signed out, it's the two-step sign-in.
 //
 // It is also the sign-*up*, and always has been: signInWithOtp creates the
 // user when the address is new. Nothing said so, which meant a stranger
 // looking at the demo had no visible way in — the heading offered to sign
 // them in to an account they had no idea they could make.
 export default function AuthSheet({ onClose }) {
-  const { user, profile } = useAuth()
+  const { user, profile, refreshProfile } = useAuth()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+  // A third step, shown only to someone who has just made an account and has
+  // no name on it. Everyone else goes straight through as before.
+  const [naming, setNaming] = useState(false)
+  const [name, setName] = useState('')
 
   async function send(e) {
     e.preventDefault()
@@ -41,10 +45,35 @@ export default function AuthSheet({ onClose }) {
     e.preventDefault()
     setBusy(true)
     setError(null)
-    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' })
+    const { data, error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' })
+    if (error) {
+      setBusy(false)
+      setError(error.message)
+      return
+    }
+
+    // Ask a brand-new account what it is called, rather than deciding for it.
+    // Read the row rather than trusting `profile` from context, which is a
+    // step behind at this moment — the session has only just been created.
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('id', data?.user?.id)
+      .maybeSingle()
+    setBusy(false)
+    if (prof?.display_name) onClose() // AuthContext picks up the new session.
+    else setNaming(true)
+  }
+
+  async function saveName(e) {
+    e.preventDefault()
+    setBusy(true)
+    const { data: u } = await supabase.auth.getUser()
+    const { error } = await supabase.from('profiles').update({ display_name: name.trim() }).eq('id', u?.user?.id)
+    if (!error) await refreshProfile()
     setBusy(false)
     if (error) setError(error.message)
-    else onClose() // AuthContext picks up the new session; close the sheet.
+    else onClose()
   }
 
   // Above the other sheets rather than level with them. Sign-in is the one
@@ -59,7 +88,30 @@ export default function AuthSheet({ onClose }) {
       <div className="ios-sheet auth-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="ios-sheet-grip" />
 
-        {user ? (
+        {/* Ahead of the signed-in branch deliberately: by the time this shows,
+            AuthContext already has a session, and without this the sheet would
+            skip straight past the question to "you're signed in". */}
+        {naming ? (
+          <form onSubmit={saveName}>
+            <div className="ios-sheet-title">What should we call you?</div>
+            <div className="ios-sheet-sub">
+              It's how you'll appear to anyone you share a trip with. Your email stays private to them.
+            </div>
+            <input
+              className="account-input"
+              autoFocus
+              required
+              maxLength={60}
+              placeholder="Your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <button className="ios-sheet-done" type="submit" disabled={busy || !name.trim()}>
+              {busy ? 'Saving…' : 'That’s me'}
+            </button>
+            {error && <div className="account-error">{error}</div>}
+          </form>
+        ) : user ? (
           <>
             <div className="auth-who">
               <div className="auth-avatar">{(profile?.display_name || user.email || '?')[0].toUpperCase()}</div>
