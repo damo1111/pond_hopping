@@ -20,7 +20,7 @@ const AIRLINES = [
   // airline's own colour — which is still an answer, where the gold default
   // is an admission that we did not recognise the airline at all. Drop a
   // file into public/tails/ and add `image:` here to upgrade any of them.
-  { iata: 'TP', test: /tap air portugal|^tap\b/i, color: '#E4002B', emblem: 'default', image: '/tails/tap-portugal.svg' },
+  { iata: 'TP', test: /tap air portugal|^tap\b/i, color: '#E4002B', emblem: 'default', image: '/tails/tap-portugal.png' },
   { iata: 'EK', test: /emirates/i, color: '#D71921', emblem: 'default' },
   { iata: 'SQ', test: /singapore airlines/i, color: '#F9A11B', emblem: 'default' },
   { iata: 'QR', test: /qatar/i, color: '#5C0632', emblem: 'default' },
