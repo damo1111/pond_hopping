@@ -81,6 +81,12 @@ const USEFUL_ROUTES = [...USEFUL_TABS, { id: 'account' }]
 // Reachable only by entering a trip on Home — no longer in the bottom bar.
 const TRIP_TABS = ['journal', 'map', 'photos']
 
+// How long the app has to stay out of sight before a pending update is
+// allowed to reload it. Long enough to sit out a permission dialog or a
+// glance at the notification shade, short enough that putting the phone
+// down for a moment still picks the new version up.
+const AWAY_BEFORE_RELOAD_MS = 8000
+
 // Where you are and how to leave, in the strip the trip picker used to
 // occupy. Doubles as the answer to "which trip am I looking at?", which the
 // dropdown only ever answered by accident.
@@ -214,26 +220,52 @@ export default function App() {
   // if the tab's already hidden, do it now; otherwise wait for the next
   // time it's backgrounded (switching apps, locking the phone) so a
   // fresh version is just quietly waiting the next time it's opened.
+  //
+  // "Hidden" is not the same as "put away", which is what this actually
+  // wants to know. Android reports hidden for things that are nothing of
+  // the sort: a runtime permission dialog, the notification shade pulled
+  // down, the app switcher previewing the card, the keyboard on some
+  // skins. Reloading on the first hidden event therefore restarts the app
+  // underneath somebody who never left it — which is exactly what it looked
+  // like on David's phone. So wait, and only go through with it if the app
+  // is still away. Reloading a hidden page is invisible, so the delay is
+  // free.
   useEffect(() => {
     if (booting) return
 
-    function reloadIfHidden() {
-      if (document.visibilityState === 'hidden') window.location.reload()
+    let timer = null
+
+    function cancel() {
+      if (timer) {
+        clearTimeout(timer)
+        timer = null
+      }
+    }
+
+    function reloadWhenAwayForGood() {
+      if (document.visibilityState !== 'hidden') {
+        cancel() // came straight back — a dialog or the shade, not a departure
+        return
+      }
+      cancel()
+      timer = setTimeout(() => {
+        if (document.visibilityState === 'hidden') window.location.reload()
+      }, AWAY_BEFORE_RELOAD_MS)
     }
 
     function onUpdate() {
-      if (document.visibilityState === 'hidden') {
-        window.location.reload()
-      } else {
-        document.addEventListener('visibilitychange', reloadIfHidden)
-      }
+      document.addEventListener('visibilitychange', reloadWhenAwayForGood)
+      // Already away when the update landed: still wait it out rather than
+      // reloading on the spot, for the same reason.
+      if (document.visibilityState === 'hidden') reloadWhenAwayForGood()
     }
 
     if (window.__pondSwUpdatePending) onUpdate()
     window.addEventListener('pond:sw-update', onUpdate)
     return () => {
+      cancel()
       window.removeEventListener('pond:sw-update', onUpdate)
-      document.removeEventListener('visibilitychange', reloadIfHidden)
+      document.removeEventListener('visibilitychange', reloadWhenAwayForGood)
     }
   }, [booting])
 

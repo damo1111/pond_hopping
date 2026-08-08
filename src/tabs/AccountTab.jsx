@@ -63,7 +63,7 @@ function SignInForm() {
       <form className="account-card" onSubmit={verify}>
         <div className="account-card-title">Check your email</div>
         <div className="account-card-body">
-          Sent a 6-digit code to <b>{email}</b> — enter it below (don't tap the link in the email, it'll open in
+          Sent a code to <b>{email}</b> — enter it below (don't tap the link in the email, it'll open in
           the browser instead of here).
         </div>
         <input
@@ -71,7 +71,7 @@ function SignInForm() {
           inputMode="numeric"
           autoComplete="one-time-code"
           required
-          placeholder="123456"
+          placeholder="Code from the email"
           value={code}
           onChange={(e) => setCode(e.target.value)}
         />
@@ -97,7 +97,7 @@ function SignInForm() {
   return (
     <form className="account-card" onSubmit={send}>
       <div className="account-card-title">Sign in</div>
-      <div className="account-card-body">No password — we'll email you a 6-digit code.</div>
+      <div className="account-card-body">No password — we'll email you a code.</div>
       <input
         className="account-input"
         type="email"
@@ -537,6 +537,72 @@ function PushCard() {
   )
 }
 
+// Your own name, changeable. It used to be assumed from the email address —
+// david2@ became "david2" — which is both wrong and the sort of thing that
+// reads as the app knowing more about you than it does. Nothing sets it
+// now except the person it belongs to.
+function NameCard() {
+  const { user, profile, refreshProfile } = useAuth()
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  async function save(e) {
+    e.preventDefault()
+    setBusy(true)
+    await supabase.from('profiles').update({ display_name: name.trim() || null }).eq('id', user.id)
+    await refreshProfile()
+    setBusy(false)
+    setEditing(false)
+  }
+
+  if (editing) {
+    return (
+      <form className="account-card" onSubmit={save}>
+        <div className="account-card-title">Your name</div>
+        <div className="account-card-body">How you appear to anyone you share a trip with.</div>
+        <input
+          className="account-input"
+          autoFocus
+          maxLength={60}
+          placeholder="Your name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <div className="plan-form-actions">
+          <button className="account-btn ghost" type="button" onClick={() => setEditing(false)}>
+            Cancel
+          </button>
+          <button className="account-btn" type="submit" disabled={busy}>
+            {busy ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </form>
+    )
+  }
+
+  return (
+    <div className="account-card">
+      <div className="account-card-title">{profile?.display_name || 'No name set'}</div>
+      <div className="account-card-body">{user.email}</div>
+      <div className="plan-form-actions">
+        <button
+          className="account-btn ghost"
+          onClick={() => {
+            setName(profile?.display_name || '')
+            setEditing(true)
+          }}
+        >
+          {profile?.display_name ? 'Change name' : 'Add your name'}
+        </button>
+        <button className="account-btn ghost" onClick={() => supabase.auth.signOut()}>
+          Sign out
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function SignedIn() {
   const { user, profile } = useAuth()
   const [connections, setConnections] = useState(null)
@@ -572,13 +638,7 @@ function SignedIn() {
 
   return (
     <>
-      <div className="account-card">
-        <div className="account-card-title">{profile?.display_name || user.email}</div>
-        <div className="account-card-body">{user.email}</div>
-        <button className="account-btn ghost" onClick={() => supabase.auth.signOut()}>
-          Sign out
-        </button>
-      </div>
+      <NameCard />
 
       <ConnectCard />
 
