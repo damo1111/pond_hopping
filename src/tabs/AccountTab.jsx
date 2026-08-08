@@ -63,7 +63,7 @@ function SignInForm() {
       <form className="account-card" onSubmit={verify}>
         <div className="account-card-title">Check your email</div>
         <div className="account-card-body">
-          Sent a 6-digit code to <b>{email}</b> — enter it below (don't tap the link in the email, it'll open in
+          Sent a code to <b>{email}</b> — enter it below (don't tap the link in the email, it'll open in
           the browser instead of here).
         </div>
         <input
@@ -71,7 +71,7 @@ function SignInForm() {
           inputMode="numeric"
           autoComplete="one-time-code"
           required
-          placeholder="123456"
+          placeholder="Code from the email"
           value={code}
           onChange={(e) => setCode(e.target.value)}
         />
@@ -97,7 +97,7 @@ function SignInForm() {
   return (
     <form className="account-card" onSubmit={send}>
       <div className="account-card-title">Sign in</div>
-      <div className="account-card-body">No password — we'll email you a 6-digit code.</div>
+      <div className="account-card-body">No password — we'll email you a code.</div>
       <input
         className="account-input"
         type="email"

@@ -4,7 +4,14 @@ import { useAuth } from '../lib/AuthContext.jsx'
 
 // The front door to the app's account, opened by tapping the duck.
 // Same passwordless OTP flow the Account tab has always used (email →
-// 6-digit code, verified in-place so it never leaves the installed PWA),
+// emailed code, verified in-place so it never leaves the installed PWA),
+//
+// The copy deliberately never says how many digits. That length is a
+// Supabase setting (Auth → Sign In / Providers → Email OTP Length), not
+// something this screen controls, and it was set to eight while every
+// label here promised six — so the app was telling people the wrong
+// number and then accepting what they typed anyway. Saying "a code"
+// cannot go stale.
 // just surfaced somewhere people will actually find it. Signed in, it's
 // a quick who-am-I + sign-out; signed out, it's the two-step sign-in.
 //
@@ -75,7 +82,7 @@ export default function AuthSheet({ onClose }) {
           <form onSubmit={verify}>
             <div className="ios-sheet-title">Check your email</div>
             <div className="ios-sheet-sub">
-              Sent a 6-digit code to <b>{email}</b>. Type it in below — don't tap the link in the email, it opens the
+              Sent a code to <b>{email}</b>. Type it in below — don't tap the link in the email, it opens the
               browser instead of the app.
             </div>
             <input
@@ -84,7 +91,7 @@ export default function AuthSheet({ onClose }) {
               autoComplete="one-time-code"
               autoFocus
               required
-              placeholder="123456"
+              placeholder="Code from the email"
               value={code}
               onChange={(e) => setCode(e.target.value)}
             />
@@ -109,7 +116,7 @@ export default function AuthSheet({ onClose }) {
             <div className="ios-sheet-title">Sign in or create an account</div>
             <div className="ios-sheet-sub">
               Same box for both — if we haven't seen your email before, this makes your account.
-              No password: we send a 6-digit code. Your trips are private to you unless you
+              No password: we email you a code. Your trips are private to you unless you
               choose to share them.
             </div>
             <input
