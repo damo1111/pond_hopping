@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from '../lib/supabase.js'
+import { API_BASE } from '../lib/apiBase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import {
   visitStatus,
@@ -114,19 +115,24 @@ function SignInForm() {
   )
 }
 
-// This never sent an email. There is no mailer in the project at all — the
-// only outbound anything is a push notification — so "Send invite" wrote a
-// row and stopped, and the person on the other end was never told. They
-// found out by signing in with that address one day and noticing.
+// For a long time this sent nothing: the project had no mailer at all, so
+// "Send invite" wrote a row and stopped, and the person on the other end
+// found out by signing in with that address one day and noticing. Rather
+// than let the button lie, it was made to say what it did — put them on the
+// list, and hand you a sentence to send yourself.
 //
-// Rather than pretend, the button now says what it does: it puts them on
-// the list, and hands you the sentence to send them yourself.
+// It now genuinely emails them, via /api/send-invite. The share sheet stays
+// as the fallback rather than being deleted: sending can fail, the key can
+// be missing, and "we didn't reach them, here are the words" is a better
+// answer than a dead end. Which of the two happened is said out loud, since
+// the difference decides whether you still owe them a message.
 function InviteForm({ onInvited }) {
   const { user } = useAuth()
   const [email, setEmail] = useState('')
   const [role, setRole] = useState('family')
   const [sending, setSending] = useState(false)
   const [invited, setInvited] = useState(null)
+  const [emailed, setEmailed] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState(null)
 
@@ -141,13 +147,35 @@ function InviteForm({ onInvited }) {
     const { error } = await supabase
       .from('connections')
       .insert({ user_id: user.id, invitee_email: who, role })
-    setSending(false)
-    if (error) setError(error.message)
-    else {
-      setEmail('')
-      setInvited(who)
-      onInvited()
+    if (error) {
+      setSending(false)
+      setError(error.message)
+      return
     }
+
+    // The row is the thing that matters and it is already saved, so a failed
+    // send costs the email and nothing else.
+    let delivered = false
+    try {
+      const { data: s } = await supabase.auth.getSession()
+      const res = await fetch(`${API_BASE}/api/send-invite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${s?.session?.access_token ?? ''}`,
+        },
+        body: JSON.stringify({ email: who }),
+      })
+      delivered = res.ok
+    } catch {
+      /* offline, or the endpoint is down — the share sheet covers it */
+    }
+
+    setSending(false)
+    setEmail('')
+    setEmailed(delivered)
+    setInvited(who)
+    onInvited()
   }
 
   async function share() {
@@ -169,14 +197,23 @@ function InviteForm({ onInvited }) {
   if (invited) {
     return (
       <div className="account-card">
-        <div className="account-card-title">Now tell them</div>
+        <div className="account-card-title">{emailed ? 'Invited' : 'Now tell them'}</div>
         <div className="account-card-body">
-          <b>{invited}</b> is on the list — but nothing has been emailed to them. Send them this and
-          they're in.
+          {emailed ? (
+            <>
+              <b>{invited}</b> is on the list and we've emailed them how to get in. Nothing else to do
+              — though a word from you never hurts.
+            </>
+          ) : (
+            <>
+              <b>{invited}</b> is on the list, but the email didn't go out. Send them this and they're
+              in.
+            </>
+          )}
         </div>
         <div className="invite-message">{message(invited)}</div>
-        <button className="account-btn" onClick={share}>
-          {copied ? 'Copied' : 'Share this'}
+        <button className={`account-btn${emailed ? ' ghost' : ''}`} onClick={share}>
+          {copied ? 'Copied' : emailed ? 'Send it anyway' : 'Share this'}
         </button>
         <button className="account-btn ghost" onClick={() => setInvited(null)}>
           Add someone else
@@ -189,8 +226,7 @@ function InviteForm({ onInvited }) {
     <form className="account-card" onSubmit={send}>
       <div className="account-card-title">Invite someone</div>
       <div className="account-card-body">
-        Adds them to your list so they can see what you've shared. You send them the link yourself —
-        nothing is emailed from here.
+        Adds them to your list so they can see what you've shared, and emails them how to get in.
       </div>
       <input
         className="account-input"
