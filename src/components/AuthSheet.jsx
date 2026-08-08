@@ -40,8 +40,15 @@ export default function AuthSheet({ onClose }) {
     else onClose() // AuthContext picks up the new session; close the sheet.
   }
 
+  // Above the other sheets rather than level with them. Sign-in is the one
+  // sheet opened *from* another — "Create an account" sits inside "Get your
+  // trips in" — and every overlay shared a z-index, so the one that painted
+  // on top was whichever mounted later in the DOM. That was the routes
+  // sheet, so sign-in opened underneath it and the tap looked like it did
+  // nothing at all. Staying on top also leaves the sheet you came from open
+  // behind, so signing in puts you back where you were.
   return (
-    <div className="ios-sheet-overlay" onClick={onClose}>
+    <div className="ios-sheet-overlay ios-sheet-overlay--auth" onClick={onClose}>
       <div className="ios-sheet auth-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="ios-sheet-grip" />
 

@@ -150,6 +150,12 @@ button {
   justify-content: center;
 }
 
+/* Sign-in is the sheet other sheets send you to, so it has to outrank them.
+   Level pegging meant DOM order decided, and the sheet doing the sending
+   mounts later — so sign-in opened behind it. Still below the intro cards
+   (100003) and the boot cover (100005), which outrank everything. */
+.ios-sheet-overlay--auth { z-index: 100001; }
+
 .ios-sheet {
   background: var(--surface);
   border: 1px solid var(--border);
