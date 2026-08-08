@@ -23,10 +23,25 @@ def ciVersionCode = System.getenv("POND_VERSION_CODE")
 def ciVersionName = System.getenv("POND_VERSION_NAME")
 
 android {
+    // The namespace is the Java package the sources actually live in
+    // (app/eend/pond/) and is invisible outside the build. It deliberately
+    // does *not* follow applicationId below — moving it would mean moving
+    // every source file for no gain.
     namespace = "app.eend.pond"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "app.eend.pond"
+        // Play fixes an app's package name when the app is created and will
+        // never change it, and this app was registered as pond.eend.app.
+        // Since the store entry is the thing that cannot move, the build
+        // moves instead. Note this is not the conventional reverse-domain
+        // form of eend.app — that would be app.eend.pond, which is what iOS
+        // still uses and what the sideloaded builds before this shipped as.
+        //
+        // Consequences worth knowing: Android treats this as a different app
+        // entirely, so the sideloaded one does not upgrade into it, and
+        // google-services.json must carry a client for this exact package or
+        // the Google Services plugin fails the build outright.
+        applicationId "pond.eend.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode ciVersionCode ? ciVersionCode.toInteger() : 1
