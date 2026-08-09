@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { flightNumbers, matchEvent, planCancellations, refs } from './cancellations.js'
+import { alreadyOnTrip, flightNumbers, matchEvent, planCancellations, refs } from './cancellations.js'
 
 const flight = (extra = {}) => ({
   id: 'e1',
@@ -107,4 +107,31 @@ test('an unmatched cancellation is reported rather than dropped', () => {
   const plan = planCancellations(items, [hotel()])
   assert.equal(plan.length, 1)
   assert.equal(plan[0].event, null)
+})
+
+test('strict matching refuses the same-day fallback', () => {
+  const item = { kind: 'hotel', title: 'Some other place', event_date: '2026-09-14' }
+  assert.equal(matchEvent(item, [hotel()], { strict: true }), null)
+})
+
+test('a re-forwarded confirmation is recognised as already on the trip', () => {
+  const item = { action: 'add', kind: 'hotel', title: 'Airbnb — Southwold', event_date: '2026-09-14',
+    detail: { confirmation: 'HM3BCPYMNX' } }
+  assert.equal(alreadyOnTrip(item, [hotel()])?.id, 'h1')
+})
+
+test('a genuinely different booking on the same day is not a duplicate', () => {
+  // Two hotels on one day is ordinary. Only a printed identifier may decide.
+  const item = { action: 'add', kind: 'hotel', title: 'Premier Inn — Southwold', event_date: '2026-09-14' }
+  assert.equal(alreadyOnTrip(item, [hotel()]), null)
+})
+
+test('a re-forwarded flight is recognised by its number', () => {
+  const item = { action: 'add', kind: 'flight', title: 'AY1336 LHR → HEL', event_date: '2026-09-25' }
+  assert.equal(alreadyOnTrip(item, [flight()])?.id, 'e1')
+})
+
+test('cancellations are never treated as duplicates', () => {
+  const item = { action: 'cancel', kind: 'flight', title: 'AY1336 cancelled' }
+  assert.equal(alreadyOnTrip(item, [flight()]), null)
 })

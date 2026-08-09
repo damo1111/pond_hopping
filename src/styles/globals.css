@@ -8687,3 +8687,23 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 /* Springs back when a drag is released short of the threshold. Removed
    during the drag itself so the sheet tracks the thumb exactly. */
 .ios-sheet { transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1); }
+
+/* The two ways out of an import sat directly under the gold Add button with
+   nothing between them, so the three read as one undifferentiated stack.
+   They are a pair, and a pair sits on its own row with air above it. */
+.gm-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.gm-actions .account-btn {
+  flex: 1;
+  text-align: center;
+  align-self: auto;
+}
+
+/* Already on the trip. Reads as settled rather than rejected — this is the
+   good outcome, not an error. */
+.gm-item-dupe { opacity: 0.6; }
+.gm-item-dupe .gm-item-title { text-decoration: none; }

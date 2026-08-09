@@ -56,7 +56,7 @@ function sole(candidates) {
  * @param {object} item   an extracted item with action === 'cancel'
  * @param {Array}  events planned_events rows already on the trip
  */
-export function matchEvent(item, events = []) {
+export function matchEvent(item, events = [], { strict = false } = {}) {
   if (!item) return null
   const pool = events.filter((e) => e && (!item.kind || !e.kind || e.kind === item.kind))
   const mine = haystack(item)
@@ -79,11 +79,31 @@ export function matchEvent(item, events = []) {
   // deleting whatever else happened that day.
   if (myRefs.size || myFlights.size) return null
 
+  // Strict callers stop here. Deduplication uses it: two hotels on the same
+  // day is a perfectly ordinary thing to have booked, so "same kind, same
+  // date" must never be enough to decide that a new booking is one the trip
+  // already holds. Only a printed identifier can say that.
+  if (strict) return null
+
   // Nothing identifying at all. Same kind, same day, and only one of them —
   // true of most single-hotel, single-dinner days, and false of exactly the
   // days where a wrong guess would hurt.
   if (!item.event_date) return null
   return sole(pool.filter((e) => e.event_date === item.event_date))
+}
+
+/**
+ * The event this item is already on the trip as, if any.
+ *
+ * People forward the same confirmation twice — from two mailboxes, or just
+ * because they cannot remember whether they did. Both copies used to land,
+ * and the second was usually the poorer one. Strict on purpose: a false
+ * positive here silently discards a real booking, which is worse than a
+ * duplicate you can delete.
+ */
+export function alreadyOnTrip(item, events = []) {
+  if (item?.action === 'cancel') return null
+  return matchEvent(item, events, { strict: true })
 }
 
 /**

@@ -41,6 +41,39 @@ const EXTRACT_TOOL = {
                   'Passenger or guest names exactly as printed, e.g. ["MR DAVID SEEBY"]. Used to work out who a leg belongs to on a shared trip. Omit if the booking names nobody.',
               },
               party_size: { type: 'number', description: 'Number of travellers/guests if stated' },
+              // Everything the confirmation email prints that the app already
+              // knows how to render. Without these an imported flight arrives
+              // with a title and a date and nothing else, so its card shows
+              // "—" for both airports and TBC for every field — while the same
+              // flight typed in by hand shows a tail, a route and a terminal.
+              detail: {
+                type: 'object',
+                description: 'Structured fields printed in the confirmation. Omit anything not stated — never guess.',
+                properties: {
+                  flight_number: { type: 'string', description: 'e.g. "AY1336"' },
+                  airline: { type: 'string', description: 'Full name, e.g. "Finnair"' },
+                  operated_by: { type: 'string', description: 'If a codeshare names a different operator' },
+                  dep_airport: { type: 'string', description: 'IATA, e.g. "LHR"' },
+                  arr_airport: { type: 'string', description: 'IATA, e.g. "HEL"' },
+                  dep_city: { type: 'string' },
+                  arr_city: { type: 'string' },
+                  dep_terminal: { type: 'string' },
+                  arr_terminal: { type: 'string' },
+                  seat: { type: 'string' },
+                  cabin: { type: 'string', description: 'e.g. "Business"' },
+                  booking_ref: { type: 'string', description: 'PNR or record locator' },
+                  ticket: { type: 'string', description: 'e-ticket number' },
+                  confirmation: { type: 'string', description: 'Hotel/stay confirmation code' },
+                  address: { type: 'string' },
+                  room: { type: 'string' },
+                  nights: { type: 'number' },
+                  guests: { type: 'number' },
+                  breakfast: { type: 'boolean' },
+                  host: { type: 'string', description: 'Airbnb host or property manager' },
+                  listing: { type: 'string', description: 'URL of the listing, if printed' },
+                  total: { type: 'string', description: 'Amount paid, as printed including its currency' },
+                },
+              },
               confidence: { type: 'number', description: '0..1 how sure this is real (not marketing/cancelled)' },
               source_subject: { type: 'string', description: 'a short label for what this came from' },
             },
