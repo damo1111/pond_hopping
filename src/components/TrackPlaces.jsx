@@ -102,7 +102,7 @@ export default function TrackPlaces({ compact = false, onDone }) {
 
   return (
     <div className={`track-card${compact ? ' compact' : ''}`}>
-      <div className="track-title">Let the trip fill itself in</div>
+      <div className="track-title">Let the trip log itself</div>
       <div className="track-body">
         If you'd like, the app can note the places you stop while you're away, so each day gets its
         own map without you logging anything.

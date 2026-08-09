@@ -72,10 +72,10 @@ test('the next action is only ever the change that is needed', () => {
 // "Off because you're not travelling" and "off because you said no" look
 // identical on a switch and mean entirely different things.
 test('the status distinguishes the two ways of being off', () => {
-  assert.match(recordingStatus({ consented: false, now: NOW }).note, /only noted if you ask/)
+  assert.match(recordingStatus({ consented: false, now: NOW }).note, /only logged if you ask/)
   const idle = recordingStatus({ consented: true, trips: [], now: NOW })
   assert.equal(idle.on, false)
-  assert.match(idle.note, /wakes up when a trip starts/)
+  assert.match(idle.note, /starts when a trip does/)
 })
 
 test('when it is recording it says which trip put it there', () => {

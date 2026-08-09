@@ -425,7 +425,7 @@ function TimelineCard() {
         </div>
       ) : (
         <button className={`account-btn${consented ? ' ghost' : ''}`} onClick={toggle} disabled={busy}>
-          {busy ? 'one sec…' : consented ? 'Stop noting places' : 'Note places on my trips'}
+          {busy ? 'one sec…' : consented ? 'Stop logging places' : 'Log the places'}
         </button>
       )}
 

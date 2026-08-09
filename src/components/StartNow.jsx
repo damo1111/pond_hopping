@@ -97,7 +97,7 @@ export default function StartNow({ onDone, onClose }) {
     <div className="ios-sheet-overlay" onClick={onClose}>
       <form className="ios-sheet" onClick={(e) => e.stopPropagation()} onSubmit={begin}>
         <SheetGrip onClose={onClose} />
-        <div className="ios-sheet-title">Off somewhere?</div>
+        <div className="ios-sheet-title">Start hopping</div>
         {/* Two clauses, because the second one is the promise and the first
             is the only thing anybody needs to believe to tap the button. */}
         <div className="ios-sheet-sub">Starts now, ends when it ends.</div>
@@ -112,7 +112,7 @@ export default function StartNow({ onDone, onClose }) {
           onChange={(e) => setWhere(e.target.value)}
         />
         <button className="ios-sheet-done" type="submit" disabled={busy}>
-          {busy ? 'Off you go…' : 'Off we go'}
+          {busy ? 'Off you go…' : 'Start hopping'}
         </button>
         {error && <div className="account-error">{error}</div>}
       </form>
