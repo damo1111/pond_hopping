@@ -8660,3 +8660,70 @@ button {
   background: var(--accent);
   box-shadow: 0 0 0 2px var(--surface);
 }
+
+/* The grip is a real control now, so it needs to behave like one: a hit area
+   bigger than four pixels, and touch-action none so the browser doesn't
+   claim the gesture as a scroll before the drag handler sees it. */
+button.ios-sheet-grip {
+  display: block;
+  border: 0;
+  padding: 0;
+  touch-action: none;
+  cursor: grab;
+  position: relative;
+}
+
+button.ios-sheet-grip::after {
+  content: '';
+  position: absolute;
+  left: -28px;
+  right: -28px;
+  top: -14px;
+  bottom: -14px;
+}
+
+button.ios-sheet-grip:active { cursor: grabbing; }
+
+/* Springs back when a drag is released short of the threshold. Removed
+   during the drag itself so the sheet tracks the thumb exactly. */
+.ios-sheet { transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1); }
+
+/* The two ways out of an import sat directly under the gold Add button with
+   nothing between them, so the three read as one undifferentiated stack.
+   They are a pair, and a pair sits on its own row with air above it. */
+.gm-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.gm-actions .account-btn {
+  flex: 1;
+  text-align: center;
+  align-self: auto;
+}
+
+/* Already on the trip. Reads as settled rather than rejected — this is the
+   good outcome, not an error. */
+.gm-item-dupe { opacity: 0.6; }
+.gm-item-dupe .gm-item-title { text-decoration: none; }
+
+/* A stay's facts. Small, quiet, and wrapping — the point is that four of
+   them can be taken in without reading, which a sentence never allows. */
+.tl-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 5px;
+}
+
+.tl-fact {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}

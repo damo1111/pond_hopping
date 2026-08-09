@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase.js'
 import { useAuth } from '../../lib/AuthContext.jsx'
 import { KIND_META } from '../../lib/planItems.js'
-import { planCancellations } from '../../lib/cancellations.js'
+import { alreadyOnTrip, planCancellations } from '../../lib/cancellations.js'
+import SheetGrip from '../SheetGrip.jsx'
 
 // Reviews one pending email_imports row: confirm which trip it belongs to
 // (pre-matched by date against trips the *forwarder* is a member of, but
@@ -119,6 +120,15 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
   // match wasn't certain, which the list says out loud rather than guessing.
   const cancels = planCancellations(current.items || [], events)
   const cancelAt = Object.fromEntries(cancels.map((c) => [c.index, c]))
+  // People forward the same confirmation twice — from two mailboxes, or just
+  // because they cannot remember whether they did. Both copies used to land,
+  // and the second was always the poorer one, arriving with none of the
+  // structured detail the first had accumulated.
+  const dupeAt = Object.fromEntries(
+    (current.items || [])
+      .map((it, i) => [i, alreadyOnTrip(it, events)])
+      .filter(([, hit]) => hit)
+  )
 
   // If they pick a trip whose window doesn't contain these dates, say so
   // rather than silently allowing exactly the mistake described above.
@@ -210,7 +220,7 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
     if (removing.length) await supabase.from('planned_events').delete().in('id', removing)
 
     const rows = current.items
-      .filter((it, i) => keep[i] && it.action !== 'cancel')
+      .filter((it, i) => keep[i] && it.action !== 'cancel' && !dupeAt[i])
       .map((it) => ({
         trip_id: target,
         traveler: attributeTo(it, members ?? []),
@@ -221,7 +231,12 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
         city: it.city || null,
         kind: it.kind,
         note: it.note ? `${it.note} · imported` : 'imported from a forwarded email',
-        detail: { imported: true, source_subject: it.source_subject },
+        // Everything the extractor found, not just the fact that it was
+        // imported. Without this an imported flight arrives with a title and
+        // a date and nothing else, so its card shows "—" for both airports
+        // and TBC for every field — while the same flight typed in by hand
+        // shows a tail, a route and a terminal.
+        detail: { ...(it.detail || {}), imported: true, source_subject: it.source_subject },
         done: false,
       }))
     if (rows.length) await supabase.from('planned_events').insert(rows)
@@ -247,7 +262,7 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
   // Which ticked items add, and which take away. Computed here rather than in
   // save() so the button can say what it is about to do — "remove 1" is not
   // something anyone should discover afterwards.
-  const addCount = current.items.filter((it, i) => keep[i] && it.action !== 'cancel').length
+  const addCount = current.items.filter((it, i) => keep[i] && it.action !== 'cancel' && !dupeAt[i]).length
   const removeCount = cancels.filter((c) => keep[c.index] && c.event).length
   const verb = [addCount && `Add ${addCount}`, removeCount && `remove ${removeCount}`]
     .filter(Boolean)
@@ -257,7 +272,7 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
   return (
     <div className="ios-sheet-overlay" onClick={onClose}>
       <div className="ios-sheet gm-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="ios-sheet-grip" />
+        <SheetGrip onClose={onClose} />
         <div className="ios-sheet-title">📧 From {current.from_address || 'an email'}</div>
         <div className="ios-sheet-sub">
           {current.subject ? `"${current.subject}" — ` : ''}
@@ -319,14 +334,17 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
             const meta = KIND_META[it.kind] || KIND_META.other
             const shaky = (it.confidence ?? 1) < 0.7
             const cancel = cancelAt[i]
+            const dupe = dupeAt[i]
             // A cancellation nothing matches cannot be acted on, so it is
             // shown but not tickable — better than a tick that silently does
             // nothing when you press Add.
-            const dead = cancel && !cancel.event
+            // A duplicate is as untickable as an unplaceable cancellation:
+            // nothing you can do to it changes the outcome.
+            const dead = (cancel && !cancel.event) || Boolean(dupe)
             return (
               <button
                 key={i}
-                className={`gm-item${keep[i] && !dead ? ' on' : ''}${cancel ? ' gm-item-cancel' : ''}`}
+                className={`gm-item${keep[i] && !dead ? ' on' : ''}${cancel ? ' gm-item-cancel' : ''}${dupe ? ' gm-item-dupe' : ''}`}
                 disabled={dead}
                 onClick={() => !dead && setKeep((k) => ({ ...k, [i]: !k[i] }))}
               >
@@ -336,11 +354,13 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
                 >
                   {keep[i] && !dead ? '✓' : ''}
                 </span>
-                <span className="gm-item-i" style={{ color: meta.color }}>{cancel ? '✕' : meta.icon}</span>
+                <span className="gm-item-i" style={{ color: meta.color }}>{cancel ? '✕' : dupe ? '✓' : meta.icon}</span>
                 <span className="gm-item-body">
                   <span className="gm-item-title">{it.title}</span>
                   <span className="gm-item-sub">
-                    {cancel ? (
+                    {dupe ? (
+                      <>Already on {chosen} — forwarded twice, nothing to do</>
+                    ) : cancel ? (
                       cancel.event ? (
                         <>Cancelled — removes “{cancel.event.title}”</>
                       ) : !tripId || tripId === CREATE ? (
@@ -370,8 +390,10 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
               ? 'Choose a trip first'
               : `${verb || 'Nothing'} — ${chosen}`}
         </button>
-        <button className="account-btn ghost" onClick={dismiss}>Not a real booking — dismiss</button>
-        <button className="account-btn ghost" onClick={onClose}>Close</button>
+        <div className="gm-actions">
+          <button className="account-btn ghost" onClick={dismiss}>Skip this email</button>
+          <button className="account-btn ghost" onClick={onClose}>Close</button>
+        </div>
       </div>
     </div>
   )

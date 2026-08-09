@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase.js'
 import { thumb } from '../../lib/imgTransform.js'
 import { KIND_META, tripDays, sortEvents, eventsForDay, fmtTime, fmtDayLong } from '../../lib/planItems.js'
 import PlanFlightCard from './PlanFlightCard.jsx'
+import { noteWorthShowing, stayFacts } from '../../lib/stayFacts.js'
 
 export function TimelineItem({ ev, onToggle, onEdit, onSaveDetail }) {
   if (ev.kind === 'flight') return <PlanFlightCard event={ev} onEditEvent={onEdit} onSaveDetail={onSaveDetail} />
@@ -11,6 +12,11 @@ export function TimelineItem({ ev, onToggle, onEdit, onSaveDetail }) {
   // through every SpanRow beneath it, so the whole stay reads as one
   // connected block rather than a card that goes quiet until checkout.
   const continues = ev.kind === 'hotel' && ev.end_date && ev.end_date !== ev.event_date
+  // A stay knows a great deal about itself — nights, guests, the room, the
+  // confirmation — and used to print all of it as one run-on note. Set out
+  // as facts it can be read at a glance, and the note only appears when
+  // there are no facts to have replaced it.
+  const facts = ev.kind === 'hotel' ? stayFacts(ev.detail) : []
   return (
     <div className={`tl-item${ev.done ? ' done' : ''}`}>
       <button
@@ -25,7 +31,16 @@ export function TimelineItem({ ev, onToggle, onEdit, onSaveDetail }) {
           {ev.start_time && <span className="tl-time">{fmtTime(ev.start_time)}</span>}
           <span className="tl-title">{ev.title}</span>
           {ev.city && <span className="tl-city">{ev.city}</span>}
-          {ev.note && <span className="tl-note">{ev.note}</span>}
+          {facts.length > 0 && (
+            <span className="tl-facts">
+              {facts.map((f) => (
+                <span className="tl-fact" key={f}>{f}</span>
+              ))}
+            </span>
+          )}
+          {(ev.kind === 'hotel' ? noteWorthShowing(ev.note, ev.detail) : ev.note) && (
+            <span className="tl-note">{ev.note}</span>
+          )}
           {ev.end_date && ev.end_date !== ev.event_date && (
             <span className="tl-range">
               until {new Date(ev.end_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}

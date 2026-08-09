@@ -7,11 +7,18 @@
 // you a sentence to send yourself, which is better than lying but is still
 // homework.
 //
-// Resend rather than SMTP: Supabase's mail settings only cover its own auth
-// emails and can't be borrowed for this, and relaying through the Workspace
-// mailbox means Gmail's From-rewriting, a daily cap and no bounce handling —
-// all of which bit us on the sign-in codes. Resend's DNS records live on a
-// subdomain, so they don't touch the MX that Workspace owns on eend.app.
+// Sent through CloudMailin, which is already receiving on this domain for
+// bookings@eend.app and already paid for. Resend was the first choice and
+// would have been cleaner, but its free tier allows one verified domain and
+// that slot is spoken for by another project — so it would have meant $20 a
+// month for a handful of invites. The Workspace mailbox was the other
+// candidate and is the worse one: Gmail rewrites the From unless the address
+// is a verified send-as, caps the day, and reports nothing back when an
+// address bounces. Keeping app mail off the mailbox that sends the sign-in
+// codes also means one bad address can't damage the reputation of the other.
+//
+// SMTP rather than an HTTP API because that is what CloudMailin's outbound
+// offers; nodemailer is the only dependency it costs.
 //
 // Two guards, because an endpoint that sends mail from your own domain is a
 // spam relay if anyone can call it:
@@ -20,6 +27,8 @@
 //   2. The recipient must already be on that caller's own connections list.
 //      So this can only ever email somebody you have genuinely invited from
 //      inside the app — never an address of the caller's choosing.
+import nodemailer from 'nodemailer'
+
 const SUPABASE_URL = 'https://qslksdgxoibzrisywvqk.supabase.co'
 const ANON_KEY = 'sb_publishable_HqXFypbh0cTO8Eub41LlQw_8ypkj2tH'
 
@@ -65,8 +74,10 @@ export default async function handler(req, res) {
     return
   }
 
-  const key = process.env.RESEND_API_KEY
-  if (!key) {
+  const host = process.env.CLOUDMAILIN_SMTP_HOST || 'smtp.cloudmailin.com'
+  const user = process.env.CLOUDMAILIN_SMTP_USER
+  const pass = process.env.CLOUDMAILIN_SMTP_PASS
+  if (!user || !pass) {
     // Deliberately explicit: the client falls back to the share sheet on a
     // failure, and "not configured" is the one failure worth naming.
     res.status(503).json({ error: 'not configured' })
@@ -116,25 +127,28 @@ export default async function handler(req, res) {
     const prof = profRes.ok ? (await profRes.json())[0] : null
     const inviter = prof?.display_name || me.email
 
-    const sendRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: FROM,
-        to: [invitee],
-        reply_to: me.email,
-        subject: `${inviter} added you to Pond Hopping`,
-        html: html({ inviter, invitee }),
-        text: text({ inviter, invitee }),
-      }),
+    // 587 with STARTTLS rather than 465: a serverless function gets a fresh
+    // connection every time, and the implicit-TLS port is slower to open for
+    // no benefit once STARTTLS is required anyway.
+    const mailer = nodemailer.createTransport({
+      host,
+      port: Number(process.env.CLOUDMAILIN_SMTP_PORT || 587),
+      secure: false,
+      requireTLS: true,
+      auth: { user, pass },
     })
 
-    if (!sendRes.ok) {
-      const detail = await sendRes.text()
-      console.error('resend', sendRes.status, detail)
-      res.status(502).json({ error: 'send failed' })
-      return
-    }
+    // Reply-To is the inviter, not the app: the first thing anybody does with
+    // an unexpected invitation is reply to it, and that should reach the
+    // person who sent it rather than a mailbox nobody reads.
+    await mailer.sendMail({
+      from: FROM,
+      to: invitee,
+      replyTo: me.email,
+      subject: `${inviter} added you to Pond Hopping`,
+      html: html({ inviter, invitee }),
+      text: text({ inviter, invitee }),
+    })
 
     res.status(200).json({ ok: true, sent: invitee })
   } catch (err) {
