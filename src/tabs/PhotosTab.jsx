@@ -26,6 +26,7 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
     is_reel: false,
     is_highlight: false,
   })
+  const target = tripMeta.find((x) => x.slug === form.trip) || tripMeta[0]
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
   const toggle = (k) => () => setForm((f) => ({ ...f, [k]: !f[k] }))
 
@@ -58,7 +59,12 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
         {/* Straight off the phone is what people actually want. Pasting a URL
             assumes you had already uploaded it somewhere else, so it stays,
             but it stops being the headline. */}
-        <PhotoUpload trip={tripMeta.find((t) => t.slug === form.trip) || tripMeta[0]} onDone={onSaved} />
+        <PhotoUpload trip={target} onDone={onSaved} />
+        {/* Which trip these are about to join. It was implicit — whatever was
+            selected on Home, or the first trip if nothing was — and with no
+            way to delete a photo afterwards, landing forty of them on the
+            wrong trip was unrecoverable inside the app. */}
+        {target && <div className="ph-target">adding to {target.title}</div>}
         <button className="journal-add-btn" onClick={() => setShow(true)}>
           or paste a photo url
         </button>
@@ -110,6 +116,7 @@ export default function PhotosTab() {
   const gridRef = useRef(null)
   const [lightbox, setLightbox] = useState(null)
   const [settingCover, setSettingCover] = useState(false)
+  const [removing, setRemoving] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -138,6 +145,19 @@ export default function PhotosTab() {
   }, [reload, userId])
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
+
+  // Removes the row, never the file. The example trip's photos point at the
+  // same pictures as the real one, so deleting the bytes would take them out
+  // of a trip nobody asked to change.
+  async function removePhoto(photo) {
+    if (!globalThis.confirm?.('Remove this photo from the trip? It stays in storage.')) return
+    setRemoving(true)
+    const { error } = await supabase.from('photos').delete().eq('id', photo.id)
+    setRemoving(false)
+    if (error) return alert(`Couldn't remove it: ${error.message}`)
+    setPhotos((rows) => rows.filter((r) => r.id !== photo.id))
+    setLightbox(null)
+  }
 
   async function setAsCover(photo) {
     setSettingCover(true)
@@ -290,6 +310,20 @@ export default function PhotosTab() {
                 : settingCover
                   ? 'setting…'
                   : '☆ set as trip cover'}
+            </button>
+            {/* Until now the app could only ever add. Fine for a diary, wrong
+                for a travel log — the reason to take a photo out is usually
+                that it has somebody in it, and "you can't" is not an answer
+                to that. Asks first, because there is no undo. */}
+            <button
+              className="lb-remove-btn"
+              disabled={removing}
+              onClick={(ev) => {
+                ev.stopPropagation()
+                removePhoto(lightbox)
+              }}
+            >
+              {removing ? 'removing…' : 'remove this photo'}
             </button>
           </div>
         </div>

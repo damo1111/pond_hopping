@@ -8815,3 +8815,26 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   padding: 2px 7px;
   white-space: nowrap;
 }
+
+/* Taking a photo out. Quieter than "set as cover" — it is the rarer thing to
+   want and the only one that cannot be undone, so it does not compete for
+   the eye. */
+.lb-remove-btn {
+  display: block;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.62);
+  background: none;
+  border: 0;
+  padding: 4px 0;
+}
+
+.lb-remove-btn:disabled { opacity: 0.5; }
+
+/* Which trip the uploader is aiming at, under the button that does it. */
+.ph-target {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 6px;
+}
