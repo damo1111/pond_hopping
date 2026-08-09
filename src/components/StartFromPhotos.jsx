@@ -11,6 +11,7 @@ import {
   suggestTitle,
   summarise,
 } from '../lib/tripFromPhotos.js'
+import SheetGrip from './SheetGrip.jsx'
 
 // "I've already been somewhere."
 //
@@ -127,7 +128,7 @@ export default function StartFromPhotos({ onDone, onClose }) {
   return (
     <div className="ios-sheet-overlay" onClick={onClose}>
       <div className="ios-sheet route-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="ios-sheet-grip" />
+        <SheetGrip onClose={onClose} />
 
         {phase === 'idle' && (
           <>

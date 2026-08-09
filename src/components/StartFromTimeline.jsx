@@ -10,6 +10,7 @@ import {
 } from '../lib/timelineImport.js'
 import { slugify } from '../lib/tripFromPhotos.js'
 import TrackPlaces from './TrackPlaces.jsx'
+import SheetGrip from './SheetGrip.jsx'
 
 // "Every trip I've ever taken."
 //
@@ -142,7 +143,7 @@ export default function StartFromTimeline({ onDone, onClose }) {
   return (
     <div className="ios-sheet-overlay" onClick={onClose}>
       <div className="ios-sheet route-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="ios-sheet-grip" />
+        <SheetGrip onClose={onClose} />
 
         {phase === 'idle' && (
           <>

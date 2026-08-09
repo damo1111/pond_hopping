@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import SheetGrip from './SheetGrip.jsx'
 
 /**
  * Install chip + iOS "Add to Home Screen" sheet (app-family blueprint §5,
@@ -67,7 +68,7 @@ export default function InstallChip() {
       {sheet && (
         <div className="ios-sheet-overlay" onClick={(e) => e.target === e.currentTarget && setSheet(false)}>
           <div className="ios-sheet">
-            <div className="ios-sheet-grip" />
+            <SheetGrip onClose={() => setSheet(false)} />
             <div className="ios-sheet-title">Add Pond Hopping to your Home Screen</div>
             <div className="ios-sheet-sub">
               Opens full-screen like a normal app — no App Store needed.

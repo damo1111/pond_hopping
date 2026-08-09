@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase.js'
 import { API_BASE } from '../../lib/apiBase.js'
 import { getGoogleToken } from '../../lib/google.js'
 import { KIND_META } from '../../lib/planItems.js'
+import SheetGrip from '../SheetGrip.jsx'
 
 // Turn a booking into trip items with zero setup: paste (or forward →
 // copy) the confirmation email and the same AI extraction pulls out the
@@ -92,7 +93,7 @@ export default function GmailImport({ trip, onClose, onImported }) {
   return (
     <div className="ios-sheet-overlay" onClick={onClose}>
       <div className="ios-sheet gm-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="ios-sheet-grip" />
+        <SheetGrip onClose={onClose} />
 
         {state === 'entry' && (
           <>

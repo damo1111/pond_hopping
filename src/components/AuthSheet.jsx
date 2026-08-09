@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
+import SheetGrip from './SheetGrip.jsx'
 
 // The front door to the app's account, opened by tapping the duck.
 // Same passwordless OTP flow the Account tab has always used (email →
@@ -86,7 +87,7 @@ export default function AuthSheet({ onClose }) {
   return (
     <div className="ios-sheet-overlay ios-sheet-overlay--auth" onClick={onClose}>
       <div className="ios-sheet auth-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="ios-sheet-grip" />
+        <SheetGrip onClose={onClose} />
 
         {/* Ahead of the signed-in branch deliberately: by the time this shows,
             AuthContext already has a session, and without this the sheet would

@@ -8660,3 +8660,30 @@ button {
   background: var(--accent);
   box-shadow: 0 0 0 2px var(--surface);
 }
+
+/* The grip is a real control now, so it needs to behave like one: a hit area
+   bigger than four pixels, and touch-action none so the browser doesn't
+   claim the gesture as a scroll before the drag handler sees it. */
+button.ios-sheet-grip {
+  display: block;
+  border: 0;
+  padding: 0;
+  touch-action: none;
+  cursor: grab;
+  position: relative;
+}
+
+button.ios-sheet-grip::after {
+  content: '';
+  position: absolute;
+  left: -28px;
+  right: -28px;
+  top: -14px;
+  bottom: -14px;
+}
+
+button.ios-sheet-grip:active { cursor: grabbing; }
+
+/* Springs back when a drag is released short of the threshold. Removed
+   during the drag itself so the sheet tracks the thumb exactly. */
+.ios-sheet { transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1); }

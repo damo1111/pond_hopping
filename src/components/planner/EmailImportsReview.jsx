@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase.js'
 import { useAuth } from '../../lib/AuthContext.jsx'
 import { KIND_META } from '../../lib/planItems.js'
 import { planCancellations } from '../../lib/cancellations.js'
+import SheetGrip from '../SheetGrip.jsx'
 
 // Reviews one pending email_imports row: confirm which trip it belongs to
 // (pre-matched by date against trips the *forwarder* is a member of, but
@@ -257,7 +258,7 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
   return (
     <div className="ios-sheet-overlay" onClick={onClose}>
       <div className="ios-sheet gm-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="ios-sheet-grip" />
+        <SheetGrip onClose={onClose} />
         <div className="ios-sheet-title">📧 From {current.from_address || 'an email'}</div>
         <div className="ios-sheet-sub">
           {current.subject ? `"${current.subject}" — ` : ''}

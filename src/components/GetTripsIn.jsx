@@ -3,6 +3,7 @@ import { useAuth } from '../lib/AuthContext.jsx'
 import { TripContext } from '../App.jsx'
 import StartFromPhotos from './StartFromPhotos.jsx'
 import StartFromTimeline from './StartFromTimeline.jsx'
+import SheetGrip from './SheetGrip.jsx'
 
 // Every road into this app already existed. Every one of them was behind a
 // trip you hadn't created yet.
@@ -63,7 +64,7 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
   return (
     <div className="ios-sheet-overlay" onClick={onClose}>
       <div className="ios-sheet routes-sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="ios-sheet-grip" />
+        <SheetGrip onClose={onClose} />
         <div className="ios-sheet-title">Get your trips in</div>
         <div className="ios-sheet-sub">
           However you'd rather do it. Any one of these is enough to start — the rest can come
