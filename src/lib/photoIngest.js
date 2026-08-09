@@ -13,7 +13,7 @@ const CONCURRENCY = 3
 // quarter of a megabyte is generous even for files with a fat thumbnail in
 // there; reading the other eleven megabytes to find it would be the slowest
 // part of the whole operation.
-const HEAD_BYTES = 256 * 1024
+export const HEAD_BYTES = 256 * 1024
 
 /** Read the metadata, then make the two sizes we actually store. */
 export async function prepare(file) {

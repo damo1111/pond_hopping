@@ -5,9 +5,13 @@ import CountryFlags from '../components/CountryFlags.jsx'
 import { isDemo } from '../lib/demoTour.js'
 
 const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Hotel', 'Activity', 'Flight', 'Other']
-const CURRENCIES = ['AUD', 'KRW', 'HKD', 'JPY', 'CNY', 'USD', 'GBP']
+// A travel log that could not record a euro. Seven currencies here, twelve
+// in the database's check constraint, and no overlap on the five the UI
+// never offered — so a row inserted in THB divided by an undefined rate and
+// wrote NaN. One list now, in both places, with the euro in it.
+const CURRENCIES = ['AUD', 'EUR', 'GBP', 'USD', 'JPY', 'CNY', 'HKD', 'KRW', 'SGD', 'THB', 'MYR', 'NZD', 'LKR']
 // Units per 1 AUD — static conversion at entry time (per brief).
-const RATES = { AUD: 1, KRW: 905, HKD: 5.15, JPY: 95, CNY: 4.7, USD: 0.66, GBP: 0.52 }
+const RATES = { AUD: 1, EUR: 0.57, GBP: 0.52, USD: 0.66, JPY: 95, CNY: 4.7, HKD: 5.15, KRW: 905, SGD: 0.85, THB: 21.5, MYR: 2.8, NZD: 1.09, LKR: 197 }
 const CAT_ICON = { Food: '🍜', Transport: '🚄', Shopping: '🛍️', Hotel: '🏨', Activity: '🎟️', Flight: '✈️', Other: '📎' }
 
 const fmtA = (n) => 'A$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })
@@ -36,7 +40,10 @@ function AddCost({ tripMeta, selectedTrip, onSaved }) {
       description: form.description,
       amount,
       currency: form.currency,
-      amount_aud: +(amount / RATES[form.currency]).toFixed(2),
+      // A currency with no rate would divide by undefined and store NaN.
+      // Falling back to 1 keeps the amount honest in its own currency
+      // rather than writing a number that is not one.
+      amount_aud: +(amount / (RATES[form.currency] || 1)).toFixed(2),
       category: form.category,
       city: form.city || null,
       spent_on: form.date,

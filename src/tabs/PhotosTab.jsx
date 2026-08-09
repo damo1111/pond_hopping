@@ -59,7 +59,7 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
         {/* Straight off the phone is what people actually want. Pasting a URL
             assumes you had already uploaded it somewhere else, so it stays,
             but it stops being the headline. */}
-        <PhotoUpload trip={target} onDone={onSaved} />
+        <PhotoUpload trip={target} trips={tripMeta} onDone={onSaved} />
         {/* Which trip these are about to join. It was implicit — whatever was
             selected on Home, or the first trip if nothing was — and with no
             way to delete a photo afterwards, landing forty of them on the
