@@ -8853,3 +8853,26 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   user-select: all;
   -webkit-user-select: all;
 }
+
+/* The example sash on the running total. The card has to own the clipping
+   for the ribbon to be trimmed to its corner, and needs a stacking context
+   so the sash sits above the number rather than under it. */
+.cost-total-card--demo { position: relative; overflow: hidden; }
+
+/* Smaller than the trip card's, because this corner is tighter and the
+   number underneath is the point. */
+.cost-total-card--demo .wt-sash { top: 10px; right: -32px; width: 104px; font-size: 7px; }
+
+/* And in the by-trip list, where two trips can sit side by side and one of
+   them is not anybody's. */
+.cost-trip-tag {
+  margin-left: 6px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 1px 5px;
+}
