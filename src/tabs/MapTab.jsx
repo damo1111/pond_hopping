@@ -56,7 +56,7 @@ function findJournalMatch(journal, tripId, { city, date } = {}) {
 }
 
 export default function MapTab() {
-  const { tripMeta, selectedTrip, jumpToJournal } = useContext(TripContext)
+  const { tripMeta, selectedTrip, jumpToJournal, userId } = useContext(TripContext)
   const [pins, setPins] = useState(null)
   const [runs, setRuns] = useState(null)
   const [journal, setJournal] = useState(null)
@@ -104,7 +104,10 @@ export default function MapTab() {
     return () => {
       alive = false
     }
-  }, [])
+    // Keyed on userId because restoring a session is asynchronous: a read
+    // fired at mount goes out before the token exists, comes back answered
+    // as an anonymous request, and this loaded empty and never tried again.
+  }, [userId])
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
   const inTrip = (row) => !selectedTrip || tripsById.get(row.trip_id)?.slug === selectedTrip
