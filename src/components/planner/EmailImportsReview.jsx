@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase.js'
 import { useAuth } from '../../lib/AuthContext.jsx'
 import { KIND_META } from '../../lib/planItems.js'
+import { planCancellations } from '../../lib/cancellations.js'
 
 // Reviews one pending email_imports row: confirm which trip it belongs to
 // (pre-matched by date against trips the *forwarder* is a member of, but
@@ -77,6 +78,10 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
   const [going, setGoing] = useState('both')
   const [allTrips, setAllTrips] = useState([])
   const [saving, setSaving] = useState(false)
+  // What is already on the chosen trip, so a cancellation can be matched to
+  // the thing it cancels. Meaningless for a brand-new trip, which has
+  // nothing to remove.
+  const [events, setEvents] = useState([])
 
   // Offer every trip they can edit, not just drafts — a forwarded booking
   // often belongs to a confirmed trip that's already underway.
@@ -89,11 +94,31 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (!tripId || tripId === CREATE) {
+      setEvents([])
+      return
+    }
+    let alive = true
+    supabase
+      .from('planned_events')
+      .select('id,kind,title,note,event_date,detail')
+      .eq('trip_id', tripId)
+      .then(({ data }) => alive && setEvents(data ?? []))
+    return () => {
+      alive = false
+    }
+  }, [tripId])
+
   const current = imports[index]
   if (!current) return null
 
   const proposal = proposeTrip(current.items || [])
   const selected = allTrips.find((t) => t.id === tripId)
+  // Cancellations paired with what they remove. `event` is null when the
+  // match wasn't certain, which the list says out loud rather than guessing.
+  const cancels = planCancellations(current.items || [], events)
+  const cancelAt = Object.fromEntries(cancels.map((c) => [c.index, c]))
 
   // If they pick a trip whose window doesn't contain these dates, say so
   // rather than silently allowing exactly the mistake described above.
@@ -178,8 +203,14 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
       .select('email,display_name')
       .eq('trip_id', target)
 
+    // Cancellations first: a rebooking email that cancels a leg and adds its
+    // replacement should not have the new row deleted by its own cancellation
+    // matching it a moment later.
+    const removing = cancels.filter((c) => keep[c.index] && c.event).map((c) => c.event.id)
+    if (removing.length) await supabase.from('planned_events').delete().in('id', removing)
+
     const rows = current.items
-      .filter((_, i) => keep[i])
+      .filter((it, i) => keep[i] && it.action !== 'cancel')
       .map((it) => ({
         trip_id: target,
         traveler: attributeTo(it, members ?? []),
@@ -212,7 +243,16 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
 
   const keepCount = Object.values(keep).filter(Boolean).length
   const chosen = tripId === CREATE ? proposal.title : selected?.title
-  const canSave = keepCount > 0 && !!tripId && !saving
+
+  // Which ticked items add, and which take away. Computed here rather than in
+  // save() so the button can say what it is about to do — "remove 1" is not
+  // something anyone should discover afterwards.
+  const addCount = current.items.filter((it, i) => keep[i] && it.action !== 'cancel').length
+  const removeCount = cancels.filter((c) => keep[c.index] && c.event).length
+  const verb = [addCount && `Add ${addCount}`, removeCount && `remove ${removeCount}`]
+    .filter(Boolean)
+    .join(' and ')
+  const canSave = (addCount > 0 || removeCount > 0) && !!tripId && !saving
 
   return (
     <div className="ios-sheet-overlay" onClick={onClose}>
@@ -278,19 +318,44 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
           {current.items.map((it, i) => {
             const meta = KIND_META[it.kind] || KIND_META.other
             const shaky = (it.confidence ?? 1) < 0.7
+            const cancel = cancelAt[i]
+            // A cancellation nothing matches cannot be acted on, so it is
+            // shown but not tickable — better than a tick that silently does
+            // nothing when you press Add.
+            const dead = cancel && !cancel.event
             return (
-              <button key={i} className={`gm-item${keep[i] ? ' on' : ''}`} onClick={() => setKeep((k) => ({ ...k, [i]: !k[i] }))}>
-                <span className="gm-check" style={keep[i] ? { background: meta.color, borderColor: meta.color } : undefined}>
-                  {keep[i] ? '✓' : ''}
+              <button
+                key={i}
+                className={`gm-item${keep[i] && !dead ? ' on' : ''}${cancel ? ' gm-item-cancel' : ''}`}
+                disabled={dead}
+                onClick={() => !dead && setKeep((k) => ({ ...k, [i]: !k[i] }))}
+              >
+                <span
+                  className="gm-check"
+                  style={keep[i] && !dead ? { background: meta.color, borderColor: meta.color } : undefined}
+                >
+                  {keep[i] && !dead ? '✓' : ''}
                 </span>
-                <span className="gm-item-i" style={{ color: meta.color }}>{meta.icon}</span>
+                <span className="gm-item-i" style={{ color: meta.color }}>{cancel ? '✕' : meta.icon}</span>
                 <span className="gm-item-body">
                   <span className="gm-item-title">{it.title}</span>
                   <span className="gm-item-sub">
-                    {fmtDate(it.event_date)}
-                    {it.end_date && it.end_date !== it.event_date ? ` – ${fmtDate(it.end_date)}` : ''}
-                    {it.city ? ` · ${it.city}` : ''}
-                    {shaky ? ' · not sure' : ''}
+                    {cancel ? (
+                      cancel.event ? (
+                        <>Cancelled — removes “{cancel.event.title}”</>
+                      ) : !tripId || tripId === CREATE ? (
+                        <>Cancelled — choose the trip it was on</>
+                      ) : (
+                        <>Cancelled — couldn't find it on {chosen}, remove it by hand</>
+                      )
+                    ) : (
+                      <>
+                        {fmtDate(it.event_date)}
+                        {it.end_date && it.end_date !== it.event_date ? ` – ${fmtDate(it.end_date)}` : ''}
+                        {it.city ? ` · ${it.city}` : ''}
+                        {shaky ? ' · not sure' : ''}
+                      </>
+                    )}
                   </span>
                 </span>
               </button>
@@ -300,10 +365,10 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
 
         <button className="ios-sheet-done" onClick={save} disabled={!canSave}>
           {saving
-            ? 'Adding…'
+            ? 'Saving…'
             : !tripId
               ? 'Choose a trip first'
-              : `Add ${keepCount} to ${chosen}`}
+              : `${verb || 'Nothing'} — ${chosen}`}
         </button>
         <button className="account-btn ghost" onClick={dismiss}>Not a real booking — dismiss</button>
         <button className="account-btn ghost" onClick={onClose}>Close</button>

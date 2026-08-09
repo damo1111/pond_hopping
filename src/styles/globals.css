@@ -8628,3 +8628,18 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .wt-add-duck { animation: none }
 }
+
+/* A cancellation in the import review. Reads as a removal at a glance —
+   struck through, and in the warning colour rather than the kind's own. */
+.gm-item-cancel .gm-item-title {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+.gm-item-cancel .gm-item-i {
+  color: #C0392B !important;
+}
+
+.gm-item-cancel:disabled {
+  opacity: 0.55;
+}

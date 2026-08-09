@@ -22,6 +22,12 @@ const EXTRACT_TOOL = {
             type: 'object',
             properties: {
               kind: { type: 'string', enum: ['flight', 'hotel', 'transport', 'activity', 'place'] },
+              action: {
+                type: 'string',
+                enum: ['add', 'cancel'],
+                description:
+                  'add for a booking that now exists; cancel when the email says a booking has been cancelled, refunded or voided. Default add.',
+              },
               title: { type: 'string', description: 'e.g. "Airbnb — The Snug, Holt" or "BA16 SYD → LHR" or "Dinner at Dishoom"' },
               event_date: { type: 'string', description: 'YYYY-MM-DD start/check-in/departure date' },
               end_date: { type: 'string', description: 'YYYY-MM-DD checkout/return date, if multi-day; else omit' },
@@ -75,7 +81,11 @@ export async function extractBookingItems({ text, start, end, files = [] }) {
     `You extract real travel bookings from email/confirmation text.\n` +
     `A confirmation is often sent months before travel — ignore when it was sent; use the travel dates written in the text.\n` +
     windowLine +
-    `The text may contain one booking or several. Skip marketing, newsletters, cancelled bookings and anything that isn't a real booking.\n` +
+    `The text may contain one booking or several. Skip marketing, newsletters and anything that isn't a real booking.\n` +
+    // Cancellations used to be skipped, which left the cancelled flight
+    // sitting in somebody's itinerary looking booked. Recorded instead, and
+    // matched against what is already on the trip when it is reviewed.
+    `A cancellation is not junk: if the email says a booking has been cancelled, refunded or voided, record it with action "cancel" and every identifier it prints — the booking reference and the flight number especially, since those are what identify which booking to remove. Give it the date of the travel being cancelled, not the date of the email.\n` +
     `Normalise titles like the app does: flights "BA16 SYD → LHR", stays "Airbnb — <name>, <town>", dinners "Dinner at <place>".` +
     (files.length
       ? `\nAttached PDFs are part of the same forward — read them as carefully as the body, and do not record the same booking twice if it appears in both.`
@@ -133,7 +143,11 @@ export async function extractBookingItems({ text, start, end, files = [] }) {
       if (it.event_date < lo || it.event_date > hi) return false
     }
     if ((it.confidence ?? 0) < 0.4) return false
-    const key = `${it.event_date}|${it.kind}|${(it.title || '').toLowerCase()}`
+    // action is part of the identity: an email that both cancels one leg and
+    // rebooks it lands as two items with the same date, kind and title, and
+    // collapsing them to one would drop half the story.
+    it.action = it.action === 'cancel' ? 'cancel' : 'add'
+    const key = `${it.action}|${it.event_date}|${it.kind}|${(it.title || '').toLowerCase()}`
     if (seen.has(key)) return false
     seen.add(key)
     return true
