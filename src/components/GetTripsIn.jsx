@@ -2,6 +2,7 @@ import { useContext, useState } from 'react'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { TripContext } from '../App.jsx'
 import StartFromPhotos from './StartFromPhotos.jsx'
+import StartNow from './StartNow.jsx'
 import StartFromTimeline from './StartFromTimeline.jsx'
 import SheetGrip from './SheetGrip.jsx'
 
@@ -53,6 +54,10 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
     else onClose?.()
   }
 
+  if (route === 'now') {
+    return <StartNow onDone={() => setMade(true)} onClose={close} />
+  }
+
   if (route === 'photos') {
     return <StartFromPhotos onDone={() => setMade(true)} onClose={close} />
   }
@@ -71,8 +76,23 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
           later.
         </div>
 
-        {/* First because it is the only one that works for a trip you have
-            already taken, which is most of anyone's travel. */}
+        {/* First because it is the only one with a deadline. Every other
+            route here can be taken next month and lose nothing; this one is
+            for somebody leaving today, and the days they don't record are
+            simply gone. */}
+        <button className="route" onClick={gate(() => setRoute('now'))}>
+          <span className="route-icon">🧳</span>
+          <span className="route-text">
+            <span className="route-title">I&apos;m off now</span>
+            <span className="route-body">
+              Nothing booked, nothing planned, leaving today. Starts a trip on the spot and lets
+              the days fill themselves in — the one thing that can&apos;t be added afterwards.
+            </span>
+          </span>
+        </button>
+
+        {/* Then photos, because they are the only route that works for a trip
+            you have already taken, which is most of anyone's travel. */}
         <button className="route" onClick={gate(() => setRoute('photos'))}>
           <span className="route-icon">🖼</span>
           <span className="route-text">
