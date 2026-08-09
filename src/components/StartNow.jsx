@@ -87,19 +87,22 @@ export default function StartNow({ onDone, onClose }) {
     <div className="ios-sheet-overlay" onClick={onClose}>
       <form className="ios-sheet" onClick={(e) => e.stopPropagation()} onSubmit={begin}>
         <SheetGrip onClose={onClose} />
-        <div className="ios-sheet-title">Off somewhere now</div>
-        <div className="ios-sheet-sub">
-          Starts today, no end date, nothing booked. The days fill themselves in as you go.
-        </div>
+        <div className="ios-sheet-title">Off somewhere?</div>
+        {/* Two clauses, because the second one is the promise and the first
+            is the only thing anybody needs to believe to tap the button. */}
+        <div className="ios-sheet-sub">Starts now, ends when it ends.</div>
+        {/* The question earns its keep by not needing an answer. "We'll work
+            it out" is not a flourish either — with places being noted, the
+            app genuinely does. */}
         <input
           className="account-input"
           autoFocus
-          placeholder="Where to? (or leave it blank)"
+          placeholder="Where to? Or don't — we'll work it out"
           value={where}
           onChange={(e) => setWhere(e.target.value)}
         />
         <button className="ios-sheet-done" type="submit" disabled={busy}>
-          {busy ? 'Starting…' : 'Start the trip'}
+          {busy ? 'Off you go…' : 'Off we go'}
         </button>
         {error && <div className="account-error">{error}</div>}
       </form>
