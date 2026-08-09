@@ -6282,6 +6282,38 @@ button {
   overflow: hidden;
 }
 
+/* No photograph, or one whose URL has died — Google Photos share links do
+   expire, and a trip can simply have no pictures yet. The gradient above
+   was always meant to be the fallback and was never visible enough to be
+   one: 38% of the accent against near-black, with a scrim written to hold
+   text over a photograph laid on top of it. It read as a broken image
+   rather than as a cover. Given the hero to itself it can be brighter, take
+   a second light from the opposite corner, and drop the scrim to what the
+   words actually need. */
+.recap-hero--drawn {
+  background:
+    radial-gradient(
+      120% 80% at 82% 8%,
+      color-mix(in srgb, var(--trip-accent, var(--accent)) 42%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(
+      158deg,
+      color-mix(in srgb, var(--trip-accent, var(--accent)) 62%, #17130D) 0%,
+      #171208 58%,
+      #0C0A07 100%
+    );
+}
+
+.recap-hero--drawn .recap-hero-scrim {
+  background: linear-gradient(
+    to top,
+    rgba(12, 10, 7, 0.78) 0%,
+    rgba(12, 10, 7, 0.22) 44%,
+    rgba(12, 10, 7, 0) 78%
+  );
+}
+
 .recap-hero-img {
   position: absolute;
   inset: 0;
