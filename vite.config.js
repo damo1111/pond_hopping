@@ -5,8 +5,22 @@ import { VitePWA } from 'vite-plugin-pwa'
 // Which build is actually running. Without it, telling a deployed fix from a
 // cached bundle means guessing from behaviour — which cost an hour of "it
 // still doesn't work" against a build that predated the fix by one minute.
-const BUILD_ID =
-  process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || process.env.GITHUB_SHA?.slice(0, 7) || 'dev'
+//
+// CI_COMMIT is Xcode Cloud's, and it was the one missing. The iOS app is
+// built by ci_scripts/ci_post_clone.sh on a runner where neither of the
+// other two is set, so every TestFlight build stamped itself "dev" —
+// useless in precisely the case the stamp exists for, since the iOS app
+// bakes its web assets in and is the one build a deploy cannot fix.
+//
+// The prefix says which pipeline, because "is this the web or the app" is
+// half of every question that gets asked about a build.
+const SHA =
+  process.env.VERCEL_GIT_COMMIT_SHA ||
+  process.env.GITHUB_SHA ||
+  process.env.CI_COMMIT ||
+  ''
+const WHERE = process.env.CI_COMMIT ? 'ios ' : process.env.VERCEL_GIT_COMMIT_SHA ? 'web ' : ''
+const BUILD_ID = SHA ? `${WHERE}${SHA.slice(0, 7)}` : 'dev'
 
 export default defineConfig({
   define: {
