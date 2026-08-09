@@ -8707,3 +8707,23 @@ button.ios-sheet-grip:active { cursor: grabbing; }
    good outcome, not an error. */
 .gm-item-dupe { opacity: 0.6; }
 .gm-item-dupe .gm-item-title { text-decoration: none; }
+
+/* A stay's facts. Small, quiet, and wrapping — the point is that four of
+   them can be taken in without reading, which a sentence never allows. */
+.tl-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 5px;
+}
+
+.tl-fact {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
