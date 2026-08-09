@@ -117,6 +117,32 @@ left.
 Unknown is not unlimited. A membership with no recorded allowance says
 nothing about visits rather than implying they are free.
 
+### Nobody knows they have one
+
+The largest source of lounge access is not lounge memberships. It is bank
+accounts. Revolut, NatWest Reward Platinum, Barclays Premier, HSBC Premier,
+the Amex Platinum and a dozen packaged current accounts all bundle Priority
+Pass, LoungeKey or DragonPass — and a great many people paying for one have
+no idea, because it was a bullet point on a page they read once when they
+opened the account.
+
+So the question is never "do you have Priority Pass", which most people
+answer no to correctly and unhelpfully. It is **"do you bank with any of
+these?"** — a short list of the accounts that carry lounge access in the
+markets we are in — and the app works out the rest: which network, and how
+many visits, because those follow from the plan rather than from anything
+the traveller has to know.
+
+That also fixes the allowance problem this section opens with. Asking
+somebody their Priority Pass tier is asking them to look up a thing they
+have never looked at. Asking which Revolut plan they are on is a question
+they can answer instantly, and it determines the tier exactly.
+
+Backlogged rather than built: it needs a maintained table of accounts to
+benefits, per market, and a wrong entry here would tell somebody they can
+get in when they cannot. The same rule as the rest of this file — better to
+say nothing than to say something confidently wrong at a door.
+
 ### And the crowding
 
 The most common way a network lounge goes wrong is that it is full, and it is
