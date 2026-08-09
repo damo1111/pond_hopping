@@ -1,14 +1,21 @@
-// Sends an FCM push to every device belonging to one person.
+// Sends a push to every device belonging to one person, by whichever road
+// that device's platform requires.
 //
-// Uses FCM's HTTP v1 API, which needs an OAuth access token minted from the
-// Firebase service account — the same JSON already generated for App
-// Distribution. The legacy server-key endpoint is retired, so there's no
-// simpler path. Signing the JWT by hand with node:crypto avoids pulling in
+// Android goes through FCM's HTTP v1 API, which needs an OAuth access token
+// minted from the Firebase service account — the same JSON already generated
+// for App Distribution. The legacy server-key endpoint is retired, so there's
+// no simpler path. Signing the JWT by hand with node:crypto avoids pulling in
 // googleapis (tens of megabytes) for one token request.
+//
+// iOS goes straight to Apple (see sendApns.js). Capacitor's push plugin hands
+// back an APNs token on iOS, and FCM will not accept one of those — routing it
+// through FCM instead would have meant adding the Firebase SDK to the Xcode
+// project, which is native work that cannot be compiled or tested from here.
 //
 // Every failure here is swallowed by the caller: a missed notification must
 // never cost someone their booking import.
 import { createSign } from 'node:crypto'
+import { sendApns } from './sendApns.js'
 
 const SUPABASE_URL = 'https://qslksdgxoibzrisywvqk.supabase.co'
 const ANON_KEY = 'sb_publishable_HqXFypbh0cTO8Eub41LlQw_8ypkj2tH'
@@ -48,30 +55,43 @@ async function accessToken(sa) {
 export async function sendPush({ email, title, body, data = {} }) {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
   const pushSecret = process.env.PUSH_SECRET
-  if (!raw || !pushSecret) return { sent: 0, skipped: 'not configured' }
+  if (!pushSecret) return { sent: 0, skipped: 'not configured' }
 
-  const sa = JSON.parse(raw)
-
-  const tokRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/push_tokens_for`, {
+  const devRes = await fetch(`${SUPABASE_URL}/rest/v1/rpc/push_devices_for`, {
     method: 'POST',
     headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ p_email: email, p_secret: pushSecret }),
   })
-  if (!tokRes.ok) throw new Error(`push_tokens_for ${tokRes.status}`)
-  const tokens = await tokRes.json()
-  if (!tokens?.length) return { sent: 0, skipped: 'no devices' }
+  if (!devRes.ok) throw new Error(`push_devices_for ${devRes.status}`)
+  const devices = await devRes.json()
+  if (!devices?.length) return { sent: 0, skipped: 'no devices' }
 
-  const bearer = await accessToken(sa)
+  const apple = devices.filter((d) => d.platform === 'ios')
+  const google = devices.filter((d) => d.platform !== 'ios')
+
   let sent = 0
   const dead = []
 
-  for (const token of tokens) {
+  for (const d of apple) {
+    const res = await sendApns({ token: d.token, title, body, data })
+    if (res.ok) sent++
+    else if (res.dead) dead.push(d.token)
+    else if (res.reason) console.error('apns', res.status, res.reason)
+  }
+
+  // Minted only if there is somewhere to send it — an all-iPhone household
+  // shouldn't need a Firebase key present at all.
+  const sa = google.length && raw ? JSON.parse(raw) : null
+  const bearer = sa ? await accessToken(sa) : null
+
+  for (const d of google) {
+    if (!bearer) break
     const res = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${bearer}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         message: {
-          token,
+          token: d.token,
           notification: { title, body },
           // Values must be strings — FCM rejects the whole message otherwise.
           data: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])),
@@ -81,7 +101,7 @@ export async function sendPush({ email, title, body, data = {} }) {
     if (res.ok) sent++
     // 404/UNREGISTERED means the app was uninstalled or the token rotated;
     // keeping it would mean retrying a dead device forever.
-    else if (res.status === 404 || res.status === 400) dead.push(token)
+    else if (res.status === 404 || res.status === 400) dead.push(d.token)
   }
 
   if (dead.length) {

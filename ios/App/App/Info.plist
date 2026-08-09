@@ -62,5 +62,13 @@
 	<string>Pond Hopping builds your travel timeline in the background, so a day you never got round to opening the app still ends up in your journal.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Pond Hopping builds your travel timeline in the background, so a day you never got round to opening the app still ends up in your journal.</string>
+	<!-- Push. `remote-notification` is what lets a notification arriving while
+	     the app is backgrounded be handed to it at all; without it iOS shows
+	     the banner and the app never hears about it, so the tap that should
+	     open the Plan tab does nothing. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>
