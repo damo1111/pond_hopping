@@ -138,6 +138,12 @@ export default function App() {
   const [demoPref, setDemoPref] = useState(() => readPreference())
   const [tripsLoaded, setTripsLoaded] = useState(false)
   const [loadError, setLoadError] = useState(null)
+  // Forwarded bookings waiting to be reviewed. The banner that announces them
+  // lives inside the Plan tab, which is no use to somebody who never opens
+  // Plan — and the push that would have told them only reaches a native build
+  // with notifications granted, which is nobody on iOS yet. So the nav says
+  // there is something waiting, from wherever you happen to be standing.
+  const [pendingImports, setPendingImports] = useState(0)
   const [selectedTrip, setSelectedTrip] = useState(null)
   // Deep-link from a Map pin/run into its matching Journal entry.
   const [journalJump, setJournalJump] = useState(null)
@@ -272,6 +278,26 @@ export default function App() {
   useEffect(() => {
     track('tab_view', { tab: activeTab })
   }, [activeTab])
+
+  // Counted on every tab change rather than watched live: reviewing an import
+  // is the only thing that clears it, and that always ends in a navigation.
+  // RLS scopes this to the signed-in person's own forwards, so the badge is
+  // never somebody else's queue.
+  useEffect(() => {
+    if (!user) {
+      setPendingImports(0)
+      return
+    }
+    let alive = true
+    supabase
+      .from('email_imports')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .then(({ count }) => alive && setPendingImports(count ?? 0))
+    return () => {
+      alive = false
+    }
+  }, [user, activeTab])
 
   // Visits pile up on the device while the app is closed — including on the
   // background launches iOS does purely to deliver one — so the upload has
@@ -506,6 +532,9 @@ export default function App() {
             >
               <Icon name={tab.icon} size={22} className="navitem-i" />
               <span className="navitem-l">{tab.label}</span>
+              {tab.id === 'plan' && pendingImports > 0 && (
+                <span className="navitem-dot" aria-label={`${pendingImports} to review`} />
+              )}
             </button>
           ))}
         </nav>

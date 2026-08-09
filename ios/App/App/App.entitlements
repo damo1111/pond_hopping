@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Without this the device will not issue a push token at all: the
+	     registration call returns an error rather than a token, which looks
+	     from the app's side exactly like the user having declined. Xcode
+	     rewrites `development` to `production` when archiving, so the one
+	     value covers debug builds, TestFlight and the App Store. -->
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>
