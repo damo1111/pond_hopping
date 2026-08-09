@@ -14,7 +14,21 @@ export const TOUR_SEEN_KEY = 'pond:tourdone'
 
 export const isDemo = (trip) => !!(trip?.is_demo ?? trip?.isDemo)
 
-export const ownTrips = (trips) => (trips ?? []).filter((t) => !isDemo(t))
+// Trips that are actually yours.
+//
+// This used to mean "not flagged as the example", which is the same thing
+// only while every non-demo trip belongs to whoever is looking. The moment a
+// real trip is made public — Rome, for the work group — every visitor on
+// earth counts as having a trip of their own: the example steps aside for
+// them, and somebody on their first launch meets a globe holding one
+// stranger's holiday with nothing to explain it.
+//
+// `mine` comes from the trip_meta view and answers for whoever is asking.
+// Where it is absent — older callers, and tests written before it existed —
+// fall back to the flag, which is right for every row that has no other
+// owner.
+export const ownTrips = (trips) =>
+  (trips ?? []).filter((t) => !isDemo(t) && (t?.mine === undefined || t.mine))
 
 /**
  * Whether the walkthrough should run.

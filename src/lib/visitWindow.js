@@ -79,19 +79,19 @@ export function nextAction({ consented, enabled, trips, now = Date.now() } = {})
  * on a switch and mean completely different things.
  */
 export function recordingStatus({ consented, trips, now = Date.now() } = {}) {
-  if (!consented) return { on: false, note: 'Off. Places are only noted if you ask for it.' }
+  if (!consented) return { on: false, note: 'Off. Places are only logged if you ask for it.' }
   const active = activeTrips(trips, now)
   if (!active.length) {
     return {
       on: false,
-      note: 'On, but nothing to record — it wakes up when a trip starts and sleeps again after.',
+      note: 'On, but nothing to log — it starts when a trip does and stops when it ends.',
     }
   }
   const names = active.map((t) => t.title).filter(Boolean)
   return {
     on: true,
     note: names.length
-      ? `Recording — you're on ${names.slice(0, 2).join(' and ')}.`
-      : 'Recording, because a trip is on today.',
+      ? `Logging — you're on ${names.slice(0, 2).join(' and ')}.`
+      : 'Logging, because a trip is on today.',
   }
 }

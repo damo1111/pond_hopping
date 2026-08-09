@@ -7548,6 +7548,57 @@ button {
   background: var(--surface-2);
 }
 
+/* ════ Sashes: whose trip this is, said across the corner ════
+   A pill in the card's own column costs a row and reads as a label. A sash
+   is cut across the corner and reads as a stamp, which is what these are:
+   not a property of the trip, a note about your relationship to it.
+   The card owns the clipping, so the ribbon can run past both edges and be
+   trimmed to the rounded corner. Nothing in the card's flow moves — the
+   sash is out of flow entirely, which is what keeps the layout it sits on
+   exactly as it was. */
+.wt-card { position: relative; overflow: hidden; }
+
+.wt-sash {
+  position: absolute;
+  top: 13px;
+  right: -30px;
+  z-index: 2;
+  width: 108px;
+  padding: 3px 0;
+  transform: rotate(38deg);
+  transform-origin: center;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 7.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #fff;
+  /* Its own shadow, so it reads on a photograph as well as on paper. */
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+}
+
+/* The example. Gold, because it is the app introducing itself. */
+.wt-sash--example { background: linear-gradient(100deg, #C79A2E, #A8842C); }
+
+/* Somebody else's, shared with you. Deliberately not gold: the whole point
+   is that it is not the same kind of thing as your own trips. */
+.wt-sash--shared { background: linear-gradient(100deg, #3E7C8A, #2F6270); }
+
+/* And the border says it a second time, for anyone who reads shape before
+   they read words. Kept off .active so selecting a shared trip still shows
+   the selection. */
+.wt-card--shared { border-color: #3E7C8A; }
+.wt-card--shared.active { border-color: var(--accent); }
+
+/* Without a cover photo the corner is where the flags and title start, so
+   the card makes room rather than letting the sash sit on the words. */
+.wt-card--sashed:not(:has(.wt-cover)) { padding-top: 26px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .wt-sash { transition: transform 0.15s; }
+}
+
 .tour {
   position: fixed;
   inset: 0;
@@ -8064,6 +8115,16 @@ button {
    two-storey button. Scoped to the adjacent pair, so it cannot reach a button
    that already has spacing of its own. */
 .ios-sheet .ios-sheet-done + .account-btn.ghost { margin-top: 18px; }
+
+/* And the field directly above the button it feeds. Two full-width boxes a
+   couple of pixels apart read as one control with a seam in it, which is
+   what "Where to?" and "Off we go" were doing. The input keeps its own
+   breathing room above so it does not crowd the sentence explaining it. */
+.ios-sheet .account-input {
+  display: block;
+  width: 100%;
+  margin: 14px 0 12px;
+}
 
 .route {
   display: flex;
@@ -8753,4 +8814,42 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   border-radius: 6px;
   padding: 2px 7px;
   white-space: nowrap;
+}
+
+/* Taking a photo out. Quieter than "set as cover" — it is the rarer thing to
+   want and the only one that cannot be undone, so it does not compete for
+   the eye. */
+.lb-remove-btn {
+  display: block;
+  margin-top: 8px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.62);
+  background: none;
+  border: 0;
+  padding: 4px 0;
+}
+
+.lb-remove-btn:disabled { opacity: 0.5; }
+
+/* Which trip the uploader is aiming at, under the button that does it. */
+.ph-target {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-top: 6px;
+}
+
+/* Why sharing did not happen, or the link itself when the clipboard refused
+   it. Selectable, because if we are showing somebody a URL the least we can
+   do is let them take it. */
+.recap-share-note {
+  margin: 10px auto 0;
+  max-width: 30em;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: center;
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
 }
