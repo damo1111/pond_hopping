@@ -8065,6 +8065,16 @@ button {
    that already has spacing of its own. */
 .ios-sheet .ios-sheet-done + .account-btn.ghost { margin-top: 18px; }
 
+/* And the field directly above the button it feeds. Two full-width boxes a
+   couple of pixels apart read as one control with a seam in it, which is
+   what "Where to?" and "Off we go" were doing. The input keeps its own
+   breathing room above so it does not crowd the sentence explaining it. */
+.ios-sheet .account-input {
+  display: block;
+  width: 100%;
+  margin: 14px 0 12px;
+}
+
 .route {
   display: flex;
   gap: 12px;
