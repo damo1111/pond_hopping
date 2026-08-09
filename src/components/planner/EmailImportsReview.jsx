@@ -69,7 +69,16 @@ function attributeTo(item, members) {
 
 export default function EmailImportsReview({ imports, draftTrips, onClose, onChanged }) {
   const { user, profile } = useAuth()
-  const [index, setIndex] = useState(0)
+  // Which ones have been dealt with, rather than how far along we are.
+  //
+  // This used to be an index, advanced by goNext() — but reviewing an import
+  // also calls onChanged(), which refetches and drops the row just handled.
+  // So the list shrank by one at the same moment the pointer moved by one: a
+  // double step. After two, imports[index] was undefined, the component
+  // returned null, and the banner looked untappable. Leaving the app and
+  // coming back remounted it at zero, which is exactly the recovery David
+  // described. Working from the head of what is left cannot drift.
+  const [done, setDone] = useState(() => new Set())
   const [keep, setKeep] = useState(() =>
     Object.fromEntries((imports[0]?.items || []).map((_, i) => [i, true]))
   )
@@ -111,7 +120,8 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
     }
   }, [tripId])
 
-  const current = imports[index]
+  const queue = (imports || []).filter((i) => !done.has(i.id))
+  const current = queue[0]
   if (!current) return null
 
   const proposal = proposeTrip(current.items || [])
@@ -139,9 +149,10 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
     )
 
   function goNext() {
-    const next = imports[index + 1]
+    const rest = queue.filter((i) => i.id !== current.id)
+    setDone((prev) => new Set(prev).add(current.id))
+    const next = rest[0]
     if (!next) return onClose()
-    setIndex(index + 1)
     setKeep(Object.fromEntries((next.items || []).map((_, i) => [i, true])))
     setTripId(next.matched_trip_id || null)
   }
@@ -276,7 +287,8 @@ export default function EmailImportsReview({ imports, draftTrips, onClose, onCha
         <div className="ios-sheet-title">📧 From {current.from_address || 'an email'}</div>
         <div className="ios-sheet-sub">
           {current.subject ? `"${current.subject}" — ` : ''}
-          found {current.items.length}. {imports.length > 1 ? `${index + 1} of ${imports.length}.` : ''}
+          found {current.items.length}.{' '}
+          {queue.length > 1 ? `${queue.length} emails still to go.` : ''}
         </div>
 
         <select className="account-input" value={tripId || ''} onChange={(e) => setTripId(e.target.value || null)}>
