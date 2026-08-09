@@ -390,9 +390,15 @@ function TimelineCard() {
           setConsented(false)
         }
       }
-      await syncVisits()
+      // Housekeeping, and not something to wait on: uploading whatever the
+      // phone buffered has nothing to do with whether the switch has
+      // flipped, and it is a network call that can stall on a bad line.
+      syncVisits().catch(() => {})
     } finally {
-      setStatus(await visitStatus())
+      // Keep the status we had if the re-read comes back empty — undefined
+      // would unmount the whole card, which is a worse answer than stale.
+      const fresh = await visitStatus()
+      if (fresh) setStatus(fresh)
       setBusy(false)
     }
   }

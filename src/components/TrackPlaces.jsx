@@ -93,7 +93,8 @@ export default function TrackPlaces({ compact = false, onDone }) {
     try {
       await enableVisits()
     } finally {
-      setStatus(await visitStatus())
+      const fresh = await visitStatus()
+      if (fresh) setStatus(fresh)
       setBusy(false)
       onDone?.()
     }

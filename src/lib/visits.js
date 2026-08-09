@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core'
 import { supabase } from './supabase.js'
+import { ASK_MS, CALL_MS, settled } from './settled.js'
 
 // Background location, on both apps. Not on the web: Safari and Chrome have
 // no background geolocation at all, so a PWA can never do this — a tab that
@@ -16,6 +17,7 @@ const VisitTracker = registerPlugin('VisitTracker')
 
 export const visitsSupported = () => Capacitor.isNativePlatform()
 
+
 /** Android asks in two goes; the second one lives in Settings from 11 on. */
 export const visitsNeedSettings = () =>
   Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
@@ -31,12 +33,10 @@ export async function openLocationSettings() {
 // { enabled, authorization, pending } — or null anywhere the plugin isn't.
 export async function visitStatus() {
   if (!visitsSupported()) return null
-  try {
-    return await VisitTracker.status()
-  } catch {
-    // An older TestFlight build won't have the plugin compiled in.
-    return null
-  }
+  // undefined from settled() means "no answer", which is not the same as
+  // "no plugin" — but for a status read there is nothing useful to do with
+  // the distinction, and null is what every caller already handles.
+  return (await settled(VisitTracker.status(), CALL_MS)) ?? null
 }
 
 // Consent, remembered here rather than inferred from whether the recorder
@@ -63,7 +63,12 @@ export function setConsent(yes, store = globalThis.localStorage) {
 
 export async function enableVisits() {
   if (!visitsSupported()) return { enabled: false, reason: 'unsupported' }
-  const { authorization } = await VisitTracker.request()
+  const asked = await settled(VisitTracker.request(), ASK_MS)
+  // No answer at all. Say so rather than reporting a refusal, because the
+  // two want different words on screen and only one of them is the user's
+  // doing.
+  if (!asked) return { enabled: false, reason: 'no-answer' }
+  const { authorization } = asked
   if (authorization === 'denied' || authorization === 'restricted') {
     return { enabled: false, authorization }
   }
@@ -72,12 +77,12 @@ export async function enableVisits() {
   // iOS offers it by itself once it has seen the app genuinely use this;
   // Android sends people to Settings for it, which is what
   // openLocationSettings() is for.
-  return await VisitTracker.start()
+  return (await settled(VisitTracker.start(), CALL_MS)) ?? { enabled: false, reason: 'no-answer' }
 }
 
 export async function disableVisits() {
   if (!visitsSupported()) return
-  await VisitTracker.stop()
+  await settled(VisitTracker.stop(), CALL_MS)
 }
 
 /// Moves whatever the phone buffered into Postgres. Safe to call often —
