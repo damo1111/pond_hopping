@@ -6282,6 +6282,38 @@ button {
   overflow: hidden;
 }
 
+/* No photograph, or one whose URL has died — Google Photos share links do
+   expire, and a trip can simply have no pictures yet. The gradient above
+   was always meant to be the fallback and was never visible enough to be
+   one: 38% of the accent against near-black, with a scrim written to hold
+   text over a photograph laid on top of it. It read as a broken image
+   rather than as a cover. Given the hero to itself it can be brighter, take
+   a second light from the opposite corner, and drop the scrim to what the
+   words actually need. */
+.recap-hero--drawn {
+  background:
+    radial-gradient(
+      120% 80% at 82% 8%,
+      color-mix(in srgb, var(--trip-accent, var(--accent)) 42%, transparent),
+      transparent 62%
+    ),
+    linear-gradient(
+      158deg,
+      color-mix(in srgb, var(--trip-accent, var(--accent)) 62%, #17130D) 0%,
+      #171208 58%,
+      #0C0A07 100%
+    );
+}
+
+.recap-hero--drawn .recap-hero-scrim {
+  background: linear-gradient(
+    to top,
+    rgba(12, 10, 7, 0.78) 0%,
+    rgba(12, 10, 7, 0.22) 44%,
+    rgba(12, 10, 7, 0) 78%
+  );
+}
+
 .recap-hero-img {
   position: absolute;
   inset: 0;
@@ -8853,3 +8885,58 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   user-select: all;
   -webkit-user-select: all;
 }
+
+/* The example sash on the running total. The card has to own the clipping
+   for the ribbon to be trimmed to its corner, and needs a stacking context
+   so the sash sits above the number rather than under it. */
+.cost-total-card--demo { position: relative; overflow: hidden; }
+
+/* Smaller than the trip card's, because this corner is tighter and the
+   number underneath is the point. */
+.cost-total-card--demo .wt-sash { top: 10px; right: -32px; width: 104px; font-size: 7px; }
+
+/* And in the by-trip list, where two trips can sit side by side and one of
+   them is not anybody's. */
+.cost-trip-tag {
+  margin-left: 6px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--accent-dim);
+  border-radius: 999px;
+  padding: 1px 5px;
+}
+
+/* The admin's list of example trips. A row of toggles rather than a form,
+   because the whole interaction is "this one, not that one". */
+.admin-examples { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
+
+.admin-example {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  padding: 7px 2px;
+}
+
+.admin-example.on { color: var(--text); }
+
+.admin-example-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+}
+
+.admin-example.on .admin-example-dot { background: var(--accent); border-color: var(--accent); }
+
+.admin-example:disabled { opacity: 0.5; }

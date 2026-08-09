@@ -353,6 +353,66 @@ function ConnectCard() {
   )
 }
 
+// Which trips the whole app offers as its example. Only whoever runs the
+// app sees this, and only they can change it — is_demo puts a trip on the
+// globe of every visitor who has none of their own, so it is not a decision
+// an owner makes about their own holiday. The database enforces that with a
+// trigger; this is only the switch.
+function ExamplesCard() {
+  const { allTrips } = useContext(TripContext)
+  const [admin, setAdmin] = useState(false)
+  const [busy, setBusy] = useState(null)
+  const [rows, setRows] = useState([])
+
+  useEffect(() => {
+    supabase.rpc('is_admin').then(({ data }) => setAdmin(data === true))
+  }, [])
+
+  useEffect(() => {
+    setRows((allTrips ?? []).map((t) => ({ id: t.id, title: t.title, is_demo: !!t.is_demo })))
+  }, [allTrips])
+
+  if (!admin) return null
+
+  async function toggle(row) {
+    setBusy(row.id)
+    const next = !row.is_demo
+    const { error } = await supabase.from('trips').update({ is_demo: next }).eq('id', row.id)
+    setBusy(null)
+    if (error) return alert(`Couldn't change it: ${error.message}`)
+    // Read back rather than assume: the trigger silently declines the change
+    // for anybody who is not an admin, and a switch that lies about what
+    // happened is worse than one that does nothing.
+    const { data } = await supabase.from('trips').select('is_demo').eq('id', row.id).single()
+    setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, is_demo: !!data?.is_demo } : r)))
+  }
+
+  const on = rows.filter((r) => r.is_demo).length
+
+  return (
+    <div className="account-card">
+      <div className="account-card-title">Examples shown to everyone</div>
+      <div className="account-card-body">
+        These appear on the globe of anybody with no trips of their own, sashed as examples.
+        {on === 0 && ' Nothing is set, so a new arrival meets an empty globe.'}
+      </div>
+      <div className="admin-examples">
+        {rows.map((r) => (
+          <button
+            key={r.id}
+            className={`admin-example${r.is_demo ? ' on' : ''}`}
+            disabled={busy === r.id}
+            onClick={() => toggle(r)}
+          >
+            <span className="admin-example-dot" />
+            {r.title}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // Opt-in background location. Renders nothing at all off iOS, and nothing on
 // an iOS build that predates the plugin — visitStatus() returns null in both
 // cases rather than offering a switch that can't be flipped.
@@ -685,6 +745,7 @@ function SignedIn() {
       <ConnectCard />
 
       <DemoCard />
+      <ExamplesCard />
       <PushCard />
       <TimelineCard />
 

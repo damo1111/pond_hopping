@@ -3,8 +3,10 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
 import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
+import { tripColor } from '../lib/tripColors.js'
 import { SheetContext } from '../lib/sheetContext.js'
 import { beginDrag, extendDrag, finishDrag } from '../lib/sheetDrag.js'
+import { gather } from '../lib/gather.js'
 import { record as debug, clear as clearDebug, read as readDebug, isOn as debugOn, subscribe as onDebug } from '../lib/gestureDebug.js'
 import CountryFlags from './CountryFlags.jsx'
 import Icon from './Icon.jsx'
@@ -89,6 +91,8 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
   // over a flat surface and only goes frosted once it has arrived.
   const [settled, setSettled] = useState(false)
   const [hint, setHint] = useState(false)
+  // A cover URL that 404s. Google Photos share links do, eventually.
+  const [coverBroke, setCoverBroke] = useState(false)
   // How far the sheet has been pulled down, in px. The handle was drawn as an
   // affordance the sheet didn't honour: it looks like something you can pull,
   // so on the web a downward drag went to the browser's pull-to-refresh
@@ -350,55 +354,86 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
     }
   }, [reveal])
 
+  // Six queries, and every figure on the page used to wait on all six.
+  //
+  // Promise.all, no catch, no timeout: one request that stalled or was
+  // refused and `data` stayed null forever. The screen that opens the recap
+  // does not wait for it — it reveals after OPEN_MAX_MS whatever happens —
+  // so a nine-day trip with four flights, nine days written up and five
+  // runs opened saying "9 days away" and nothing else. Not an error and not
+  // a spinner: a finished-looking page missing five of its six numbers, and
+  // with them every way in, because on this page the figures *are* the
+  // navigation. Flights, map, journal, runs and photos all became
+  // unreachable because one unrelated request had not come back.
+  //
+  // gather() is that shape fixed and tested: each answer stands alone, one
+  // that never returns costs one figure, and there is a grace period so a
+  // quick connection still opens on something finished.
   useEffect(() => {
     if (!trip?.id) return
-    let alive = true
-    Promise.all([
-      supabase
-        .from('flights')
-        .select('distance_km,dep_airport,arr_airport,dep_city,arr_city,dep_time')
-        .eq('trip_id', trip.id)
-        .eq('status', 'flown'),
-      supabase.from('journal_entries').select('city,entry_date,title').eq('trip_id', trip.id),
-      supabase.from('runs').select('distance_km').eq('trip_id', trip.id),
-      // thumb_url is a stored, already-rendered file; thumb() builds a URL
-      // against Supabase's on-the-fly transform endpoint. Asking that
-      // endpoint for twelve renders at once is what broke the grid, which
-      // is why PhotosTab has always preferred the stored one. 500 of the
-      // 504 rows have one; the transform is the fallback, not the default.
-      //
-      // Highlights first, so the recap leads with the good ones rather than
-      // the first twelve that happened to be inserted.
-      supabase
-        .from('photos')
-        .select('url,thumb_url,caption,is_highlight,taken_on')
-        .eq('trip_id', trip.id)
-        .order('is_highlight', { ascending: false })
-        .order('taken_on', { ascending: true })
-        .limit(12),
-      supabase.from('trip_summaries').select('summary').eq('trip_id', trip.id).maybeSingle(),
-      // The strip is twelve; the figure has to be all of them. Counting the
-      // twelve gave "12 photos" for a trip with 181. A head request costs one
-      // round trip and no rows.
-      supabase.from('photos').select('id', { count: 'exact', head: true }).eq('trip_id', trip.id),
-    ]).then(([f, e, r, p, s, n]) => {
-      if (!alive) return
-      // Says the page is worth showing. The opener waits on this rather than
-      // on a fixed delay, so a fast connection opens as soon as there is
-      // something to open and a slow one is not held hostage by a guess.
-      onLoaded?.()
-      setData({
-        flights: f.data ?? [],
-        entries: e.data ?? [],
-        runs: r.data ?? [],
-        photos: p.data ?? [],
-        photoCount: n.count ?? null,
-        summary: s.data?.summary ?? null,
-      })
-    })
-    return () => {
-      alive = false
-    }
+    setCoverBroke(false)
+    return gather(
+      [
+        {
+          query: supabase
+            .from('flights')
+            .select('distance_km,dep_airport,arr_airport,dep_city,arr_city,dep_time')
+            .eq('trip_id', trip.id)
+            .eq('status', 'flown'),
+          take: (f) => ({ flights: f.data ?? [] }),
+        },
+        {
+          query: supabase.from('journal_entries').select('city,entry_date,title').eq('trip_id', trip.id),
+          take: (e) => ({ entries: e.data ?? [] }),
+        },
+        {
+          query: supabase.from('runs').select('distance_km').eq('trip_id', trip.id),
+          take: (r) => ({ runs: r.data ?? [] }),
+        },
+        {
+          // thumb_url is a stored, already-rendered file; thumb() builds a
+          // URL against Supabase's on-the-fly transform endpoint. Asking
+          // that endpoint for twelve renders at once is what broke the
+          // grid, which is why PhotosTab has always preferred the stored
+          // one. 500 of the 504 rows have one; the transform is the
+          // fallback, not the default.
+          //
+          // Highlights first, so the recap leads with the good ones rather
+          // than the first twelve that happened to be inserted.
+          query: supabase
+            .from('photos')
+            .select('url,thumb_url,caption,is_highlight,taken_on')
+            .eq('trip_id', trip.id)
+            .order('is_highlight', { ascending: false })
+            .order('taken_on', { ascending: true })
+            .limit(12),
+          take: (p) => ({ photos: p.data ?? [] }),
+        },
+        {
+          query: supabase.from('trip_summaries').select('summary').eq('trip_id', trip.id).maybeSingle(),
+          take: (s) => ({ summary: s.data?.summary ?? null }),
+        },
+        {
+          // The strip is twelve; the figure has to be all of them. Counting
+          // the twelve gave "12 photos" for a trip with 181. A head request
+          // costs one round trip and no rows.
+          query: supabase.from('photos').select('id', { count: 'exact', head: true }).eq('trip_id', trip.id),
+          take: (n) => ({ photoCount: n.count ?? null }),
+        },
+      ],
+      {
+        onSlice: (slice) => setData((d) => ({ ...(d ?? {}), ...slice })),
+        // Says the page is worth showing. The opener waits on this rather
+        // than on a fixed delay, so a fast connection opens as soon as
+        // there is something to open and a slow one is not held hostage by
+        // a guess.
+        onReady: () => onLoaded?.(),
+        // Somewhere findable, rather than nowhere. Every one of these used
+        // to vanish into a Promise.all that simply never resolved.
+        onTrouble: (why) => console.warn('[recap]', trip.slug, why),
+      }
+    )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip?.id])
 
   // Locked while this is open — it's a full-screen moment, and having the
@@ -414,6 +449,20 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
   if (!trip) return null
 
   const stats = recapStats({ trip, ...(data ?? {}) })
+
+  // The cover, in order of how much it is really this trip's: one chosen
+  // deliberately, then the best of its own photographs, then none.
+  //
+  // "None" used to be a black rectangle, which is what a trip with no
+  // photos looks like today and what every trip will look like the moment a
+  // scraped Google Photos link expires — and they do expire. The hero
+  // already had a gradient built out of the trip's accent underneath the
+  // image; it was simply never allowed to show, and the scrim written for a
+  // photograph sat on top of it and took it down to near-black. So a
+  // coverless trip now gets that gradient properly, and a cover that fails
+  // to load falls through to it rather than leaving a hole.
+  const chosen = cover || data?.photos?.[0]?.thumb_url || data?.photos?.[0]?.url || null
+  const hero = coverBroke ? null : chosen
 
   // Two ways this did nothing, both silently.
   //
@@ -477,8 +526,18 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
       </button>
 
       <div className="recap-scroll" ref={scrollRef}>
-        <header className="recap-hero">
-          {cover && <img className="recap-hero-img" src={coverUrl(cover, { width: 900, height: 1200 })} alt="" />}
+        <header
+          className={`recap-hero${hero ? '' : ' recap-hero--drawn'}`}
+          style={{ '--trip-accent': tripColor(trip.slug) }}
+        >
+          {hero && (
+            <img
+              className="recap-hero-img"
+              src={coverUrl(hero, { width: 900, height: 1200 })}
+              alt=""
+              onError={() => setCoverBroke(true)}
+            />
+          )}
           <div className="recap-hero-scrim" />
           <div className="recap-hero-text">
             <div className="recap-eyebrow">

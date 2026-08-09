@@ -149,15 +149,20 @@ export default function CostsTab() {
     <div className="costs-tab">
       {showingDemo && (
         <div className="demo-banner">
-          <span className="demo-banner-tag">Example</span>
-          Someone else's spending, shown so the page isn't blank. It goes when you add a trip of your
-          own.
+          Someone else&apos;s spending, shown so the page isn&apos;t blank. It goes when you add a
+          trip of your own.
         </div>
       )}
 
       <AddCost tripMeta={tripMeta} selectedTrip={selectedTrip} onSaved={() => setReload((r) => r + 1)} />
 
-      <div className="fx-card cost-total-card">
+      {/* The sash goes on the number, not near it. A banner at the top of a
+          scrolling page is above the fold for about a second; the total is
+          the thing anybody actually reads, and the thing they will read as
+          theirs. Same stamp as the trip cards, so it means the same thing in
+          both places. */}
+      <div className={`fx-card cost-total-card${showingDemo ? ' cost-total-card--demo' : ''}`}>
+        {showingDemo && <span className="wt-sash wt-sash--example">Example</span>}
         <div className="cost-total-label">{selectedTrip ? 'trip total' : 'running total'}</div>
         <div className="cost-total">{fmtA(total)}</div>
       </div>
@@ -187,6 +192,7 @@ export default function CostsTab() {
             <div key={t.slug} className="cost-trip-row">
               <span className="trip-flags-inline">
                 <CountryFlags countries={t.countries} size={15} /> {t.title}
+                {isDemo(t) && <span className="cost-trip-tag">example</span>}
               </span>
               <span className="cost-bar-val">{fmtA(v)}</span>
             </div>
