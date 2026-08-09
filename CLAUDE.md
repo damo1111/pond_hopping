@@ -13,6 +13,21 @@ A travel log web app for David + husband — starting with the mini gap year (si
 - Open Exchange Rates via `open.er-api.com` (currency — free, no key)
 - vite-plugin-pwa (PWA install)
 
+## They are Pond Hoppers, never "users"
+
+David, 9 Aug: "let's refer to our users, never as users. let's call our users
+pond hoppers."
+
+Applies to anything a person reads — in-app copy, the store listing, the
+policy pages, marketing, and the docs in this repo. In the second person it
+stays "you", which is what the privacy and deletion pages already do and
+which is better still; "Pond Hoppers" is for the third person, where every
+other app writes "users".
+
+Code identifiers are exempt and should stay as they are: `user` is the
+Supabase auth object, `user_id` is a column, and renaming those buys nothing
+and breaks plenty.
+
 ## Design system — use these exactly, no Tailwind
 
 Defined in `src/styles/globals.css`:
