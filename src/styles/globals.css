@@ -8643,3 +8643,20 @@ button {
 .gm-item-cancel:disabled {
   opacity: 0.55;
 }
+
+/* Something is waiting in Plan. A dot rather than a count: the number is
+   never the point, and a badge reading "3" invites you to wonder what the
+   other two are before you have opened the first. */
+.navitem { position: relative; }
+
+.navitem-dot {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  margin-left: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface);
+}
