@@ -74,10 +74,16 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
   return (
     <div className="journal-form">
       <div className="jf-row">
+        {/* An example is a copy of a real trip and carries the real trip's
+            title, so this list now holds two rows both reading "China &
+            Japan" with nothing between them. On a card the sash says which;
+            a <select> has no room for a sash, and the wrong pick here puts
+            somebody's own photographs on the trip published to everybody.
+            So the word goes in the label. */}
         <select value={form.trip} onChange={set('trip')}>
           {tripMeta.map((t) => (
             <option key={t.slug} value={t.slug}>
-              {t.title}
+              {t.is_demo ? `${t.title} — example` : t.title}
             </option>
           ))}
         </select>
