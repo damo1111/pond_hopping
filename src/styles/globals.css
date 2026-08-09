@@ -8838,3 +8838,18 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   text-align: center;
   margin-top: 6px;
 }
+
+/* Why sharing did not happen, or the link itself when the clipboard refused
+   it. Selectable, because if we are showing somebody a URL the least we can
+   do is let them take it. */
+.recap-share-note {
+  margin: 10px auto 0;
+  max-width: 30em;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: center;
+  word-break: break-all;
+  user-select: all;
+  -webkit-user-select: all;
+}

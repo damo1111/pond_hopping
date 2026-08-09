@@ -77,6 +77,8 @@ function GestureReadout() {
 export default function TripRecap({ trip, cover, reveal = true, origin = null, onLoaded, onClose }) {
   const [data, setData] = useState(null)
   const [copied, setCopied] = useState(false)
+  // What to say when sharing could not happen. Never nothing.
+  const [shareNote, setShareNote] = useState(null)
   // Which sub-view is open over the recap. The recap itself stays mounted
   // underneath, so closing this comes back here rather than dumping you on
   // a tab with no way back — which is what tapping a figure used to do.
@@ -413,15 +415,43 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
 
   const stats = recapStats({ trip, ...(data ?? {}) })
 
-  function share() {
-    const url = `${window.location.origin}/?share=${trip.slug}&show=journal,flights,map`
-    if (navigator.share) {
-      navigator.share({ title: trip.title, url }).catch(() => {})
+  // Two ways this did nothing, both silently.
+  //
+  // navigator.share exists inside the iOS web view and does not always
+  // work there. Every failure went into an empty catch, so a share sheet
+  // that refused to open was indistinguishable from a button that was not
+  // wired up — which is what it looked like. Cancelling is the one refusal
+  // that means "I changed my mind"; everything else falls through to the
+  // clipboard, and a clipboard that isn't there says so rather than
+  // claiming a link was copied when nothing was.
+  //
+  // And the link itself only works if the trip is public. A private one
+  // hands somebody a page that shows them nothing, which is worse than
+  // refusing: they think you shared it and you think they saw it.
+  async function share() {
+    if (trip.is_public === false) {
+      setShareNote('This trip is private — nobody else could open the link. Make it public first.')
+      setTimeout(() => setShareNote(null), 5000)
       return
     }
-    navigator.clipboard?.writeText(url)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    const url = `${window.location.origin}/?share=${trip.slug}&show=journal,flights,map`
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: trip.title, url })
+        return
+      } catch (err) {
+        if (err?.name === 'AbortError') return // they changed their mind
+        // Anything else: the sheet could not open. Fall through.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setShareNote(url)
+      setTimeout(() => setShareNote(null), 12000)
+    }
   }
 
   // Rendered into <body> rather than in place. The story card this opens
@@ -525,6 +555,7 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
         <button className="recap-share" onClick={share}>
           {copied ? 'Link copied' : 'Share this trip'}
         </button>
+        {shareNote && <div className="recap-share-note">{shareNote}</div>}
       </div>
 
       {layer && (
