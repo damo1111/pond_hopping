@@ -9,7 +9,22 @@ create table if not exists memberships (
   kind text not null,                 -- airline | lounge_network | hotel
   programme text not null,            -- "British Airways Executive Club", "Priority Pass"
   alliance text,                      -- oneworld | staralliance | skyteam
-  tier text,                          -- emerald | sapphire | prestige | standard_plus
+
+  -- Two tiers, because they are two different facts and collapsing them
+  -- loses one. "British Airways Gold" is what the card says and what the
+  -- desk asks for; "oneworld Emerald" is what decides whether he gets in.
+  -- Qantas Platinum is also Emerald. Flying Blue Platinum is not.
+  --
+  -- tier carries the comparable rung, which means something different by
+  -- kind. Airlines have alliances, so it is the alliance tier. Hotels have
+  -- no alliances and no equivalence between chains — Marriott Gold and
+  -- Hilton Diamond are not the same animal and nothing maps them — so it is
+  -- how high the tier sits in its own programme: top | upper | mid | entry.
+  -- That is what decides whether to promise somebody a lounge and a
+  -- breakfast or keep quiet.
+  tier text,
+  programme_tier text,                -- what the programme calls it
+
   membership_number text,
 
   -- Lounge networks only, and the reason this table exists rather than a
