@@ -488,7 +488,12 @@ export default function App() {
           <TripPicker tripMeta={shownTrips} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
         ) : null}
 
-        {activeTab === 'useful' && usefulTab !== 'account' && (
+        {/* On Account too, which it used to hide. Account is reached from the
+            duck rather than from this row, so nothing in the row lights up —
+            but a screen with no visible way off it is worse than a row with
+            nothing selected, and "what is actually in here" should be
+            answerable by looking. */}
+        {activeTab === 'useful' && (
           <nav className="subnav">
             {USEFUL_TABS.map((tab) => (
               <button
@@ -556,7 +561,17 @@ export default function App() {
             <button
               key={tab.id}
               className={`navitem navitem-${tab.id}${activeTab === tab.id ? ' active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                // Useful remembers which section you were last in, which is
+                // right for the four in the row and a trap for Account.
+                // Account is the duck's destination, not one of the useful
+                // things, and it hides the row that would let you leave — so
+                // once you had opened it from the duck, tapping Useful took
+                // you straight back to Settings for ever, with Costs,
+                // Currency, Phrases and Share unreachable from anywhere.
+                if (tab.id === 'useful' && usefulTab === 'account') setUsefulTab('costs')
+                setActiveTab(tab.id)
+              }}
             >
               <Icon name={tab.icon} size={22} className="navitem-i" />
               <span className="navitem-l">{tab.label}</span>
