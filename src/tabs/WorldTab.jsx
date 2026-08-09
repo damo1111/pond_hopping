@@ -965,9 +965,16 @@ function ChapterSpine({ chapter, cover, onClick }) {
 function TripCard({ t, covers, selectedTrip, setSelectedTrip, onOrigin }) {
   const active = selectedTrip === t.slug
   const bounce = useBounce()
+  // The example first: it is the app introducing itself and outranks whose
+  // it is. Then trips that are not yours — shared with you, or public and
+  // somebody else's. `owned` is absent outside the trip_meta view, and an
+  // absent answer earns no sash rather than a wrong one.
+  const sash = shouldBadge(t) ? 'Example' : t.owned === false ? 'Shared' : null
   return (
     <button
-      className={`wt-card${active ? ' active' : ''}${shouldBadge(t) ? ' wt-card--demo' : ''}${bounce.className}`}
+      className={`wt-card${active ? ' active' : ''}${shouldBadge(t) ? ' wt-card--demo' : ''}${
+        sash ? ' wt-card--sashed' : ''
+      }${sash === 'Shared' ? ' wt-card--shared' : ''}${bounce.className}`}
       onClick={(e) => {
         bounce.onPress()
         // Measured at the moment of the tap, from the element that was
@@ -985,8 +992,11 @@ function TripCard({ t, covers, selectedTrip, setSelectedTrip, onOrigin }) {
       )}
       {/* Says what it is for as long as it is there, not only during the
           tour. Six months from now, someone scrolling past "HK & South Korea"
-          among their own trips should not have to wonder whether they went. */}
-      {shouldBadge(t) && <span className="wt-demo-badge">Example</span>}
+          among their own trips should not have to wonder whether they went.
+          Across the corner rather than in the card's own column: a stamp,
+          not a label, because it describes your relationship to the trip
+          rather than anything about the trip. */}
+      {sash && <span className={`wt-sash wt-sash--${sash.toLowerCase()}`}>{sash}</span>}
       <span className="wt-flags">
         <CountryFlags countries={t.countries} size={20} />
       </span>
