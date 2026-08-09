@@ -74,7 +74,11 @@ export default async function handler(req, res) {
     return
   }
 
-  const host = process.env.CLOUDMAILIN_SMTP_HOST || 'smtp.cloudmailin.com'
+  // cloudmta.net, not cloudmailin.com — the outbound service runs on its own
+  // hostname, and the one that matches the brand name is the wrong one. It is
+  // printed against the account in the CloudMailin dashboard; the override is
+  // here in case that ever changes under us.
+  const host = process.env.CLOUDMAILIN_SMTP_HOST || 'smtp.cloudmta.net'
   const user = process.env.CLOUDMAILIN_SMTP_USER
   const pass = process.env.CLOUDMAILIN_SMTP_PASS
   if (!user || !pass) {
