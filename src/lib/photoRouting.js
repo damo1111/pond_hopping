@@ -82,9 +82,18 @@ export function specificity(cluster, trip) {
 /**
  * The trips that could claim this cluster, best first: how completely the
  * trip explains the photos, then how completely the photos explain the trip.
+ *
+ * Examples are never candidates. An example is a copy of a real trip, which
+ * means it carries the same dates as the real trip and matches it exactly —
+ * so every upload becomes "China & Japan, or China & Japan?", a coin toss
+ * with the two sides labelled the same. Getting that wrong does not put two
+ * hundred pictures on the wrong trip; it puts somebody's own photographs on
+ * the trip that is published to everybody. Curating an example is a
+ * deliberate act and stays one: pick it by hand, never by date.
  */
 export function candidates(cluster, trips = []) {
   return (trips ?? [])
+    .filter((trip) => !trip?.is_demo)
     .map((trip) => ({ trip, score: overlap(cluster, trip), fit: specificity(cluster, trip) }))
     .filter((c) => c.score > 0)
     .sort((a, b) => b.score - a.score || b.fit - a.fit)

@@ -91,6 +91,25 @@ test('a single day reads as one date rather than a range', () => {
   assert.equal(describeRoute(r), '1 photo → a new trip, 2024-06-02')
 })
 
+test('an example never claims photos, however well its dates fit', () => {
+  // The example is a copy, so it carries the real trip's dates and matches
+  // it exactly. Left in, every upload became a coin toss between two
+  // identically-named trips — and the wrong side of it publishes somebody's
+  // own photographs. Curating the example is done by hand, on purpose.
+  const example = { ...rome, title: 'Rome (Example)', is_demo: true }
+  const [r] = routeClusters([cluster('2024-01-13', '2024-01-17', 40)], [rome, example])
+  assert.equal(r.decision, 'one')
+  assert.equal(r.trip.title, 'Rome')
+  assert.deepEqual(r.matches.map((t) => t.title), ['Rome'])
+})
+
+test('photos matching only an example go to a new trip, not into the example', () => {
+  const example = { ...amsterdam, is_demo: true }
+  const [r] = routeClusters([cluster('2024-03-05', '2024-03-07', 12)], [example])
+  assert.equal(r.decision, 'new')
+  assert.equal(r.trip, null)
+})
+
 test('CLEAR_WIN is the margin, not a coin toss', () => {
   // Documented rather than assumed: two trips within this of each other are
   // a question, and the test exists so changing the number is deliberate.
