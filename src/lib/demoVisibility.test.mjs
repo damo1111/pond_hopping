@@ -91,3 +91,25 @@ test('the note says what will happen, not what the switch is called', () => {
   assert.match(demoSwitchNote({ trips: [demo], pref: 'show' }), /alongside/)
   assert.match(demoSwitchNote({ trips: [demo], pref: 'hide' }), /Hidden/)
 })
+
+test('somebody else\'s public trip does not count as one of yours', () => {
+  // Rome is public so the work group can see it. Without this, every
+  // visitor on earth "has a trip", the example steps aside, and a first
+  // launch is one stranger's holiday with nothing to explain it.
+  const theirs = { title: 'Rome', is_demo: false, mine: false }
+  const demo = { title: 'HK & South Korea', is_demo: true, mine: false }
+
+  assert.equal(showDemo({ trips: [theirs, demo] }), true)
+  assert.deepEqual(visibleTrips([theirs, demo]).map((t) => t.title), ['Rome', 'HK & South Korea'])
+  assert.equal(hiddenByArrival({ trips: [theirs, demo] }), false)
+})
+
+test('your own trip still sends the example away', () => {
+  const mine = { title: 'Samoa', is_demo: false, mine: true }
+  const theirs = { title: 'Rome', is_demo: false, mine: false }
+  const demo = { title: 'HK & South Korea', is_demo: true, mine: true }
+
+  assert.equal(showDemo({ trips: [mine, theirs, demo] }), false)
+  assert.deepEqual(visibleTrips([mine, theirs, demo]).map((t) => t.title), ['Samoa'])
+  assert.equal(hiddenByArrival({ trips: [mine, theirs, demo] }), true)
+})
