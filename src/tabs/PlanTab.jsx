@@ -8,6 +8,7 @@ import TripPlanner from '../components/TripPlanner.jsx'
 import EmailImportsReview from '../components/planner/EmailImportsReview.jsx'
 import Icon from '../components/Icon.jsx'
 import PlanCard from '../components/plan/PlanCard.jsx'
+import TripStarting from '../components/TripStarting.jsx'
 import { planLane } from '../lib/planLane.js'
 import { neverBeen } from '../lib/neverBeen.js'
 
@@ -136,7 +137,7 @@ export default function PlanTab() {
   const [flownLegs, setFlownLegs] = useState([])
   const [creating, setCreating] = useState(false) // PlanChat for a brand-new trip
   const [plannerId, setPlannerId] = useState(null) // full-screen TripPlanner for an existing draft
-  const { plannerJump, clearPlannerJump, openAuth } = useContext(TripContext)
+  const { plannerJump, clearPlannerJump, openAuth, tripMeta } = useContext(TripContext)
 
   // Home hands over a trip id when one of its cards is tapped; PlanTab owns
   // the planner, so this is where that lands.
@@ -276,6 +277,12 @@ export default function PlanTab() {
           </button>
         </div>
       )}
+
+      {/* Above the lane rather than in it: somebody leaving on Friday should
+          meet this before they start rearranging what they are doing on
+          Friday. Renders nothing at all unless there is a trip within ten
+          days and recording is still off. */}
+      {user && <TripStarting trips={[...(draftTrips || []), ...(tripMeta || [])]} />}
 
       {lane.length === 0 ? (
         <div className="plan-blank">

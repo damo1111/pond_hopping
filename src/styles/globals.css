@@ -8259,6 +8259,23 @@ button {
 
 .track-card.compact { margin-top: 16px; }
 
+/* "You're off on Friday" — the line that turns a general offer into one
+   about this trip, sitting directly on top of it. The card below already
+   carries the border, so this only needs the sentence. */
+.going-soon { margin-top: 4px; }
+
+.going-soon-line {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.going-soon-line b { color: var(--text); font-weight: 600; }
+
+/* Straight under its own sentence, not floating 16px below it. */
+.going-soon .track-card.compact { margin-top: 8px; }
+
 .track-title { font-size: 15px; margin-bottom: 5px; }
 
 .track-body { font-size: 13px; line-height: 1.5; color: var(--text-muted); }
