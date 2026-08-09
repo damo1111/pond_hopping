@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import TrackPlaces from './TrackPlaces.jsx'
 import { readExif } from '../lib/exif.js'
-import { prepare, store } from '../lib/photoIngest.js'
+import { HEAD_BYTES, prepare, store } from '../lib/photoIngest.js'
 import { savingsLabel } from '../lib/photoResize.js'
 import {
   clusterPhotos,
@@ -29,7 +29,6 @@ import SheetGrip from './SheetGrip.jsx'
 // found, including when the answer is "nothing", which is the normal case for
 // photos that came via WhatsApp or Google Photos.
 
-const HEAD_BYTES = 256 * 1024
 
 export default function StartFromPhotos({ onDone, onClose }) {
   const input = useRef(null)

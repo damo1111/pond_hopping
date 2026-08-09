@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 
 // Static fallback rates: units per 1 AUD. Live fetch overrides silently.
-const STATIC_RATES = { AUD: 1, KRW: 905, HKD: 5.15, JPY: 95, CNY: 4.7, USD: 0.66, GBP: 0.52 }
-const CURRENCIES = ['AUD', 'KRW', 'HKD', 'JPY', 'CNY', 'USD', 'GBP']
-const SYMBOL = { AUD: 'A$', KRW: '₩', HKD: 'HK$', JPY: '¥', CNY: 'CN¥', USD: 'US$', GBP: '£' }
+const STATIC_RATES = { AUD: 1, EUR: 0.57, GBP: 0.52, USD: 0.66, JPY: 95, CNY: 4.7, HKD: 5.15, KRW: 905, SGD: 0.85, THB: 21.5, MYR: 2.8, NZD: 1.09, LKR: 197 }
+const CURRENCIES = ['AUD', 'EUR', 'GBP', 'USD', 'JPY', 'CNY', 'HKD', 'KRW', 'SGD', 'THB', 'MYR', 'NZD', 'LKR']
+const SYMBOL = { AUD: 'A$', EUR: '€', GBP: '£', USD: 'US$', JPY: '¥', CNY: 'CN¥', HKD: 'HK$', KRW: '₩', SGD: 'S$', THB: '฿', MYR: 'RM', NZD: 'NZ$', LKR: 'Rs' }
 
 const BENCHMARKS = [
   { city: 'Seoul', items: [['Americano', 'KRW', 5500], ['Subway ride', 'KRW', 1500], ['KBBQ for one', 'KRW', 18000], ['Taxi flagfall', 'KRW', 4800]] },
