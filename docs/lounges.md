@@ -99,6 +99,37 @@ Every fact shows its provenance, because the trust model *is* the product:
 
 An answer that cannot say where it came from should not be shown.
 
+## Lounge networks are not a boolean
+
+Priority Pass, LoungeKey, Mastercard Airport Experiences and DragonPass are
+separate networks with separate lounge lists. One `priorityPass: true` flag
+across all of them produces confidently wrong answers at the door, which is
+the one thing this feature cannot afford.
+
+Nor is membership one thing. Priority Pass **Standard** includes no visits
+and charges around £32 each; **Standard Plus** includes ten and then charges;
+**Prestige** is unlimited. "You can get in" is true for all three and useless
+for two of them. So every way in carries a cost — free, per-visit, or walk-in
+— and answers are ordered by it: a visit already paid for beats a per-visit
+charge, which beats a £110 walk-in. The card says which, and how many are
+left.
+
+Unknown is not unlimited. A membership with no recorded allowance says
+nothing about visits rather than implying they are free.
+
+### And the crowding
+
+The most common way a network lounge goes wrong is that it is full, and it is
+the one thing the networks themselves will never tell you. A capacity report
+is a warning rather than a wall — you are still allowed in — but it puts a
+thumb on the scale: enough to lose a close call, not enough to demote a great
+lounge below a poor one on one grumpy report. It is never hidden.
+
+This is also the part that makes a partnership worth having and worth being
+careful about. Ranking and conditions stay editorially independent. An honest
+"the network lounge here is the crowded one, go elsewhere" is the reason
+anyone would trust the rest of it.
+
 ## Status capture
 
 Never a form. One question at the moment it pays off: the first BA flight

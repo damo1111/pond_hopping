@@ -150,7 +150,7 @@ from (values
   ('LHR', '3', 'American Express Centurion Lounge', 'card', null, null, null, 'American Express Platinum', null, false, 0, null, null),
   ('LHR', '3', 'American Express Centurion Lounge', 'card', null, null, null, 'American Express Centurion', null, false, 0, null, null),
 
-  ('LHR', '3', 'No1 Lounge', 'priority_pass', null, null, null, null, null, false, 0, null, null),
+  ('LHR', '3', 'No1 Lounge', 'network', null, null, null, 'Priority Pass', null, false, 0, null, null),
   ('LHR', '3', 'No1 Lounge', 'paid', null, null, null, null, null, false, 0, null, null),
 
   ('HEL', 'Non-Schengen', 'Finnair Platinum Wing', 'alliance_tier', 'oneworld', 'emerald', null, null, null, true, 1, null, 'Guest must be flying from the same side of the Schengen border'),
@@ -180,7 +180,7 @@ from (values
   ('SYD', '1', 'Qantas International Business Lounge', 'cabin', null, null, 'business', null, null, false, 0, null, null),
   ('SYD', '1', 'Qantas International Business Lounge', 'programme', null, null, null, 'Qantas Club', null, false, 1, null, null),
 
-  ('OPO', '1', 'ANA Lounge', 'priority_pass', null, null, null, null, null, false, 0, null, 'Three hours maximum'),
+  ('OPO', '1', 'ANA Lounge', 'network', null, null, null, 'Priority Pass', null, false, 0, null, 'Three hours maximum'),
   ('OPO', '1', 'ANA Lounge', 'paid', null, null, null, null, null, false, 0, '€37–43', null),
 
   ('OPO', '1', 'TAP Premium Lounge', 'alliance_tier', 'staralliance', 'gold', null, null, null, true, 1, null, null),
@@ -210,6 +210,9 @@ from (values
   ('LHR', '3', 'Qantas London Lounge', 'food',
    'Menu by Neil Perry, and a la carte in the evening. The upstairs bar looks over the airfield.',
    'published', null),
+  -- The crowding point stays, and stays prominent. It is the single most
+  -- common thing that goes wrong with a network lounge, and the one thing
+  -- the networks themselves will never tell you.
   ('LHR', '3', 'No1 Lounge', 'timing',
    'Reported as chronically overcrowded at peak — worth having a second plan.',
    'published', null),

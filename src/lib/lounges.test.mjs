@@ -2,12 +2,28 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   DECAY_DAYS,
+  FREE,
+  PER_VISIT,
+  WALK_IN,
   activeConditions,
   admits,
   bestLounge,
   describeAccess,
   loungesFor,
+  visitsLeft,
 } from './lounges.js'
+
+// The lounge networks, as they actually work. Priority Pass Standard
+// includes no visits at all; Standard Plus includes ten; Prestige is
+// unlimited. Amex Platinum hands you a Prestige-equivalent membership.
+const prestige = { network: 'Priority Pass', tier: 'prestige', unlimited: true }
+const standardPlus = (used) => ({
+  network: 'Priority Pass',
+  tier: 'standard_plus',
+  visitsIncluded: 10,
+  visitsUsed: used,
+  visitFee: '£32',
+})
 
 // Heathrow Terminal 3, as close to the real thing as fixtures get. The rows
 // mirror the Supabase shape exactly, because a test that passes against a
@@ -62,7 +78,7 @@ const plazaPremium = {
   name: 'Plaza Premium Lounge',
   rank: 6,
   access: [
-    { via: 'priority_pass', guests: 0 },
+    { via: 'network', programme: 'Priority Pass', guests: 0 },
     { via: 'card', programme: 'Amex Platinum', guests: 1 },
     { via: 'paid', price: '£45' },
   ],
@@ -166,20 +182,43 @@ test('a closure blocks everybody, whatever airline they are on', () => {
   assert.equal(bestLounge({ ...david, airline: 'CX' }, lounges, now).lounge.name, 'Qantas London Lounge')
 })
 
+const queueing = {
+  kind: 'capacity',
+  summary: 'Queuing at peak, 20 minutes reported',
+  starts_at: daysAgo(1),
+  ends_at: null,
+  source_type: 'member_report',
+}
+
 test('a queue is a warning, not a wall', () => {
-  const busy = {
-    kind: 'capacity',
-    summary: 'Queuing at peak, 20 minutes reported',
-    starts_at: daysAgo(1),
-    ends_at: null,
-    source_type: 'member_report',
-  }
-  const lounges = [withConditions(cathayFirst, busy), qantas]
+  const lounges = [withConditions(cathayFirst, queueing)]
   const best = bestLounge({ ...david, airline: 'CX' }, lounges, now)
 
   assert.equal(best.lounge.name, 'Cathay Pacific First Class Lounge')
   assert.equal(best.blocked, null)
-  assert.equal(best.conditions[0].summary, 'Queuing at peak, 20 minutes reported')
+  assert.equal(best.busy.summary, 'Queuing at peak, 20 minutes reported')
+})
+
+test('being rammed loses a close call', () => {
+  // Cathay First is the better lounge and normally the answer. Twenty
+  // minutes of queue is enough to send a close rival ahead of it — but it
+  // stays on the list, with the reason showing.
+  const lounges = [withConditions(cathayFirst, queueing), qantas]
+  const [first, second] = loungesFor({ ...david, airline: 'CX' }, lounges, now)
+
+  assert.equal(first.lounge.name, 'Qantas London Lounge')
+  assert.equal(second.lounge.name, 'Cathay Pacific First Class Lounge')
+  assert.equal(second.busy.summary, 'Queuing at peak, 20 minutes reported')
+})
+
+test('being rammed does not lose a wide one', () => {
+  // A thumb on the scale, not a demotion. A busy great lounge still beats a
+  // quiet mediocre one, or a single grumpy report reshapes the terminal.
+  const lounges = [withConditions(cathayFirst, queueing), americanGreenwich]
+  assert.equal(
+    bestLounge({ ...david, airline: 'CX' }, lounges, now).lounge.name,
+    'Cathay Pacific First Class Lounge'
+  )
 })
 
 test('conditions that have not started or have already ended are not in force', () => {
@@ -253,11 +292,54 @@ test('a programme rule means that programme, not something adjacent', () => {
   assert.equal(admits(rule, david), false)
 })
 
-test('Priority Pass and cards are held, not inferred', () => {
-  assert.equal(admits({ via: 'priority_pass' }, { priorityPass: true }), true)
-  assert.equal(admits({ via: 'priority_pass' }, david), false)
+test('lounge networks and cards are held, not inferred', () => {
+  const rule = { via: 'network', programme: 'Priority Pass' }
+  assert.equal(admits(rule, { networks: [prestige] }), true)
+  assert.equal(admits(rule, david), false)
+  // A different network is a different lounge list, not a near enough.
+  assert.equal(admits(rule, { networks: [{ network: 'LoungeKey', unlimited: true }] }), false)
   assert.equal(admits({ via: 'card', programme: 'Amex Platinum' }, { cards: ['Amex Platinum'] }), true)
   assert.equal(admits({ via: 'card', programme: 'Amex Platinum' }, { cards: ['Amex Gold'] }), false)
+})
+
+// ---------------------------------------------------------------------------
+// Visit allowances. Getting in and getting in free are different questions.
+// ---------------------------------------------------------------------------
+
+test('an allowance counts down, and unknown is not the same as unlimited', () => {
+  assert.equal(visitsLeft(prestige), null)
+  assert.equal(visitsLeft(standardPlus(7)), 3)
+  assert.equal(visitsLeft(standardPlus(10)), 0)
+  assert.equal(visitsLeft(standardPlus(12)), 0) // over, not negative
+  assert.equal(visitsLeft({ network: 'DragonPass' }), null)
+  assert.equal(visitsLeft(null), null)
+})
+
+test('the card says how many visits are left, and says when they have run out', () => {
+  const three = loungesFor({ networks: [standardPlus(7)] }, [plazaPremium], now)[0]
+  assert.equal(describeAccess(three.via), 'Priority Pass, 3 visits left')
+  assert.equal(three.cost, FREE)
+
+  const one = loungesFor({ networks: [standardPlus(9)] }, [plazaPremium], now)[0]
+  assert.equal(describeAccess(one.via), 'Priority Pass, 1 visit left')
+
+  const none = loungesFor({ networks: [standardPlus(10)] }, [plazaPremium], now)[0]
+  assert.equal(describeAccess(none.via), 'Priority Pass, £32 a visit — allowance used')
+  assert.equal(none.cost, PER_VISIT)
+
+  const unlimited = loungesFor({ networks: [prestige] }, [plazaPremium], now)[0]
+  assert.equal(describeAccess(unlimited.via), 'Priority Pass')
+})
+
+test('a visit you have already paid for beats one you have not', () => {
+  // Standard Plus with visits in hand: the network lounge is free today.
+  // Once the ten are gone it costs £32, which still beats a £65 walk-in but
+  // is no longer the automatic answer.
+  const spent = { statuses: [], cabin: 'economy', networks: [standardPlus(10)] }
+  const results = loungesFor(spent, [qantas, plazaPremium], now)
+
+  assert.deepEqual(results.map((r) => r.cost), [PER_VISIT, WALK_IN])
+  assert.equal(results[0].lounge.name, 'Plaza Premium Lounge')
 })
 
 test('an unknown kind of rule admits nobody', () => {
@@ -279,7 +361,7 @@ test('paying is an option but never the reason a lounge is recommended', () => {
 })
 
 test('a free route is what the card prints, even when paying is also on the list', () => {
-  const withPass = { ...david, priorityPass: true }
+  const withPass = { ...david, networks: [prestige] }
   const best = loungesFor(withPass, [plazaPremium], now)[0]
 
   assert.equal(describeAccess(best.via), 'Priority Pass')
@@ -288,7 +370,7 @@ test('a free route is what the card prints, even when paying is also on the list
 test('a lounge you can walk into beats a better one you would have to buy', () => {
   // No status, but a Priority Pass. Qantas is the better lounge and ranks
   // higher, and sending him there to pay £65 is the wrong answer.
-  const passHolder = { statuses: [], cabin: 'economy', priorityPass: true }
+  const passHolder = { statuses: [], cabin: 'economy', networks: [prestige] }
   const results = loungesFor(passHolder, [qantas, plazaPremium], now)
 
   assert.deepEqual(results.map((r) => r.lounge.name), ['Plaza Premium Lounge', 'Qantas London Lounge'])

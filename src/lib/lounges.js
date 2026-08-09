@@ -29,6 +29,29 @@ const CABIN_RANK = { first: 3, business: 2, premium_economy: 1, economy: 0 }
 const rank = (table, v) => table[String(v || '').toLowerCase().replace(/[\s-]+/g, '_')] ?? 0
 
 /**
+ * What a way in costs at the moment of using it, which is not the same
+ * question as whether you are allowed in.
+ *
+ * Priority Pass is the reason this exists. Standard membership includes no
+ * visits and charges around £32 a time; Standard Plus includes ten and then
+ * charges; Prestige is unlimited. Telling all three "you can get in" is
+ * true and useless. The eleventh visit on Standard Plus costs money, and
+ * somebody deciding between a lounge and a bar deserves to know that before
+ * they walk over.
+ */
+export const FREE = 'free'
+export const PER_VISIT = 'per_visit'
+export const WALK_IN = 'walk_in'
+const COST_ORDER = { [FREE]: 0, [PER_VISIT]: 1, [WALK_IN]: 2 }
+
+/** Visits left on a network membership, or null when there is no limit. */
+export function visitsLeft(membership) {
+  if (!membership || membership.unlimited) return null
+  if (membership.visitsIncluded == null) return null // unknown, don't invent
+  return Math.max(0, membership.visitsIncluded - (membership.visitsUsed ?? 0))
+}
+
+/**
  * Does one access rule admit this traveller, and on what?
  *
  * Returns the rule with the thing they actually hold attached, or null. The
@@ -43,7 +66,7 @@ const rank = (table, v) => table[String(v || '').toLowerCase().replace(/[\s-]+/g
  */
 export function matchAccess(rule, traveller = {}) {
   if (!rule) return null
-  const { statuses = [], cabin, airline } = traveller
+  const { statuses = [], networks = [], cabin, airline } = traveller
 
   switch (rule.via) {
     case 'alliance_tier': {
@@ -60,23 +83,31 @@ export function matchAccess(rule, traveller = {}) {
       // Alliance lounge access is earned by status but spent on an alliance
       // flight: Emerald on a low-cost carrier gets you nothing.
       if (rule.same_alliance_flight && traveller.flightAlliance !== rule.alliance) return null
-      return { ...rule, held }
+      return { ...rule, held, cost: FREE }
     }
     case 'cabin':
       return rank(CABIN_RANK, cabin) >= rank(CABIN_RANK, rule.cabin) &&
         (!rule.airline || rule.airline === airline)
-        ? { ...rule }
+        ? { ...rule, cost: FREE }
         : null
     case 'programme': {
       const held = statuses.find((s) => s.programme && s.programme === rule.programme)
-      return held ? { ...rule, held } : null
+      return held ? { ...rule, held, cost: FREE } : null
     }
-    case 'priority_pass':
-      return traveller.priorityPass ? { ...rule } : null
+    case 'network': {
+      // Priority Pass, LoungeKey, Mastercard Airport Experiences, DragonPass.
+      // Separate networks with separate lounge lists — folding them into one
+      // flag would hand somebody a confidently wrong answer at the door.
+      const held = networks.find((n) => n.network && n.network === rule.programme)
+      if (!held) return null
+      const left = visitsLeft(held)
+      return { ...rule, held, left, cost: left === 0 ? PER_VISIT : FREE }
+    }
     case 'card':
-      return (traveller.cards || []).includes(rule.programme) ? { ...rule } : null
+      return (traveller.cards || []).includes(rule.programme) ? { ...rule, cost: FREE } : null
     case 'paid':
-      return { ...rule } // always an option, just never the recommended one
+      // Always an option, just never the recommended one.
+      return { ...rule, cost: WALK_IN }
     default:
       return null
   }
@@ -131,7 +162,7 @@ function blocks(condition, traveller) {
  * The answer. Lounges this traveller can use at this airport and terminal,
  * best first, each able to say how they got in and what to watch out for.
  *
- * @param {object} traveller { statuses, cabin, airline, flightAlliance, priorityPass, cards }
+ * @param {object} traveller { statuses, networks, cabin, airline, flightAlliance, cards }
  * @param {Array}  lounges   rows with .access and .conditions attached
  */
 export function loungesFor(traveller = {}, lounges = [], now = new Date()) {
@@ -139,23 +170,29 @@ export function loungesFor(traveller = {}, lounges = [], now = new Date()) {
     .map((l) => {
       const conditions = activeConditions(l.conditions, now)
       const ways = (l.access || []).map((r) => matchAccess(r, traveller)).filter(Boolean)
-      // Paid entry is a fallback, never a reason to recommend somewhere. Of
-      // the free routes, name the most generous one — the same door, but the
-      // one that brings a guest in with you.
-      const free = ways
-        .filter((r) => r.via !== 'paid')
-        .sort((a, b) => (b.guests ?? 0) - (a.guests ?? 0))
+      // Cheapest route first, and within a price the most generous one — the
+      // same door, but the one that brings a guest in with you.
+      const sorted = [...ways].sort(
+        (a, b) => COST_ORDER[a.cost] - COST_ORDER[b.cost] || (b.guests ?? 0) - (a.guests ?? 0)
+      )
+      const via = sorted[0] || null
+      const atThatPrice = sorted.filter((r) => r.cost === via?.cost)
       const blocked = conditions.find((c) => blocks(c, traveller))
+      // Somewhere reported rammed is not somewhere to send anyone without
+      // saying so. David has stood in that queue; it does not get hidden.
+      const busy = conditions.find((c) => !c.stale && c.kind === 'capacity') || null
       return {
         lounge: l,
         ways,
-        // The sentence the card prints: how you're getting in.
-        via: free[0] || ways[0] || null,
-        guests: Math.max(0, ...free.map((r) => r.guests ?? 0)),
+        // The sentence the card prints: how you're getting in, and what for.
+        via,
+        cost: via?.cost || null,
+        guests: Math.max(0, ...atThatPrice.map((r) => r.guests ?? 0)),
         conditions,
         blocked: blocked || null,
+        busy,
         eligible: ways.length > 0,
-        free: free.length > 0,
+        free: via?.cost === FREE,
       }
     })
     .filter((r) => r.eligible)
@@ -164,13 +201,17 @@ export function loungesFor(traveller = {}, lounges = [], now = new Date()) {
       // however good it is on an ordinary week.
       if (Boolean(a.blocked) !== Boolean(b.blocked)) return a.blocked ? 1 : -1
       // A lounge you can walk into beats a better one you'd have to buy your
-      // way into. The best lounge in the terminal is not the answer to
-      // "where should I go" if the answer costs £110.
-      if (a.free !== b.free) return a.free ? -1 : 1
-      // Then editorial judgement, which is the whole point of the dataset.
-      return (a.lounge.rank ?? 99) - (b.lounge.rank ?? 99)
+      // way into, and a membership visit you've already paid for beats both
+      // a per-visit charge and a walk-in rate.
+      if (a.cost !== b.cost) return COST_ORDER[a.cost] - COST_ORDER[b.cost]
+      // Then editorial judgement, with a thumb on the scale for being packed.
+      // Not a demotion to the bottom — a busy great lounge can still beat a
+      // quiet mediocre one — but enough to break a close call.
+      return score(a) - score(b)
     })
 }
+
+const score = (r) => (r.lounge.rank ?? 99) + (r.busy ? 2 : 0)
 
 /** The one to actually go to, or null when there isn't one. */
 export function bestLounge(traveller, lounges, now = new Date()) {
@@ -190,8 +231,17 @@ export function describeAccess(way) {
       return `${way.cabin[0].toUpperCase()}${way.cabin.slice(1)} class`
     case 'programme':
       return way.programme
-    case 'priority_pass':
-      return 'Priority Pass'
+    case 'network': {
+      // The honest version. "Priority Pass" alone lets somebody walk over
+      // expecting it to be free when it is about to cost them £32.
+      const { programme, held, left } = way
+      if (left === 0) {
+        const fee = held?.guestFee || held?.visitFee
+        return fee ? `${programme}, ${fee} a visit — allowance used` : `${programme} — allowance used`
+      }
+      if (left != null) return `${programme}, ${left} visit${left === 1 ? '' : 's'} left`
+      return programme
+    }
     case 'card':
       return way.programme
     case 'paid':
