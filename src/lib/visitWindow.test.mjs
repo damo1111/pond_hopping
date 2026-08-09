@@ -97,3 +97,25 @@ test('two overlapping trips are named without running on', () => {
   assert.match(s.note, /Lisbon and Porto/)
   assert.doesNotMatch(s.note, /Sintra/)
 })
+
+test('a trip started on the spot is one the recorder will actually act on', () => {
+  // The shape StartNow creates: today, no end date, confirmed. It was a
+  // draft, which meant the one route built to start recording created
+  // precisely the kind of trip the recorder ignores — consent granted,
+  // nothing noted, no error anywhere.
+  const started = [{ title: 'Trip from 10 Aug', start_date: '2026-08-10', end_date: null, status: 'confirmed' }]
+  const now = Date.parse('2026-08-10T09:00:00Z')
+
+  assert.equal(shouldRecord({ consented: true, trips: started, now }), true)
+  assert.equal(nextAction({ consented: true, enabled: false, trips: started, now }), 'start')
+
+  // And the reason drafts are excluded, still holding.
+  const sketch = [{ ...started[0], status: 'draft' }]
+  assert.equal(shouldRecord({ consented: true, trips: sketch, now }), false)
+})
+
+test('an open-ended trip stops being a reason eventually', () => {
+  const started = [{ title: 'The Voyage', start_date: '2026-08-10', end_date: null, status: 'confirmed' }]
+  const later = Date.parse('2026-08-10T00:00:00Z') + (OPEN_ENDED_DAYS + 5) * 86400000
+  assert.equal(shouldRecord({ consented: true, trips: started, now: later }), false)
+})

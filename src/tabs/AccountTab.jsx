@@ -407,9 +407,9 @@ function TimelineCard() {
     <div className="account-card">
       <div className="account-card-title">Places on your trips</div>
       <div className="account-card-body">
-        Notes where you stop and how long you stayed, so each day of a trip gets its own map without
-        you logging anything. It runs while you're away and stops when you're home — there's nothing
-        to remember to switch off. Nobody else can see it, not even people you've shared a trip with.
+        Notes where you stop, so each day of a trip gets its own map without you writing anything
+        down. It runs on the days a trip covers and not otherwise — nothing to switch off. Yours
+        alone: not people you share a trip with, not a shopfront link.
       </div>
 
       {blocked ? (

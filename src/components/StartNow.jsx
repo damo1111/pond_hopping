@@ -44,7 +44,17 @@ export default function StartNow({ onDone, onClose }) {
         start_date: today(),
         end_date: null,
         countries: [],
-        status: 'draft',
+        // Confirmed, not a draft, and this is load-bearing rather than
+        // tidiness. The recorder is driven from the confirmed trips and
+        // ignores drafts outright — a draft is a plan, and following
+        // somebody around because they once sketched an idea would be
+        // indefensible. So a draft here would have made the one route built
+        // to start recording create exactly the kind of trip the recorder
+        // will not act on, and nothing would have been noted at all.
+        //
+        // It is also just true. You are not planning this trip. You are on
+        // it.
+        status: 'confirmed',
         sort_order: 0,
       })
       .select('id,title')
