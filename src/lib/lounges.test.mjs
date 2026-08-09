@@ -257,8 +257,83 @@ test('a rule asking for Sapphire is satisfied by an Emerald, but not the other w
 })
 
 test('status in one alliance does not open another alliance"s door', () => {
-  const rule = { via: 'alliance_tier', alliance: 'star', tier: 'gold' }
+  const rule = { via: 'alliance_tier', alliance: 'staralliance', tier: 'gold' }
   assert.equal(admits(rule, david), false)
+})
+
+// ---------------------------------------------------------------------------
+// Three alliances at once. David holds BA Gold and Qantas Platinum (both
+// oneworld Emerald), Singapore top tier (Star Alliance Gold) and Flying Blue
+// Platinum (SkyTeam Elite Plus) — which is where the tier ladder earns its
+// keep, because "Platinum" means two different things in that list.
+// ---------------------------------------------------------------------------
+
+const davidEverything = {
+  statuses: [
+    { programme: 'British Airways Executive Club', alliance: 'oneworld', tier: 'emerald' },
+    { programme: 'Qantas Frequent Flyer', alliance: 'oneworld', tier: 'emerald' },
+    { programme: 'Singapore Airlines KrisFlyer', alliance: 'staralliance', tier: 'gold' },
+    { programme: 'Flying Blue', alliance: 'skyteam', tier: 'elite_plus' },
+  ],
+  cabin: 'economy',
+}
+
+const tapLounge = {
+  name: 'TAP Premium Lounge',
+  rank: 2,
+  access: [
+    { via: 'alliance_tier', alliance: 'staralliance', tier: 'gold', same_alliance_flight: true, guests: 1 },
+    { via: 'cabin', cabin: 'business', airline: 'TP' },
+  ],
+  conditions: [],
+}
+
+// Colombo's Araliya: a shared contract lounge, so the rule names no alliance.
+const sharedLounge = {
+  name: 'Araliya Lounge',
+  rank: 2,
+  access: [{ via: 'alliance_tier', tier: 'sapphire', guests: 1 }],
+  conditions: [],
+}
+
+test('the right card is played for the flight he is actually on', () => {
+  const onSQ = { ...davidEverything, airline: 'SQ', flightAlliance: 'staralliance' }
+  const onAY = { ...davidEverything, airline: 'AY', flightAlliance: 'oneworld' }
+
+  // Star Gold gets him into TAP's lounge; his Emerald is no use on SQ metal,
+  // where the oneworld lounges are reduced to somewhere he could buy into.
+  assert.equal(loungesFor(onSQ, [tapLounge], now)[0].lounge.name, 'TAP Premium Lounge')
+  assert.deepEqual(
+    loungesFor(onSQ, [cathayFirst, qantas], now).map((r) => r.cost),
+    [WALK_IN]
+  )
+
+  // And the other way round.
+  assert.equal(loungesFor(onAY, [tapLounge], now).length, 0)
+  assert.equal(bestLounge(onAY, [cathayFirst, qantas], now).lounge.name, cathayFirst.name)
+})
+
+test('a shared lounge admits the top tier of any of the three alliances', () => {
+  // The band these lounges publish is "Star Gold, oneworld Sapphire or
+  // SkyTeam Elite Plus" — one rule, three ladders, and all three must clear
+  // it. Star Gold ranking below Emerald is what makes that come out right.
+  for (const alliance of ['oneworld', 'staralliance', 'skyteam']) {
+    const only = { ...davidEverything, statuses: davidEverything.statuses.filter((s) => s.alliance === alliance) }
+    assert.equal(loungesFor(only, [sharedLounge], now).length, 1, alliance)
+  }
+  // A mid tier does not.
+  assert.equal(
+    loungesFor({ statuses: [{ alliance: 'staralliance', tier: 'silver' }] }, [sharedLounge], now).length,
+    0
+  )
+})
+
+test('Star Gold is a business lounge tier, not a first lounge one', () => {
+  // Star Alliance has no Emerald equivalent. Ranking Gold as top-of-ladder
+  // would quietly hand out first lounge access that does not exist.
+  const starTop = { statuses: [{ alliance: 'staralliance', tier: 'gold' }], flightAlliance: 'staralliance' }
+  assert.equal(admits({ via: 'alliance_tier', tier: 'emerald' }, starTop), false)
+  assert.equal(admits({ via: 'alliance_tier', tier: 'sapphire' }, starTop), true)
 })
 
 test('status is earned in the programme but spent on the flight', () => {
@@ -385,6 +460,21 @@ test('when everything costs, the best paid lounge is still the answer', () => {
 test('guests come from the best free route, not from the paid one', () => {
   const amex = { statuses: [], cards: ['Amex Platinum'] }
   assert.equal(loungesFor(amex, [plazaPremium], now)[0].guests, 1)
+})
+
+test('the alliances get their own names, and no card just says "Emerald"', () => {
+  // A shared lounge's rule names no alliance, so the sentence has to come
+  // from the card being played, not from the door.
+  const onSQ = { ...davidEverything, airline: 'SQ', flightAlliance: 'staralliance' }
+  const onUL = { ...davidEverything, airline: 'UL', flightAlliance: 'oneworld' }
+
+  assert.equal(describeAccess(loungesFor(onSQ, [sharedLounge], now)[0].via), 'Star Alliance Gold')
+  assert.equal(describeAccess(loungesFor(onUL, [sharedLounge], now)[0].via), 'oneworld Emerald')
+
+  // Even though Emerald outranks Star Gold, on SQ metal it is the Star card
+  // the desk will take — the higher one in the wallet is the wrong answer.
+  const skyteamOnly = { statuses: [{ alliance: 'skyteam', tier: 'elite_plus' }], flightAlliance: 'skyteam' }
+  assert.equal(describeAccess(loungesFor(skyteamOnly, [sharedLounge], now)[0].via), 'SkyTeam Elite Plus')
 })
 
 test('every way in can say what it is', () => {

@@ -15,13 +15,28 @@
 // Everything here is pure. The data comes from Supabase; the judgement lives
 // in the rows, not in the code.
 
-// oneworld's tiers in the order they unlock things. Ruby gets you business
-// lounges on some airlines, Sapphire reliably, Emerald gets first lounges.
-// Star Alliance and SkyTeam have their own words for the same ladder.
+// The tiers, ranked by what they open rather than by how senior they sound.
+//
+// oneworld has three: Ruby gets business lounges on some airlines, Sapphire
+// reliably, Emerald adds first lounges. Star Alliance and SkyTeam have two
+// each and no first-lounge tier at all — Star Gold and SkyTeam Elite Plus are
+// the top of their ladders and still only reach a business lounge.
+//
+// So Star Gold sits at 2 alongside Sapphire, not at 3 alongside Emerald, and
+// that is deliberate: it looks like a demotion and is actually the truth
+// about what the card gets you at a door. Rules that name an alliance only
+// ever compare within it, so the ranking matters for shared lounges — the
+// ones that admit "Star Gold, oneworld Sapphire or SkyTeam Elite Plus" — and
+// there this lines all three up correctly.
+//
+// Programme tiers are mapped to alliance tiers at capture, not here: British
+// Airways Gold and Qantas Platinum are both Emerald, and Flying Blue Platinum
+// is Elite Plus. Storing "platinum" and hoping would be a coin toss.
 const TIER_RANK = {
   emerald: 3, sapphire: 2, ruby: 1,        // oneworld
-  gold: 2, silver: 1,                       // Star Alliance, SkyTeam Elite Plus ≈ gold
-  platinum: 3, elite_plus: 2, elite: 1,     // programme-specific, mapped on the way in
+  gold: 2, silver: 1,                       // Star Alliance
+  elite_plus: 2, elite: 1,                  // SkyTeam
+  platinum: 3,                              // legacy rows captured before the mapping
 }
 
 const CABIN_RANK = { first: 3, business: 2, premium_economy: 1, economy: 0 }
@@ -71,14 +86,21 @@ export function matchAccess(rule, traveller = {}) {
   switch (rule.via) {
     case 'alliance_tier': {
       // Best card in the wallet, not the first one found: somebody can hold
-      // Sapphire with one airline and Emerald with another.
+      // Sapphire with one airline and Emerald with another. On a shared
+      // lounge's rule — which names no alliance — the card that matches the
+      // flight wins even if a higher one is in the wallet, because that is
+      // the one the desk will accept.
       const held = statuses
         .filter(
           (s) =>
             (!rule.alliance || s.alliance === rule.alliance) &&
             rank(TIER_RANK, s.tier) >= rank(TIER_RANK, rule.tier)
         )
-        .sort((a, b) => rank(TIER_RANK, b.tier) - rank(TIER_RANK, a.tier))[0]
+        .sort(
+          (a, b) =>
+            (b.alliance === traveller.flightAlliance) - (a.alliance === traveller.flightAlliance) ||
+            rank(TIER_RANK, b.tier) - rank(TIER_RANK, a.tier)
+        )[0]
       if (!held) return null
       // Alliance lounge access is earned by status but spent on an alliance
       // flight: Emerald on a low-cost carrier gets you nothing.
@@ -218,14 +240,33 @@ export function bestLounge(traveller, lounges, now = new Date()) {
   return loungesFor(traveller, lounges, now).find((r) => !r.blocked) || null
 }
 
+// How the alliances write their own names. oneworld is deliberately
+// lowercase; Star Alliance and SkyTeam are not one word.
+const ALLIANCE_NAME = {
+  oneworld: 'oneworld',
+  staralliance: 'Star Alliance',
+  star_alliance: 'Star Alliance',
+  skyteam: 'SkyTeam',
+}
+
+// emerald → Emerald, elite_plus → Elite Plus.
+const titleCase = (s) =>
+  String(s)
+    .split('_')
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(' ')
+
 /** "oneworld Emerald", "Business class", "Qantas Club" — how you got in. */
 export function describeAccess(way) {
   if (!way) return null
   switch (way.via) {
     case 'alliance_tier': {
-      // What they hold, falling back to what the door asks for.
+      // What they hold, falling back to what the door asks for. A shared
+      // lounge's rule names no alliance, so take it from the card being
+      // played — "Emerald" on its own is not something anyone says.
       const tier = way.held?.tier || way.tier
-      return [way.alliance, tier && tier[0].toUpperCase() + tier.slice(1)].filter(Boolean).join(' ')
+      const alliance = way.held?.alliance || way.alliance
+      return [ALLIANCE_NAME[alliance] || alliance, tier && titleCase(tier)].filter(Boolean).join(' ')
     }
     case 'cabin':
       return `${way.cabin[0].toUpperCase()}${way.cabin.slice(1)} class`
