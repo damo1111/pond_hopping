@@ -154,7 +154,6 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false
-    const started = Date.now()
 
     // The boot screen is a flourish, not a loading gate, so it comes off on
     // a timer and nothing else. It used to wait for the trip list, which
@@ -175,6 +174,29 @@ export default function App() {
       setBootLeaving(true)
       setTimeout(() => !cancelled && setBooting(false), 550)
     }, minBoot)
+
+    return () => {
+      cancelled = true
+      clearTimeout(leave)
+    }
+  }, [])
+
+  // Load the trips, and load them again when the session arrives.
+  //
+  // Restoring a session is asynchronous. This used to run once at mount,
+  // which on a cold start is a race it usually lost: the read went out
+  // before the token existed, PostgREST answered it as an anonymous
+  // request, and RLS quite correctly returned only the public trips. The
+  // list then never refetched, so somebody who had just signed in was
+  // looking at one demo trip and sixteen of their own missing — with no
+  // error, because nothing had actually failed.
+  //
+  // Keyed on the signed-in id, so signing in refetches and signing out
+  // falls back to the public set. The first anonymous read is deliberate
+  // rather than a cost: a fresh install shows a globe full of real
+  // journeys instead of an empty state.
+  useEffect(() => {
+    let cancelled = false
 
     async function load() {
       try {
@@ -202,9 +224,8 @@ export default function App() {
     load()
     return () => {
       cancelled = true
-      clearTimeout(leave)
     }
-  }, [])
+  }, [user?.id])
 
   // Carry the selected trip's globe accent colour through to every other
   // tab as a CSS var, so section headers etc. can echo it without each
@@ -355,6 +376,13 @@ export default function App() {
     () => ({
       tripMeta: shownTrips,
       allTrips: tripMeta,
+      // Who is asking, for tabs to put in a dependency array. Restoring a
+      // session is asynchronous, so any read fired at mount goes out before
+      // the token exists and comes back answered as an anonymous request —
+      // silently, because nothing failed. Every tab that reads private rows
+      // keys on this so signing in refetches. Handed down here rather than
+      // through useAuth in each tab so the next one written gets it for free.
+      userId: user?.id ?? null,
       introOpen: showIntro,
       demoPref,
       setDemoPref: (v) => {
@@ -390,7 +418,7 @@ export default function App() {
         }
       },
     }),
-    [tripMeta, shownTrips, demoPref, showIntro, tripsLoaded, selectedTrip, journalJump, plannerJump]
+    [tripMeta, shownTrips, demoPref, showIntro, tripsLoaded, selectedTrip, journalJump, plannerJump, user?.id]
   )
 
   // Public read-only share page — no nav, no forms.

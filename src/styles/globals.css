@@ -8052,8 +8052,18 @@ button {
 
 /* The way out sits under the way in, not against it. Without this the ghost
    button rides up on the CTA card's own edge and the two read as one
-   control. */
-.routes-sheet > .account-btn.ghost { margin-top: 16px; }
+   control.
+   16px was measured against the card's own padding and still read as cramped
+   on a tablet, where everything around it is further apart — two bordered
+   edges a thumb's width apart look like a mistake at that size. */
+.routes-sheet > .account-btn.ghost { margin-top: 26px; }
+
+/* The same problem wherever a sheet puts its escape hatch straight after its
+   primary action. On the sign-in screen "Verify & sign in" and "Use a
+   different email" were touching, with no gap at all, so the pair read as one
+   two-storey button. Scoped to the adjacent pair, so it cannot reach a button
+   that already has spacing of its own. */
+.ios-sheet .ios-sheet-done + .account-btn.ghost { margin-top: 18px; }
 
 .route {
   display: flex;
@@ -8248,6 +8258,23 @@ button {
 }
 
 .track-card.compact { margin-top: 16px; }
+
+/* "You're off on Friday" — the line that turns a general offer into one
+   about this trip, sitting directly on top of it. The card below already
+   carries the border, so this only needs the sentence. */
+.going-soon { margin-top: 4px; }
+
+.going-soon-line {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.going-soon-line b { color: var(--text); font-weight: 600; }
+
+/* Straight under its own sentence, not floating 16px below it. */
+.going-soon .track-card.compact { margin-top: 8px; }
 
 .track-title { font-size: 15px; margin-bottom: 5px; }
 

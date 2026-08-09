@@ -50,15 +50,34 @@ function FlapChar({ target, delay }) {
   return <span className={`flap-char${spin ? ' spin' : ''}`}>{display}</span>
 }
 
+// How long the sheet takes to arrive: transform 0.22s, plus a frame or two
+// to be sure it has stopped moving before sixty characters start flicking.
+const SHEET_SETTLE_MS = 280
+
 // A "nod to" a physical split-flap departures board: each character flicks
 // through a few random glyphs before settling, staggered left to right.
+//
+// The board always runs. It is the thing people remember about this app, and
+// a flourish that only happens somewhere is not a signature, it is a bug with
+// good manners.
 export default function FlapText({ text, className, groupDelay = 0, stagger = 16 }) {
   // Four flight cards is about sixty flapping characters, each firing six or
   // seven state updates over a second — nine hundred renders landing exactly
   // while a sheet is trying to slide, and reading as SOY → CXU while they do.
-  // Charming on the Flights tab. In a sheet it is the jank.
+  //
+  // That used to mean sheets got no board at all. Waiting is enough: hold the
+  // plain text while the sheet travels, then let it flap once it has landed,
+  // which is what a real board does anyway — sits still, then turns over.
   const inSheet = useContext(SheetContext)
-  if (inSheet) return <span className={className}>{text}</span>
+  const [settled, setSettled] = useState(!inSheet)
+
+  useEffect(() => {
+    if (settled) return undefined
+    const t = setTimeout(() => setSettled(true), SHEET_SETTLE_MS)
+    return () => clearTimeout(t)
+  }, [settled])
+
+  if (!settled) return <span className={className}>{text}</span>
 
   return (
     <span className={className}>

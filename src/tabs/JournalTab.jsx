@@ -159,7 +159,7 @@ function AddEntry({ tripMeta, selectedTrip, onSaved }) {
 }
 
 export default function JournalTab() {
-  const { tripMeta, selectedTrip, journalJump, clearJournalJump } = useContext(TripContext)
+  const { tripMeta, selectedTrip, journalJump, clearJournalJump, userId } = useContext(TripContext)
   const [entries, setEntries] = useState(null)
   const [reload, setReload] = useState(0)
 
@@ -173,7 +173,10 @@ export default function JournalTab() {
     return () => {
       alive = false
     }
-  }, [reload])
+    // Keyed on userId because restoring a session is asynchronous: a read
+    // fired at mount goes out before the token exists, comes back answered
+    // as an anonymous request, and this loaded empty and never tried again.
+  }, [reload, userId])
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
 

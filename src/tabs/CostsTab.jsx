@@ -100,7 +100,7 @@ function AddCost({ tripMeta, selectedTrip, onSaved }) {
 }
 
 export default function CostsTab() {
-  const { tripMeta, selectedTrip } = useContext(TripContext)
+  const { tripMeta, selectedTrip, userId } = useContext(TripContext)
   const [costs, setCosts] = useState(null)
   const [reload, setReload] = useState(0)
 
@@ -114,7 +114,10 @@ export default function CostsTab() {
     return () => {
       alive = false
     }
-  }, [reload])
+    // Keyed on userId because restoring a session is asynchronous: a read
+    // fired at mount goes out before the token exists, comes back answered
+    // as an anonymous request, and this loaded empty and never tried again.
+  }, [reload, userId])
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
 

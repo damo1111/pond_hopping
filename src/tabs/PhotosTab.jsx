@@ -103,7 +103,7 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
 }
 
 export default function PhotosTab() {
-  const { tripMeta, selectedTrip, setSelectedTrip } = useContext(TripContext)
+  const { tripMeta, selectedTrip, setSelectedTrip, userId } = useContext(TripContext)
   const [photos, setPhotos] = useState(null)
   const [covers, setCovers] = useState({})
   const [reload, setReload] = useState(0)
@@ -132,7 +132,10 @@ export default function PhotosTab() {
     return () => {
       alive = false
     }
-  }, [reload])
+    // Keyed on userId because restoring a session is asynchronous: a read
+    // fired at mount goes out before the token exists, comes back answered
+    // as an anonymous request, and this loaded empty and never tried again.
+  }, [reload, userId])
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
 

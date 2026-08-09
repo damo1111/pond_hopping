@@ -62,7 +62,11 @@ export default function FlightsTab() {
     return () => {
       alive = false
     }
-  }, [reloads])
+    // Keyed on the signed-in id as well as the reload counter: restoring a
+    // session is asynchronous, and a read that goes out before the token
+    // exists is answered as an anonymous one. Without this the tab loads
+    // empty on a cold start and never tries again.
+  }, [reloads, user?.id])
 
   if (reviewing)
     return <FlightTriage onClose={() => setReviewing(false)} onChanged={() => setReloads((n) => n + 1)} />
