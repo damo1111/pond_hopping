@@ -28,6 +28,30 @@ Code identifiers are exempt and should stay as they are: `user` is the
 Supabase auth object, `user_id` is a column, and renaming those buys nothing
 and breaks plenty.
 
+## Store builds are cut on purpose, never as a side effect
+
+David, 10 Aug, after App Store Connect rejected a build for hitting the
+upload limit: "We need to stop pushing every single change live!!"
+
+**The web deploys on every merge. The apps do not.**
+
+- **Web (pond.eend.app)** — Vercel, on every merge to `main`. Free,
+  instant, and where the testing actually happens. Unchanged.
+- **Android** — `.github/workflows/android.yml` is `workflow_dispatch`
+  only. Actions → Build Android APK → Run workflow. It used to fire on
+  every push to `main`, so a button colour cut a build, bumped the version,
+  uploaded to Play internal testing and mailed everybody about it.
+- **iOS** — Xcode Cloud, whose start condition lives in App Store Connect
+  and **not in this repo** (`ci_scripts/ci_post_clone.sh` is only the build
+  step). Xcode Cloud skips a commit whose message contains `[ci skip]`, so
+  **put `[ci skip]` in the squash-merge title of any change that is not a
+  release**. The durable fix is the workflow's start condition in App Store
+  Connect being set to Manual, which is David's to change.
+
+Apple's upload limits are per day, so churn spends a budget that a real
+release then cannot have. When a build is genuinely wanted, say so and cut
+one — that is a decision, not a side effect of tidying CSS.
+
 ## Design system — use these exactly, no Tailwind
 
 Defined in `src/styles/globals.css`:

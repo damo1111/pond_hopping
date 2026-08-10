@@ -2,23 +2,25 @@ name: Build Android APK
 
 # This sandbox can't reach Google's Android Maven/SDK servers, so the APK
 # is built here on GitHub's runners instead — they have the Android SDK
-# preinstalled and full internet. Every push (or a manual run) produces a
-# sideloadable debug APK you download from the run's Artifacts. No Android
-# Studio, no Mac, nothing to install locally.
+# preinstalled and full internet. A run produces a sideloadable debug APK
+# from the run's Artifacts, and publishes an AAB to Play internal testing.
+#
+# Started by hand, not by pushing.
+#
+# It used to run on every push to main, which meant every merge — a button
+# colour, a line of CSS — cut a new build, bumped the version, uploaded to
+# Play internal testing and mailed everybody about it. Almost none of that
+# was a release anybody wanted, and the store-side upload limits are per
+# day, so the churn spends a budget that a real release then can't have.
+#
+# The web app is unaffected: pond.eend.app still deploys from Vercel on
+# every merge, which is free, instant and where the testing actually
+# happens. This is only about cutting store builds, which is a decision
+# rather than a side effect.
+#
+# To cut one: Actions → Build Android APK → Run workflow.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'android/**'
-      - 'src/**'
-      - 'public/**'
-      - 'index.html'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'capacitor.config.json'
-      - 'vite.config.js'
-      - '.github/workflows/android.yml'
 
 jobs:
   build:
