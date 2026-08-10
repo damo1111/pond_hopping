@@ -136,3 +136,37 @@ test('and still settles the museum among the dry cleaners', () => {
   assert.equal(verdict, 'settled')
   assert.equal(place.name, 'Galleria Borghese')
 })
+
+test('a square beats the obelisk standing in it', () => {
+  // Rome, 24 January, 18:25–19:59 at 41.8986,12.4732. This came back as
+  // "Obelisco Agonalis" — an obelisk — when the honest answer to where
+  // somebody spent an hour and a half is Piazza Navona.
+  const { verdict, place } = pickPlace(stop(94), [
+    c('Obelisco Agonalis', 37, 'Monument'),
+    c('Fountain of the Four Rivers', 45, 'Fountain'),
+    c('Fontana del Moro', 51, 'Fountain'),
+    c('Piazza Navona', 63, 'Plaza'),
+  ])
+  assert.equal(verdict, 'settled')
+  assert.equal(place.name, 'Piazza Navona')
+})
+
+test('but a square with somewhere to eat in it still goes to the photograph', () => {
+  // Largo di Torre Argentina, half an hour at dinner time. The plaza is
+  // there, but so are two pizzerias, and "the plaza" is not where he ate.
+  // This is the same shape as Borough Market and must behave the same way.
+  const { verdict } = pickPlace(stop(31), [
+    c('Area Sacra', 31, 'Monument'),
+    c('Largo di Torre Argentina', 39, 'Plaza'),
+    c('Alice Pizza', 47, 'Pizzeria'),
+    c('Rossopomodoro', 51, 'Pizzeria'),
+  ])
+  assert.equal(verdict, 'ambiguous')
+})
+
+test('a fountain on its own is still the fountain', () => {
+  // No square anywhere near it — the rule must not invent a container.
+  const { verdict, place } = pickPlace(stop(30), [c('Fontana dell’Acqua Paola', 47, 'Fountain')])
+  assert.equal(verdict, 'settled')
+  assert.equal(place.name, 'Fontana dell’Acqua Paola')
+})

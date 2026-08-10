@@ -41,6 +41,43 @@ const DESTINATIONS = [
 
 const isDestination = (c) => DESTINATIONS.some((w) => `${c?.category ?? ''}`.toLowerCase().includes(w))
 
+// A square is a place; the obelisk in the middle of it is furniture.
+//
+// Rome, 24 January, an hour and a half in the evening at 41.8986,12.4732.
+// Inside the fix: an obelisk, the Fountain of the Four Rivers and the
+// Fontana del Moro. The answer came back "Obelisco Agonalis", because the
+// obelisk is a monument, the word list knows "monument", and it happened to
+// be nearest. Piazza Navona — which is what all three of those things are
+// standing in — sat three metres outside CLOSE_M and was never considered.
+//
+// The rule below: something you can be *inside* wins over the things it
+// contains, but only when everything at the point is a feature of it.
+const CONTAINERS = ['plaza', 'square', 'park', 'garden', 'piazza']
+const FEATURES = ['monument', 'fountain', 'statue', 'obelisk', 'historic', 'landmark', 'memorial']
+
+const said = (c) => `${c?.category ?? ''}`.toLowerCase()
+const isContainer = (c) => CONTAINERS.some((w) => said(c).includes(w))
+const isFeature = (c) => FEATURES.some((w) => said(c).includes(w))
+
+/** How far out to look for the thing the features are standing in. A square
+ *  is measured to its centre, so you can be well inside it and still be
+ *  further from that centre than from the fountain you are next to. */
+export const CONTAINER_M = 120
+
+/**
+ * The square these things are standing in, if that is all they are.
+ *
+ * Deliberately narrow. If anything at the point is somewhere you go into —
+ * a stall, a restaurant, a bar — this returns nothing and the stop goes to
+ * the photograph, which is the whole design: Borough Market has to stay a
+ * question about which stall, not get flattened to "Borough Market".
+ */
+function containing(inside, near) {
+  if (!inside.length || !inside.every(isFeature)) return null
+  const found = near.find((n) => isContainer(n) && n.metres <= CONTAINER_M)
+  return found && !inside.includes(found) ? found : null
+}
+
 /**
  * What to do about one stop.
  *
@@ -68,6 +105,10 @@ export function pickPlace(stop = {}, candidates = []) {
       ? { verdict: 'settled', place: near[0], shortlist: [], why: 'the only thing nearby' }
       : { verdict: 'nowhere', place: null, shortlist: [], why: 'nothing close enough to name' }
   }
+
+  // Everything here is furniture, and there is a square for it to stand in.
+  const square = containing(inside, near)
+  if (square) return { verdict: 'settled', place: square, shortlist: [], why: 'the square they are all standing in' }
 
   if (inside.length === 1)
     return { verdict: 'settled', place: inside[0], shortlist: [], why: 'the only thing here' }
