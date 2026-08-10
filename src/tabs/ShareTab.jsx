@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from 'react'
 import { TripContext } from '../App.jsx'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
+import { siteOrigin } from '../lib/siteOrigin.js'
 
 // One link to the whole log, rather than one per trip.
 //
@@ -50,7 +51,7 @@ function ShowcaseLinks() {
     await load()
   }
 
-  const urlFor = (t) => `${window.location.origin}/?showcase=${t}`
+  const urlFor = (t) => `${siteOrigin()}/?showcase=${t}`
 
   async function copy(t) {
     try {
@@ -131,7 +132,7 @@ export default function ShareTab() {
   const [copied, setCopied] = useState(false)
 
   const show = SECTIONS.filter((s) => on[s.id]).map((s) => s.id)
-  const url = `${window.location.origin}/?share=${trip}&show=${show.join(',')}`
+  const url = `${siteOrigin()}/?share=${trip}&show=${show.join(',')}`
 
   async function copy() {
     try {
