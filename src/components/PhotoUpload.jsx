@@ -54,6 +54,11 @@ export default function PhotoUpload({ trip, trips = [], traveler = null, onDone 
   const [rows, setRows] = useState(null)
   const [plan, setPlan] = useState(null)
   const [phase, setPhase] = useState('idle') // idle | reading | plan | running | done
+  // Asked here rather than set once in Settings, because this is the moment
+  // somebody knows the answer: these are the photographs of Japan, or they
+  // are a work night in Sydney. Off unless asked — the whole point of
+  // shrinking is that uploading originals on hotel wifi is miserable.
+  const [keepOriginals, setKeepOriginals] = useState(false)
   const [error, setError] = useState(null)
 
   async function pick(e) {
@@ -116,6 +121,7 @@ export default function PhotoUpload({ trip, trips = [], traveler = null, onDone 
         const results = await ingest(files, {
           tripId,
           traveler,
+          keepOriginals,
           onProgress: (_i, _r, batch) => setRows([...all, ...batch]),
         })
         all.push(...results)
@@ -174,6 +180,21 @@ export default function PhotoUpload({ trip, trips = [], traveler = null, onDone 
               </select>
             </div>
           ))}
+
+          <label className="pu-keep">
+            <input
+              type="checkbox"
+              checked={keepOriginals}
+              onChange={(e) => setKeepOriginals(e.target.checked)}
+            />
+            <span>
+              Keep the full-size originals
+              <em>
+                Held on this phone until you send them from Account. The app uploads shrunk copies
+                either way.
+              </em>
+            </span>
+          </label>
 
           {making > 0 && (
             <div className="pu-plan-note">
