@@ -8,6 +8,7 @@ import {
   asAsked,
   batches,
   confirmed,
+  couldNotSay,
   howFar,
   needsLooking,
   stillAsking,
@@ -15,6 +16,44 @@ import {
   theirWords,
   whatItCosts,
 } from '../lib/storyRun.js'
+
+/** One question, answered in words.
+ *
+ *  Typing is the main path and the buttons are the way out of it: "I can't
+ *  remember" is a real answer and is recorded as one, so the writing admits
+ *  the gap instead of inventing something to fill it. */
+function Ask({ q, onAnswer }) {
+  const [said, setSaid] = useState('')
+  const [sending, setSending] = useState(false)
+
+  async function send(over) {
+    setSending(true)
+    await onAnswer(q, over ?? { said: said.trim() })
+    setSending(false)
+  }
+
+  return (
+    <div className="story-ask">
+      <div className="story-q">{q.asks}</div>
+      {q.because && <div className="story-because">{q.because}</div>}
+      <textarea
+        className="story-say"
+        rows={2}
+        placeholder="However much or little you remember…"
+        value={said}
+        onChange={(e) => setSaid(e.target.value)}
+      />
+      <div className="story-buttons">
+        <button className="story-said" disabled={!said.trim() || sending} onClick={() => send()}>
+          {sending ? 'saving…' : 'that was it'}
+        </button>
+        <button disabled={sending} onClick={() => send({ verdict: 'unsure' })}>
+          can't remember
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // The story of a trip, made in three stages, with a question in the middle.
 //
@@ -269,7 +308,14 @@ export default function TripStory({ trip, photos = [] }) {
     const written = await post(
       'write-trip',
       {
-        reconstruction: { ...worked, answered: confirmed(questions) },
+        reconstruction: {
+          ...worked,
+          // What they told us outranks everything else in here.
+          answered: confirmed(questions),
+          // And what they were asked but could not say, so a gap is admitted
+          // rather than filled.
+          could_not_say: couldNotSay(questions),
+        },
         theirs: theirWords(entries),
         voice: learnVoice ? entries.filter((e) => !e.built_from).map((e) => e.note).filter(Boolean) : [],
       },
@@ -282,12 +328,22 @@ export default function TripStory({ trip, photos = [] }) {
     setRefresh((n) => n + 1)
   }
 
-  async function answer(q, said) {
-    await supabase
-      .from('story_questions')
-      .update({ answer: said, answered_at: new Date().toISOString() })
-      .eq('id', q.id)
-    setQuestions((all) => all.map((x) => (x.id === q.id ? { ...x, answer: said, answered_at: 'now' } : x)))
+  // An open question deserves an open answer.
+  //
+  // These came back as "What occupied the four-hour break?" and "What were
+  // you doing in Piazza Navona for the final hour?", and the screen offered
+  // yes, no and can't remember. None of those answers the question. The
+  // most valuable thing anybody can give here is a sentence — "a
+  // pasta-making course at Eatalian Cooks, then dinner" — and there was
+  // nowhere to put it.
+  async function answer(q, { said = null, verdict = null } = {}) {
+    const row = {
+      said: said || null,
+      answer: verdict ?? (said ? 'yes' : null),
+      answered_at: new Date().toISOString(),
+    }
+    await supabase.from('story_questions').update(row).eq('id', q.id)
+    setQuestions((all) => all.map((x) => (x.id === q.id ? { ...x, ...row } : x)))
   }
 
   async function carryOn() {
@@ -317,15 +373,7 @@ export default function TripStory({ trip, photos = [] }) {
               the story; a no is remembered and you will not be asked again.
             </p>
             {asking.map((q) => (
-              <div key={q.id} className="story-ask">
-                <div className="story-q">{q.asks}</div>
-                {q.because && <div className="story-because">{q.because}</div>}
-                <div className="story-buttons">
-                  <button onClick={() => answer(q, 'yes')}>yes</button>
-                  <button onClick={() => answer(q, 'no')}>no</button>
-                  <button onClick={() => answer(q, 'unsure')}>can't remember</button>
-                </div>
-              </div>
+              <Ask key={q.id} q={q} onAnswer={answer} />
             ))}
             {!asking.length && (
               <button className="story-go" onClick={carryOn}>

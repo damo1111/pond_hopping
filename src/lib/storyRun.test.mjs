@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { asAsked, confirmed, howFar, needsLooking, stillAsking, storyRow, theirWords, whatItCosts } from './storyRun.js'
+import { asAsked, confirmed, couldNotSay, howFar, needsLooking, stillAsking, storyRow, theirWords, whatItCosts } from './storyRun.js'
 import { clockIn } from './localTime.js'
 
 const pic = (id, over = {}) => ({
@@ -59,15 +59,30 @@ test('a question is asked once, and a no is remembered', () => {
   assert.equal(stillAsking(qs).length, 1)
 })
 
-test('only a yes becomes evidence', () => {
-  // A no is not evidence of the opposite, it is the absence of evidence.
-  // Sending it back would invite the writer to argue with it.
+test('what they said in words is the evidence', () => {
+  // These questions come back open — "What occupied the four-hour break?" —
+  // so a sentence is the answer and yes/no answers nothing. A no is still
+  // not evidence of the opposite, it is the absence of evidence, and
+  // sending it back would invite the writer to argue with it.
   const qs = [
+    { asks: 'What were you doing at Piazza Navona?', said: 'A pasta course at Eatalian Cooks', on_date: '2024-01-24' },
     { asks: 'delayed?', answer: 'yes', on_date: '2024-01-22' },
     { asks: 'ate here?', answer: 'no' },
-    { asks: 'this hotel?', answer: 'unsure' },
+    { asks: 'the four-hour gap?', answer: 'unsure' },
   ]
-  assert.deepEqual(confirmed(qs), [{ on_date: '2024-01-22', is: 'delayed?' }])
+  assert.deepEqual(confirmed(qs), [
+    { on_date: '2024-01-24', asked: 'What were you doing at Piazza Navona?', said: 'A pasta course at Eatalian Cooks' },
+    { on_date: '2024-01-22', asked: 'delayed?', said: null },
+  ])
+})
+
+test('and what they could not remember goes over too', () => {
+  // The difference between a gap the writing admits and one it fills.
+  const qs = [
+    { asks: 'the four-hour gap?', answer: 'unsure', on_date: '2024-01-23' },
+    { asks: 'answered one', said: 'the rooftop' },
+  ]
+  assert.deepEqual(couldNotSay(qs), [{ on_date: '2024-01-23', asked: 'the four-hour gap?' }])
 })
 
 test('their own words go over, and reconstructions never do', () => {

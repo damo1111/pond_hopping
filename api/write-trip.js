@@ -104,8 +104,21 @@ it was the week half of Europe's airline systems fell over. You may not
 write that it delayed them, or that it is why anything happened, unless
 "certain" is true — which means their own record shows it.
 
-Where the reconstruction asked them something and they answered yes, that
-answer is a fact and you may write it as one.
+WHAT THEY TOLD YOU
+
+"answered" is what they said when asked. It is the only thing in the whole
+reconstruction that comes from the person who was actually there, so it
+outranks every inference beside it, and where they contradict the
+coordinates, they are right and the coordinates are wrong.
+
+Use their words. If they say "a pasta-making course at Eatalian Cooks, then
+dinner", that is what happened and you write it as a fact.
+
+"could_not_say" is what they were asked and could not remember. Do not fill
+those in. Say so, lightly, the way somebody does about their own life:
+
+  "I stopped somewhere near the Trevi for the best part of an hour and no
+   longer have the faintest idea what for." 
 
 SHAPE
 

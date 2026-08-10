@@ -103,6 +103,12 @@ A public event you merely happen to know about, with nothing in the trip
 pointing at it, is not a question. It is scene-setting at most, and it
 belongs in "context".
 
+Ask them as open questions and expect a sentence back — "What were you
+doing in Piazza Navona for the final hour?" rather than "Were you at dinner
+in Piazza Navona?". A yes confirms only what you already guessed; a sentence
+tells you the thing nobody could have worked out. Never phrase one so that
+yes or no would answer it.
+
 Be sparing. Three good questions are worth more than a dozen, and being
 asked twelve things about a weekend is its own kind of failure.
 
