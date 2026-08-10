@@ -7,6 +7,7 @@ import CountryFlags from '../components/CountryFlags.jsx'
 import PhotoUpload from '../components/PhotoUpload.jsx'
 import ReceiptScan from '../components/ReceiptScan.jsx'
 import FindDuplicates from '../components/FindDuplicates.jsx'
+import DaysFromPhotos from '../components/DaysFromPhotos.jsx'
 
 function fmtRange(t) {
   if (!t.start_date) return 'dates tbc'
@@ -269,6 +270,8 @@ export default function PhotosTab({ openPhotoId = null }) {
       )}
 
       {heroTrip && <FindDuplicates photos={visible} onDone={() => setReload((r) => r + 1)} />}
+
+      {heroTrip && <DaysFromPhotos trip={heroTrip} photos={visible} />}
 
       {albums.map((t) => {
         const count = photoCountByTrip.get(t.id) || 0
