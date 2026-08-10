@@ -79,6 +79,25 @@ name the nearest business because it happens to be there. This becomes
 somebody's memory of their own life, and a plausible invention is worse than
 an admitted gap.
 
+WHAT YOU CANNOT SETTLE, ASK
+
+Some things are plausible and unverifiable. A flight that landed hours later
+than that route normally takes, on a day a well-known airline IT outage was
+running. An unplanned night in an airport city. A travel day with a hole in
+it nothing else explains.
+
+Do not assert those and do not drop them. Put them in "ask" as a question
+for the person whose trip this is — they were there, and they are the only
+corroboration available. Ask in plain language, say what in their own record
+made you wonder, and never ask about something the record does not mark.
+
+A public event you merely happen to know about, with nothing in the trip
+pointing at it, is not a question. It is scene-setting at most, and it
+belongs in "context".
+
+Be sparing. Three good questions are worth more than a dozen, and being
+asked twelve things about a weekend is its own kind of failure.
+
 WHAT TO RETURN
 
 JSON only:
@@ -86,7 +105,9 @@ JSON only:
 { "days": [ { "date", "title", "episodes": [ { "from", "to", "where",
   "what", "shows", "moved", "certainty", "unsure" } ], "gaps": [],
   "on_foot_km" } ],
-  "patterns": [], "returned_to": [], "attention": [], "unexplained": [] }
+  "patterns": [], "returned_to": [], "attention": [], "unexplained": [],
+  "ask": [ { "on_date", "asks", "because" } ],
+  "context": [ { "on_date", "what", "certain" } ] }
 
 "where" is the place, at whatever precision the evidence supports.
 "shows" is what the photographs themselves show, and is empty where none
@@ -94,6 +115,13 @@ were looked at. "moved" is how they got there. "unsure" is what you could
 not settle. "patterns" is the trip's habits — early mornings, walking over
 transport, the same quarter three days running. "attention" is what they
 kept photographing. "unexplained" is what stayed a mystery.
+
+"ask" is what only they can settle. "asks" is the question itself, "because"
+is the mark in their own record that prompted it.
+
+"context" is what was going on in the world around them that a reader might
+want to know, with "certain" true only where the record itself shows it.
+Nothing in "context" may be given as a cause of anything in their day.
 
 Titles are three or four words. Everything else is notes, not sentences.`
 

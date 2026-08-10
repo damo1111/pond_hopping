@@ -36,24 +36,43 @@ nestled, must-see, or that anywhere was steeped in history. Do not open a
 day with the weather unless the weather was the point. Do not finish a day
 with a summary of what it meant.
 
-THE RULE THAT MATTERS
+THE LINE
 
-Do not create false memories.
+Texture yes. Events no.
 
-Anything marked confirmed you may write as it happened. A plate of carbonara,
-a table, an hour in one room: they stopped for lunch and you can say so.
+You may write what was near-certainly true of that place, at that hour, in
+that season: the light coming up in January, shutters still down in a
+neighbourhood at seven in the morning, scooters in Rome. That is what makes
+it a memory rather than a log, and none of it is a claim about what they did.
 
-Anything marked possible or unknown you either leave out or admit. Admitting
-it is usually better and almost always sounds more like a person:
+You may not invent a single thing they did. No meal, no venue, no purchase,
+no conversation, no encounter that the reconstruction does not carry.
+Anything marked confirmed you may write as it happened — a plate of
+carbonara, a table, an hour in one room is a lunch and you can say so.
+Anything marked possible or unknown you leave out or admit.
+
+Admitting it is usually the better sentence, and it is what a person
+actually sounds like:
 
   "I stayed near the Trevi for the best part of an hour and I genuinely
    cannot tell you what I was doing — lunch, probably."
 
-A gap in the record is allowed to be a gap. "The middle of that day has gone
-entirely" is a true sentence and a human one. Do not fill it.
+  "Whatever happened during that stretch has been lost to the record, which
+   I rather like. Not everything needs reconstructing."
 
-Do not name a restaurant the reconstruction did not name. If it says the
-street, write the street.
+A gap is allowed to be a gap. Do not fill it. Do not name a restaurant the
+reconstruction did not name — if it gives you the street, write the street.
+
+THE WORLD AROUND THEM
+
+The reconstruction may carry "context": what was going on in the world at
+the time. Use it only to set a scene, never as a cause. You may write that
+it was the week half of Europe's airline systems fell over. You may not
+write that it delayed them, or that it is why anything happened, unless
+"certain" is true — which means their own record shows it.
+
+Where the reconstruction asked them something and they answered yes, that
+answer is a fact and you may write it as one.
 
 SHAPE
 
@@ -69,17 +88,29 @@ pictures of one fountain is somebody standing at a fountain for a while.
 Where the reconstruction says what they kept pointing the camera at, let that
 show in what the writing dwells on rather than stating it.
 
-Length follows the day. A day with a dozen episodes earns several hundred
-words; a travel day with a flight and a hotel earns a couple of paragraphs.
-Do not pad and do not compress.
+LENGTH
 
-Then a closing section — how the trip is remembered as a whole. What it
-turned out to be about, the places returned to, how the days differed. End on
-the strongest moment the evidence actually supports, not a summing-up.
+Length follows the day and nothing else. A day with a dozen episodes earns
+several hundred words; a travel day with a flight and a hotel earns a couple
+of paragraphs.
+
+If you have been given a sample of how this person writes, match their
+vocabulary and their rhythm — never their length. Somebody whose own entries
+are one line long has not asked for a one-line chapter; they wrote briefly in
+a text box, which is a fact about text boxes. Never write less because they
+write short.
 
 RETURN
 
-JSON: { "days": [ { "date", "title", "note" } ], "summary" }
+JSON: { "opening", "days": [ { "date", "title", "note" } ], "closing" }
+
+"opening" is a short reflection to begin on — what the trip turned out to be,
+written as somebody would open a journal they meant to keep. Not a summary of
+what follows.
+
+"closing" is the trip looked back on: what defined it, the places returned
+to, how the days differed from each other. End on the strongest moment the
+evidence actually supports, not on a lesson.
 
 Titles are three or four words and name where the day went.`
 
@@ -104,9 +135,11 @@ function inTheirVoice(samples = []) {
   if (samples.length < VOICE_NEEDS) return ''
   return (
     `\n\nHere is how this person writes, from their own earlier entries. ` +
-    `Match the rhythm and the vocabulary — the length of their sentences, ` +
+    `Match the rhythm and the vocabulary — the shape of their sentences, ` +
     `how much they leave out, whether they name things or gesture at them. ` +
-    `Do not copy their content.\n\n` +
+    `Do not copy their content, and do not copy how much of it there is: ` +
+    `these were typed into a small box and are short for that reason, not ` +
+    `because that is how long a day should be.\n\n` +
     samples.slice(0, 6).map((s) => `— ${s}`).join('\n')
   )
 }
@@ -151,7 +184,12 @@ export default async function handler(req, res) {
       res.status(502).json({ error: 'no days came back' })
       return
     }
-    res.status(200).json({ days: out.days, summary: out.summary ?? null, voiced: voice.length >= VOICE_NEEDS })
+    res.status(200).json({
+      opening: out.opening ?? null,
+      days: out.days,
+      closing: out.closing ?? null,
+      voiced: voice.length >= VOICE_NEEDS,
+    })
   } catch (e) {
     console.error(`write-trip: ${e.message}`)
     res.status(502).json({ error: e.message })
