@@ -21,11 +21,14 @@ export default function TripSummary({ tripId, hasEntries }) {
   const [expanded, setExpanded] = useState(false)
   const genToken = useRef(0)
 
-  async function generate(id) {
+  async function generate(id, { quiet = false } = {}) {
     const myToken = ++genToken.current
     setLoading(true)
     setError(null)
-    setSummary('')
+    // A quiet regeneration keeps the old text up until the new one starts
+    // arriving. Blanking a paragraph because a day was edited elsewhere
+    // reads as the app losing it.
+    if (!quiet) setSummary('')
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/summarize-trip`, {
         method: 'POST',
@@ -78,22 +81,39 @@ export default function TripSummary({ tripId, hasEntries }) {
     setLoading(false)
     if (!tripId) return
     let alive = true
-    supabase
-      .from('trip_summaries')
-      .select('summary, generated_at')
-      .eq('trip_id', tripId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (!alive) return
-        if (data) {
-          setSummary(data.summary)
-          setGeneratedAt(data.generated_at)
-        } else if (hasEntries) {
-          // Nothing cached yet — kick off generation quietly in the
-          // background so the trip has a summary "always loaded" next time.
-          generate(tripId)
-        }
-      })
+    // Two questions at once: what is cached, and has anything been written
+    // since it was cached. A summary is a description of the journal; edit
+    // a day and it becomes a description of writing that no longer exists.
+    // That is the same staleness the reconstructed days have, one level up,
+    // and it needs no button — the journal moved, so the summary follows.
+    Promise.all([
+      supabase.from('trip_summaries').select('summary, generated_at').eq('trip_id', tripId).maybeSingle(),
+      supabase
+        .from('journal_entries')
+        .select('updated_at')
+        .eq('trip_id', tripId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]).then(([{ data }, { data: newest }]) => {
+      if (!alive) return
+      if (!data) {
+        // Nothing cached yet — kick off generation quietly in the
+        // background so the trip has a summary "always loaded" next time.
+        if (hasEntries) generate(tripId)
+        return
+      }
+
+      setSummary(data.summary)
+      setGeneratedAt(data.generated_at)
+
+      // Written before the newest edit, so it predates something somebody
+      // said. Rewritten in the background: the old text stays on screen and
+      // is replaced when the new one arrives, because a summary blanking
+      // itself because a typo was fixed is worse than one a minute old.
+      const behind = newest?.updated_at && data.generated_at && newest.updated_at > data.generated_at
+      if (behind && hasEntries) generate(tripId, { quiet: true })
+    })
     return () => {
       alive = false
     }
