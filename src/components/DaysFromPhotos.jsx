@@ -4,7 +4,7 @@ import { TripContext } from '../App.jsx'
 import { thumb } from '../lib/imgTransform.js'
 import { readCache, writeCache } from '../lib/placeCache.js'
 import { sweep } from '../lib/staleStory.js'
-import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, priceIt, sift, stopKey, tellDay, titleDay } from '../lib/tripStory.js'
+import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, priceIt, sift, stopKey, tellDay, titleDay, zoneOf } from '../lib/tripStory.js'
 import { TRUST_PHOTO } from '../lib/tripStory.js'
 
 // Piecing a trip together from photographs taken two years ago.
@@ -40,8 +40,13 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   // one thing that must not happen to writing like that. Wanting to judge
   // the reconstruction is not the same as wanting to keep it.
   const [previewing, setPreviewing] = useState(false)
+  // The trip's own flights, purely so its days can be told in its own time
+  // rather than in the reader's. A Roman morning read from Melbourne came
+  // out as "the evening, from 17:09".
+  const [flights, setFlights] = useState([])
 
   const days = daysFrom(photos, trip)
+  const zone = zoneOf(days, flights)
 
   useEffect(() => {
     if (!trip?.id) return
@@ -51,6 +56,11 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
       .select('entry_date,built_from,edited_at')
       .eq('trip_id', trip.id)
       .then(({ data }) => alive && setEntries(data ?? []))
+    supabase
+      .from('flights')
+      .select('dep_airport,arr_airport')
+      .eq('trip_id', trip.id)
+      .then(({ data }) => alive && setFlights(data ?? []))
     return () => {
       alive = false
     }
@@ -216,7 +226,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   }
 
   async function write(days_, using, { silent = false } = {}) {
-    const rows = days_.map((d) => entryFor(d, trip, using))
+    const rows = days_.map((d) => entryFor(d, trip, using, zone))
 
     // Anything being replaced goes first, in one statement, so a day never
     // ends up with two entries on it because the insert succeeded after a
@@ -277,7 +287,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
                   {new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                 </span>
                 <span className="dfp-title">{titleDay(day, mine)}</span>
-                <span className="dfp-said">{tellDay(day, mine)}</span>
+                <span className="dfp-said">{tellDay(day, mine, zone)}</span>
               </span>
             </div>
           )
@@ -410,7 +420,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
                 {already.has(day.date) && <em className="dfp-replaces"> replaces what is there</em>}
               </span>
               <span className="dfp-title">{titleDay(day, mine)}</span>
-              <span className="dfp-said">{tellDay(day, mine)}</span>
+              <span className="dfp-said">{tellDay(day, mine, zone)}</span>
             </span>
           </label>
         )

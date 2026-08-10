@@ -96,3 +96,39 @@ test('a title never lists six places like a receipt', () => {
   // In the order they happened, not in order of length.
   assert.equal(title, 'C and E')
 })
+
+test('a Roman day is told in Roman time, not the reader’s', () => {
+  // The real failure, with the real numbers. Rome on 23 January ran
+  // 07:06 to 21:14 local. Read from Melbourne with no zone it came out as
+  // "the evening, from 17:09", ending "around 3:10" — eleven hours out and
+  // apparently running backwards.
+  const day = {
+    day_number: 2,
+    stops: [
+      { from: '2024-01-23T06:06:49Z', to: '2024-01-23T07:00:00Z', minutes: 53 },
+      { from: '2024-01-23T19:00:00Z', to: '2024-01-23T20:14:12Z', minutes: 74 },
+    ],
+  }
+  day.from = day.stops[0].from
+  day.to = day.stops[1].to
+
+  const said = tellDay(day, { 0: 'the Pantheon', 1: 'Trattoria Luzzi' }, 'Europe/Rome')
+  assert.match(said, /07:06/)
+  assert.match(said, /^Early/)
+  assert.match(said, /20:00/)
+  // The three things that were wrong: the clock, the part of day, and the
+  // apparent direction of travel through it.
+  assert.doesNotMatch(said, /17:0/)
+  assert.doesNotMatch(said, /small hours/)
+  assert.doesNotMatch(said, /3:1/)
+})
+
+test('and with no zone it is UTC, never the machine it happens to run on', () => {
+  const day = {
+    day_number: 2,
+    from: '2024-01-23T06:06:49Z',
+    to: '2024-01-23T07:00:00Z',
+    stops: [{ from: '2024-01-23T06:06:49Z', to: '2024-01-23T07:00:00Z', minutes: 53 }],
+  }
+  assert.match(tellDay(day, { 0: 'the Pantheon' }, null), /06:06/)
+})
