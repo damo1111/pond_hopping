@@ -2201,6 +2201,22 @@ button {
   overflow: hidden;
 }
 
+/* Quiet, and deliberately so. Switching to the pieced-together reading of
+   a day is a small thing to offer, not a feature to advertise over the
+   words somebody wrote themselves. */
+.je-blend {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 .je-tags {
   display: flex;
   flex-wrap: wrap;
@@ -9867,6 +9883,14 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .dfp-replaces {
   font-style: normal;
   color: #C0392B;
+  letter-spacing: 0.06em;
+}
+
+/* Not a warning. Nothing is being taken away — their note stays exactly as
+   they wrote it and this goes in beside it. */
+.dfp-beside {
+  font-style: normal;
+  color: var(--text-muted);
   letter-spacing: 0.06em;
 }
 
