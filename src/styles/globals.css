@@ -9541,3 +9541,101 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 }
 
 .rs-save:disabled { opacity: 0.5; }
+
+/* Choosing which pictures the recap shows. Same pill as the cover button
+   beside it — they are the two controls in here that change what somebody
+   else sees, and they should look like a pair. Filled once it is on,
+   because "is this one in or not" should be answerable at a glance. */
+.lb-star-btn {
+  margin-top: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  border-radius: 20px;
+  padding: 7px 16px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lb-star-btn.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #1A1611;
+}
+
+.lb-star-btn:disabled { opacity: 0.6; }
+
+/* ── A pen, writing, while something slow happens ──────────────
+   See Penning.jsx: the claim is only "something is running", which is the
+   one claim that can honestly be made about a single outstanding request. */
+
+.penning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.penning-ink {
+  display: block;
+  width: 74px;
+  flex: none;
+}
+
+.penning-ink svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+.penning-line {
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  /* Longer than the path, so one dash covers it and the offset walks the
+     whole thing on rather than repeating. */
+  stroke-dasharray: 260;
+  stroke-dashoffset: 260;
+  animation: penning-write 2.6s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+.penning-nib {
+  fill: var(--accent);
+  opacity: 0.85;
+  animation: penning-travel 2.6s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+@keyframes penning-write {
+  0%   { stroke-dashoffset: 260 }
+  70%  { stroke-dashoffset: 130 }
+  85%  { stroke-dashoffset: 130 }
+  100% { stroke-dashoffset: 260 }
+}
+
+/* Rides just ahead of the ink. The lift at the end is what stops the reset
+   reading as the pen being yanked backwards across the page. */
+@keyframes penning-travel {
+  0%   { transform: translate(0, 4px); opacity: 0 }
+  8%   { opacity: 0.85 }
+  70%  { transform: translate(104px, 4px); opacity: 0.85 }
+  85%  { transform: translate(108px, -1px); opacity: 0 }
+  100% { transform: translate(0, 4px); opacity: 0 }
+}
+
+.penning-label {
+  font-style: italic;
+  display: flex;
+  flex-direction: column;
+}
+
+.penning-still {
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* A moving thing is the whole point, but not at the cost of somebody who
+   has asked the system not to move things. The words still change. */
+@media (prefers-reduced-motion: reduce) {
+  .penning-line { animation: none; stroke-dashoffset: 130 }
+  .penning-nib { animation: none; transform: translate(104px, 4px) }
+}

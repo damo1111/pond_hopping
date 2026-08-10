@@ -3,6 +3,7 @@ import CountryFlags from './CountryFlags.jsx'
 import TrackPlaces, { offersTracking } from './TrackPlaces.jsx'
 import { supabase } from '../lib/supabase.js'
 import { API_BASE } from '../lib/apiBase.js'
+import Penning from './Penning.jsx'
 
 const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
 
@@ -302,7 +303,11 @@ export default function PlanChat({ tripId, traveler = 'both', autoSend, seedMess
                   {m.content}
                 </div>
               ))}
-              {sending && <div className="plan-chat-bubble plan-chat-bubble-assistant plan-chat-typing">thinking…</div>}
+              {sending && (
+                <div className="plan-chat-bubble plan-chat-bubble-assistant plan-chat-typing">
+                  <Penning />
+                </div>
+              )}
               {proposal && (
                 <ProposalCard proposal={proposal} busy={proposalBusy} onAccept={acceptProposal} onDiscard={discardProposal} onKeep={() => setProposal(null)} />
               )}
