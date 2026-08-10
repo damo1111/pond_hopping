@@ -22,6 +22,7 @@
 import { daysFrom } from './photoDays.js'
 import { askWith, pickPlace } from './placePick.js'
 import { RECONSTRUCTED, tellDay, titleDay } from './narrate.js'
+import { builtFrom } from './staleStory.js'
 
 /** Below this the model was guessing at the picture and we keep the gap. */
 export const TRUST_PHOTO = 0.6
@@ -89,6 +90,10 @@ export function entryFor(day, trip = {}, names = {}) {
     city: firstNamed(day, mine),
     mood: null,
     tags: ['reconstructed'],
+    // What this was told from, so a later sweep can tell whether the
+    // photographs have moved on since. Without it the story is a claim
+    // about a set of pictures nobody can identify any more.
+    built_from: builtFrom(day),
   }
 }
 
