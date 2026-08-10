@@ -137,7 +137,7 @@ export default function PlanTab() {
   const [flownLegs, setFlownLegs] = useState([])
   const [creating, setCreating] = useState(false) // PlanChat for a brand-new trip
   const [plannerId, setPlannerId] = useState(null) // full-screen TripPlanner for an existing draft
-  const { plannerJump, clearPlannerJump, openAuth, tripMeta } = useContext(TripContext)
+  const { plannerJump, clearPlannerJump, closePlanner, openAuth, tripMeta } = useContext(TripContext)
 
   // Home hands over a trip id when one of its cards is tapped; PlanTab owns
   // the planner, so this is where that lands.
@@ -346,6 +346,12 @@ export default function PlanTab() {
           onClose={() => {
             setPlannerId(null)
             loadDrafts()
+            // Back to the tab the trip was tapped on. Opening one from Home
+            // switches here because this is where the planner lives, and
+            // without this the way out left you a tab further from Home
+            // than you started — the back arrow landing you somewhere you
+            // had never been.
+            closePlanner()
           }}
           onChanged={loadDrafts}
         />

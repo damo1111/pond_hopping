@@ -86,6 +86,10 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
   // underneath, so closing this comes back here rather than dumping you on
   // a tab with no way back — which is what tapping a figure used to do.
   const [layer, setLayer] = useState(null)
+  // Which photograph the sheet should open on, when it was a photograph
+  // rather than a figure that was tapped. Separate from `layer` because the
+  // layer name keys the view, the title and three classnames.
+  const [layerPhoto, setLayerPhoto] = useState(null)
   // The frosted pane is the expensive part: blurring a backdrop that is
   // itself mid-animation costs a full re-blur every frame, on a phone, at
   // exactly the moment the sheet needs those frames. So the sheet rises
@@ -411,7 +415,9 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           // than the first twelve that happened to be inserted.
           query: supabase
             .from('photos')
-            .select('url,thumb_url,caption,is_highlight,taken_on')
+            /* id so tapping one can open the sheet on that row rather than
+               at the top of the grid. */
+            .select('id,url,thumb_url,caption,is_highlight,taken_on')
             .eq('trip_id', trip.id)
             .order('is_highlight', { ascending: false })
             .order('taken_on', { ascending: true })
@@ -656,19 +662,37 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
         )}
 
         {data?.photos?.length > 0 && (
+          /* Every photograph on this page is now a way in to the rest of
+             them. It looked tappable and wasn't, which on a page whose
+             figures are all buttons reads as broken rather than decorative
+             — and "open the photos" was reachable only by the count above,
+             which is absent on a trip with few enough to fit here. Opens
+             the sheet on the one that was tapped, not at the top: being
+             returned to the grid to find again what you just pointed at is
+             the small insult that makes people stop tapping. */
           <div className="recap-photos">
             {data.photos.map((p) => (
-              <img
+              <button
                 key={p.url}
-                src={p.thumb_url || thumb(p.url, { width: 400, height: 400 })}
-                alt={p.caption || ''}
-                loading="lazy"
-                /* A dead URL should leave a gap, not a broken-image icon
-                   sitting in the middle of a page built to be shown off. */
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
+                type="button"
+                className="recap-photo"
+                onClick={() => {
+                  setLayerPhoto(p.id)
+                  setLayer('photos')
                 }}
-              />
+                aria-label={p.caption || 'Open this photo'}
+              >
+                <img
+                  src={p.thumb_url || thumb(p.url, { width: 400, height: 400 })}
+                  alt={p.caption || ''}
+                  loading="lazy"
+                  /* A dead URL should leave a gap, not a broken-image icon
+                     sitting in the middle of a page built to be shown off. */
+                  onError={(e) => {
+                    e.currentTarget.closest('.recap-photo').style.display = 'none'
+                  }}
+                />
+              </button>
             ))}
           </div>
         )}
@@ -757,7 +781,13 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           <div className="recap-layer-glass" />
           <GestureReadout />
           <header className="recap-layer-bar">
-            <button className="recap-layer-back" onClick={() => setLayer(null)}>
+            <button
+              className="recap-layer-back"
+              onClick={() => {
+                setLayer(null)
+                setLayerPhoto(null)
+              }}
+            >
               <Icon name="chevron" size={16} className="recap-layer-back-i" />
               <span>{trip.title}</span>
             </button>
@@ -772,7 +802,9 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
                   const { View } = LAYERS[layer]
                   // The tab views read the selection from context and ignore
                   // this; RunsPanel is built for the sheet and takes the trip.
-                  return <View trip={trip} />
+                  // Photos also takes the one to open on, when a photograph
+                  // rather than a figure is what opened the sheet.
+                  return <View trip={trip} openPhotoId={layer === 'photos' ? layerPhoto : null} />
                 })()}
               </Suspense>
             </SheetContext.Provider>

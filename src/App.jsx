@@ -1,4 +1,4 @@
-import { createContext, lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { createContext, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import Placeholder from './tabs/Placeholder.jsx'
 import FlightsTab from './tabs/FlightsTab.jsx'
@@ -42,6 +42,7 @@ export const TripContext = createContext({
   clearJournalJump: () => {},
   plannerJump: null,
   openPlanner: () => {},
+  closePlanner: () => {},
   openAuth: () => {},
   clearPlannerJump: () => {},
   goToTab: () => {},
@@ -152,6 +153,18 @@ export default function App() {
   // owns the full-screen TripPlanner, so this is the only way to say which
   // trip from outside it.
   const [plannerJump, setPlannerJump] = useState(null)
+  // Which tab to put back when the planner closes.
+  //
+  // Opening a trip from Home switches to Plan, because Plan owns the
+  // planner — an implementation detail that was leaking into the way out.
+  // The back arrow said "back" and landed you on a tab you had never been
+  // on, one step further from Home than when you started. Null when the
+  // planner was opened from Plan itself, which is already where you were.
+  //
+  // A ref rather than state: nothing renders from it, and calling one
+  // setter from inside another's updater is the kind of thing StrictMode
+  // runs twice.
+  const plannerReturn = useRef(null)
 
   useEffect(() => {
     let cancelled = false
@@ -454,9 +467,17 @@ export default function App() {
       openAuth: () => setAuthOpen(true),
       openPlanner: (tripId) => {
         setPlannerJump({ id: tripId, key: Date.now() })
+        if (activeTab !== 'plan') plannerReturn.current = activeTab
         setActiveTab('plan')
       },
       clearPlannerJump: () => setPlannerJump(null),
+      // Called by PlanTab when the planner shuts. Puts you back where the
+      // trip was tapped, so "back" means back.
+      closePlanner: () => {
+        const from = plannerReturn.current
+        plannerReturn.current = null
+        if (from) setActiveTab(from)
+      },
       // Callers (the trip story card, mostly) ask for a destination by name
       // without knowing whether it sits in the bottom bar or under Useful.
       // Resolve that here so moving a tab between the two doesn't break
