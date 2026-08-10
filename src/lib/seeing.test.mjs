@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { TOKENS, batches, costOf, foldInto, merge, readingList } from './seeing.js'
+import { TOKENS, batches, costOf, foldInto, inParallel, merge, readingList } from './seeing.js'
 
 const saw = (id, over = {}) => ({ id, what: 'a thing', subject: 'other', text: '', notable: '', ...over })
 
@@ -63,4 +63,19 @@ test('observations land beside the minute and the place', () => {
 
 test('photographs go over in groups small enough for one request', () => {
   assert.deepEqual(batches([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]])
+})
+
+test('batches run a few at a time, and come back in order', async () => {
+  // Twenty-nine sequential calls to look at 286 photographs is minutes of
+  // watching a line move. Nothing about them depends on anything else.
+  const started = []
+  const jobs = [1, 2, 3, 4, 5, 6].map((n) => async () => {
+    started.push(n)
+    await new Promise((r) => setTimeout(r, n === 1 ? 20 : 1))
+    return n * 10
+  })
+  const out = await inParallel(jobs, 3)
+  assert.deepEqual(out, [10, 20, 30, 40, 50, 60])
+  // Three were in flight before the first finished.
+  assert.ok(started.slice(0, 3).length === 3)
 })
