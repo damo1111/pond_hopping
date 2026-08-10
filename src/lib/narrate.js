@@ -17,15 +17,22 @@
 // story is honest; a sentence padded with statistics to cover the gap is
 // how the first version went wrong.
 
+import { clockIn, hourIn } from './localTime.js'
+
 const HOUR = 60
 
-function clock(t) {
-  return new Date(t).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: false })
-}
+// Every time in here is local to the trip, never to whoever is reading.
+// Told from Melbourne, a Roman day that ran 07:06 to 21:14 came out as
+// "the evening, from 17:09" and ended "around 3:10" — eleven hours out,
+// apparently running backwards, and calling an afternoon at Heathrow "the
+// small hours". A travel log read on the other side of the world is the
+// normal case, not the exotic one.
+const clock = (t, zone) => clockIn(t, zone)
 
 /** "just after nine", "the middle of the afternoon" — how people say when. */
-export function partOfDay(t) {
-  const h = new Date(t).getHours()
+export function partOfDay(t, zone) {
+  const h = hourIn(t, zone)
+  if (h == null) return 'sometime'
   if (h < 5) return 'the small hours'
   if (h < 9) return 'early'
   if (h < 12) return 'the morning'
@@ -56,7 +63,7 @@ const list = (items) =>
  * @param day     from photoDays.daysFrom()
  * @param names   stop index → the place it was, where one is known
  */
-export function tellDay(day, names = {}) {
+export function tellDay(day, names = {}, zone = null) {
   const stops = (day?.stops ?? []).map((s, i) => ({ ...s, name: names[i] || null }))
   if (!stops.length) return ''
 
@@ -67,14 +74,14 @@ export function tellDay(day, names = {}) {
   // much moving about there was.
   if (!told.length) {
     const places = stops.length
-    return `Out from ${clock(day.from)} to ${clock(day.to)}, moving between ${places === 1 ? 'one spot' : `${places} spots`}. Nowhere along the way is on the map — the photographs put you here, but nothing here has a name.`
+    return `Out from ${clock(day.from, zone)} to ${clock(day.to, zone)}, moving between ${places === 1 ? 'one spot' : `${places} spots`}. Nowhere along the way is on the map — the photographs put you here, but nothing here has a name.`
   }
 
   const sentences = []
   const first = told[0]
   const longest = [...told].sort((a, b) => b.minutes - a.minutes)[0]
 
-  sentences.push(`${cap(partOfDay(first.from))} at ${first.name}, from ${clock(first.from)}.`)
+  sentences.push(`${cap(partOfDay(first.from, zone))} at ${first.name}, from ${clock(first.from, zone)}.`)
 
   const middle = told.slice(1).filter((s) => s !== longest)
   if (middle.length) sentences.push(`Then ${list(middle.map((s) => s.name))}.`)
@@ -83,7 +90,7 @@ export function tellDay(day, names = {}) {
     const span = howLong(longest.minutes)
     sentences.push(
       span
-        ? `The longest stop was ${longest.name} — ${span} from ${clock(longest.from)}.`
+        ? `The longest stop was ${longest.name} — ${span} from ${clock(longest.from, zone)}.`
         : `Also ${longest.name}.`
     )
   } else if (howLong(first.minutes)) {
@@ -91,7 +98,7 @@ export function tellDay(day, names = {}) {
   }
 
   const last = told[told.length - 1]
-  if (last !== first && last !== longest) sentences.push(`Last was ${last.name}, around ${clock(last.to)}.`)
+  if (last !== first && last !== longest) sentences.push(`Last was ${last.name}, around ${clock(last.to, zone)}.`)
 
   const unnamed = stops.length - told.length
   if (unnamed) sentences.push(`${unnamed === 1 ? 'One other stop' : `${unnamed} other stops`} along the way, nowhere named.`)

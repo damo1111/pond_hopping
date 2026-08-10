@@ -23,6 +23,7 @@ import { daysFrom } from './photoDays.js'
 import { askWith, pickPlace } from './placePick.js'
 import { RECONSTRUCTED, tellDay, titleDay } from './narrate.js'
 import { builtFrom } from './staleStory.js'
+import { zoneFor } from './localTime.js'
 
 /** Below this the model was guessing at the picture and we keep the gap. */
 export const TRUST_PHOTO = 0.6
@@ -75,14 +76,14 @@ export function namesForDay(day, names = {}) {
 }
 
 /** A day → the journal entry it becomes, told in the names that were found. */
-export function entryFor(day, trip = {}, names = {}) {
+export function entryFor(day, trip = {}, names = {}, zone = null) {
   const mine = namesForDay(day, names)
   return {
     trip_id: trip.id ?? null,
     entry_date: day.date,
     day_number: day.day_number,
     title: titleDay(day, mine),
-    note: `${tellDay(day, mine)}\n\n${RECONSTRUCTED}`,
+    note: `${tellDay(day, mine, zone)}\n\n${RECONSTRUCTED}`,
     lat: day.lat,
     lon: day.lon,
     // The place that held the day, which is the useful thing to have in a
@@ -114,6 +115,14 @@ export function priceIt(days = [], ask = []) {
     photosLookedAt: ask.reduce((n, a) => n + a.photos.length, 0),
     ambiguous: ask.length,
   }
+}
+
+/** The trip's own clocks. The photographs say where; the flights, if any,
+ *  give that a name that also knows about daylight saving. */
+export function zoneOf(days = [], flights = []) {
+  const located = days.filter((d) => d.lon != null)
+  const lon = located.length ? located.reduce((s, d) => s + d.lon, 0) / located.length : null
+  return zoneFor({ flights, lon, when: days[0]?.from ?? null })
 }
 
 export { daysFrom, tellDay, titleDay, RECONSTRUCTED }
