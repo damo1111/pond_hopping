@@ -7,6 +7,7 @@ import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import { coverUrl } from '../lib/imgTransform.js'
 import CountryFlags from '../components/CountryFlags.jsx'
+import DrawnCover from '../components/DrawnCover.jsx'
 import TripRecap from '../components/TripRecap.jsx'
 import { INTRO, arcsShown, chronological } from '../lib/globeIntro.js'
 import { tripPhase } from '../lib/tripPhase.js'
@@ -1005,15 +1006,15 @@ function TripCard({ t, covers, selectedTrip, setSelectedTrip, onOrigin }) {
           Three cards in a row had three different silhouettes: one with a
           picture, one with flags where a picture goes, one with nothing but
           white. A card is a card — the shape should say "trip", not "how
-          much has been filled in yet". So a coverless one gets the trip's
-          own colour and its flags at the size a picture would have been,
-          and the row reads as one object repeated. */}
+          much has been filled in yet". The first pass at that was a wash of
+          the trip's colour, which fixed the shape and nothing else: it still
+          looked like a tile waiting to load. So it gets an actual drawing,
+          in the trip's colour, in the same hand as the Add-a-trip tile. */}
       <span className={`wt-cover${covers[t.id] ? '' : ' wt-cover--drawn'}`} style={{ '--card-accent': tripColor(t.slug) }}>
-        {/* Nothing drawn inside it on purpose. The flags are already in the
-            half below, and repeating them here would make the one card
-            without a photograph the busiest in the row. */}
-        {covers[t.id] && (
+        {covers[t.id] ? (
           <img src={coverUrl(covers[t.id], { width: 400, height: 220 })} alt="" loading="lazy" />
+        ) : (
+          <DrawnCover slug={t.slug} />
         )}
       </span>
       {/* Says what it is for as long as it is there, not only during the
