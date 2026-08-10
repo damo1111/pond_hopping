@@ -128,9 +128,25 @@ export default function CostsTab() {
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
 
+  // Which trip in the "By trip" list is being looked at. Local on purpose,
+  // rather than the app-wide selectedTrip: setting that changes what every
+  // other tab is showing, and — since this whole list only renders when
+  // nothing is selected — would make the row you just tapped disappear,
+  // taking the highlight with it. A filter you can see is a filter you can
+  // undo.
+  const [picked, setPicked] = useState(null)
+
+  // Entering a trip anywhere else takes this list off the screen, so a
+  // filter left behind on it would be invisible and still in force,
+  // waiting to confuse whoever comes back.
+  useEffect(() => setPicked(null), [selectedTrip])
+
   if (!costs) return <div className="tab-loading">loading costs…</div>
 
-  const visible = costs.filter((c) => !selectedTrip || tripsById.get(c.trip_id)?.slug === selectedTrip)
+  const visible = costs
+    .filter((c) => !selectedTrip || tripsById.get(c.trip_id)?.slug === selectedTrip)
+    .filter((c) => !picked || c.trip_id === picked)
+  const pickedTrip = picked ? tripsById.get(picked) : null
   const total = visible.reduce((s, c) => s + Number(c.amount_aud || 0), 0)
 
   // A page of somebody else's spending, presented in your currency with no
@@ -170,7 +186,12 @@ export default function CostsTab() {
           both places. */}
       <div className={`fx-card cost-total-card${showingDemo ? ' cost-total-card--demo' : ''}`}>
         {showingDemo && <span className="wt-sash wt-sash--example">Example</span>}
-        <div className="cost-total-label">{selectedTrip ? 'trip total' : 'running total'}</div>
+        {/* The label has to name what the number is now counting, or a
+            filtered total reads as the running one and every figure on the
+            page is quietly wrong. */}
+        <div className="cost-total-label">
+          {pickedTrip ? pickedTrip.title : selectedTrip ? 'trip total' : 'running total'}
+        </div>
         <div className="cost-total">{fmtA(total)}</div>
       </div>
 
@@ -196,13 +217,22 @@ export default function CostsTab() {
             <span className="fsh-title">By trip</span>
           </div>
           {perTrip.map(({ t, total: v }) => (
-            <div key={t.slug} className="cost-trip-row">
+            <button
+              key={t.slug}
+              type="button"
+              className={`cost-trip-row${picked === t.id ? ' is-picked' : ''}`}
+              aria-pressed={picked === t.id}
+              // Tapping the one already showing puts everything back, so the
+              // way out is the same gesture as the way in and there is no
+              // hunting for a clear button.
+              onClick={() => setPicked((p) => (p === t.id ? null : t.id))}
+            >
               <span className="trip-flags-inline">
                 <CountryFlags countries={t.countries} size={15} /> {t.title}
                 {isDemo(t) && <span className="cost-trip-tag">example</span>}
               </span>
               <span className="cost-bar-val">{fmtA(v)}</span>
-            </div>
+            </button>
           ))}
         </>
       )}
@@ -240,7 +270,9 @@ export default function CostsTab() {
       {!visible.length && (
         <div className="placeholder" style={{ minHeight: '30vh' }}>
           <div className="placeholder-code">costs</div>
-          <div className="placeholder-note">No costs logged{selectedTrip ? ' for this trip' : ''} yet.</div>
+          <div className="placeholder-note">
+            No costs logged{picked || selectedTrip ? ' for this trip' : ''} yet.
+          </div>
         </div>
       )}
     </div>

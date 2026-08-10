@@ -3078,9 +3078,20 @@ button {
 .cost-bar { background: var(--accent); height: 100%; border-radius: 999px; }
 .cost-bar-val { font-family: var(--font-mono); font-size: 11px; text-align: right; }
 
+/* A button now rather than a row of text — tapping one filters the page to
+   that trip. Most of what follows is what a <button> needs in order to keep
+   looking exactly as it did: the width, alignment and font a div was
+   getting for nothing. */
 .cost-trip-row {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 11px;
@@ -3088,6 +3099,15 @@ button {
   font-size: 14px;
   font-weight: 300;
   box-shadow: var(--shadow);
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+/* The one being looked at. Tinted rather than inverted, because the row
+   still has to be readable — the figure on it is the reason you tapped. */
+.cost-trip-row.is-picked {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  font-weight: 400;
 }
 
 .cost-items { display: flex; flex-direction: column; gap: 7px; }
