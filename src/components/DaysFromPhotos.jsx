@@ -62,7 +62,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
       .then(({ data }) => alive && setEntries(data ?? []))
     supabase
       .from('flights')
-      .select('dep_airport,arr_airport,flight_number,dep_time')
+      .select('dep_airport,arr_airport,flight_number,dep_time,arr_time')
       .eq('trip_id', trip.id)
       .then(({ data }) => alive && setFlights(data ?? []))
     supabase

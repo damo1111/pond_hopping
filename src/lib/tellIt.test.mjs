@@ -6,7 +6,7 @@ const ROME = 'Europe/Rome'
 
 // Rome, 23 January 2024 — the real numbers, from the real tables.
 const RUN = { run_date: '2024-01-23', distance_km: '21.39', pace: '4:50', elevation_m: 178 }
-const BA546 = { flight_number: 'BA546', dep_airport: 'LHR', arr_airport: 'FCO', dep_time: '2024-01-22T16:15:00Z' }
+const BA546 = { flight_number: 'BA546', dep_airport: 'LHR', arr_airport: 'FCO', dep_time: '2024-01-22T16:15:00Z', arr_time: '2024-01-22T18:32:00Z' }
 
 const seg = (fromH, fromM, minutes, stayed = true) => ({
   from: `2024-01-23T${String(fromH - 1).padStart(2, '0')}:${String(fromM).padStart(2, '0')}:00Z`,
@@ -84,4 +84,46 @@ test('the title is the day, not its number', () => {
   assert.equal(titleDay(day, { 0: 'the Pantheon', 1: 'the Trevi Fountain' }, {}), 'the Pantheon and the Trevi Fountain')
   // A day whose only fact is the run is named for the run.
   assert.equal(titleDay({ day_number: 2, segments: [] }, {}, { runs: [RUN] }), '21.4 km')
+})
+
+test('a travel day says when you finally got there', () => {
+  // Rome's first day: Scotland at 14:37, Heathrow from 15:47, airborne at
+  // 18:04, central Rome by 20:46 — and not one segment lasting twenty
+  // minutes, so the twenty-minute rule erased the entire day and left
+  // "LHR to FCO on BA546". On a travel day nobody lingers; the moving is
+  // the day.
+  const day = {
+    segments: [
+      { from: '2024-01-22T13:37:00Z', minutes: 3, stayed: false },
+      { from: '2024-01-22T14:47:00Z', minutes: 15, stayed: false },
+      { from: '2024-01-22T19:46:00Z', minutes: 8, stayed: false },
+      { from: '2024-01-22T20:45:00Z', minutes: 0, stayed: false },
+    ],
+  }
+  const said = tellDay(day, {}, { flights: [BA546] }, ROME)
+  assert.match(said, /LHR to FCO/)
+  // 20:46 is the first photograph after the aeroplane landed. 21:45 is the
+  // last photograph of the night, which is a different fact.
+  assert.match(said, /20:46/)
+  assert.doesNotMatch(said, /21:45/)
+})
+
+test('and names where it got to, when the lookup found one', () => {
+  const day = { segments: [{ from: '2024-01-22T19:46:00Z', minutes: 8, stayed: false }] }
+  assert.match(tellDay(day, { 0: 'Monti' }, { flights: [BA546] }, ROME), /At Monti by 20:46/)
+})
+
+test('an ordinary day does not get the arrival line', () => {
+  const day = { segments: [{ from: '2024-01-23T12:16:00Z', minutes: 114, stayed: true }] }
+  const said = tellDay(day, { 0: 'the Roman Forum' }, {}, ROME)
+  assert.doesNotMatch(said, /Out and about by/)
+})
+
+test('"nowhere named" is not said when nothing at all was named', () => {
+  // On its own it is the app apologising rather than telling you anything.
+  const day = { from: '2024-01-23T06:06:00Z', to: '2024-01-23T20:00:00Z', segments: [
+    { from: '2024-01-23T12:16:00Z', minutes: 114, stayed: true },
+    { from: '2024-01-23T15:30:00Z', minutes: 40, stayed: true },
+  ] }
+  assert.doesNotMatch(tellDay(day, {}, {}, ROME), /no name for/)
 })
