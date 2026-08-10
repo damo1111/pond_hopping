@@ -123,9 +123,21 @@ number.
 
 ## Model
 
-`gpt-5.6-sol` — the model ChatGPT was running when it produced the
-reconstruction this is measured against. `gpt-5.6` aliases to it. Takes
-image input, so one model covers all three stages.
+Two of them, and the split is about latency rather than money.
+
+`gpt-5.6-sol` for `reconstruct-trip` and `write-trip` — the reasoning tier,
+and the model ChatGPT was running when it produced the reconstruction this
+is measured against.
+
+`gpt-5.6-luna` for `see-photos` — the fast tier of the same family. Sol on
+"what is in this photograph", 286 times, took over a minute a batch of ten:
+half an hour for a trip, watched. Describing what is visible is a looking
+problem, not a reasoning one. This was GPT's own advice, dismissed here as
+premature optimisation; it was not optimisation, it was the difference
+between usable and not. Falls back to Sol if the call fails, because slow
+beats broken.
+
+Tiers: Sol $5/$30 per million, Terra $2.50/$15, Luna $1/$6.
 
 The rest of the app (`plan-chat`, `gmail-scan`, `read-receipts`) is still on
 `gpt-5.5`. Moving those is a separate change with a separate risk, since
