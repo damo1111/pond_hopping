@@ -22,6 +22,7 @@ import BootScreen from './components/BootScreen.jsx'
 import IntroCards, { introSeen } from './components/IntroCards.jsx'
 import { readPreference, visibleTrips, writePreference } from './lib/demoVisibility.js'
 import { tripColor } from './lib/tripColors.js'
+import { busy, whenIdle } from './lib/busy.js'
 import { track } from './lib/analytics.js'
 import { AuthProvider, useAuth } from './lib/AuthContext.jsx'
 import { disableVisits, enableVisits, hasConsented, installVisitSync, visitStatus, visitsSupported } from './lib/visits.js'
@@ -310,7 +311,21 @@ export default function App() {
       }
       cancel()
       timer = setTimeout(() => {
-        if (document.visibilityState === 'hidden') window.location.reload()
+        if (document.visibilityState !== 'hidden') return
+        // Away for good, and the update is ready — but the app may still be
+        // doing something. Two photographs were lost here: mid-upload,
+        // switch apps for a moment, come back to a freshly booted app with
+        // nothing to show for it. Nothing failed loudly; the upload simply
+        // stopped existing, along with the screen that would have said so.
+        //
+        // Waiting costs nothing. Reloading a hidden page is invisible
+        // either way, so the update can sit until the work is done and go
+        // through the next time the phone is put down.
+        if (busy()) {
+          whenIdle(() => reloadWhenAwayForGood())
+          return
+        }
+        window.location.reload()
       }, AWAY_BEFORE_RELOAD_MS)
     }
 
