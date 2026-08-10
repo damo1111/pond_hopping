@@ -94,6 +94,12 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
   const [hint, setHint] = useState(false)
   // A cover URL that 404s. Google Photos share links do, eventually.
   const [coverBroke, setCoverBroke] = useState(false)
+  // Whether the link would work for anybody else. Held locally as well as
+  // on the trip so the screen updates the moment it changes — the trip
+  // object comes from Home's list, which does not know this happened.
+  const [isPublic, setIsPublic] = useState(trip?.is_public !== false)
+  const [askPublic, setAskPublic] = useState(false)
+  const [publishing, setPublishing] = useState(false)
   // How far the sheet has been pulled down, in px. The handle was drawn as an
   // affordance the sheet didn't honour: it looks like something you can pull,
   // so on the web a downward drag went to the browser's pull-to-refresh
@@ -373,6 +379,8 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
   useEffect(() => {
     if (!trip?.id) return
     setCoverBroke(false)
+    setIsPublic(trip.is_public !== false)
+    setAskPublic(false)
     return gather(
       [
         {
@@ -478,12 +486,62 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
   // And the link itself only works if the trip is public. A private one
   // hands somebody a page that shows them nothing, which is worse than
   // refusing: they think you shared it and you think they saw it.
+  //
+  // "Make it public first" was a dead end. It named the obstacle and then
+  // left you holding it — and there is nowhere else in the app to make a
+  // trip public, so the instruction could not be followed at all. The only
+  // honest options are to offer it here or to stop claiming it is possible.
   async function share() {
-    if (trip.is_public === false) {
-      setShareNote('This trip is private — nobody else could open the link. Make it public first.')
-      setTimeout(() => setShareNote(null), 5000)
+    if (!isPublic) {
+      // Somebody else's trip: say who can, rather than offering a button
+      // that will be refused by the database a second later.
+      if (trip.owned === false) {
+        setShareNote('Only the person whose trip this is can make it public.')
+        setTimeout(() => setShareNote(null), 6000)
+        return
+      }
+      setAskPublic(true)
       return
     }
+    return doShare()
+  }
+
+  // Publishing is the part worth pausing on: it is the one action here that
+  // changes who can see somebody's holiday. So it is asked rather than
+  // assumed, says plainly what it does, and can be undone from the same
+  // screen afterwards — a door that only opens one way is not a choice.
+  async function makePublicAndShare() {
+    setPublishing(true)
+    const { error } = await supabase.from('trips').update({ is_public: true }).eq('id', trip.id)
+    setPublishing(false)
+    if (error) {
+      setAskPublic(false)
+      setShareNote(`Couldn't make it public: ${error.message}`)
+      setTimeout(() => setShareNote(null), 8000)
+      return
+    }
+    setIsPublic(true)
+    setAskPublic(false)
+    return doShare()
+  }
+
+  async function makePrivate() {
+    setPublishing(true)
+    const { error } = await supabase.from('trips').update({ is_public: false }).eq('id', trip.id)
+    setPublishing(false)
+    if (error) {
+      setShareNote(`Couldn't make it private: ${error.message}`)
+      setTimeout(() => setShareNote(null), 8000)
+      return
+    }
+    setIsPublic(false)
+    // Said out loud, because a link already sent to somebody stops working
+    // at this moment and they will not be told.
+    setShareNote('Private again. Any link you already sent has stopped working.')
+    setTimeout(() => setShareNote(null), 8000)
+  }
+
+  async function doShare() {
     // Not window.location.origin: on iOS that is capacitor://localhost,
     // and the share sheet cheerfully sent people a link no browser can
     // open.
@@ -618,8 +676,52 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
         <button className="recap-share" onClick={share}>
           {copied ? 'Link copied' : 'Share this trip'}
         </button>
+
+        {/* The way back. Making a trip public from here would otherwise be a
+            door that only opens one way, and somebody who publishes a trip
+            by mistake should not have to ask how to undo it.
+
+            Not on the examples. Those are public because they are the app's
+            shop window, and their switch lives in Account — two controls for
+            one flag, in different places, is how you end up turning off the
+            thing every new arrival sees and not knowing where you did it. */}
+        {isPublic && trip.owned !== false && !trip.is_demo && (
+          <div className="recap-visibility">
+            <span>Anyone with the link can open this.</span>
+            <button onClick={makePrivate} disabled={publishing}>
+              {publishing ? 'one sec…' : 'Make private'}
+            </button>
+          </div>
+        )}
+
         {shareNote && <div className="recap-share-note">{shareNote}</div>}
       </div>
+
+      {/* Asked, not assumed. This is the only action on the screen that
+          changes who can see somebody's holiday, so it says what it does in
+          the plainest words available and offers a way out that is as easy
+          to hit as the way through. */}
+      {askPublic && (
+        <div className="recap-ask" role="dialog" aria-modal="true" aria-label="Make this trip public">
+          <div className="recap-ask-card">
+            <h2>Share {trip.title}?</h2>
+            <p>
+              Only you can see this trip at the moment, so a link would open to nothing. Making it
+              public means anybody holding the link can read the journal, see the map and the
+              photographs — no account needed.
+            </p>
+            <p className="recap-ask-quiet">You can make it private again straight afterwards.</p>
+            <div className="recap-ask-buttons">
+              <button className="recap-ask-no" onClick={() => setAskPublic(false)} disabled={publishing}>
+                Not now
+              </button>
+              <button className="recap-ask-yes" onClick={makePublicAndShare} disabled={publishing}>
+                {publishing ? 'one sec…' : 'Make public & share'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {layer && (
         <section
