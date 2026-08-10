@@ -5,7 +5,7 @@ import { thumb } from '../lib/imgTransform.js'
 import { readCache, writeCache } from '../lib/placeCache.js'
 import { sweep } from '../lib/staleStory.js'
 import { factsFor, voiceFrom } from '../lib/dayFacts.js'
-import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, priceIt, sift, stopKey, tellDay, titleDay, zoneOf } from '../lib/tripStory.js'
+import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, priceIt, sift, stopKey, stopsToName, tellDay, titleDay, zoneOf } from '../lib/tripStory.js'
 import DayThumb from './DayThumb.jsx'
 import { TRUST_PHOTO } from '../lib/tripStory.js'
 
@@ -387,7 +387,11 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   }
 
   if (phase === 'idle') {
-    const stops = fresh.reduce((n, d) => n + d.stops.filter((s) => s.lat != null).length, 0)
+    // Counted by the same function that decides what gets looked up, so the
+    // number on the button cannot drift from the number of lookups. It did:
+    // this read d.stops, which stopped existing when a day became segments,
+    // and the screen threw rather than showing a count.
+    const stops = stopsToName(fresh).length
     return (
       <div className="dfp">
         <button className="dfp-go" onClick={piece}>
