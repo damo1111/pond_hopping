@@ -8,6 +8,7 @@ import PhotoUpload from '../components/PhotoUpload.jsx'
 import ReceiptScan from '../components/ReceiptScan.jsx'
 import FindDuplicates from '../components/FindDuplicates.jsx'
 import DaysFromPhotos from '../components/DaysFromPhotos.jsx'
+import GmailImport from '../components/planner/GmailImport.jsx'
 
 function fmtRange(t) {
   if (!t.start_date) return 'dates tbc'
@@ -127,6 +128,7 @@ export default function PhotosTab({ openPhotoId = null }) {
   const [settingCover, setSettingCover] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [starring, setStarring] = useState(false)
+  const [findingBookings, setFindingBookings] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -272,6 +274,31 @@ export default function PhotosTab({ openPhotoId = null }) {
       {heroTrip && <FindDuplicates photos={visible} onDone={() => setReload((r) => r + 1)} />}
 
       {heroTrip && <DaysFromPhotos trip={heroTrip} photos={visible} />}
+
+      {/* Where you slept, what you booked, what it cost — from the emails
+          rather than guessed at from GPS. All of this existed already and
+          was reachable only from the planner, which a finished trip never
+          opens: the same mistake as hiding the photo uploader in a screen
+          that only unfinished trips could reach. */}
+      {heroTrip?.start_date && (
+        <div className="dfp">
+          <button className="dfp-go" onClick={() => setFindingBookings(true)}>
+            Find this trip's bookings in your email
+          </button>
+          <div className="dfp-note">
+            Looks in the year before {heroTrip.title} for confirmations — hotels, restaurants,
+            tickets. Nothing is added until you say.
+          </div>
+        </div>
+      )}
+
+      {findingBookings && heroTrip && (
+        <GmailImport
+          trip={heroTrip}
+          onClose={() => setFindingBookings(false)}
+          onImported={() => setReload((r) => r + 1)}
+        />
+      )}
 
       {albums.map((t) => {
         const count = photoCountByTrip.get(t.id) || 0
