@@ -1024,11 +1024,18 @@ function TripCard({ t, covers, selectedTrip, setSelectedTrip, onOrigin }) {
           not a label, because it describes your relationship to the trip
           rather than anything about the trip. */}
       {sash && <span className={`wt-sash wt-sash--${sash.toLowerCase()}`}>{sash}</span>}
+      {/* Three cards in a row, three different heights of first line: one
+          with two flags, one with none, one with a subtitle the others
+          lacked. Every row below inherited the offset, so the titles and
+          the dates on adjacent cards sat at different heights and the strip
+          read as three unrelated objects. Each slot now holds its line
+          whether or not it has anything in it, and the flags say
+          "somewhere" rather than saying nothing. */}
       <span className="wt-flags">
-        <CountryFlags countries={t.countries} size={20} />
+        <CountryFlags countries={t.countries} size={20} unknown />
       </span>
       <span className="wt-title">{t.title}</span>
-      {t.subtitle && <span className="wt-subtitle">{t.subtitle}</span>}
+      <span className="wt-subtitle">{t.subtitle || ' '}</span>
       <span className="wt-dates">{fmtRange(t)}</span>
       <span className="wt-stats">
         {t.flight_count > 0 && <>✈ {t.flight_count}&nbsp;&nbsp;</>}
