@@ -10,22 +10,15 @@
 // model decide which emails describe something happening inside the trip
 // window and pull the real dates out of the body.
 import OpenAI from 'openai'
+import { queryFor } from '../src/lib/gmailWindow.js'
 
 const MODEL = 'gpt-5.5'
 const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me'
 
-// Wide net: travel-ish senders OR booking-ish subjects. The model does the
-// real filtering; this just keeps the candidate set sane.
-const QUERY = [
-  'newer_than:14m',
-  '(',
-  'from:airbnb OR from:booking.com OR from:expedia OR from:hotels.com OR from:marriott OR from:hilton OR from:ihg OR from:accor',
-  'OR from:opentable OR from:resy OR from:sevenrooms OR from:thefork',
-  'OR from:srilankan OR from:britishairways OR from:qantas OR from:ba.com OR from:easyjet OR from:ryanair',
-  'OR from:trainline OR from:nationalrail',
-  'OR subject:(confirmation OR itinerary OR reservation OR "e-ticket" OR "booking reference" OR "booking confirmed" OR receipt OR "you\'re all set" OR reserved)',
-  ')',
-].join(' ')
+// Which slice of the inbox could hold this trip's bookings — see
+// src/lib/gmailWindow.js. This was `newer_than:14m` regardless of when the
+// trip was, so a trip from January 2024 was thirty months outside its own
+// search and the scan reported "nothing found" forever.
 
 async function gapi(path, token) {
   const r = await fetch(`${GMAIL}${path}`, { headers: { Authorization: `Bearer ${token}` } })
@@ -117,7 +110,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const list = await gapi(`/messages?maxResults=30&q=${encodeURIComponent(QUERY)}`, accessToken)
+    const q = queryFor({ start_date: start, end_date: end })
+    const list = await gapi(`/messages?maxResults=30&q=${encodeURIComponent(q)}`, accessToken)
     const ids = (list.messages || []).map((m) => m.id).slice(0, 25)
     if (!ids.length) {
       res.status(200).json({ items: [], scanned: 0 })
