@@ -19,6 +19,8 @@ export default function PlannerPhotos({ trip }) {
       .from('photos')
       .select('id,url,thumb_url,caption,taken_on,lat')
       .eq('trip_id', trip.id)
+      // A receipt is filed under the cost it paid for, not shown here.
+      .neq('kind', 'receipt')
       .order('taken_at', { ascending: true, nullsFirst: false })
       .limit(120)
       .then(({ data }) => setPhotos(data ?? []))

@@ -419,6 +419,7 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
                at the top of the grid. */
             .select('id,url,thumb_url,caption,is_highlight,taken_on')
             .eq('trip_id', trip.id)
+            .neq('kind', 'receipt')
             .order('is_highlight', { ascending: false })
             .order('taken_on', { ascending: true })
             .limit(12),
@@ -432,7 +433,7 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           // The strip is twelve; the figure has to be all of them. Counting
           // the twelve gave "12 photos" for a trip with 181. A head request
           // costs one round trip and no rows.
-          query: supabase.from('photos').select('id', { count: 'exact', head: true }).eq('trip_id', trip.id),
+          query: supabase.from('photos').select('id', { count: 'exact', head: true }).eq('trip_id', trip.id).neq('kind', 'receipt'),
           take: (n) => ({ photoCount: n.count ?? null }),
         },
       ],
