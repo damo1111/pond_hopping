@@ -3,9 +3,9 @@ import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import { thumb } from '../lib/imgTransform.js'
 import { readCache, writeCache } from '../lib/placeCache.js'
-import { sweep } from '../lib/staleStory.js'
+import { builtFrom, sweep } from '../lib/staleStory.js'
 import { factsFor, voiceFrom } from '../lib/dayFacts.js'
-import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, priceIt, sift, stopKey, stopsToName, tellDay, titleDay, zoneOf } from '../lib/tripStory.js'
+import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, nearForDay, placesToName, priceIt, sift, stopKey, tellDay, titleDay, zoneOf } from '../lib/tripStory.js'
 import DayThumb from './DayThumb.jsx'
 import { TRUST_PHOTO } from '../lib/tripStory.js'
 
@@ -100,6 +100,12 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     ? sweep(days, entries)
     : { fresh: [], stale: [], leave: [] }
   const already = new Set((entries ?? []).map((e) => e.entry_date))
+  // Days the hopper wrote themselves. Their words are not ours to replace:
+  // a reconstruction of a day they already described is a second reading of
+  // it, and it goes in the blend column beside their note, never over it.
+  const theirDays = new Map(
+    (entries ?? []).filter((e) => !e.built_from && e.note).map((e) => [e.entry_date, e])
+  )
   const written = leave
   const fresh = [...never, ...stale, ...(redo ? leave : [])].sort((a, b) => a.date.localeCompare(b.date))
   // A preview runs over every day, including the ones somebody wrote —
@@ -142,13 +148,14 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
       return
     }
 
-    // 1. What is at each stop. One lookup per stop, none per photograph.
+    // 1. What is at each place. One lookup per segment, none per photograph.
     const wanted = []
     for (const day of target)
       day.segments.forEach((s, i) => {
-        // Only the places you stayed. Naming the walking is what produced
-        // a day that read as a list of piazzas.
-        if (s.stayed && s.lat != null) wanted.push({ key: stopKey(day.date, i), lat: s.lat, lon: s.lon })
+        // Every located segment, not only the ones somebody stayed at.
+        // Naming just the long ones is what left the writer with seven
+        // moments out of thirty-one and nothing to tell a story with.
+        if (s.lat != null) wanted.push({ key: stopKey(day.date, i), lat: s.lat, lon: s.lon })
       })
 
     // Anything already looked up is free. This matters more than it looks:
@@ -190,7 +197,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     await writeCache(misses, asked, userId)
 
     // 2. What the numbers settle, and what they cannot.
-    const { names: settled, ask } = sift(target, candidates)
+    const { names: settled, near, ask } = sift(target, candidates)
     setPrice(priceIt(target, ask))
 
     // 3. The few that need a photograph looked at. This is the only step
@@ -233,12 +240,17 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     await Promise.all(
       target.map(async (day) => {
         const mine = namesForDay(day, found)
+        // Places that never settled on one name still go over: "somewhere
+        // among Piazza Trilussa and the Fontanone" is a real sentence about
+        // a real morning, and dropping it is how a day lost eight of its
+        // twelve moments.
+        const around = nearForDay(day, near)
         const theirs = (entries ?? []).find((e) => e.entry_date === day.date && !e.built_from)?.note
         try {
           const r = await fetch('/api/write-day', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
-            body: JSON.stringify({ facts: factsFor(day, mine, zone), voice, theirs: theirs ?? null }),
+            body: JSON.stringify({ facts: factsFor(day, mine, zone, {}, around), voice, theirs: theirs ?? null }),
           })
           if (r.ok) drafted[day.date] = (await r.json()).text
         } catch {
@@ -274,7 +286,32 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   }
 
   async function write(days_, using, { silent = false } = {}) {
-    const rows = days_.map((d) => {
+    // A day the hopper wrote is not a day to overwrite. Their note stays
+    // exactly as they left it and the reconstruction goes in beside it, to
+    // be read or ignored. Everything else — days nobody has written, and
+    // days this system wrote before — is replaced as it always was.
+    const beside = days_.filter((d) => theirDays.has(d.date))
+    const ours = days_.filter((d) => !theirDays.has(d.date))
+
+    for (const d of beside) {
+      if (!prose[d.date]) continue
+      const { error } = await supabase
+        .from('journal_entries')
+        .update({
+          blend: prose[d.date],
+          blend_built_from: builtFrom({ photos: d.photos, stops: d.segments }),
+          blend_at: new Date().toISOString(),
+        })
+        .eq('trip_id', trip.id)
+        .eq('entry_date', d.date)
+      if (error) {
+        setPhase(silent ? 'idle' : 'review')
+        if (!silent) setTrouble(`Couldn't save the blended day: ${error.message}`)
+        return
+      }
+    }
+
+    const rows = ours.map((d) => {
       const row = entryFor(d, trip, using, zone)
       // The written version is what somebody reads, so it is what gets
       // saved. The templated one remains the fallback when writing failed.
@@ -284,7 +321,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     // Anything being replaced goes first, in one statement, so a day never
     // ends up with two entries on it because the insert succeeded after a
     // half-finished delete.
-    const replacing = days_.map((d) => d.date).filter((date) => already.has(date))
+    const replacing = ours.map((d) => d.date).filter((date) => already.has(date))
     if (replacing.length) {
       const { error } = await supabase
         .from('journal_entries')
@@ -298,7 +335,9 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
       }
     }
 
-    const { error } = await supabase.from('journal_entries').insert(rows)
+    const { error } = rows.length
+      ? await supabase.from('journal_entries').insert(rows)
+      : { error: null }
     // A sweep leaves no trace on the screen. It brought a file back into
     // line with its own photographs; announcing that with a banner would be
     // the app congratulating itself for not being out of date.
@@ -308,7 +347,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
       return
     }
     setSaved((n) => n + 1)
-    if (!silent) onDone?.(rows.length)
+    if (!silent) onDone?.(rows.length + beside.length)
   }
 
   if (!trip?.id || !entries || !days.length) return null
@@ -382,8 +421,9 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
           <label className="dfp-redo">
             <input type="checkbox" checked={redo} onChange={() => setRedo((r) => !r)} />
             <span>
-              Write {written.length} of them again from the photographs — this replaces what is
-              there now.
+              Go over {written.length} of them again from the photographs. Days you wrote
+              yourself keep your words and gain a second reading beside them; days this app
+              wrote are replaced.
             </span>
           </label>
         )}
@@ -396,7 +436,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     // number on the button cannot drift from the number of lookups. It did:
     // this read d.stops, which stopped existing when a day became segments,
     // and the screen threw rather than showing a count.
-    const stops = stopsToName(fresh).length
+    const stops = placesToName(fresh).length
     return (
       <div className="dfp">
         <button className="dfp-go" onClick={piece}>
@@ -411,8 +451,9 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
           <label className="dfp-redo">
             <input type="checkbox" checked={redo} onChange={() => setRedo((r) => !r)} />
             <span>
-              Also redo {written.length} day{written.length === 1 ? '' : 's'} that already{' '}
-              {written.length === 1 ? 'has' : 'have'} an entry — this replaces what is there now.
+              Also go over {written.length} day{written.length === 1 ? '' : 's'} that already{' '}
+              {written.length === 1 ? 'has' : 'have'} an entry. Days you wrote yourself keep your
+              words and gain a second reading beside them; days this app wrote are replaced.
             </span>
           </label>
         )}
@@ -478,7 +519,11 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
               <span className="dfp-when">
                 Day {day.day_number} ·{' '}
                 {new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                {already.has(day.date) && <em className="dfp-replaces"> replaces what is there</em>}
+                {theirDays.has(day.date) ? (
+                  <em className="dfp-beside"> kept beside what you wrote</em>
+                ) : (
+                  already.has(day.date) && <em className="dfp-replaces"> replaces what is there</em>
+                )}
               </span>
               <span className="dfp-title">{titleDay(day, mine, day.known)}</span>
               <span className="dfp-said">{prose[day.date] ?? tellDay(day, mine, day.known, zone)}</span>

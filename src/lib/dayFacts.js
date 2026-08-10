@@ -15,13 +15,21 @@ const HOUR = 60
 
 const said = (t, zone) => (t ? clockIn(t, zone) : null)
 
-export function factsFor(day = {}, names = {}, zone = null, extra = {}) {
+export function factsFor(day = {}, names = {}, zone = null, extra = {}, near = {}) {
   const segments = (day.segments ?? []).map((s, i) => ({
     place: names[i] ?? null,
+    // Where no single name won, the neighbours are still worth saying.
+    // "Somewhere around Piazza Trilussa" is a real sentence about a real
+    // morning; null is not.
+    around: names[i] ? null : (near[i] ?? null),
     from: said(s.from, zone),
     to: said(s.to, zone),
     minutes: s.minutes,
     stayed: !!s.stayed,
+    // How hard somebody was looking. Twenty-three photographs in ten
+    // minutes and one photograph in passing are not the same event, and
+    // the count is the only evidence of that we have without opening the
+    // pictures.
     photos: s.photos?.length ?? 0,
   }))
 
@@ -45,6 +53,15 @@ export function factsFor(day = {}, names = {}, zone = null, extra = {}) {
     // Where they stopped, in order. Places with no name are still stops —
     // the writer is told they happened and told nothing is known about
     // them, which is more honest than dropping them silently.
+    // The whole day in order, not a summary of it.
+    //
+    // This used to be `stops` — the segments over twenty minutes — plus a
+    // count of everything else. Rome's four days came to 31 segments and
+    // the writer saw 7. You cannot tell a story from the four longest
+    // things that happened; the shape of a day is in the order and the
+    // pace of all of it, and a ten-minute stop can be the best moment in
+    // it.
+    moments: segments,
     stops: segments.filter((s) => s.stayed),
     passing: segments.filter((s) => !s.stayed).length,
     first_photo: said(day.from, zone),

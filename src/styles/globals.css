@@ -2201,6 +2201,22 @@ button {
   overflow: hidden;
 }
 
+/* Quiet, and deliberately so. Switching to the pieced-together reading of
+   a day is a small thing to offer, not a feature to advertise over the
+   words somebody wrote themselves. */
+.je-blend {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 .je-tags {
   display: flex;
   flex-wrap: wrap;
@@ -9870,6 +9886,14 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   letter-spacing: 0.06em;
 }
 
+/* Not a warning. Nothing is being taken away — their note stays exactly as
+   they wrote it and this goes in beside it. */
+.dfp-beside {
+  font-style: normal;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
 /* A day being read rather than chosen — no checkbox, so the text starts
    where the checkbox would have been. */
 .dfp-day--read { padding-left: 0 }
@@ -9890,3 +9914,111 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 
 .day-thumb-tile { position: absolute; width: 256px; height: 256px; }
 .day-thumb-line { position: absolute; left: 0; top: 0; }
+
+
+/* ── The story of a trip ──────────────────────────────────────────────────
+   Long-form, and meant to be read rather than scanned. Wider measure than
+   the cards around it, more air between paragraphs, and nothing competing
+   with the prose. */
+.story {
+  background: var(--card, #fff);
+  border-radius: 18px;
+  padding: 20px 18px;
+  margin: 14px 0;
+}
+
+.story-go {
+  width: 100%;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ink, #241f1b);
+  color: #fff;
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.story-sub {
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.story-doing {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  padding: 6px 0 12px;
+}
+
+.story-opening,
+.story-closing {
+  font-size: 1.02rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.story-opening { margin-bottom: 26px }
+.story-closing { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--hairline, #e7e2da) }
+
+.story-chapter { margin: 26px 0 }
+.story-chapter h3 { margin: 0; font-size: 1.15rem }
+
+.story-when {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  margin: 2px 0 10px;
+}
+
+/* The paragraphs come back as newlines from the writer, and the rhythm —
+   a long sentence, then three words alone — is a real part of why it reads
+   well. Preserving the breaks is preserving that. */
+.story-note {
+  white-space: pre-wrap;
+  line-height: 1.72;
+  font-size: 1rem;
+}
+
+.story-asks { margin-top: 6px }
+.story-ask {
+  padding: 14px 0;
+  border-top: 1px solid var(--hairline, #e7e2da);
+}
+.story-q { font-size: 1rem; line-height: 1.5 }
+.story-because {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.story-buttons { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap }
+.story-buttons button {
+  padding: 7px 14px;
+  border: 1px solid var(--hairline, #e7e2da);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.story-again {
+  margin-top: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.story-trouble {
+  margin-top: 12px;
+  color: #C0392B;
+  font-size: 0.86rem;
+}
