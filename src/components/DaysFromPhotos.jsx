@@ -28,6 +28,8 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   const [take, setTake] = useState(() => new Set())
   const [trouble, setTrouble] = useState(null)
   const [saved, setSaved] = useState(0)
+  // Replace entries that already exist. Destructive, so never on by default.
+  const [redo, setRedo] = useState(false)
 
   const days = daysFrom(photos, trip)
 
@@ -45,8 +47,17 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   }, [trip?.id, saved])
 
   // A day already journalled is a day somebody wrote about, and pasting a
-  // reconstruction over it is not an improvement.
-  const fresh = already ? days.filter((d) => !already.has(d.date)) : []
+  // reconstruction over it is not an improvement — so by default it is left
+  // alone.
+  //
+  // But "left alone" quietly meant "invisible", and the trip with the most
+  // photographs in it is New Orleans, every day of which was written up
+  // from a much cruder reconstruction before any of this existed. The best
+  // test of the new thing was the one trip it would refuse to touch. So
+  // redoing is offered, off by default, saying plainly that it replaces.
+  const untouched = already ? days.filter((d) => !already.has(d.date)) : []
+  const written = already ? days.filter((d) => already.has(d.date)) : []
+  const fresh = redo ? [...untouched, ...written].sort((a, b) => a.date.localeCompare(b.date)) : untouched
 
   async function token() {
     const { data } = await supabase.auth.getSession()
@@ -132,7 +143,25 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   async function save() {
     setPhase('saving')
     setTrouble(null)
-    const rows = fresh.filter((d) => take.has(d.date)).map((d) => entryFor(d, trip, names))
+    const days_ = fresh.filter((d) => take.has(d.date))
+    const rows = days_.map((d) => entryFor(d, trip, names))
+
+    // Anything being replaced goes first, in one statement, so a day never
+    // ends up with two entries on it because the insert succeeded after a
+    // half-finished delete.
+    const replacing = days_.map((d) => d.date).filter((date) => already.has(date))
+    if (replacing.length) {
+      const { error } = await supabase
+        .from('journal_entries')
+        .delete()
+        .eq('trip_id', trip.id)
+        .in('entry_date', replacing)
+      if (error) {
+        setPhase('review')
+        return setTrouble(`Couldn't replace the old entries: ${error.message}`)
+      }
+    }
+
     const { error } = await supabase.from('journal_entries').insert(rows)
     setPhase(error ? 'review' : 'done')
     if (error) return setTrouble(`Couldn't write them: ${error.message}`)
@@ -145,7 +174,18 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   if (phase === 'idle' && !fresh.length) {
     return (
       <div className="dfp">
-        <div className="dfp-note">Every day these photographs cover already has a journal entry.</div>
+        <div className="dfp-note">
+          Every day these photographs cover already has a journal entry.
+        </div>
+        {written.length > 0 && (
+          <label className="dfp-redo">
+            <input type="checkbox" checked={redo} onChange={() => setRedo((r) => !r)} />
+            <span>
+              Write {written.length} of them again from the photographs — this replaces what is
+              there now.
+            </span>
+          </label>
+        )}
       </div>
     )
   }
@@ -162,6 +202,15 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
           {stops === 1 ? '' : 's'} to check. Only where several things share a spot does it look at
           a photograph to tell them apart.
         </div>
+        {written.length > 0 && (
+          <label className="dfp-redo">
+            <input type="checkbox" checked={redo} onChange={() => setRedo((r) => !r)} />
+            <span>
+              Also redo {written.length} day{written.length === 1 ? '' : 's'} that already{' '}
+              {written.length === 1 ? 'has' : 'have'} an entry — this replaces what is there now.
+            </span>
+          </label>
+        )}
         {trouble && <div className="dfp-trouble">{trouble}</div>}
       </div>
     )
@@ -220,6 +269,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
               <span className="dfp-when">
                 Day {day.day_number} ·{' '}
                 {new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                {already.has(day.date) && <em className="dfp-replaces"> replaces what is there</em>}
               </span>
               <span className="dfp-title">{titleDay(day, mine)}</span>
               <span className="dfp-said">{tellDay(day, mine)}</span>

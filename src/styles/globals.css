@@ -9849,3 +9849,23 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   font-size: 13.5px;
   line-height: 1.35;
 }
+
+/* Replacing a day that already has an entry. Never on by default, and the
+   row it applies to says so — deleting somebody's writing is not something
+   to discover after the fact. */
+.dfp-redo {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.dfp-replaces {
+  font-style: normal;
+  color: #C0392B;
+  letter-spacing: 0.06em;
+}
