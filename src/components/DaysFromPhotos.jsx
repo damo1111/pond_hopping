@@ -1,8 +1,9 @@
-import { useContext, useEffect, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import { thumb } from '../lib/imgTransform.js'
 import { readCache, writeCache } from '../lib/placeCache.js'
+import { sweep } from '../lib/staleStory.js'
 import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, priceIt, sift, stopKey, tellDay, titleDay } from '../lib/tripStory.js'
 import { TRUST_PHOTO } from '../lib/tripStory.js'
 
@@ -23,7 +24,7 @@ const LOOKUP_BATCH = 40
 
 export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   const { userId } = useContext(TripContext)
-  const [already, setAlready] = useState(null)
+  const [entries, setEntries] = useState(null)
   const [phase, setPhase] = useState('idle') // idle | naming | looking | review | saving | done
   const [progress, setProgress] = useState({ done: 0, total: 0 })
   const [names, setNames] = useState({})
@@ -41,33 +42,57 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     let alive = true
     supabase
       .from('journal_entries')
-      .select('entry_date')
+      .select('entry_date,built_from,edited_at')
       .eq('trip_id', trip.id)
-      .then(({ data }) => alive && setAlready(new Set((data ?? []).map((r) => r.entry_date))))
+      .then(({ data }) => alive && setEntries(data ?? []))
     return () => {
       alive = false
     }
   }, [trip?.id, saved])
 
-  // A day already journalled is a day somebody wrote about, and pasting a
-  // reconstruction over it is not an improvement — so by default it is left
-  // alone.
+  // Three kinds of day, and they are not the same problem.
   //
-  // But "left alone" quietly meant "invisible", and the trip with the most
-  // photographs in it is New Orleans, every day of which was written up
-  // from a much cruder reconstruction before any of this existed. The best
-  // test of the new thing was the one trip it would refuse to touch. So
-  // redoing is offered, off by default, saying plainly that it replaces.
-  const untouched = already ? days.filter((d) => !already.has(d.date)) : []
-  const written = already ? days.filter((d) => already.has(d.date)) : []
-  const fresh = redo ? [...untouched, ...written].sort((a, b) => a.date.localeCompare(b.date)) : untouched
+  //   fresh — never written up. Offer it.
+  //   stale — we wrote it, nobody has edited it, and the photographs have
+  //           moved on since. Sweep it up: the story on file describes a
+  //           set of pictures that no longer exists.
+  //   leave — somebody wrote it themselves, or ours and still accurate.
+  //           Never touched without being asked, and `redo` is that ask.
+  //
+  // Staleness is what the one-shot button missed. Adding forty photographs
+  // to a day changes its stops, which changes the story, and nothing said
+  // so. Re-telling is nearly free — the arithmetic is instant and the
+  // coordinate cache means only genuinely new places cost a lookup — so
+  // there is no reason for it not to keep up.
+  const { fresh: never, stale, leave } = entries
+    ? sweep(days, entries)
+    : { fresh: [], stale: [], leave: [] }
+  const already = new Set((entries ?? []).map((e) => e.entry_date))
+  const written = leave
+  const fresh = [...never, ...stale, ...(redo ? leave : [])].sort((a, b) => a.date.localeCompare(b.date))
+
+  // Swept up rather than offered. A day whose story we wrote, that nobody
+  // has edited, and whose photographs have since changed, is not a decision
+  // for anybody to make — the file is simply out of date, and re-telling it
+  // costs a few milliseconds of arithmetic and whatever genuinely new
+  // coordinates turn up. Runs once per set of photographs, never over an
+  // edited day, and never while somebody is mid-review.
+  const swept = useRef('')
+  useEffect(() => {
+    if (!entries || phase !== 'idle' || !stale.length || never.length) return
+    const mark = `${trip?.id}:${stale.map((d) => d.date).join(',')}:${photos.length}`
+    if (swept.current === mark) return
+    swept.current = mark
+    piece({ silent: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, stale.length, never.length, phase, photos.length])
 
   async function token() {
     const { data } = await supabase.auth.getSession()
     return data?.session?.access_token
   }
 
-  async function piece() {
+  async function piece({ silent = false } = {}) {
     setTrouble(null)
     setPhase('naming')
     const auth = await token()
@@ -157,6 +182,14 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     }
 
     setNames(found)
+
+    // A sweep does not stop to ask. It is bringing a file back into line
+    // with the photographs it was made from, on days nobody has touched.
+    if (silent) {
+      await write(stale, found, { silent: true })
+      return
+    }
+
     setTake(new Set(fresh.map((d) => d.date)))
     setPhase('review')
   }
@@ -164,8 +197,11 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   async function save() {
     setPhase('saving')
     setTrouble(null)
-    const days_ = fresh.filter((d) => take.has(d.date))
-    const rows = days_.map((d) => entryFor(d, trip, names))
+    await write(fresh.filter((d) => take.has(d.date)), names)
+  }
+
+  async function write(days_, using, { silent = false } = {}) {
+    const rows = days_.map((d) => entryFor(d, trip, using))
 
     // Anything being replaced goes first, in one statement, so a day never
     // ends up with two entries on it because the insert succeeded after a
@@ -178,19 +214,26 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
         .eq('trip_id', trip.id)
         .in('entry_date', replacing)
       if (error) {
-        setPhase('review')
-        return setTrouble(`Couldn't replace the old entries: ${error.message}`)
+        setPhase(silent ? 'idle' : 'review')
+        if (!silent) setTrouble(`Couldn't replace the old entries: ${error.message}`)
+        return
       }
     }
 
     const { error } = await supabase.from('journal_entries').insert(rows)
-    setPhase(error ? 'review' : 'done')
-    if (error) return setTrouble(`Couldn't write them: ${error.message}`)
+    // A sweep leaves no trace on the screen. It brought a file back into
+    // line with its own photographs; announcing that with a banner would be
+    // the app congratulating itself for not being out of date.
+    setPhase(error ? (silent ? 'idle' : 'review') : silent ? 'idle' : 'done')
+    if (error) {
+      if (!silent) setTrouble(`Couldn't write them: ${error.message}`)
+      return
+    }
     setSaved((n) => n + 1)
-    onDone?.(rows.length)
+    if (!silent) onDone?.(rows.length)
   }
 
-  if (!trip?.id || !already || !days.length) return null
+  if (!trip?.id || !entries || !days.length) return null
 
   if (phase === 'idle' && !fresh.length) {
     return (
