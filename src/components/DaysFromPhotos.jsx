@@ -106,21 +106,26 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   // those are precisely the ones worth comparing against.
   const target = previewing ? days : fresh
 
-  // Swept up rather than offered. A day whose story we wrote, that nobody
-  // has edited, and whose photographs have since changed, is not a decision
-  // for anybody to make — the file is simply out of date, and re-telling it
-  // costs a few milliseconds of arithmetic and whatever genuinely new
-  // coordinates turn up. Runs once per set of photographs, never over an
-  // edited day, and never while somebody is mid-review.
-  const swept = useRef('')
-  useEffect(() => {
-    if (!entries || phase !== 'idle' || !stale.length || never.length) return
-    const mark = `${trip?.id}:${stale.map((d) => d.date).join(',')}:${photos.length}`
-    if (swept.current === mark) return
-    swept.current = mark
-    piece({ silent: true })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, stale.length, never.length, phase, photos.length])
+  // There was an automatic sweep here and it is gone.
+  //
+  // The argument for it was good: a story built from forty photographs is
+  // out of date once there are eighty, nobody should have to notice, and
+  // re-telling costs almost nothing. The argument was wrong in one word.
+  // "Almost nothing" stopped being true the moment writing meant a model
+  // call, and "nobody should have to notice" is exactly the problem — it
+  // rewrote journal entries and spent money with no one having asked for
+  // either.
+  //
+  // Then it met the stops/segments rename, which made every previously
+  // reconstructed day permanently stale, and it ran on every page load. On
+  // one of those loads it replaced four hand-written entries about the
+  // Concorde Room, a Scottish couple and a pasta course with "Out from
+  // 14:37 to 21:45. Nothing along the way is on the map."
+  //
+  // A bug made it constant, but a bug is not why it should not exist. The
+  // rule now is simpler and does not need to be got right twice: nothing
+  // writes to the journal without somebody asking it to. Staleness is still
+  // computed, and it is still shown — it just waits to be told.
 
   async function token() {
     const { data } = await supabase.auth.getSession()
