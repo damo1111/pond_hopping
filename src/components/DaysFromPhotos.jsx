@@ -5,7 +5,7 @@ import { thumb } from '../lib/imgTransform.js'
 import { readCache, writeCache } from '../lib/placeCache.js'
 import { builtFrom, sweep } from '../lib/staleStory.js'
 import { factsFor, voiceFrom } from '../lib/dayFacts.js'
-import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, priceIt, sift, stopKey, stopsToName, tellDay, titleDay, zoneOf } from '../lib/tripStory.js'
+import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, nearForDay, placesToName, priceIt, sift, stopKey, tellDay, titleDay, zoneOf } from '../lib/tripStory.js'
 import DayThumb from './DayThumb.jsx'
 import { TRUST_PHOTO } from '../lib/tripStory.js'
 
@@ -148,13 +148,14 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
       return
     }
 
-    // 1. What is at each stop. One lookup per stop, none per photograph.
+    // 1. What is at each place. One lookup per segment, none per photograph.
     const wanted = []
     for (const day of target)
       day.segments.forEach((s, i) => {
-        // Only the places you stayed. Naming the walking is what produced
-        // a day that read as a list of piazzas.
-        if (s.stayed && s.lat != null) wanted.push({ key: stopKey(day.date, i), lat: s.lat, lon: s.lon })
+        // Every located segment, not only the ones somebody stayed at.
+        // Naming just the long ones is what left the writer with seven
+        // moments out of thirty-one and nothing to tell a story with.
+        if (s.lat != null) wanted.push({ key: stopKey(day.date, i), lat: s.lat, lon: s.lon })
       })
 
     // Anything already looked up is free. This matters more than it looks:
@@ -196,7 +197,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     await writeCache(misses, asked, userId)
 
     // 2. What the numbers settle, and what they cannot.
-    const { names: settled, ask } = sift(target, candidates)
+    const { names: settled, near, ask } = sift(target, candidates)
     setPrice(priceIt(target, ask))
 
     // 3. The few that need a photograph looked at. This is the only step
@@ -239,12 +240,17 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     await Promise.all(
       target.map(async (day) => {
         const mine = namesForDay(day, found)
+        // Places that never settled on one name still go over: "somewhere
+        // among Piazza Trilussa and the Fontanone" is a real sentence about
+        // a real morning, and dropping it is how a day lost eight of its
+        // twelve moments.
+        const around = nearForDay(day, near)
         const theirs = (entries ?? []).find((e) => e.entry_date === day.date && !e.built_from)?.note
         try {
           const r = await fetch('/api/write-day', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
-            body: JSON.stringify({ facts: factsFor(day, mine, zone), voice, theirs: theirs ?? null }),
+            body: JSON.stringify({ facts: factsFor(day, mine, zone, {}, around), voice, theirs: theirs ?? null }),
           })
           if (r.ok) drafted[day.date] = (await r.json()).text
         } catch {
@@ -430,7 +436,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     // number on the button cannot drift from the number of lookups. It did:
     // this read d.stops, which stopped existing when a day became segments,
     // and the screen threw rather than showing a count.
-    const stops = stopsToName(fresh).length
+    const stops = placesToName(fresh).length
     return (
       <div className="dfp">
         <button className="dfp-go" onClick={piece}>

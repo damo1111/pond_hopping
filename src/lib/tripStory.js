@@ -78,29 +78,77 @@ export function daysFrom(photos = [], trip = {}, { runs = [], flights = [] } = {
   })
 }
 
-/** Only the places you stayed, as the flat list the lookup endpoint wants. */
-export function stopsToName(days = []) {
+/**
+ * Every located segment of every day, as the flat list the lookup endpoint
+ * wants.
+ *
+ * This used to return only the segments that passed STAYED_MINUTES, and
+ * that decision was the reason the whole thing had nothing to say. Rome
+ * came out as 31 segments across four days and the writer was handed 7:
+ * twenty-four places thrown away, including twenty-three photographs in ten
+ * minutes on the afternoon of the 24th, which is somebody standing in front
+ * of something remarkable, filed as "passing through". The discarded ones
+ * had no names either, because a lookup was only ever paid for on a segment
+ * that had already survived the cut. Starved twice over.
+ *
+ * Naming them all costs about two dozen extra lookups for a four-day trip,
+ * and the cache is keyed on the coordinate, so a hotel you return to every
+ * night is free after the first night. A quota was deciding the shape of
+ * the story, which is the wrong way round.
+ *
+ * `stayed` still matters — it is what separates an evening somewhere from a
+ * photograph taken on the way past, and the writer is told which is which.
+ * It just no longer decides what gets a name.
+ */
+export function placesToName(days = []) {
   const out = []
   for (const day of days)
     day.segments.forEach((s, i) => {
-      if (!s.stayed || s.lat == null) return
+      if (s.lat == null) return
       out.push({ key: stopKey(day.date, i), lat: s.lat, lon: s.lon, day: day.date, i, stop: s })
     })
   return out
 }
 
-/** What the candidates settle, and what only a photograph can. */
+/** How many neighbours to hand over when nothing settles. Enough for the
+ *  writer to say where somebody was; not so many it reads as a directory. */
+export const NEIGHBOURS = 3
+
+/**
+ * What the candidates settle, what only a photograph can, and what stays a
+ * neighbourhood rather than a name.
+ *
+ * Only a segment somebody stayed at is worth a photograph. Sending one for
+ * every place walked past would be two dozen image calls a trip to settle
+ * questions nobody asked — a picture taken in eleven seconds on the way
+ * somewhere does not need its restaurant identified.
+ *
+ * But an unsettled place is still worth reporting. "Somewhere among Piazza
+ * Trilussa and the Fontanone" is a real sentence about a real morning, and
+ * it is the difference between a day with eleven moments in it and a day
+ * with three.
+ */
 export function sift(days = [], named = {}) {
   const names = {}
+  const near = {}
   const ask = []
 
-  for (const { key, stop, day, i } of stopsToName(days)) {
-    const { verdict, place, shortlist } = pickPlace(stop, named[key] ?? [])
-    if (verdict === 'settled') names[key] = place.name
-    else if (verdict === 'ambiguous') ask.push({ key, day, i, stop, shortlist, photos: askWith(stop) })
+  for (const { key, stop, day, i } of placesToName(days)) {
+    const candidates = named[key] ?? []
+    const { verdict, place, shortlist } = pickPlace(stop, candidates)
+    if (verdict === 'settled') {
+      names[key] = place.name
+      continue
+    }
+    if (verdict === 'ambiguous' && stop.stayed) {
+      ask.push({ key, day, i, stop, shortlist, photos: askWith(stop) })
+      continue
+    }
+    const around = (shortlist.length ? shortlist : candidates).slice(0, NEIGHBOURS)
+    if (around.length) near[key] = around.map((c) => c.name)
   }
 
-  return { names, ask }
+  return { names, near, ask }
 }
 
 export function namesForDay(day, names = {}) {
@@ -108,6 +156,16 @@ export function namesForDay(day, names = {}) {
   day.segments.forEach((_, i) => {
     const n = names[stopKey(day.date, i)]
     if (n) out[i] = n
+  })
+  return out
+}
+
+/** The same, for the places that never settled on one name. */
+export function nearForDay(day, near = {}) {
+  const out = {}
+  day.segments.forEach((_, i) => {
+    const n = near[stopKey(day.date, i)]
+    if (n?.length) out[i] = n
   })
   return out
 }
@@ -140,7 +198,7 @@ function longestNamed(day, mine) {
 
 /** What this trip will cost to piece together, before spending it. */
 export function priceIt(days = [], ask = []) {
-  const stops = stopsToName(days).length
+  const stops = placesToName(days).length
   return {
     days: days.length,
     stops,
