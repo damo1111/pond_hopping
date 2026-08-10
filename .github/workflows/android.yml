@@ -196,11 +196,16 @@ jobs:
       #
       # To set it up, once:
       #   1. play.google.com/console — £20 one-off, create the app, package
-      #      name app.eend.pond.
-      #   2. Console → Users and permissions → Invite → a service account, or
-      #      Setup → API access → link a Google Cloud project and create one.
-      #      Grant it "Release apps to testing tracks".
-      #   3. That service account's JSON key → PLAY_SERVICE_ACCOUNT_JSON.
+      #      name pond.eend.app (the applicationId, not the namespace).
+      #   2. Console → Users and permissions → Invite new users → paste the
+      #      service account's address, add the app, tick "Release apps to
+      #      testing tracks", Invite. Guides send you to Setup → API access
+      #      instead; that page has been moved and relabelled more than once
+      #      and may simply not be in the nav. Users and permissions makes
+      #      the same grant and is still there.
+      #   3. Google Cloud: enable the Google Play Android Developer API on
+      #      the project, then IAM & Admin → Service Accounts → Keys → Add
+      #      key → JSON → PLAY_SERVICE_ACCOUNT_JSON.
       #
       # The first upload of any app must be made by hand in the console —
       # the API refuses to create the very first release. After that this
@@ -244,7 +249,20 @@ jobs:
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ env.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: app.eend.pond
+          # applicationId, not namespace. build.gradle carries both and they
+          # are deliberately different: `namespace` is app.eend.pond, the
+          # Java package, invisible outside the build; `applicationId` is
+          # pond.eend.app, what the app was registered as and the only name
+          # Play has ever heard of. This said app.eend.pond, and Play
+          # answered "Package not found" — after authenticating happily and
+          # opening an edit, which is why it reads like a credentials
+          # problem and is not one.
+          #
+          # Wrong since the day the package was renamed to match the Play
+          # entry, and invisible for every run since, because the step is
+          # gated on a secret that did not exist yet. Nothing was ever
+          # published for it to be caught by.
+          packageName: pond.eend.app
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
           track: internal
           status: completed
