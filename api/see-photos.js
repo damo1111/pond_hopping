@@ -31,7 +31,15 @@ import { BATCH } from '../src/lib/seeing.js'
 // divides into — and it happens after this, not before.
 //
 // So: every photograph, once, batched.
-const MODEL = 'gpt-5.5'
+// gpt-5.6-sol, which is the model ChatGPT was running when it produced the
+// reconstruction this pipeline is measured against. Everything here was on
+// gpt-5.5, a version behind, and this is the stage where that matters most.
+//
+// Worth remembering anyway: the same model id does not buy the same output.
+// ChatGPT wraps it in its own system prompt and tools; the API gives us the
+// model and nothing else, so the prompt in this file is doing work that was
+// invisible over there.
+const MODEL = 'gpt-5.6-sol'
 
 /** How much of the image the model gets.
  *

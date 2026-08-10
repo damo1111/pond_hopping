@@ -121,9 +121,44 @@ Day two comes to 14.3 km and day three to 12.7, against ChatGPT's 14.5 and
 12.8. The difference is the hops this excludes, and this is the more honest
 number.
 
+## Model
+
+`gpt-5.6-sol` — the model ChatGPT was running when it produced the
+reconstruction this is measured against. `gpt-5.6` aliases to it. Takes
+image input, so one model covers all three stages.
+
+The rest of the app (`plan-chat`, `gmail-scan`, `read-receipts`) is still on
+`gpt-5.5`. Moving those is a separate change with a separate risk, since
+they work.
+
+Same model id does not buy the same output. ChatGPT wraps it in its own
+system prompt and tool stack; the API hands over the model and nothing else,
+so the prompts in these three files are doing work that was invisible in the
+chat window.
+
 ## Cost
 
 Wide, deliberately. Quality first, optimise later.
+
+At $5 per million input and $30 per million output, Rome's 286 photographs
+come to roughly:
+
+    read all 286 cheaply       ~$1.45   (34,810 in, ~43,000 out)
+    read ~60 of them properly  ~$0.50
+    work out what happened     ~$0.25
+    write it                   ~$0.20
+                               ──────
+    first run                  ~$2.40
+
+Well inside the $2–10 ChatGPT estimated. And because `photos.seen` keeps
+what the looking found, a rewrite afterwards — a different voice, a shorter
+version, another output entirely — is the last two lines only, about forty
+pence.
+
+The obvious later saving is the extraction stage: asking what is in a
+photograph does not need a frontier reasoning model, and the cheapest tier
+is twenty-five times less per token. Not yet, because the instruction was
+quality first and nobody has seen the output.
 
 Worth knowing: output dominates. A forty-field schema across 286
 photographs is over a hundred thousand output tokens, and output costs

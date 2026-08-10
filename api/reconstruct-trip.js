@@ -19,7 +19,15 @@ import OpenAI from 'openai'
 // mostly across days: that the Piazza Venezia corridor was crossed six
 // times and is the spine of the trip, that ancient Rome was done twice in
 // two different passes, that both mornings started before eight.
-const MODEL = 'gpt-5.5'
+// gpt-5.6-sol, which is the model ChatGPT was running when it produced the
+// reconstruction this pipeline is measured against. Everything here was on
+// gpt-5.5, a version behind, and this is the stage where that matters most.
+//
+// Worth remembering anyway: the same model id does not buy the same output.
+// ChatGPT wraps it in its own system prompt and tools; the API gives us the
+// model and nothing else, so the prompt in this file is doing work that was
+// invisible over there.
+const MODEL = 'gpt-5.6-sol'
 
 const RULES = `You are reconstructing somebody's trip from the record their
 photographs left, so that a later stage can write it up. You are not writing
