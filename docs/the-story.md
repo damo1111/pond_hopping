@@ -247,3 +247,24 @@ side by side rather than by running anything:
 None of these needed an API call to find. Reading the target against the
 instruction is the cheapest quality check available and it should happen
 before every run, not after.
+
+## Store builds
+
+Off, until somebody asks.
+
+Android is `on: workflow_dispatch` — it only runs when started by hand from
+the Actions tab. Merging never cuts a Play build.
+
+iOS could not be settled in this repository: Xcode Cloud's start condition
+lives in App Store Connect. So `ci_post_clone.sh` refuses instead. Unless
+`ios/RELEASE_UNLOCKED` exists it exits non-zero before anything is built —
+no archive, no TestFlight upload, no submission, and none of the daily
+upload budget spent on a build nobody wanted.
+
+To cut one: create the file, commit it, run the build, delete it. It is a
+file rather than a setting on purpose, because a file shows up in the diff
+of the commit that asked for the build.
+
+Both are the same principle as removing the automatic sweep: a thing that
+costs money, or that other people see, does not happen as a side effect of
+merging.
