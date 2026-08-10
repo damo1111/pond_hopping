@@ -124,6 +124,7 @@ export default function PhotosTab({ openPhotoId = null }) {
   const [lightbox, setLightbox] = useState(null)
   const [settingCover, setSettingCover] = useState(false)
   const [removing, setRemoving] = useState(false)
+  const [starring, setStarring] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -200,6 +201,23 @@ export default function PhotosTab({ openPhotoId = null }) {
       return
     }
     setCovers((c) => ({ ...c, [photo.trip_id]: photo.url }))
+  }
+
+  // Which pictures the recap shows.
+  //
+  // The recap takes twelve, highlights first. With no way to set the flag
+  // on a photograph already in the app, "highlight" only ever meant "the
+  // first one uploaded", and a trip with three hundred and one pictures
+  // showed whichever nine the sort happened to reach — which is no way to
+  // choose what a trip looks like to somebody you are showing it to.
+  async function toggleHighlight(photo) {
+    const next = !photo.is_highlight
+    setStarring(true)
+    const { error } = await supabase.from('photos').update({ is_highlight: next }).eq('id', photo.id)
+    setStarring(false)
+    if (error) return alert(`Couldn't change it: ${error.message}`)
+    setPhotos((rows) => rows.map((r) => (r.id === photo.id ? { ...r, is_highlight: next } : r)))
+    setLightbox((l) => (l && l.id === photo.id ? { ...l, is_highlight: next } : l))
   }
 
   if (!photos) return <div className="tab-loading">loading photos…</div>
@@ -339,6 +357,20 @@ export default function PhotosTab({ openPhotoId = null }) {
             <div className="lb-sub">
               {[lightbox.city, lightbox.taken_on].filter(Boolean).join(' · ')}
             </div>
+            {/* The one control here that changes what other people see.
+                A trip's recap shows twelve pictures out of however many
+                there are, highlights first — so this is how you choose
+                which, and until now there was no way to. */}
+            <button
+              className={`lb-star-btn${lightbox.is_highlight ? ' on' : ''}`}
+              disabled={starring}
+              onClick={(ev) => {
+                ev.stopPropagation()
+                toggleHighlight(lightbox)
+              }}
+            >
+              {starring ? 'saving…' : lightbox.is_highlight ? '★ in the recap' : '☆ show in the recap'}
+            </button>
             <button
               className="lb-cover-btn"
               disabled={settingCover || covers[lightbox.trip_id] === lightbox.url}

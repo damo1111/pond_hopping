@@ -50,9 +50,13 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
   // to let somebody pick forty photos and read the dates out of them first.
   const gate = (go) => () => (user ? go() : openAuth?.())
 
+  // Which door this came through, along with the trip. "Have a look" after
+  // uploading three hundred photographs and "I'm off now" want different
+  // things to happen next, and only the caller can do either.
   const close = () => {
+    const came = route
     setRoute(null)
-    if (made) onCreated?.(made)
+    if (made) onCreated?.(made, came)
     else onClose?.()
   }
 

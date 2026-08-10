@@ -781,13 +781,23 @@ export default function WorldTab() {
           // first trusts the app with something. Fetching the list again
           // puts the trip on the globe with none of that.
           //
-          // It deliberately stops there rather than opening the new trip:
-          // selecting one that has not finished sends you to the planner,
-          // and being thrown into a form is not what "I'm off now" asked
-          // for. The trip appears where it belongs and you decide.
-          onCreated={async () => {
+          // For "I'm off now" it deliberately stops there rather than
+          // opening the new trip: selecting one that has not finished sends
+          // you to the planner, and being thrown into a form is not what
+          // that asked for. The trip appears where it belongs and you decide.
+          //
+          // Photographs are the other case, and it was getting the same
+          // treatment. Somebody who has just watched three hundred pictures
+          // upload and then pressed a button reading "Have a look" is asking
+          // to be shown them, and was being left on the globe instead —
+          // which reads as the button having done nothing at all.
+          onCreated={async (trip, route) => {
             setRoutesOpen(false)
             await refreshTrips()
+            if (route === 'photos' && trip?.slug) {
+              setSelectedTrip(trip.slug)
+              goToTab('photos')
+            }
           }}
           onClose={(go) => {
             setRoutesOpen(false)
