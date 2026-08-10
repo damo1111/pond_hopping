@@ -1000,11 +1000,22 @@ function TripCard({ t, covers, selectedTrip, setSelectedTrip, onOrigin }) {
       }}
       onAnimationEnd={bounce.onAnimationEnd}
     >
-      {covers[t.id] && (
-        <span className="wt-cover">
+      {/* Always a cover, drawn when there is no photograph.
+          //
+          Three cards in a row had three different silhouettes: one with a
+          picture, one with flags where a picture goes, one with nothing but
+          white. A card is a card — the shape should say "trip", not "how
+          much has been filled in yet". So a coverless one gets the trip's
+          own colour and its flags at the size a picture would have been,
+          and the row reads as one object repeated. */}
+      <span className={`wt-cover${covers[t.id] ? '' : ' wt-cover--drawn'}`} style={{ '--card-accent': tripColor(t.slug) }}>
+        {/* Nothing drawn inside it on purpose. The flags are already in the
+            half below, and repeating them here would make the one card
+            without a photograph the busiest in the row. */}
+        {covers[t.id] && (
           <img src={coverUrl(covers[t.id], { width: 400, height: 220 })} alt="" loading="lazy" />
-        </span>
-      )}
+        )}
+      </span>
       {/* Says what it is for as long as it is there, not only during the
           tour. Six months from now, someone scrolling past "HK & South Korea"
           among their own trips should not have to wonder whether they went.
