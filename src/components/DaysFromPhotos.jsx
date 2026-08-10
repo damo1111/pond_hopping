@@ -34,6 +34,12 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   const [saved, setSaved] = useState(0)
   // Replace entries that already exist. Destructive, so never on by default.
   const [redo, setRedo] = useState(false)
+  // Looking at what the photographs say, without any of it being written
+  // anywhere. Every day of Rome already has an entry David wrote himself,
+  // so the only thing on offer was "replace what is there" — which is the
+  // one thing that must not happen to writing like that. Wanting to judge
+  // the reconstruction is not the same as wanting to keep it.
+  const [previewing, setPreviewing] = useState(false)
 
   const days = daysFrom(photos, trip)
 
@@ -70,6 +76,9 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   const already = new Set((entries ?? []).map((e) => e.entry_date))
   const written = leave
   const fresh = [...never, ...stale, ...(redo ? leave : [])].sort((a, b) => a.date.localeCompare(b.date))
+  // A preview runs over every day, including the ones somebody wrote —
+  // those are precisely the ones worth comparing against.
+  const target = previewing ? days : fresh
 
   // Swept up rather than offered. A day whose story we wrote, that nobody
   // has edited, and whose photographs have since changed, is not a decision
@@ -92,7 +101,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     return data?.session?.access_token
   }
 
-  async function piece({ silent = false } = {}) {
+  async function piece({ silent = false, preview = false } = {}) {
     setTrouble(null)
     setPhase('naming')
     const auth = await token()
@@ -104,7 +113,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
 
     // 1. What is at each stop. One lookup per stop, none per photograph.
     const wanted = []
-    for (const day of fresh)
+    for (const day of target)
       day.stops.forEach((s, i) => {
         if (s.lat != null) wanted.push({ key: stopKey(day.date, i), lat: s.lat, lon: s.lon })
       })
@@ -148,8 +157,8 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     await writeCache(misses, asked, userId)
 
     // 2. What the numbers settle, and what they cannot.
-    const { names: settled, ask } = sift(fresh, candidates)
-    setPrice(priceIt(fresh, ask))
+    const { names: settled, ask } = sift(target, candidates)
+    setPrice(priceIt(target, ask))
 
     // 3. The few that need a photograph looked at. This is the only step
     //    that costs anything meaningful, and it runs on a handful of stops.
@@ -187,6 +196,12 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     // with the photographs it was made from, on days nobody has touched.
     if (silent) {
       await write(stale, found, { silent: true })
+      return
+    }
+
+    setNames(found)
+    if (preview) {
+      setPhase('preview')
       return
     }
 
@@ -235,12 +250,71 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
 
   if (!trip?.id || !entries || !days.length) return null
 
+  // Read-only. Nothing here has been written and nothing here will be.
+  if (phase === 'preview') {
+    return (
+      <div className="dfp dfp--review">
+        <div className="dfp-head">What the photographs say</div>
+        <div className="dfp-note dfp-note--left">
+          Nothing below has been saved, and nothing will be. This is the reconstruction beside
+          what you already wrote, so you can see whether it is any good.
+        </div>
+        {price && (
+          <div className="dfp-note dfp-note--left">
+            {price.lookups} place{price.lookups === 1 ? '' : 's'} looked up
+            {price.ambiguous
+              ? `, and ${price.photosLookedAt} photograph${price.photosLookedAt === 1 ? '' : 's'} looked at where ${price.ambiguous} spot${price.ambiguous === 1 ? ' had' : 's had'} more than one thing on it.`
+              : ' — nowhere was crowded enough to need a photograph.'}
+          </div>
+        )}
+        {days.map((day) => {
+          const mine = namesForDay(day, names)
+          return (
+            <div key={day.date} className="dfp-day dfp-day--read">
+              <span className="dfp-what">
+                <span className="dfp-when">
+                  Day {day.day_number} ·{' '}
+                  {new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                </span>
+                <span className="dfp-title">{titleDay(day, mine)}</span>
+                <span className="dfp-said">{tellDay(day, mine)}</span>
+              </span>
+            </div>
+          )
+        })}
+        <div className="dfp-actions">
+          <button
+            className="dfp-cancel"
+            onClick={() => {
+              setPreviewing(false)
+              setPhase('idle')
+            }}
+          >
+            close
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (phase === 'idle' && !fresh.length) {
     return (
       <div className="dfp">
         <div className="dfp-note">
           Every day these photographs cover already has a journal entry.
         </div>
+        {/* The way to judge this without risking anything. Reading the
+            reconstruction and keeping it are different decisions, and only
+            one of them can lose somebody's writing. */}
+        <button
+          className="dfp-go"
+          onClick={() => {
+            setPreviewing(true)
+            piece({ preview: true })
+          }}
+        >
+          Show me what the photographs say
+        </button>
         {written.length > 0 && (
           <label className="dfp-redo">
             <input type="checkbox" checked={redo} onChange={() => setRedo((r) => !r)} />

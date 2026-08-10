@@ -9869,3 +9869,7 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   color: #C0392B;
   letter-spacing: 0.06em;
 }
+
+/* A day being read rather than chosen — no checkbox, so the text starts
+   where the checkbox would have been. */
+.dfp-day--read { padding-left: 0 }
