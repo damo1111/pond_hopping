@@ -6273,10 +6273,13 @@ button {
   padding-bottom: calc(28px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
 }
 
+/* Left, not right: the same corner as the planner's back arrow and the same
+   corner as this sheet's own one a level down. Leaving a trip should not be
+   a different gesture depending on whether the trip has happened yet. */
 .recap-close {
   position: absolute;
   top: calc(12px + var(--safe-area-inset-top, env(safe-area-inset-top)));
-  right: 14px;
+  left: 14px;
   z-index: 2;
   width: 34px;
   height: 34px;
@@ -6290,6 +6293,9 @@ button {
   align-items: center;
   justify-content: center;
 }
+
+/* The chevron asset points right. */
+.recap-close-i { transform: rotate(180deg); }
 
 /* Tall on purpose. The cover is the trip; everything under it is footnotes.
    With no cover photo the scrim would sit on white and come out flat grey,

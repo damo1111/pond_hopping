@@ -589,8 +589,15 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           did. Over a full-bleed photo, so it carries its own contrast. */}
       <div className="recap-grab" aria-hidden="true" />
 
-      <button className="recap-close" onClick={onClose} aria-label="Close">
-        <Icon name="close" size={16} />
+      {/* Top-left chevron, like the planner's and like the sheet's own bar
+          one level down. It was an ✕ on the right, which put the two ways of
+          leaving a trip in opposite corners wearing different glyphs — and
+          left the app answering "how do I get out of here" differently
+          depending on whether the trip had happened yet. The planner's
+          right-hand corner belongs to the ✨ button, so left is the corner
+          both can keep. */}
+      <button className="recap-close" onClick={onClose} aria-label="Back">
+        <Icon name="chevron" size={16} className="recap-close-i" />
       </button>
 
       <div className="recap-scroll" ref={scrollRef}>
