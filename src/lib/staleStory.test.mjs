@@ -5,7 +5,10 @@ import { builtFrom, isStale, sweep } from './staleStory.js'
 const day = (date, n, stops = 2, latest = '2024-01-23T18:00:00Z') => ({
   date,
   photos: Array.from({ length: n }, (_, i) => ({ id: i, taken_at: i === n - 1 ? latest : '2024-01-23T09:00:00Z' })),
-  stops: Array.from({ length: stops }, () => ({})),
+  // Named segments, not stops. The fixture said stops long after the code
+  // stopped, which is how builtFrom quietly recorded 0 for every day and
+  // made every previously written entry permanently stale.
+  segments: Array.from({ length: stops }, () => ({})),
 })
 
 test('what a day was built from is a count and a high-water mark', () => {
@@ -75,4 +78,18 @@ test('an edited day never appears in stale, however much changed', () => {
   const entries = [{ entry_date: '2024-01-23', built_from: builtFrom(day('2024-01-23', 1, 1)), edited_at: 'x' }]
   assert.deepEqual(sweep(days, entries).stale, [])
   assert.equal(sweep(days, entries).leave.length, 1)
+})
+
+test('a day that has not changed is never stale, however it is spelled', () => {
+  // The regression that cost four hand-written entries. builtFrom read
+  // day.stops, which stopped existing when a day became segments, so it
+  // recorded 0 while entries already on file carried 7, 12 and 13. Nothing
+  // matched, every reconstructed day was permanently stale, and the sweep
+  // that used to run automatically re-wrote them on every page load.
+  const now = day('2024-01-23', 117, 12)
+  const entry = { entry_date: '2024-01-23', built_from: builtFrom(now) }
+  assert.equal(isStale(entry, now), false)
+
+  // And still catches the thing staleness is actually for.
+  assert.equal(isStale(entry, day('2024-01-23', 158, 14)), true)
 })

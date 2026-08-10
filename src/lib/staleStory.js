@@ -24,7 +24,14 @@ export function builtFrom(day) {
   const photos = day?.photos ?? []
   return {
     photos: photos.length,
-    stops: (day?.stops ?? []).length,
+    // `day.stops` stopped existing when a day became segments, and the `??`
+    // meant this recorded 0 instead of throwing. Entries written before the
+    // rename carry a real count — 7, 12, 13 on Rome — so 7 !== 0 made every
+    // one of them permanently stale. The auto-sweep then re-wrote them on
+    // every page load, for ever, paying for a model call each time, and on
+    // one of those loads it replaced four hand-written entries with
+    // "Out from 14:37 to 21:45. Nothing along the way is on the map."
+    stops: (day?.segments ?? []).length,
     // The newest photograph the story knew about. Catches the ordinary
     // case — more pictures added later — without needing to diff ids.
     latest: photos.reduce((max, p) => (p?.taken_at > max ? p.taken_at : max), ''),
