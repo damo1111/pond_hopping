@@ -36,6 +36,8 @@ const LAYERS = {
   photos: { title: 'Photos', View: PhotosTab },
   map: { title: 'Map', View: MapTab },
   flights: { title: 'Flights', View: FlightsTab },
+  // Titled from the data — see sport.js. Somebody whose activities are
+  // walks should not be reading a heading that says Runs.
   runs: { title: 'Runs', View: RunsPanel },
 }
 
