@@ -1,4 +1,5 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
+import { CURRENCIES, RATES } from '../lib/money.js'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import CountryFlags from '../components/CountryFlags.jsx'
@@ -8,10 +9,8 @@ const CATEGORIES = ['Food', 'Transport', 'Shopping', 'Hotel', 'Activity', 'Fligh
 // A travel log that could not record a euro. Seven currencies here, twelve
 // in the database's check constraint, and no overlap on the five the UI
 // never offered — so a row inserted in THB divided by an undefined rate and
-// wrote NaN. One list now, in both places, with the euro in it.
-const CURRENCIES = ['AUD', 'EUR', 'GBP', 'USD', 'JPY', 'CNY', 'HKD', 'KRW', 'SGD', 'THB', 'MYR', 'NZD', 'LKR']
-// Units per 1 AUD — static conversion at entry time (per brief).
-const RATES = { AUD: 1, EUR: 0.57, GBP: 0.52, USD: 0.66, JPY: 95, CNY: 4.7, HKD: 5.15, KRW: 905, SGD: 0.85, THB: 21.5, MYR: 2.8, NZD: 1.09, LKR: 197 }
+// wrote NaN. The list moved to lib/money.js when receipts started making
+// costs too: written out twice is how it drifted the first time.
 const CAT_ICON = { Food: '🍜', Transport: '🚄', Shopping: '🛍️', Hotel: '🏨', Activity: '🎟️', Flight: '✈️', Other: '📎' }
 
 const fmtA = (n) => 'A$' + Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })

@@ -92,6 +92,8 @@ export default function MapTab() {
       supabase
         .from('photos')
         .select('id,trip_id,lat,lon,taken_at,url,caption,thumb_url')
+        // A photograph of a bill is not a place you went.
+        .neq('kind', 'receipt')
         .not('lat', 'is', null)
         .order('taken_at'),
     ]).then(([p, r, j, ph]) => {

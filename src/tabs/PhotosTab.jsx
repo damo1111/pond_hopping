@@ -5,6 +5,7 @@ import { tripColor } from '../lib/tripColors.js'
 import { thumb, coverUrl } from '../lib/imgTransform.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PhotoUpload from '../components/PhotoUpload.jsx'
+import ReceiptScan from '../components/ReceiptScan.jsx'
 
 function fmtRange(t) {
   if (!t.start_date) return 'dates tbc'
@@ -129,6 +130,10 @@ export default function PhotosTab({ openPhotoId = null }) {
     supabase
       .from('photos')
       .select('*')
+      // Receipts have been filed under the cost they paid for. They are
+      // still photographs and still in this table; they are just not part
+      // of anybody's holiday.
+      .neq('kind', 'receipt')
       .order('taken_on', { ascending: true })
       .then(({ data }) => alive && setPhotos(data ?? []))
     supabase
@@ -233,6 +238,16 @@ export default function PhotosTab({ openPhotoId = null }) {
         </div>
       )}
       <AddPhoto tripMeta={tripMeta} selectedTrip={selectedTrip} onSaved={() => setReload((r) => r + 1)} />
+
+      {/* Only inside a trip. "Find the receipts across everything you have
+          ever photographed" is a bill, not a feature. */}
+      {heroTrip && (
+        <ReceiptScan
+          trip={heroTrip}
+          photos={visible}
+          onDone={() => setReload((r) => r + 1)}
+        />
+      )}
 
       {albums.map((t) => {
         const count = photoCountByTrip.get(t.id) || 0
