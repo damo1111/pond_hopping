@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { TripContext } from '../App.jsx'
 import { thumb } from '../lib/imgTransform.js'
+import { readCache, writeCache } from '../lib/placeCache.js'
 import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, priceIt, sift, stopKey, tellDay, titleDay } from '../lib/tripStory.js'
 import { TRUST_PHOTO } from '../lib/tripStory.js'
 
@@ -20,6 +22,7 @@ import { TRUST_PHOTO } from '../lib/tripStory.js'
 const LOOKUP_BATCH = 40
 
 export default function DaysFromPhotos({ trip, photos = [], onDone }) {
+  const { userId } = useContext(TripContext)
   const [already, setAlready] = useState(null)
   const [phase, setPhase] = useState('idle') // idle | naming | looking | review | saving | done
   const [progress, setProgress] = useState({ done: 0, total: 0 })
@@ -81,10 +84,18 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
         if (s.lat != null) wanted.push({ key: stopKey(day.date, i), lat: s.lat, lon: s.lon })
       })
 
-    const candidates = {}
-    setProgress({ done: 0, total: wanted.length })
-    for (let i = 0; i < wanted.length; i += LOOKUP_BATCH) {
-      const slice = wanted.slice(i, i + LOOKUP_BATCH)
+    // Anything already looked up is free. This matters more than it looks:
+    // the distances that decide "same place" are exactly the kind of thing
+    // that gets tuned after seeing real output, so this gets run again, and
+    // a second run should not spend a maps quota re-answering a question
+    // about coordinates that have not moved.
+    const { hits, misses } = await readCache(wanted, userId)
+    const candidates = { ...hits }
+    const asked = {}
+    setProgress({ done: Object.keys(hits).length, total: wanted.length })
+
+    for (let i = 0; i < misses.length; i += LOOKUP_BATCH) {
+      const slice = misses.slice(i, i + LOOKUP_BATCH)
       try {
         const r = await fetch('/api/name-places', {
           method: 'POST',
@@ -92,14 +103,24 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
           body: JSON.stringify({ stops: slice }),
         })
         if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `server said ${r.status}`)
-        for (const s of (await r.json()).stops ?? []) candidates[s.key] = s.candidates
+        for (const s of (await r.json()).stops ?? []) {
+          candidates[s.key] = s.candidates
+          asked[s.key] = s.candidates
+        }
       } catch (e) {
         setTrouble(`Couldn't look the places up: ${e.message}`)
         setPhase('idle')
         return
       }
-      setProgress({ done: Math.min(i + slice.length, wanted.length), total: wanted.length })
+      setProgress({
+        done: Math.min(Object.keys(hits).length + i + slice.length, wanted.length),
+        total: wanted.length,
+      })
     }
+
+    // Best effort, and after the answers are already in hand: a cache that
+    // fails to save makes the next run slower, not this one wrong.
+    await writeCache(misses, asked, userId)
 
     // 2. What the numbers settle, and what they cannot.
     const { names: settled, ask } = sift(fresh, candidates)
