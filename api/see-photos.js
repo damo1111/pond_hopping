@@ -31,15 +31,22 @@ import { BATCH } from '../src/lib/seeing.js'
 // divides into — and it happens after this, not before.
 //
 // So: every photograph, once, batched.
-// gpt-5.6-sol, which is the model ChatGPT was running when it produced the
-// reconstruction this pipeline is measured against. Everything here was on
-// gpt-5.5, a version behind, and this is the stage where that matters most.
+// Luna, not Sol, and the reason is minutes rather than pence.
 //
-// Worth remembering anyway: the same model id does not buy the same output.
-// ChatGPT wraps it in its own system prompt and tools; the API gives us the
-// model and nothing else, so the prompt in this file is doing work that was
-// invisible over there.
-const MODEL = 'gpt-5.6-sol'
+// Sol is the reasoning tier. Put on "what is in this photograph", 286 times,
+// it thinks before every answer: a batch of ten took over a minute, which is
+// half an hour for a trip, watched. Luna is the fast tier of the same
+// family, and describing what is visible in a picture is not a reasoning
+// problem — it is a looking problem. This was GPT's own advice, which I
+// dismissed as premature optimisation. It was not: it was latency.
+//
+// Sol stays where it earns its keep, on reconstruct-trip and write-trip.
+//
+// If Luna cannot take an image the first call fails, so it falls back to Sol
+// rather than leaving somebody with a trip that will not read. Slow beats
+// broken, and the log says which happened.
+const MODEL = 'gpt-5.6-luna'
+const FALLBACK = 'gpt-5.6-sol'
 
 /** How much of the image the model gets.
  *
@@ -156,8 +163,8 @@ export default async function handler(req, res) {
 
   try {
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-    const r = await client.chat.completions.create({
-      model: MODEL,
+    const ask = (model) => client.chat.completions.create({
+      model,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: RULES },
@@ -181,6 +188,13 @@ export default async function handler(req, res) {
         },
       ],
     })
+    let r
+    try {
+      r = await ask(MODEL)
+    } catch (e) {
+      console.error(`see-photos: ${MODEL} failed (${e.message}) — falling back to ${FALLBACK}`)
+      r = await ask(FALLBACK)
+    }
     const raw = r.choices[0]?.message?.content?.trim()
     if (!raw) {
       res.status(502).json({ error: 'nothing came back' })
