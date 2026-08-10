@@ -1,4 +1,5 @@
 import { useContext, useEffect, useMemo, useState } from 'react'
+import { relevantCodes, sortByRelevance } from '../lib/relevance.js'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 
@@ -14,6 +15,13 @@ const COUNTRIES = [
 ]
 
 // Which language toggles are relevant to each trip.
+//
+// This used to be a table keyed on trip slug, which worked for the six
+// trips that existed when it was written and knew nothing about Rome, the
+// examples, or anything made since. Every trip already carries its
+// countries as flags, and a flag decodes to a country code — so the order
+// now comes from the trips themselves and keeps working for trips nobody
+// has taken yet.
 const TRIP_LANGS = {
   'south-korea': ['KR', 'HK'],
   'china-japan': ['CN', 'JP'],
@@ -24,7 +32,14 @@ const TRIP_LANGS = {
 }
 
 export default function PhrasesTab() {
-  const { selectedTrip } = useContext(TripContext)
+  const { selectedTrip, tripMeta } = useContext(TripContext)
+  // Sorted, never filtered: eight languages is a short enough list that
+  // hiding any of them buys nothing, and somebody reading Japanese before
+  // the trip is booked is the person this is for.
+  const countries = useMemo(
+    () => sortByRelevance(COUNTRIES, (c) => c.id, relevantCodes(tripMeta)),
+    [tripMeta]
+  )
   const [phrases, setPhrases] = useState(null)
   const [country, setCountry] = useState('KR')
   const [cat, setCat] = useState('all')
@@ -54,7 +69,10 @@ export default function PhrasesTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTrip])
 
-  const visibleCountries = tripLangs ? COUNTRIES.filter((c) => tripLangs.includes(c.id)) : COUNTRIES
+  // Inside a trip the old slug table still narrows it, which is right —
+  // you came in from one trip and want its languages. Outside one, the
+  // whole list stays, ordered by where you are going.
+  const visibleCountries = tripLangs ? countries.filter((c) => tripLangs.includes(c.id)) : countries
 
   const cats = useMemo(() => {
     const set = new Set((phrases ?? []).filter((p) => p.country === country).map((p) => p.category))
