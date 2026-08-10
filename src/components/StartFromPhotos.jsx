@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import TrackPlaces from './TrackPlaces.jsx'
 import { readExif } from '../lib/exif.js'
 import { HEAD_BYTES, prepare, store } from '../lib/photoIngest.js'
+import { begin } from '../lib/busy.js'
 import { savingsLabel } from '../lib/photoResize.js'
 import {
   clusterPhotos,
@@ -80,6 +81,9 @@ export default function StartFromPhotos({ onDone, onClose }) {
     if (!start) return setError('Give it a start date and I can make the trip.')
     setPhase('saving')
     setError(null)
+    // Same reason as ingest(): making a trip and uploading forty photographs
+    // into it must not be interrupted by a pending update reloading the app.
+    const working = begin()
     try {
       const { data: trip, error: tripErr } = await supabase
         .from('trips')
@@ -121,6 +125,8 @@ export default function StartFromPhotos({ onDone, onClose }) {
     } catch (e) {
       setError(e?.message || 'Something went wrong making the trip.')
       setPhase('confirm')
+    } finally {
+      working()
     }
   }
 

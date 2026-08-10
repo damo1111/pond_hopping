@@ -1,4 +1,5 @@
 import { supabase } from './supabase.js'
+import { begin } from './busy.js'
 import { readExif } from './exif.js'
 import { renderSizes, DISPLAY, THUMB, extFor } from './photoResize.js'
 
@@ -106,7 +107,16 @@ export async function ingest(files, { tripId, traveler, onProgress } = {}) {
     }
   }
 
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, list.length) }, worker))
+  // Held open for the whole run, so a service-worker update that lands
+  // mid-upload waits rather than reloading the app out from under it. Two
+  // photographs were lost exactly that way: switch apps for a moment, come
+  // back to a freshly booted app and nothing to show for it.
+  const done = begin()
+  try {
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, list.length) }, worker))
+  } finally {
+    done()
+  }
   return results
 }
 
