@@ -84,7 +84,7 @@ export default function MapTab() {
     let alive = true
     Promise.all([
       supabase.from('map_pins').select('*'),
-      supabase.from('runs').select('id,trip_id,label,city,distance_km,pace,color,coords,run_date'),
+      supabase.from('runs').select('id,trip_id,label,city,distance_km,pace,color,coords,run_date,sport'),
       supabase
         .from('journal_entries')
         .select('trip_id,entry_date,city,title,lat,lon,mood,day_number')

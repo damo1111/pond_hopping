@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet'
 import { supabase } from '../lib/supabase.js'
+import { words } from '../lib/sport.js'
 
 const INK = '#1A1611'
 const GOLD = '#A8842C'
@@ -61,7 +62,7 @@ export default function DayMap({ tripId, date }) {
     const dayEnd = new Date(Date.parse(`${date}T00:00:00Z`) + 2 * 86400000).toISOString()
     Promise.all([
       supabase.from('day_tracks').select('path,visits').eq('trip_id', tripId).eq('track_date', date).limit(1),
-      supabase.from('runs').select('label,distance_km,pace,color,coords').eq('trip_id', tripId).eq('run_date', date),
+      supabase.from('runs').select('label,distance_km,pace,color,coords,sport').eq('trip_id', tripId).eq('run_date', date),
       // Own visits only, by RLS — a shared trip never shows the owner's.
       supabase
         .from('location_visits')
@@ -124,7 +125,7 @@ export default function DayMap({ tripId, date }) {
           <Polyline key={i} positions={r.coords} pathOptions={{ color: r.color || GREEN, weight: 3, opacity: 0.9 }}>
             <Popup>
               <div className="world-pop">
-                <div className="world-pop-route">🏃 {r.label}</div>
+                <div className="world-pop-route">{words(r.sport).icon} {r.label}</div>
                 <div className="world-pop-flight">
                   {r.distance_km} km{r.pace ? ` · ${r.pace}` : ''}
                 </div>

@@ -5,6 +5,7 @@ import { isInAustralia } from '../lib/geo.js'
 import { AIRPORT_COORDS } from '../lib/airportCoords.js'
 import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
+import { words } from '../lib/sport.js'
 import { coverUrl } from '../lib/imgTransform.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import DrawnCover from '../components/DrawnCover.jsx'
@@ -1049,7 +1050,9 @@ function TripCard({ t, covers, selectedTrip, setSelectedTrip, onOrigin }) {
       <span className="wt-dates">{fmtRange(t)}</span>
       <span className="wt-stats">
         {t.flight_count > 0 && <>✈ {t.flight_count}&nbsp;&nbsp;</>}
-        {t.run_count > 0 && <>🏃 {t.run_count}&nbsp;&nbsp;</>}
+        {/* Whichever sport the trip is mostly made of — a trip of walks
+            was being labelled with somebody running. */}
+        {t.run_count > 0 && <>{words(t.run_sport).icon} {t.run_count}&nbsp;&nbsp;</>}
         {t.journal_count > 0 && <>📔 {t.journal_count}</>}
       </span>
     </button>
