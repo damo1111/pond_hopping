@@ -540,15 +540,24 @@ export default function App() {
 
         {/* Journal, Map and Photos are always about the trip you came in
             from, so they say which one and offer the way back rather than a
-            dropdown asking you to pick again. Costs and Share still keep the
-            picker — they're per-trip too, but you can only reach them from
-            the Useful drawer, so there's nothing to have come in from yet. */}
+            dropdown asking you to pick again. Costs, Share and Flights keep
+            the picker — they are per-trip too, and reached from a row rather
+            than from a trip, so there is nothing to have come in from.
+            //
+            Flights was the omission, and it made a trap. The picker sets the
+            app-wide selection; Flights reads that selection to filter by;
+            and Flights showed no picker. So choosing Thailand in Costs and
+            walking to Flights left it showing Thailand only, with nothing on
+            the screen to say why or to undo it. A filter must never apply
+            somewhere its control cannot be reached — the control is how you
+            find out it is on. */}
         {TRIP_TABS.includes(activeTab) ? (
           <TripCrumb
             trip={shownTrips.find((t) => t.slug === selectedTrip)}
             onBack={() => setActiveTab('world')}
           />
-        ) : activeTab === 'useful' && (usefulTab === 'costs' || usefulTab === 'share') ? (
+        ) : activeTab === 'flights' ||
+          (activeTab === 'useful' && (usefulTab === 'costs' || usefulTab === 'share')) ? (
           <TripPicker tripMeta={shownTrips} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
         ) : null}
 
