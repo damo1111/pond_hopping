@@ -1,4 +1,5 @@
 import OpenAI from 'openai'
+import { BATCH } from '../src/lib/seeing.js'
 
 // Look at the photographs.
 //
@@ -32,10 +33,6 @@ import OpenAI from 'openai'
 // So: every photograph, once, batched.
 const MODEL = 'gpt-5.5'
 
-/** Images per request. The instruction is the expensive part of a small
- *  call, so batching pays it fifteen times over a trip rather than 286. */
-export const BATCH = 20
-
 /** How much of the image the model gets.
  *
  *  'low' is 85 tokens — a 512px thumbnail. Enough for "indoor, restaurant,
@@ -43,6 +40,7 @@ export const BATCH = 20
  *  off an awning, and the name is usually the thing worth having. 'high' is
  *  765 and can. The caller decides where that is worth paying. */
 export const DETAIL = { LOW: 'low', HIGH: 'high' }
+export { BATCH }
 
 const RULES = `You are extracting evidence from a batch of somebody's travel
 photographs, as one stage of reconstructing a trip they took years ago.

@@ -19,6 +19,10 @@
 // it aims the expensive tokens at the frames that actually have something
 // to read.
 
+/** Images per request. The instruction is the expensive part of a small
+ *  call, so batching pays it fifteen times over a trip rather than 286. */
+export const BATCH = 20
+
 /** Input tokens per image, by detail setting. OpenAI's published sizes: a
  *  flat 85 for low, and 85 plus 170 a tile for high, which is four tiles
  *  for anything up to about 1024 square. */
