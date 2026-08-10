@@ -21,6 +21,29 @@ brew install node
 REPO_ROOT="${CI_PRIMARY_REPOSITORY_PATH:-$(git -C "$(dirname "$0")" rev-parse --show-toplevel)}"
 cd "$REPO_ROOT"
 
+# ── A store build is a decision, not a side effect ────────────────────────
+#
+# Xcode Cloud's start condition lives in App Store Connect, not in this
+# repository, so nothing here can stop it firing on a push. This can stop it
+# finishing.
+#
+# Unless ios/RELEASE_UNLOCKED exists, this exits non-zero before anything is
+# built — no archive, no TestFlight upload, no submission, and no spending of
+# the daily upload budget that a real release then cannot have.
+#
+# To cut a build: create the file, commit it, run the build, delete it again.
+#
+#     touch ios/RELEASE_UNLOCKED && git add -f ios/RELEASE_UNLOCKED
+#
+# It is deliberately a file rather than a setting, because a file appears in
+# the diff of the commit that asked for the build.
+if [ ! -f "$REPO_ROOT/ios/RELEASE_UNLOCKED" ]; then
+  echo "Refusing to build: ios/RELEASE_UNLOCKED is not present."
+  echo "Store builds are off until somebody asks for one. See ci_scripts/ci_post_clone.sh."
+  exit 1
+fi
+
+
 npm ci
 npm run build
 npx cap sync ios
