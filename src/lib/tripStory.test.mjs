@@ -138,3 +138,15 @@ test('an entry with nothing named still has a title, because the column is NOT N
   assert.ok(entry.title.length > 0)
   assert.ok(entry.note.includes(RECONSTRUCTED))
 })
+
+test('a day is made of segments, and the count on the button comes from stopsToName', () => {
+  // The screen read d.stops and threw — "Cannot read properties of undefined
+  // (reading 'filter')" — because a day stopped having stops when it started
+  // having segments, and one caller was left behind. Counting through the
+  // same function that decides what gets looked up is what stops the number
+  // on the button and the number of lookups drifting apart again.
+  const day = days[0]
+  assert.ok(Array.isArray(day.segments))
+  assert.equal(day.stops, undefined)
+  assert.equal(stopsToName(days).length, priceIt(days, []).lookups)
+})
