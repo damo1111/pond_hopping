@@ -9842,3 +9842,10 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 }
 
 .dfp-save:disabled { opacity: 0.5 }
+
+/* The place that held the day, above the sentence that tells it. */
+.dfp-title {
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  line-height: 1.35;
+}

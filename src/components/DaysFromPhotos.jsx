@@ -1,25 +1,31 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
-import { daysFrom, describeDay, draftEntry } from '../lib/photoDays.js'
+import { thumb } from '../lib/imgTransform.js'
+import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, priceIt, sift, stopKey, tellDay, titleDay } from '../lib/tripStory.js'
+import { TRUST_PHOTO } from '../lib/tripStory.js'
 
-// Three hundred photographs are already a day-by-day account of where
-// somebody went — written down by the camera at the time, which is better
-// evidence than anybody's memory of a weekend two years ago.
+// Piecing a trip together from photographs taken two years ago.
 //
-// This offers that account as journal days. Every line of it is arithmetic
-// on timestamps and coordinates: how many photographs, between which
-// hours, in how many places, and which stop lasted longest. Nothing here
-// looks at what is in a picture or has an opinion about the day, and every
-// entry it writes says on its face that it was reconstructed rather than
-// written at the time. That is David's own stance from the New Orleans
-// trip, and it is the difference between a useful skeleton and a machine
-// pretending to remember your holiday.
+// Coordinates first, pictures only where coordinates run out. On a
+// three-day Roman trip that is around twenty map lookups and a handful of
+// photographs actually looked at — as against three hundred, which is what
+// asking every photograph what it was would cost, for a worse answer.
+//
+// The first version of this screen offered "121 photographs between 09:14
+// and 21:40" as a day, which was a description of the database rather than
+// of Rome. What comes out now is where you were and when, in the names of
+// the places, because that is what somebody trying to remember a weekend
+// two years ago is actually asking for.
+
+const LOOKUP_BATCH = 40
 
 export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   const [already, setAlready] = useState(null)
+  const [phase, setPhase] = useState('idle') // idle | naming | looking | review | saving | done
+  const [progress, setProgress] = useState({ done: 0, total: 0 })
+  const [names, setNames] = useState({})
+  const [price, setPrice] = useState(null)
   const [take, setTake] = useState(() => new Set())
-  const [open, setOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [trouble, setTrouble] = useState(null)
   const [saved, setSaved] = useState(0)
 
@@ -38,96 +44,201 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     }
   }, [trip?.id, saved])
 
-  // Only the days that have nothing written on them. A day already
-  // journalled is a day somebody wrote about, and offering to paste a
-  // timestamp summary over it is not an improvement.
+  // A day already journalled is a day somebody wrote about, and pasting a
+  // reconstruction over it is not an improvement.
   const fresh = already ? days.filter((d) => !already.has(d.date)) : []
 
-  useEffect(() => {
-    if (already) setTake(new Set(days.filter((d) => !already.has(d.date)).map((d) => d.date)))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [already, photos.length])
+  async function token() {
+    const { data } = await supabase.auth.getSession()
+    return data?.session?.access_token
+  }
+
+  async function piece() {
+    setTrouble(null)
+    setPhase('naming')
+    const auth = await token()
+    if (!auth) {
+      setTrouble('Sign in first.')
+      setPhase('idle')
+      return
+    }
+
+    // 1. What is at each stop. One lookup per stop, none per photograph.
+    const wanted = []
+    for (const day of fresh)
+      day.stops.forEach((s, i) => {
+        if (s.lat != null) wanted.push({ key: stopKey(day.date, i), lat: s.lat, lon: s.lon })
+      })
+
+    const candidates = {}
+    setProgress({ done: 0, total: wanted.length })
+    for (let i = 0; i < wanted.length; i += LOOKUP_BATCH) {
+      const slice = wanted.slice(i, i + LOOKUP_BATCH)
+      try {
+        const r = await fetch('/api/name-places', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
+          body: JSON.stringify({ stops: slice }),
+        })
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `server said ${r.status}`)
+        for (const s of (await r.json()).stops ?? []) candidates[s.key] = s.candidates
+      } catch (e) {
+        setTrouble(`Couldn't look the places up: ${e.message}`)
+        setPhase('idle')
+        return
+      }
+      setProgress({ done: Math.min(i + slice.length, wanted.length), total: wanted.length })
+    }
+
+    // 2. What the numbers settle, and what they cannot.
+    const { names: settled, ask } = sift(fresh, candidates)
+    setPrice(priceIt(fresh, ask))
+
+    // 3. The few that need a photograph looked at. This is the only step
+    //    that costs anything meaningful, and it runs on a handful of stops.
+    const found = { ...settled }
+    if (ask.length) {
+      setPhase('looking')
+      setProgress({ done: 0, total: ask.length })
+      for (let i = 0; i < ask.length; i++) {
+        const a = ask[i]
+        try {
+          const r = await fetch('/api/which-place', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
+            body: JSON.stringify({
+              photos: a.photos.map((p) => p.thumb_url || thumb(p.url)),
+              candidates: a.shortlist.map((c) => ({ name: c.name, category: c.category })),
+            }),
+          })
+          if (r.ok) {
+            const said = await r.json()
+            // A hedged guess at a picture is worse than a gap: the gap is
+            // honest, and the guess ends up in a journal entry as fact.
+            if (said.place && said.confidence >= TRUST_PHOTO) found[a.key] = said.place
+          }
+        } catch {
+          // One stop that will not answer leaves one stop unnamed.
+        }
+        setProgress({ done: i + 1, total: ask.length })
+      }
+    }
+
+    setNames(found)
+    setTake(new Set(fresh.map((d) => d.date)))
+    setPhase('review')
+  }
 
   async function save() {
-    setSaving(true)
+    setPhase('saving')
     setTrouble(null)
-    const rows = fresh.filter((d) => take.has(d.date)).map((d) => draftEntry(d, trip))
+    const rows = fresh.filter((d) => take.has(d.date)).map((d) => entryFor(d, trip, names))
     const { error } = await supabase.from('journal_entries').insert(rows)
-    setSaving(false)
+    setPhase(error ? 'review' : 'done')
     if (error) return setTrouble(`Couldn't write them: ${error.message}`)
-    setOpen(false)
     setSaved((n) => n + 1)
     onDone?.(rows.length)
   }
 
-  if (!trip?.id || !already) return null
-  if (!days.length) return null
+  if (!trip?.id || !already || !days.length) return null
 
-  if (!fresh.length) {
+  if (phase === 'idle' && !fresh.length) {
     return (
       <div className="dfp">
+        <div className="dfp-note">Every day these photographs cover already has a journal entry.</div>
+      </div>
+    )
+  }
+
+  if (phase === 'idle') {
+    const stops = fresh.reduce((n, d) => n + d.stops.filter((s) => s.lat != null).length, 0)
+    return (
+      <div className="dfp">
+        <button className="dfp-go" onClick={piece}>
+          Piece together {fresh.length} day{fresh.length === 1 ? '' : 's'}
+        </button>
         <div className="dfp-note">
-          Every day these photographs cover already has a journal entry.
+          Works out where you stopped and looks up what is there — {stops} place
+          {stops === 1 ? '' : 's'} to check. Only where several things share a spot does it look at
+          a photograph to tell them apart.
+        </div>
+        {trouble && <div className="dfp-trouble">{trouble}</div>}
+      </div>
+    )
+  }
+
+  if (phase === 'naming' || phase === 'looking') {
+    return (
+      <div className="dfp">
+        <div className="dfp-progress">
+          {phase === 'naming' ? 'Looking up what is there' : 'Telling apart the crowded spots'}… {progress.done} of{' '}
+          {progress.total}
+        </div>
+        <div className="dfp-bar">
+          <span style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
         </div>
       </div>
     )
   }
 
-  if (!open) {
+  if (phase === 'done') {
     return (
       <div className="dfp">
-        <button className="dfp-go" onClick={() => setOpen(true)}>
-          Piece together {fresh.length} day{fresh.length === 1 ? '' : 's'} from these photos
-        </button>
-        <div className="dfp-note">
-          Built from the times and places in the photographs — where you were and how long for.
-          Not a diary, and it says so.
-        </div>
+        <div className="dfp-note">That's the trip written up. Edit any day from the Journal.</div>
       </div>
     )
   }
 
   return (
     <div className="dfp dfp--review">
-      <div className="dfp-head">{fresh.length} day{fresh.length === 1 ? '' : 's'} the photographs can account for</div>
+      <div className="dfp-head">{fresh.length} day{fresh.length === 1 ? '' : 's'}, as far as the photographs can say</div>
+      {price && (
+        <div className="dfp-note dfp-note--left">
+          {price.lookups} place{price.lookups === 1 ? '' : 's'} looked up
+          {price.ambiguous
+            ? `, and ${price.photosLookedAt} photograph${price.photosLookedAt === 1 ? '' : 's'} looked at where ${price.ambiguous} spot${price.ambiguous === 1 ? ' had' : 's had'} more than one thing on it.`
+            : ' — nowhere was crowded enough to need a photograph.'}
+        </div>
+      )}
 
-      {fresh.map((day) => (
-        <label key={day.date} className="dfp-day">
-          <input
-            type="checkbox"
-            checked={take.has(day.date)}
-            onChange={() =>
-              setTake((set) => {
-                const next = new Set(set)
-                next.has(day.date) ? next.delete(day.date) : next.add(day.date)
-                return next
-              })
-            }
-          />
-          <span className="dfp-what">
-            <span className="dfp-when">
-              Day {day.day_number} · {new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+      {fresh.map((day) => {
+        const mine = namesForDay(day, names)
+        return (
+          <label key={day.date} className="dfp-day">
+            <input
+              type="checkbox"
+              checked={take.has(day.date)}
+              onChange={() =>
+                setTake((set) => {
+                  const next = new Set(set)
+                  next.has(day.date) ? next.delete(day.date) : next.add(day.date)
+                  return next
+                })
+              }
+            />
+            <span className="dfp-what">
+              <span className="dfp-when">
+                Day {day.day_number} ·{' '}
+                {new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+              </span>
+              <span className="dfp-title">{titleDay(day, mine)}</span>
+              <span className="dfp-said">{tellDay(day, mine)}</span>
             </span>
-            <span className="dfp-said">{describeDay(day)}</span>
-          </span>
-        </label>
-      ))}
+          </label>
+        )
+      })}
 
       {trouble && <div className="dfp-trouble">{trouble}</div>}
 
       <div className="dfp-actions">
-        <button className="dfp-cancel" onClick={() => setOpen(false)}>
+        <button className="dfp-cancel" onClick={() => setPhase('idle')}>
           not now
         </button>
-        <button className="dfp-save" disabled={!take.size || saving} onClick={save}>
-          {saving ? 'writing…' : `Add ${take.size} to the journal`}
+        <button className="dfp-save" disabled={!take.size || phase === 'saving'} onClick={save}>
+          {phase === 'saving' ? 'writing…' : `Add ${take.size} to the journal`}
         </button>
       </div>
-      <div className="dfp-note dfp-note--left">
-        Each one is tagged “reconstructed” and carries a line saying it was built from the
-        photographs rather than written at the time. Edit any of them afterwards — they are
-        ordinary journal entries once they are in.
-      </div>
+      <div className="dfp-note dfp-note--left">{RECONSTRUCTED} Edit any of them afterwards.</div>
     </div>
   )
 }
