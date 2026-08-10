@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { asAsked, confirmed, needsLooking, stillAsking, storyRow, theirWords, whatItCosts } from './storyRun.js'
+import { asAsked, confirmed, howFar, needsLooking, stillAsking, storyRow, theirWords, whatItCosts } from './storyRun.js'
 import { clockIn } from './localTime.js'
 
 const pic = (id, over = {}) => ({
@@ -88,4 +88,12 @@ test('what comes back becomes one row, opening and closing kept', () => {
   assert.equal(row.chapters.length, 1)
   assert.equal(row.closing, 'Three days.')
   assert.equal(row.voice, 'narrator')
+})
+
+test('the progress line names the work, not the pipeline stage', () => {
+  // "Working out what happened" is the name of a function. It does not tell
+  // anybody standing there waiting what is going on.
+  assert.equal(howFar('looking', 40, 286), 'Reading your photographs — 40 of 286')
+  assert.equal(howFar('working it out'), 'Retracing where you went')
+  assert.equal(howFar('writing'), 'Writing your trip up')
 })

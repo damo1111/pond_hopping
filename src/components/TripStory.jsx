@@ -107,14 +107,34 @@ export default function TripStory({ trip, photos = [] }) {
     return data?.session?.access_token
   }
 
+  // "see-photos failed" is what this used to say, about everything, and it
+  // cost a round of guessing. A timed-out function does not return JSON at
+  // all — Vercel answers with an HTML error page — so .json() threw, the
+  // catch swallowed it, and the fallback string was the only thing left.
+  //
+  // The three failures worth telling apart by name: the function ran out of
+  // time, the model refused, and the key is missing. Everything else at
+  // least says its status and the first line of what came back.
   async function post(where, body, auth) {
     const r = await fetch(`/api/${where}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
       body: JSON.stringify(body),
     })
-    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `${where} failed`)
-    return r.json()
+    if (r.ok) return r.json()
+
+    const said = await r.text().catch(() => '')
+    let why = ''
+    try {
+      why = JSON.parse(said)?.error ?? ''
+    } catch {
+      // Not JSON. A gateway timeout looks exactly like this.
+      why = ''
+    }
+    if (r.status === 504 || /timed? ?out|FUNCTION_INVOCATION_TIMEOUT/i.test(said)) {
+      throw new Error(`${where} ran out of time — it is taking longer than a minute a batch`)
+    }
+    throw new Error(why || `${where} — ${r.status} ${said.slice(0, 140).replace(/<[^>]*>/g, ' ').trim()}`)
   }
 
   const zone = zoneFor({
