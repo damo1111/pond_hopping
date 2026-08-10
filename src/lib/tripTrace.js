@@ -57,6 +57,9 @@ export function rowsFor(photos = [], zone = null) {
     .filter((p) => p?.taken_at)
     .sort((a, b) => iso(a.taken_at).localeCompare(iso(b.taken_at)))
     .map((p) => ({
+      // Carried so an observation from the seeing pass can land beside the
+      // minute and the coordinate it belongs to.
+      id: p.id ?? null,
       at: clockIn(p.taken_at, zone),
       lat: p.lat == null ? null : Number(p.lat.toFixed(5)),
       lon: p.lon == null ? null : Number(p.lon.toFixed(5)),
