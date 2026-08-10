@@ -31,7 +31,14 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      // duck.png as well as the icon. It is the brand mark in the header
+      // and every pin on the globe, and it was being fetched from the
+      // network on every cold start — 220KB, over whatever connection
+      // happens to be going. One failed request on 4G and the header shows
+      // a broken-image glyph, permanently, because <img> does not retry.
+      // Precached, it is there before it is asked for and survives being
+      // offline entirely.
+      includeAssets: ['icon.svg', 'duck.png'],
       manifest: {
         name: 'Pond Hopping',
         short_name: 'Pond Hopping',

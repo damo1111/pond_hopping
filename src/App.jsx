@@ -497,7 +497,19 @@ export default function App() {
             aria-label={user ? 'Account' : 'Sign in'}
             title={user ? user.email : 'Sign in'}
           >
-            <img className="header-duck" src="/duck.png" alt="" />
+            {/* A broken-image glyph is the worst thing to put where a logo
+                goes: it says the app is broken, in the one place somebody
+                looks to check that it isn't. Precaching makes a failure
+                unlikely; hiding the element makes it survivable, because
+                the button underneath keeps its shape and its purpose. */}
+            <img
+              className="header-duck"
+              src="/duck.png"
+              alt=""
+              onError={(e) => {
+                e.currentTarget.style.visibility = 'hidden'
+              }}
+            />
             {!authLoading && <span className={`header-duck-dot${user ? ' on' : ''}`} />}
           </button>
           <div>
