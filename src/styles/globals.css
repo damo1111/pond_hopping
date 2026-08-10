@@ -9873,3 +9873,20 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 /* A day being read rather than chosen — no checkbox, so the text starts
    where the checkbox would have been. */
 .dfp-day--read { padding-left: 0 }
+
+/* A day's map inside its entry. Tiles and a drawn route, no Leaflet — see
+   DayThumb.jsx for why a map instance per row is the wrong shape. */
+.day-thumb {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  height: 132px;
+  margin-top: 8px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.day-thumb-tile { position: absolute; width: 256px; height: 256px; }
+.day-thumb-line { position: absolute; left: 0; top: 0; }

@@ -5,6 +5,7 @@ import { thumb } from '../lib/imgTransform.js'
 import { readCache, writeCache } from '../lib/placeCache.js'
 import { sweep } from '../lib/staleStory.js'
 import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, priceIt, sift, stopKey, tellDay, titleDay, zoneOf } from '../lib/tripStory.js'
+import DayThumb from './DayThumb.jsx'
 import { TRUST_PHOTO } from '../lib/tripStory.js'
 
 // Piecing a trip together from photographs taken two years ago.
@@ -44,8 +45,11 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   // rather than in the reader's. A Roman morning read from Melbourne came
   // out as "the evening, from 17:09".
   const [flights, setFlights] = useState([])
+  // The things the app already knows happened. A day that began with a
+  // 21.4 km run should say so before it says anything about photographs.
+  const [runs, setRuns] = useState([])
 
-  const days = daysFrom(photos, trip)
+  const days = daysFrom(photos, trip, { runs, flights })
   const zone = zoneOf(days, flights)
 
   useEffect(() => {
@@ -58,9 +62,14 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
       .then(({ data }) => alive && setEntries(data ?? []))
     supabase
       .from('flights')
-      .select('dep_airport,arr_airport')
+      .select('dep_airport,arr_airport,flight_number,dep_time')
       .eq('trip_id', trip.id)
       .then(({ data }) => alive && setFlights(data ?? []))
+    supabase
+      .from('runs')
+      .select('run_date,distance_km,pace,elevation_m,coords,color')
+      .eq('trip_id', trip.id)
+      .then(({ data }) => alive && setRuns(data ?? []))
     return () => {
       alive = false
     }
@@ -124,8 +133,10 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     // 1. What is at each stop. One lookup per stop, none per photograph.
     const wanted = []
     for (const day of target)
-      day.stops.forEach((s, i) => {
-        if (s.lat != null) wanted.push({ key: stopKey(day.date, i), lat: s.lat, lon: s.lon })
+      day.segments.forEach((s, i) => {
+        // Only the places you stayed. Naming the walking is what produced
+        // a day that read as a list of piazzas.
+        if (s.stayed && s.lat != null) wanted.push({ key: stopKey(day.date, i), lat: s.lat, lon: s.lon })
       })
 
     // Anything already looked up is free. This matters more than it looks:
@@ -286,8 +297,8 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
                   Day {day.day_number} ·{' '}
                   {new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                 </span>
-                <span className="dfp-title">{titleDay(day, mine)}</span>
-                <span className="dfp-said">{tellDay(day, mine, zone)}</span>
+                <span className="dfp-title">{titleDay(day, mine, day.known)}</span>
+                <span className="dfp-said">{tellDay(day, mine, day.known, zone)}</span>
               </span>
             </div>
           )
@@ -419,8 +430,9 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
                 {new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                 {already.has(day.date) && <em className="dfp-replaces"> replaces what is there</em>}
               </span>
-              <span className="dfp-title">{titleDay(day, mine)}</span>
-              <span className="dfp-said">{tellDay(day, mine, zone)}</span>
+              <span className="dfp-title">{titleDay(day, mine, day.known)}</span>
+              <span className="dfp-said">{tellDay(day, mine, day.known, zone)}</span>
+                <DayThumb stops={day.segments.filter((x) => x.stayed)} run={day.known.runs?.[0]} />
             </span>
           </label>
         )
