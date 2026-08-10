@@ -9639,3 +9639,128 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   .penning-line { animation: none; stroke-dashoffset: 130 }
   .penning-nib { animation: none; transform: translate(104px, 4px) }
 }
+
+/* ── The same photograph, twice ────────────────────────────────
+   Stylised copies of your own pictures. Compared in the browser on the
+   thumbnails already being served — see phash.js for why the timestamp is
+   no use for this. Proposes; never deletes on its own. */
+
+.fd {
+  margin: 12px 0 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.fd-go {
+  display: block;
+  margin: 0 auto;
+  padding: 12px 26px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+}
+
+.fd-note {
+  margin-top: 8px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.fd-note--left { text-align: left; margin-bottom: 4px; }
+.fd-trouble { margin-top: 8px; font-size: 11.5px; color: #C0392B; text-align: center; }
+
+.fd-progress {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.fd-bar {
+  margin-top: 8px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.fd-bar span { display: block; height: 100%; background: var(--accent); transition: width 200ms ease }
+
+.fd-head { font-family: var(--font-display); font-size: 14px; }
+
+/* Side by side, because the whole proposal is "these two are the same
+   picture" and that is a claim the eye settles in a moment. */
+.fd-group {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.fd-shot {
+  position: relative;
+  flex: none;
+  padding: 0;
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  background: none;
+  line-height: 0;
+  overflow: hidden;
+}
+
+.fd-shot img { width: 92px; height: 92px; object-fit: cover; display: block }
+
+/* The one on its way out. Faded and struck rather than merely unselected —
+   at this size a thin border is not enough to be sure by. */
+.fd-shot--drop { border-color: #C0392B }
+.fd-shot--drop img { opacity: 0.42 }
+
+.fd-tag {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 3px 0;
+  font-family: var(--font-mono);
+  font-size: 7.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.4;
+  color: #F5F2EB;
+  background: rgba(26, 22, 17, 0.62);
+}
+
+.fd-shot--drop .fd-tag { background: rgba(192, 57, 43, 0.82) }
+
+.fd-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.fd-cancel { padding: 12px 20px; border: 0; background: none; font-size: 12px; color: var(--text-muted) }
+
+.fd-save {
+  padding: 12px 26px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: #C0392B;
+  background: rgba(192, 57, 43, 0.1);
+  border: 1px solid rgba(192, 57, 43, 0.45);
+}
+
+.fd-save:disabled { opacity: 0.5 }

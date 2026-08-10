@@ -6,6 +6,7 @@ import { thumb, coverUrl } from '../lib/imgTransform.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PhotoUpload from '../components/PhotoUpload.jsx'
 import ReceiptScan from '../components/ReceiptScan.jsx'
+import FindDuplicates from '../components/FindDuplicates.jsx'
 
 function fmtRange(t) {
   if (!t.start_date) return 'dates tbc'
@@ -266,6 +267,8 @@ export default function PhotosTab({ openPhotoId = null }) {
           onDone={() => setReload((r) => r + 1)}
         />
       )}
+
+      {heroTrip && <FindDuplicates photos={visible} onDone={() => setReload((r) => r + 1)} />}
 
       {albums.map((t) => {
         const count = photoCountByTrip.get(t.id) || 0
