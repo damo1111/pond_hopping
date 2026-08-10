@@ -8,23 +8,61 @@
       "permanent": false
     }
   ],
-  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
   "functions": {
-    "api/resize-photo.js": { "maxDuration": 60, "memory": 1024 },
-    "api/plan-chat.js": { "maxDuration": 60, "memory": 1024 }
+    "api/resize-photo.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/plan-chat.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/see-photos.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/reconstruct-trip.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/write-trip.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    }
   },
   "headers": [
     {
       "source": "/sw.js",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
     },
     {
       "source": "/manifest.webmanifest",
-      "headers": [{ "key": "Content-Type", "value": "application/manifest+json" }]
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        }
+      ]
     },
     {
       "source": "/api/(.*)",
-      "headers": [{ "key": "Access-Control-Allow-Origin", "value": "*" }]
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        }
+      ]
     }
   ]
 }

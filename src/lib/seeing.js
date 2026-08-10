@@ -19,9 +19,16 @@
 // it aims the expensive tokens at the frames that actually have something
 // to read.
 
-/** Images per request. The instruction is the expensive part of a small
- *  call, so batching pays it fifteen times over a trip rather than 286. */
-export const BATCH = 20
+/** Images per request.
+ *
+ *  The instruction is the expensive part of a small call, so batching pays
+ *  it once per group rather than once per photograph. Twenty was the number
+ *  until it met the other constraint: these run as Vercel functions with a
+ *  sixty-second ceiling, and twenty images at high detail will not come back
+ *  inside it. Ten will, and costs one more instruction per twenty
+ *  photographs — about seven hundred tokens, which is nothing against being
+ *  timed out halfway through a trip. */
+export const BATCH = 10
 
 /** Input tokens per image, by detail setting. OpenAI's published sizes: a
  *  flat 85 for low, and 85 plus 170 a tile for high, which is four tiles
