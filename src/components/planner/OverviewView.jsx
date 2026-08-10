@@ -9,6 +9,7 @@ import { coverUrl } from '../../lib/imgTransform.js'
 import { TimelineItem, SpanRow } from './ItineraryView.jsx'
 import Concierge from './Concierge.jsx'
 import GmailImport from './GmailImport.jsx'
+import Icon from '../Icon.jsx'
 
 function nights(a, b) {
   if (!a || !b) return null
@@ -173,7 +174,13 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
           aria-label="Change trip photo"
           title="Change trip photo"
         >
-          ⛰
+          {/* Was the emoji ⛰ (U+26F0), which has *text* presentation by
+              default — no variation selector, so Android draws a bare
+              monochrome outline rather than a colour glyph. It came out as
+              a grey triangle that says nothing about photographs. A real
+              icon renders the same on every platform and is the one every
+              other button here already uses. */}
+          <Icon name="photo" size={14} />
         </button>
         <div className="ov-hero-text">
           <div className="ov-hero-title">{trip.title}</div>
