@@ -157,3 +157,46 @@ extraction schema is short.
   would carry it.
 - FlightAware AeroAPI, for scheduled-versus-actual. Everything about macro
   events gets stronger the day it lands.
+
+## Measured against the target
+
+The bar is the narrative in David's export, not "better than before". Six
+places the prompt would have fallen short of it, found by reading the two
+side by side rather than by running anything:
+
+1. **Person.** The target is first person throughout — "I stayed for a
+   while". The prompt did not say, and the stage it replaced said second
+   person. A journal in the second person is a report about somebody.
+
+2. **Rhythm.** Much of why the target reads well is the variation: a long
+   observant sentence, then "It doesn't." on its own line. Nothing in the
+   prompt asked for it, and a prompt that does not ask for rhythm gets even,
+   unbroken paragraphs. Now asked for, with a warning not to make it the
+   only move.
+
+3. **Thinking, not only reporting.** "Travel can easily become a strange
+   exercise in efficiency if you let it." The old rules forbade
+   editorialising outright, which bans the thing that separates a journal
+   from an itinerary. Now allowed, one or two a chapter, never as a moral.
+
+4. **Threads inside the days.** "Piazza Venezia ended up becoming something
+   of a compass point for the whole trip" appears in the *middle of day two*,
+   at the moment a reader would notice it too. The reconstruction gathers
+   patterns and recurring places; nothing told the writer to weave them
+   through rather than save them for the end. A trip written as independent
+   days is the most common way this comes out flat.
+
+5. **Length, with a number.** "Length follows the day" is not an
+   instruction, it is a hope. The target's Tuesday is about 1,100 words.
+   Without a figure the output is 250 and reads as a summary. Now: eight
+   hundred to twelve hundred for a dense day, two or three hundred for a
+   travel day, and under-writing named as the worse failure.
+
+6. **The opening is not about the trip.** It starts general — "There are
+   some trips that feel long because so much happens" — and arrives at Rome.
+   Described as "a short reflection" it would have come out as a summary of
+   the itinerary.
+
+None of these needed an API call to find. Reading the target against the
+instruction is the cheapest quality check available and it should happen
+before every run, not after.

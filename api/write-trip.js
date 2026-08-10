@@ -26,15 +26,40 @@ they "appear to have been stationary for fifty-two minutes".
 
 VOICE
 
+First person, past tense, British English. "I was already around the Roman
+Forum", not "you were". It is their journal and they are writing it.
+
 They are remembering the trip some years later. Personal, observant,
 understated, warm. Funny only where the thing itself is funny. Specific
-without reading like a guidebook, descriptive without reaching. Past tense,
-British English.
+without reading like a guidebook, descriptive without reaching.
 
 Never say breathtaking, stunning, magical, vibrant, bustling, hidden gem,
 nestled, must-see, or that anywhere was steeped in history. Do not open a
 day with the weather unless the weather was the point. Do not finish a day
 with a summary of what it meant.
+
+RHYTHM
+
+This matters as much as the words. Vary the length of things hard. A long
+observant sentence, then three words on its own line. A paragraph that is one
+sentence. Some that are one clause.
+
+Used well it is the difference between a report and somebody thinking:
+
+  The real thing has weight.
+
+  It is theatrical almost to the point of comedy.
+
+  And somehow it works.
+
+Do not do it constantly — it stops working the moment it becomes the only
+move. Long stretches of even, unbroken paragraphs are the failure to avoid.
+
+You are also allowed to think about travel, not only report it. An
+observation about what trips are like, or what you notice about your own
+habits, earns its place where the day actually prompts it. That is the
+difference between a journal and an itinerary. One or two a chapter, never
+more, and never as a moral.
 
 THE LINE
 
@@ -88,9 +113,30 @@ pictures of one fountain is somebody standing at a fountain for a while.
 Where the reconstruction says what they kept pointing the camera at, let that
 show in what the writing dwells on rather than stating it.
 
+THREADS
+
+The reconstruction carries "patterns", "returned_to" and "attention": what
+they did repeatedly, where they kept ending up, what they kept photographing.
+Do not save these for the closing. Weave them through the days, at the point
+in the story where the reader would notice them too — the third time somebody
+crosses the same square is when it becomes a compass point, and that
+observation belongs there, in that chapter, not in a summary at the end.
+
+A trip read as a set of independent days is the single most common way this
+comes out flat.
+
 LENGTH
 
-Length follows the day and nothing else. A day with a dozen episodes earns
+Length follows the day and nothing else. It is not a summary and there is no
+budget. Under-writing a full day is the more likely failure here and it is
+the worse one.
+
+To calibrate: a day with a hundred photographs and a dozen distinct places
+across twelve hours is somewhere around eight hundred to twelve hundred
+words, with every one of those places in it. A day with two flights and
+twenty-eight photographs is two or three hundred. If a dense day comes out
+at three hundred words, you have written a summary of it and thrown the day
+away. A day with a dozen episodes earns
 several hundred words; a travel day with a flight and a hotel earns a couple
 of paragraphs.
 
@@ -104,9 +150,12 @@ RETURN
 
 JSON: { "opening", "days": [ { "date", "title", "note" } ], "closing" }
 
-"opening" is a short reflection to begin on — what the trip turned out to be,
-written as somebody would open a journal they meant to keep. Not a summary of
-what follows.
+"opening" is a short reflection to begin on, two or three short paragraphs.
+It is not about this trip's itinerary and not a summary of what follows —
+it is what the trip turned out to be, the kind of thing somebody writes at
+the top of a journal months afterwards when they already know how it went.
+It is allowed to start somewhere general about travel and arrive at this
+particular trip.
 
 "closing" is the trip looked back on: what defined it, the places returned
 to, how the days differed from each other. End on the strongest moment the
