@@ -6501,6 +6501,20 @@ button {
   padding: 22px 0 0;
 }
 
+/* Each one is a button now, so it needs the padding, border and background a
+   button arrives with stripped off — otherwise the grid gains three pixels
+   of chrome per cell and stops being flush. */
+.recap-photo {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.recap-photo:active { opacity: 0.72; }
+
 .recap-photos img {
   width: 100%;
   aspect-ratio: 1;
@@ -6806,10 +6820,14 @@ button {
   display: none;
 }
 
-/* A recap is a look back. Adding a journal entry or a photo belongs where the
-   trip still lives — the planner has a Photos tab for exactly this — not in
-   the sheet you opened to read what is already there. */
-.recap-layer .ph-add,
+/* A recap is a look back, so the journal's compose form stays out of it.
+   //
+   Photos were in this list on the same reasoning, and the reasoning was
+   wrong: the planner is for trips that haven't happened, so a finished trip
+   never opens one, and hiding the uploader here left a completed trip with
+   nowhere at all to put a photograph. The recap offers "Add photos to this
+   trip" only while there are none, which made adding the first possible and
+   the second not. The uploader belongs on the page the photos are on. */
 .recap-layer .journal-add-btn,
 .recap-layer .journal-form,
 .recap-layer .flights-review-cta {
@@ -8958,14 +8976,23 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 /* Taking a photo out. Quieter than "set as cover" — it is the rarer thing to
    want and the only one that cannot be undone, so it does not compete for
    the eye. */
+/* Sibling of .lb-cover-btn, not its own thing. It was a line of grey text
+   under a pill — which read as a caption rather than a control, and left
+   two things that both do something looking like different species. Same
+   pill, same mono, same size; the warning colour is what distinguishes a
+   destructive action from a routine one, not the absence of a shape. */
 .lb-remove-btn {
   display: block;
-  margin-top: 8px;
-  font-size: 11.5px;
-  color: rgba(255, 255, 255, 0.62);
-  background: none;
-  border: 0;
-  padding: 4px 0;
+  margin: 10px auto 0;
+  background: rgba(192, 57, 43, 0.18);
+  border: 1px solid rgba(232, 122, 110, 0.55);
+  color: #F0B7B0;
+  border-radius: 20px;
+  padding: 7px 16px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .lb-remove-btn:disabled { opacity: 0.5; }

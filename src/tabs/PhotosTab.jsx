@@ -114,7 +114,7 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
   )
 }
 
-export default function PhotosTab() {
+export default function PhotosTab({ openPhotoId = null }) {
   const { tripMeta, selectedTrip, setSelectedTrip, userId } = useContext(TripContext)
   const [photos, setPhotos] = useState(null)
   const [covers, setCovers] = useState({})
@@ -151,6 +151,22 @@ export default function PhotosTab() {
   }, [reload, userId])
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
+
+  // Opened by tapping a photograph rather than the count: land on that
+  // photograph. Waits for the fetch, because the caller only has an id —
+  // the row it names arrives with everybody else's.
+  //
+  // Honoured once. The list reloads after an upload or a removal, and an
+  // effect that simply watched `photos` would shove the lightbox back open
+  // over a screen somebody had already closed it on.
+  const honoured = useRef(null)
+  useEffect(() => {
+    if (!openPhotoId || !photos || honoured.current === openPhotoId) return
+    const found = photos.find((p) => p.id === openPhotoId)
+    if (!found) return
+    honoured.current = openPhotoId
+    setLightbox(found)
+  }, [openPhotoId, photos])
 
   // Removes the row, never the file. The example trip's photos point at the
   // same pictures as the real one, so deleting the bytes would take them out
