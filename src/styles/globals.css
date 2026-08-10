@@ -9162,3 +9162,47 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .admin-example.on .admin-example-dot { background: var(--accent); border-color: var(--accent); }
 
 .admin-example:disabled { opacity: 0.5; }
+
+/* "You already have a trip covering these days." Offered above the
+   make-a-new-trip form, because it is nearly always the right answer — and
+   a second trip for the same week is the kind of mess that is tedious to
+   undo once the photographs are in it. */
+.route-join {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 14px;
+}
+
+.route-join-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.route-join-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+}
+
+.route-join-sub {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.route-join-or {
+  font-size: 12px;
+  opacity: 0.6;
+  text-align: center;
+  padding-top: 2px;
+}

@@ -1,5 +1,7 @@
-import { useRef, useState } from 'react'
+import { useContext, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { TripContext } from '../App.jsx'
+import { candidates } from '../lib/photoRouting.js'
 import TrackPlaces from './TrackPlaces.jsx'
 import { readExif } from '../lib/exif.js'
 import { HEAD_BYTES, prepare, store } from '../lib/photoIngest.js'
@@ -31,7 +33,19 @@ import SheetGrip from './SheetGrip.jsx'
 // photos that came via WhatsApp or Google Photos.
 
 
+// Enough to tell two trips apart at a glance, which is the whole job of
+// this line when more than one covers the same days.
+function fmtSpan(t) {
+  const o = { day: 'numeric', month: 'short' }
+  if (!t?.start_date) return 'dates tbc'
+  const a = new Date(`${t.start_date}T00:00:00`).toLocaleDateString('en-GB', o)
+  if (!t.end_date) return `from ${a}`
+  const b = new Date(`${t.end_date}T00:00:00`).toLocaleDateString('en-GB', { ...o, year: 'numeric' })
+  return `${a} – ${b}`
+}
+
 export default function StartFromPhotos({ onDone, onClose }) {
+  const { tripMeta } = useContext(TripContext)
   const input = useRef(null)
   const [files, setFiles] = useState(null)
   const [read, setRead] = useState(null) // { clusters, undated }
@@ -77,28 +91,47 @@ export default function StartFromPhotos({ onDone, onClose }) {
   // just could not help decide when it was.
   const toUpload = cluster ? [...cluster.photos, ...(read?.undated ?? [])] : (read?.undated ?? [])
 
-  async function create() {
-    if (!start) return setError('Give it a start date and I can make the trip.')
+  // Trips that already cover these days.
+  //
+  // This screen only ever offered to make a new one. A photograph from 3
+  // July, with a trip called "HK & South Korea" running 30 June to 8 July
+  // sitting right there on the globe, produced a prompt to create "July
+  // 2026" — the date read correctly and then the wrong question asked. The
+  // other door into photos has known how to answer this since the routing
+  // went in; this one was never wired to it.
+  //
+  // Same rules as everywhere else: examples never appear, because an
+  // example carries its real trip's dates and picking wrong publishes
+  // somebody's photographs.
+  const joinable = cluster ? candidates(cluster, tripMeta).map((c) => c.trip) : []
+
+  // `into` is an existing trip to add to; without one, a trip is made.
+  async function create(into = null) {
+    if (!into && !start) return setError('Give it a start date and I can make the trip.')
     setPhase('saving')
     setError(null)
     // Same reason as ingest(): making a trip and uploading forty photographs
     // into it must not be interrupted by a pending update reloading the app.
     const working = begin()
     try {
-      const { data: trip, error: tripErr } = await supabase
-        .from('trips')
-        .insert({
-          slug: slugify(title, start),
-          title: title.trim() || suggestTitle(cluster),
-          start_date: start,
-          end_date: end || null,
-          countries: [],
-          status: 'confirmed',
-          sort_order: 0,
-        })
-        .select('id,slug')
-        .single()
-      if (tripErr || !trip) throw tripErr || new Error('The trip could not be created.')
+      let trip = into
+      if (!trip) {
+        const { data, error: tripErr } = await supabase
+          .from('trips')
+          .insert({
+            slug: slugify(title, start),
+            title: title.trim() || suggestTitle(cluster),
+            start_date: start,
+            end_date: end || null,
+            countries: [],
+            status: 'confirmed',
+            sort_order: 0,
+          })
+          .select('id,slug')
+          .single()
+        if (tripErr || !data) throw tripErr || new Error('The trip could not be created.')
+        trip = data
+      }
 
       let done = 0
       let bytes = 0
@@ -111,7 +144,7 @@ export default function StartFromPhotos({ onDone, onClose }) {
       for (const p of toUpload) {
         try {
           const prepared = await prepare(p.file)
-          await store(prepared, { tripId: trip.id, isHighlight: done === 0 })
+          await store(prepared, { tripId: trip.id, isHighlight: !into && done === 0 })
           bytes += prepared.display.blob.size + prepared.thumb.blob.size
           original += prepared.originalBytes
         } catch {
@@ -171,6 +204,27 @@ export default function StartFromPhotos({ onDone, onClose }) {
             </div>
             <div className="ios-sheet-sub">{summarise(cluster, read?.undated?.length || 0)}</div>
 
+            {/* Offered before the form, because it is almost always the right
+                answer and the form is the fallback. Somebody who has just
+                got home from a trip that is already on the globe should not
+                have to make a second one to put the photographs somewhere. */}
+            {joinable.length > 0 && (
+              <div className="route-join">
+                <div className="route-clusters-note">
+                  {joinable.length === 1
+                    ? 'You already have a trip covering these days:'
+                    : 'These days fall inside trips you already have:'}
+                </div>
+                {joinable.map((t) => (
+                  <button key={t.slug} className="route-join-btn" onClick={() => create(t)}>
+                    <span className="route-join-title">Add to {t.title}</span>
+                    <span className="route-join-sub">{fmtSpan(t)}</span>
+                  </button>
+                ))}
+                <div className="route-join-or">or make a new one</div>
+              </div>
+            )}
+
             {read?.clusters?.length > 1 && (
               <div className="route-clusters">
                 <div className="route-clusters-note">
@@ -224,7 +278,7 @@ export default function StartFromPhotos({ onDone, onClose }) {
             </div>
 
             {error && <div className="account-error">{error}</div>}
-            <button className="ios-sheet-done" onClick={create}>
+            <button className="ios-sheet-done" onClick={() => create()}>
               Make the trip · {toUpload.length} photo{toUpload.length === 1 ? '' : 's'}
             </button>
           </>
