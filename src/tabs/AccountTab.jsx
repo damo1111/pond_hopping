@@ -359,7 +359,6 @@ function ConnectCard() {
 // an owner makes about their own holiday. The database enforces that with a
 // trigger; this is only the switch.
 function ExamplesCard() {
-  const { allTrips } = useContext(TripContext)
   const [admin, setAdmin] = useState(false)
   const [busy, setBusy] = useState(null)
   const [rows, setRows] = useState([])
@@ -368,9 +367,30 @@ function ExamplesCard() {
     supabase.rpc('is_admin').then(({ data }) => setAdmin(data === true))
   }, [])
 
+  // Read from trips rather than from the trip_meta the rest of the app uses,
+  // because that view ends `where status = 'confirmed'` — so a trip still in
+  // planning is not in it. Lisbon & Porto is exactly that: the example of
+  // what a *planned* trip looks like, and the one trip this card could not
+  // list or switch off. A picker that silently omits an option is worse than
+  // no picker, since the thing you cannot see is the thing you cannot stop
+  // showing to everybody.
   useEffect(() => {
-    setRows((allTrips ?? []).map((t) => ({ id: t.id, title: t.title, is_demo: !!t.is_demo })))
-  }, [allTrips])
+    supabase
+      .from('trips')
+      .select('id,title,is_demo,status,start_date')
+      .order('start_date', { ascending: true })
+      .then(({ data }) =>
+        setRows(
+          (data ?? []).map((t) => ({
+            id: t.id,
+            title: t.title,
+            is_demo: !!t.is_demo,
+            status: t.status,
+            when: t.start_date ? String(t.start_date).slice(0, 4) : 'no dates',
+          }))
+        )
+      )
+  }, [])
 
   if (!admin) return null
 
@@ -405,7 +425,15 @@ function ExamplesCard() {
             onClick={() => toggle(r)}
           >
             <span className="admin-example-dot" />
+            {/* Two rows read "Rome" and two read "China & Japan" — an
+                example is a copy and carries the real trip's title. The dot
+                says which is switched on; the year and the state say which
+                row is which, so switching one off cannot mean the other. */}
             {r.title}
+            <span className="admin-example-when">
+              {r.when}
+              {r.status === 'draft' ? ' · planning' : ''}
+            </span>
           </button>
         ))}
       </div>

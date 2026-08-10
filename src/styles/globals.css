@@ -9009,6 +9009,16 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 
 .admin-example.on { color: var(--text); }
 
+/* Which "Rome" this is. Pushed to the right so the titles still line up and
+   read as a list rather than as a table. */
+.admin-example-when {
+  margin-left: auto;
+  padding-left: 10px;
+  font-size: 11.5px;
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
 .admin-example-dot {
   width: 9px;
   height: 9px;
