@@ -1,4 +1,4 @@
-import { createContext, lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { createContext, lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import Placeholder from './tabs/Placeholder.jsx'
 import FlightsTab from './tabs/FlightsTab.jsx'
@@ -195,6 +195,44 @@ export default function App() {
   // falls back to the public set. The first anonymous read is deliberate
   // rather than a cost: a fresh install shows a globe full of real
   // journeys instead of an empty state.
+  // Hoisted out of the effect so it can be called again on demand.
+  //
+  // Making a trip used to end in window.location.reload(). That works, and
+  // it costs a full boot of the app to add one row to a list already held
+  // in memory: on iOS a white flash, the globe rebuilt from nothing, every
+  // query re-run, and whatever screen you were on gone. The trip did
+  // appear, so it looked like success — but it read as the app falling over
+  // at the exact moment somebody first trusted it with something.
+  //
+  // `cancelled` is deliberately not carried across: it guards the mount
+  // path, where a reply landing after a sign-out would repopulate the globe
+  // with the previous account's trips. An explicit refresh has no such
+  // race, because somebody asked for it.
+  const loadTrips = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('trip_meta')
+        .select('*')
+        .order('sort_order', { ascending: true })
+
+      if (error) {
+        setLoadError(error.message)
+        return null
+      }
+      setTripMeta(data ?? [])
+      setLoadError(null)
+      // Only a clean read proves the account is genuinely empty. An empty
+      // tripMeta otherwise just means "hasn't arrived", and Home would
+      // greet a dropped connection with "nothing on the globe yet" — which
+      // reads as data loss, not as a network blip.
+      setTripsLoaded(true)
+      return data ?? []
+    } catch (e) {
+      setLoadError(e?.message || 'Couldn’t reach the server.')
+      return null
+    }
+  }, [])
+
   useEffect(() => {
     let cancelled = false
 
@@ -210,10 +248,6 @@ export default function App() {
         else {
           setTripMeta(data ?? [])
           setLoadError(null)
-          // Only a clean read proves the account is genuinely empty. An
-          // empty tripMeta otherwise just means "hasn't arrived", and Home
-          // would greet a dropped connection with "nothing on the globe
-          // yet" — which reads as data loss, not as a network blip.
           setTripsLoaded(true)
         }
       } catch (e) {
@@ -390,6 +424,9 @@ export default function App() {
         setDemoPref(v)
       },
       tripsLoaded,
+      // Pull the trip list again without reloading the page. What making a
+      // trip now does instead of throwing the whole app away.
+      refreshTrips: loadTrips,
       selectedTrip,
       setSelectedTrip,
       journalJump,
