@@ -6151,12 +6151,18 @@ button {
   right: 12px;
   width: 30px;
   height: 30px;
+  /* Centred by the box rather than by the glyph. This held a character and
+     leaned on line-height to place it, which puts it on its baseline — near
+     enough to look like a mistake and not near enough to be right. An icon
+     centred by flex sits where the circle actually is. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border-radius: 50%;
   border: none;
   background: rgba(26, 22, 17, 0.45);
   color: #fff;
-  font-size: 13px;
-  line-height: 1;
   cursor: pointer;
   backdrop-filter: blur(4px);
 }
