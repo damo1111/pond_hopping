@@ -1,27 +1,29 @@
-// Piecing a trip together from photographs taken two years ago.
+// Piecing a trip together from what the app already knows.
 //
-// The pipeline, and why each step is where it is:
+// The order matters, and getting it wrong is what made the first two
+// attempts worthless:
 //
-//   1. Cluster the photographs into days and stops.  Free, arithmetic.
-//   2. Ask what is at each stop.                     One lookup per stop.
-//   3. Decide, from distance and dwell time.         Free, arithmetic.
-//   4. Where that cannot decide, look at a photo.    A few calls per trip.
-//   5. Tell the day, in the names that came back.    Free.
+//   1. What is certain.   Flights and runs, already in the database.
+//   2. Where you stopped. Photographs, segmented by time not distance.
+//   3. What those were.   One lookup per place you actually stayed.
+//   4. Which of several.  A photograph, only where the coordinates cannot.
+//   5. Say the day.       Known things first, photographs filling gaps.
 //
-// The shape matters more than any one step. Steps 1, 3 and 5 cost nothing
-// and do most of the work; step 2 is a handful of calls; step 4 — the only
-// one that looks at what is *in* a picture — runs solely where the
-// coordinates have genuinely run out of answers. For Rome that is a few
-// stops out of twenty, not three hundred photographs.
+// The version before this started at step 2 and never did step 1, so a day
+// that began with a 21.4 km run through Rome — in the runs table, with the
+// route, the pace and the climb — was reported as "The evening at La
+// Cenatio Rotunda". The best fact about the day was already local and
+// nothing looked at it.
 //
-// The alternative shape, asking every photograph what it is, costs a
-// hundred times as much to arrive at a worse answer: a model looking at a
-// picture of a doorway with no candidate list will confidently name a
-// famous doorway.
+// Steps 1, 2 and 5 cost nothing. Step 3 runs on the handful of places you
+// stayed rather than every hundred and fifty metres you crossed, which is
+// what turned twenty lookups a day into four. Step 4 is the only one that
+// looks at what is in a picture, and only where several real places share
+// one GPS fix.
 
-import { daysFrom } from './photoDays.js'
+import { knownOn, segment, worthNaming } from './dayShape.js'
 import { askWith, pickPlace } from './placePick.js'
-import { RECONSTRUCTED, tellDay, titleDay } from './narrate.js'
+import { RECONSTRUCTED, tellDay, titleDay } from './tellIt.js'
 import { builtFrom } from './staleStory.js'
 import { zoneFor } from './localTime.js'
 
@@ -31,27 +33,63 @@ export const TRUST_PHOTO = 0.6
 export const stopKey = (dayDate, i) => `${dayDate}#${i}`
 
 /**
- * Every stop across a trip, as the flat list the lookup endpoint wants.
- * Stops with no coordinates are left out: there is nothing to ask about.
+ * A trip's photographs as days, each made of the times you stopped.
+ *
+ * Keyed on taken_on, which the uploader read off the camera in the phone's
+ * own timezone — safer than re-deriving it from a UTC instant, which is how
+ * a photograph taken at 1am in Tokyo ends up filed under the day before.
  */
+export function daysFrom(photos = [], trip = {}, { runs = [], flights = [] } = {}) {
+  const byDay = new Map()
+  for (const p of photos) {
+    if (!p?.taken_on) continue
+    if (!byDay.has(p.taken_on)) byDay.set(p.taken_on, [])
+    byDay.get(p.taken_on).push(p)
+  }
+
+  // A day can be a real day of the trip with no photographs on it at all —
+  // a travel day where nobody took a picture still has the flight.
+  for (const f of flights) {
+    const d = String(f?.dep_time ?? '').slice(0, 10)
+    if (d && !byDay.has(d)) byDay.set(d, [])
+  }
+  for (const r of runs) if (r?.run_date && !byDay.has(r.run_date)) byDay.set(r.run_date, [])
+
+  const dates = [...byDay.keys()].sort()
+  const start = trip.start_date || dates[0]
+
+  return dates.map((date) => {
+    const shots = byDay.get(date)
+    const segments = segment(shots)
+    const located = shots.filter((p) => p.lat != null)
+    return {
+      date,
+      day_number: start
+        ? Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / 86400000) + 1
+        : null,
+      photos: shots,
+      segments,
+      known: knownOn(date, { runs, flights }),
+      lat: located.length ? located.reduce((s, p) => s + p.lat, 0) / located.length : null,
+      lon: located.length ? located.reduce((s, p) => s + p.lon, 0) / located.length : null,
+      from: segments[0]?.from ?? null,
+      to: segments[segments.length - 1]?.to ?? null,
+    }
+  })
+}
+
+/** Only the places you stayed, as the flat list the lookup endpoint wants. */
 export function stopsToName(days = []) {
   const out = []
   for (const day of days)
-    day.stops.forEach((stop, i) => {
-      if (stop.lat == null || stop.lon == null) return
-      out.push({ key: stopKey(day.date, i), lat: stop.lat, lon: stop.lon, day: day.date, i, stop })
+    day.segments.forEach((s, i) => {
+      if (!s.stayed || s.lat == null) return
+      out.push({ key: stopKey(day.date, i), lat: s.lat, lon: s.lon, day: day.date, i, stop: s })
     })
   return out
 }
 
-/**
- * What the candidates settle and what they cannot.
- *
- * @param named  key → candidates, from /api/name-places
- * @returns { names, ask }
- *   names — key → the place, where the numbers were enough
- *   ask   — the stops worth showing a photograph to, with their shortlist
- */
+/** What the candidates settle, and what only a photograph can. */
 export function sift(days = [], named = {}) {
   const names = {}
   const ask = []
@@ -65,64 +103,58 @@ export function sift(days = [], named = {}) {
   return { names, ask }
 }
 
-/** Names keyed by stop → names keyed by index, for one day. */
 export function namesForDay(day, names = {}) {
   const out = {}
-  day.stops.forEach((_, i) => {
+  day.segments.forEach((_, i) => {
     const n = names[stopKey(day.date, i)]
     if (n) out[i] = n
   })
   return out
 }
 
-/** A day → the journal entry it becomes, told in the names that were found. */
+/** A day → the journal entry it becomes. */
 export function entryFor(day, trip = {}, names = {}, zone = null) {
   const mine = namesForDay(day, names)
   return {
     trip_id: trip.id ?? null,
     entry_date: day.date,
     day_number: day.day_number,
-    title: titleDay(day, mine),
-    note: `${tellDay(day, mine, zone)}\n\n${RECONSTRUCTED}`,
+    title: titleDay(day, mine, day.known),
+    note: `${tellDay(day, mine, day.known, zone)}\n\n${RECONSTRUCTED}`,
     lat: day.lat,
     lon: day.lon,
-    // The place that held the day, which is the useful thing to have in a
-    // column called city even when it is a landmark rather than a city.
-    city: firstNamed(day, mine),
+    city: longestNamed(day, mine),
     mood: null,
     tags: ['reconstructed'],
-    // What this was told from, so a later sweep can tell whether the
-    // photographs have moved on since. Without it the story is a claim
-    // about a set of pictures nobody can identify any more.
-    built_from: builtFrom(day),
+    built_from: builtFrom({ photos: day.photos, stops: day.segments }),
   }
 }
 
-function firstNamed(day, mine) {
-  const longest = [...(day.stops ?? [])]
+function longestNamed(day, mine) {
+  const best = [...(day.segments ?? [])]
     .map((s, i) => ({ minutes: s.minutes, name: mine[i] }))
     .filter((s) => s.name)
     .sort((a, b) => b.minutes - a.minutes)[0]
-  return longest?.name ?? null
+  return best?.name ?? null
 }
 
-/** How much this trip will cost to piece together, before spending it. */
+/** What this trip will cost to piece together, before spending it. */
 export function priceIt(days = [], ask = []) {
+  const stops = stopsToName(days).length
   return {
     days: days.length,
-    stops: stopsToName(days).length,
-    lookups: stopsToName(days).length,
+    stops,
+    lookups: stops,
     photosLookedAt: ask.reduce((n, a) => n + a.photos.length, 0),
     ambiguous: ask.length,
   }
 }
 
-/** The trip's own clocks. The photographs say where; the flights, if any,
- *  give that a name that also knows about daylight saving. */
+/** The trip's own clocks. The photographs say where; the flights name it. */
 export function zoneOf(days = [], flights = []) {
   const located = days.filter((d) => d.lon != null)
   const lon = located.length ? located.reduce((s, d) => s + d.lon, 0) / located.length : null
-  return zoneFor({ flights, lon, when: days[0]?.from ?? null })
+  return zoneFor({ flights, lon, when: days.find((d) => d.from)?.from ?? null })
 }
 
-export { daysFrom, tellDay, titleDay, RECONSTRUCTED }
+export { tellDay, titleDay, RECONSTRUCTED }

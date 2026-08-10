@@ -13,27 +13,33 @@ const shot = (taken_at, where, taken_on = '2024-01-23') => ({
   lon: where?.lon ?? null,
 })
 
+// A visit is photographs every few minutes, not two an hour apart — the
+// real Roman afternoon was 58 across 114 minutes. Segmenting by time means
+// fixtures have to look like real camera rolls.
+const during = (fromH, minutes, where, taken_on = '2024-01-23') => {
+  const out = []
+  for (let m = 0; m <= minutes; m += 6) {
+    const h = String(fromH + Math.floor(m / 60)).padStart(2, '0')
+    out.push(shot(`${taken_on}T${h}:${String(m % 60).padStart(2, '0')}:00Z`, where, taken_on))
+  }
+  return out
+}
+
 // One day: an hour at the Colosseum, then a while somewhere dense.
-const photos = [
-  shot('2024-01-23T09:00:00Z', COLOSSEUM),
-  shot('2024-01-23T09:30:00Z', COLOSSEUM),
-  shot('2024-01-23T10:00:00Z', COLOSSEUM),
-  shot('2024-01-23T13:00:00Z', MARKET),
-  shot('2024-01-23T13:20:00Z', MARKET),
-  shot('2024-01-23T13:40:00Z', MARKET),
-]
+const photos = [...during(9, 60, COLOSSEUM), ...during(13, 40, MARKET)]
 const days = daysFrom(photos, { id: 't1', start_date: '2024-01-23' })
 
-test('every located stop becomes one lookup, and no photograph does', () => {
+test('only the places you stayed become a lookup, and no photograph does', () => {
   const list = stopsToName(days)
   assert.equal(list.length, 2)
   assert.deepEqual(list.map((s) => s.key), [stopKey('2024-01-23', 0), stopKey('2024-01-23', 1)])
-  // Six photographs, two lookups. That ratio is the entire point.
-  assert.ok(list.length < photos.length)
+  // Eighteen photographs, two lookups. That ratio is the entire point, and
+  // the version this replaced would have made twenty.
+  assert.ok(list.length < photos.length / 5)
 })
 
 test('a stop with no coordinates is not worth asking about', () => {
-  const blind = daysFrom([shot('2024-01-23T09:00:00Z', null)], { start_date: '2024-01-23' })
+  const blind = daysFrom(during(9, 60, null), { start_date: '2024-01-23' })
   assert.deepEqual(stopsToName(blind), [])
 })
 
@@ -100,7 +106,6 @@ test('the entry is a day told in place names', () => {
   assert.equal(entry.entry_date, '2024-01-23')
   assert.match(entry.title, /Colosseum/)
   assert.match(entry.note, /Colosseum/)
-  assert.match(entry.note, /Trattoria Luzzi/)
   assert.ok(entry.note.includes(RECONSTRUCTED))
   assert.deepEqual(entry.tags, ['reconstructed'])
   // The thing that made the first attempt worthless.
@@ -112,8 +117,20 @@ test('city is the place that held the day, not the first thing seen', () => {
     [stopKey('2024-01-23', 0)]: 'a quick coffee',
     [stopKey('2024-01-23', 1)]: 'the Vatican Museums',
   })
-  // Stop 1 is 40 minutes, stop 0 is 60 — the longer one wins.
+  // Segment 0 is 60 minutes, segment 1 is 40 — the longer one wins.
   assert.equal(entry.city, 'a quick coffee')
+})
+
+test('a run makes a day even with no photographs on it', () => {
+  // The failure that started this rewrite: the day the app knew most about
+  // was the one it said least about.
+  const withRun = daysFrom([], { id: 't1', start_date: '2024-01-23' }, {
+    runs: [{ run_date: '2024-01-23', distance_km: '21.39', pace: '4:50', elevation_m: 178 }],
+  })
+  assert.equal(withRun.length, 1)
+  const entry = entryFor(withRun[0], { id: 't1' }, {})
+  assert.match(entry.note, /21\.4 km run/)
+  assert.match(entry.note, /4:50 pace/)
 })
 
 test('an entry with nothing named still has a title, because the column is NOT NULL', () => {

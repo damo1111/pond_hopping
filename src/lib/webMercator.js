@@ -77,5 +77,10 @@ export function tileFrame(coords, w, h, { pad = 8, maxZoom = 16, minZoom = 1 } =
     .map((_, i) => `${i ? 'L' : 'M'}${(xs[i] - left).toFixed(1)} ${(ys[i] - top).toFixed(1)}`)
     .join(' ')
 
-  return { zoom, tiles, path }
+  // The projected points as well as the line through them. A day's map
+  // wants a dot at each place you stopped, which the path alone cannot
+  // give — and callers that only want the line are unaffected.
+  const points = pts.map((_, i) => ({ x: +(xs[i] - left).toFixed(1), y: +(ys[i] - top).toFixed(1) }))
+
+  return { zoom, tiles, path, points }
 }
