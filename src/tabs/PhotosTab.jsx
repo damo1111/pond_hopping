@@ -287,10 +287,15 @@ export default function PhotosTab() {
       )}
 
       {!visible.length && (
+        /* Written when pasting a URL was the only way in, and left standing
+           after uploading straight off the phone became the headline — so
+           the one empty screen whose whole job is to say what to do next
+           was pointing at the fallback. */
         <div className="placeholder" style={{ minHeight: '30vh' }}>
           <div className="placeholder-code">photos</div>
           <div className="placeholder-note">
-            No individual photos yet — paste image URLs above, or use the album links.
+            No photos here yet — “Add photos from this phone” at the top puts them in, dates and
+            places and all.
           </div>
         </div>
       )}
