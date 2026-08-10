@@ -4,6 +4,7 @@ import { TripContext } from '../App.jsx'
 import { thumb } from '../lib/imgTransform.js'
 import { readCache, writeCache } from '../lib/placeCache.js'
 import { sweep } from '../lib/staleStory.js'
+import { factsFor, voiceFrom } from '../lib/dayFacts.js'
 import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, priceIt, sift, stopKey, tellDay, titleDay, zoneOf } from '../lib/tripStory.js'
 import DayThumb from './DayThumb.jsx'
 import { TRUST_PHOTO } from '../lib/tripStory.js'
@@ -48,6 +49,12 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   // The things the app already knows happened. A day that began with a
   // 21.4 km run should say so before it says anything about photographs.
   const [runs, setRuns] = useState([])
+  // The day, written rather than templated. Three versions of this were
+  // assembled from string templates and every one read like a database
+  // describing itself; the facts are gathered by code and the writing is
+  // done by something that can write. Keyed by date.
+  const [prose, setProse] = useState({})
+  const [writing, setWriting] = useState(false)
 
   const days = daysFrom(photos, trip, { runs, flights })
   const zone = zoneOf(days, flights)
@@ -57,7 +64,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     let alive = true
     supabase
       .from('journal_entries')
-      .select('entry_date,built_from,edited_at')
+      .select('entry_date,built_from,edited_at,note')
       .eq('trip_id', trip.id)
       .then(({ data }) => alive && setEntries(data ?? []))
     supabase
@@ -213,6 +220,31 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
 
     setNames(found)
 
+    // Now write them. The facts are settled; this is the part that turns
+    // them into a day somebody would recognise.
+    setWriting(true)
+    const voice = voiceFrom(entries ?? [])
+    const drafted = {}
+    await Promise.all(
+      target.map(async (day) => {
+        const mine = namesForDay(day, found)
+        const theirs = (entries ?? []).find((e) => e.entry_date === day.date && !e.built_from)?.note
+        try {
+          const r = await fetch('/api/write-day', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
+            body: JSON.stringify({ facts: factsFor(day, mine, zone), voice, theirs: theirs ?? null }),
+          })
+          if (r.ok) drafted[day.date] = (await r.json()).text
+        } catch {
+          // A day that will not write falls back to the plain telling
+          // rather than losing the other two.
+        }
+      })
+    )
+    setProse(drafted)
+    setWriting(false)
+
     // A sweep does not stop to ask. It is bringing a file back into line
     // with the photographs it was made from, on days nobody has touched.
     if (silent) {
@@ -237,7 +269,12 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   }
 
   async function write(days_, using, { silent = false } = {}) {
-    const rows = days_.map((d) => entryFor(d, trip, using, zone))
+    const rows = days_.map((d) => {
+      const row = entryFor(d, trip, using, zone)
+      // The written version is what somebody reads, so it is what gets
+      // saved. The templated one remains the fallback when writing failed.
+      return prose[d.date] ? { ...row, note: `${prose[d.date]}\n\n${RECONSTRUCTED}` } : row
+    })
 
     // Anything being replaced goes first, in one statement, so a day never
     // ends up with two entries on it because the insert succeeded after a
@@ -298,7 +335,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
                   {new Date(day.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                 </span>
                 <span className="dfp-title">{titleDay(day, mine, day.known)}</span>
-                <span className="dfp-said">{tellDay(day, mine, day.known, zone)}</span>
+                <span className="dfp-said">{prose[day.date] ?? tellDay(day, mine, day.known, zone)}</span>
               </span>
             </div>
           )
@@ -379,8 +416,12 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     return (
       <div className="dfp">
         <div className="dfp-progress">
-          {phase === 'naming' ? 'Looking up what is there' : 'Telling apart the crowded spots'}… {progress.done} of{' '}
-          {progress.total}
+          {writing
+            ? 'Writing them up'
+            : phase === 'naming'
+              ? 'Looking up what is there'
+              : 'Telling apart the crowded spots'}
+          … {writing ? '' : `${progress.done} of ${progress.total}`}
         </div>
         <div className="dfp-bar">
           <span style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} />
@@ -431,7 +472,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
                 {already.has(day.date) && <em className="dfp-replaces"> replaces what is there</em>}
               </span>
               <span className="dfp-title">{titleDay(day, mine, day.known)}</span>
-              <span className="dfp-said">{tellDay(day, mine, day.known, zone)}</span>
+              <span className="dfp-said">{prose[day.date] ?? tellDay(day, mine, day.known, zone)}</span>
                 <DayThumb stops={day.segments.filter((x) => x.stayed)} run={day.known.runs?.[0]} />
             </span>
           </label>
