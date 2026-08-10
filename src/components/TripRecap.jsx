@@ -673,6 +673,23 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           </div>
         )}
 
+        {/* The way in to photographs, when there are none.
+            //
+            The figures are this page's navigation, and recapStats only
+            renders a figure with something behind it — rightly, since a
+            proud zero is worse than silence. But Photos is reachable from
+            *nowhere else* on a finished trip: the tab left the bottom bar
+            because it is a per-trip view, and you enter a per-trip view
+            through here. So a trip with no photographs offered no route to
+            add the first one, and the only way to put photos on it was to
+            go round through "Add a trip". Being able to add the second
+            photo but not the first is the wrong way round. */}
+        {!stats.figures.some((f) => f.key === 'photos') && (
+          <button className="recap-add-photos" onClick={() => setLayer('photos')}>
+            Add photos to this trip
+          </button>
+        )}
+
         <button className="recap-share" onClick={share}>
           {copied ? 'Link copied' : 'Share this trip'}
         </button>
