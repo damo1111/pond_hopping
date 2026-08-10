@@ -9238,15 +9238,19 @@ button.ios-sheet-grip:active { cursor: grabbing; }
    the number that already does this job. Quieter than Share: it is the
    thing to do when the page is thin, not the thing the page is for. */
 .recap-add-photos {
+  /* Shaped as a sibling of .recap-share rather than as its own thing: same
+     pill, same shrink-to-content width, same centring. It was a full-width
+     block with a max-width, which made two buttons of different shapes
+     stacked on each other — and left its label sitting off-centre inside a
+     box far wider than the words. */
   display: block;
-  width: 100%;
+  width: auto;
   margin: 18px auto 0;
-  max-width: 22em;
-  padding: 12px 18px;
-  border: 0;
+  padding: 12px 26px;
+  text-align: center;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: inherit;
   font-family: var(--font-display);
   font-size: 14px;
