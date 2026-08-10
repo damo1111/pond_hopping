@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase.js'
 import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
 import { tripColor } from '../lib/tripColors.js'
+import { siteOrigin } from '../lib/siteOrigin.js'
 import { SheetContext } from '../lib/sheetContext.js'
 import { beginDrag, extendDrag, finishDrag } from '../lib/sheetDrag.js'
 import { gather } from '../lib/gather.js'
@@ -483,7 +484,10 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
       setTimeout(() => setShareNote(null), 5000)
       return
     }
-    const url = `${window.location.origin}/?share=${trip.slug}&show=journal,flights,map`
+    // Not window.location.origin: on iOS that is capacitor://localhost,
+    // and the share sheet cheerfully sent people a link no browser can
+    // open.
+    const url = `${siteOrigin()}/?share=${trip.slug}&show=journal,flights,map`
     if (navigator.share) {
       try {
         await navigator.share({ title: trip.title, url })
