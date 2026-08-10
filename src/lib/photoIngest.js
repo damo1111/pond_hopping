@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js'
 import { begin } from './busy.js'
+import { drop, hold, queued } from './originals.js'
 import { readExif } from './exif.js'
 import { renderSizes, DISPLAY, THUMB, extFor } from './photoResize.js'
 
@@ -33,7 +34,7 @@ function publicUrl(path) {
  * carries no metadata at all, which is how a shared album stops being a map
  * of where someone lives.
  */
-export async function store(prepared, { tripId, traveler = null, isHighlight = false } = {}) {
+export async function store(prepared, { tripId, traveler = null, isHighlight = false, keepOriginal = false } = {}) {
   const { exif, display, thumb } = prepared
   const ext = extFor(display.type)
   const id = crypto.randomUUID()
@@ -63,8 +64,58 @@ export async function store(prepared, { tripId, traveler = null, isHighlight = f
     await supabase.storage.from(BUCKET).remove([`${base}.${ext}`, `${base}-thumb.${ext}`])
     throw error
   }
+
+  // Kept on the phone rather than sent now, because sending it now is the
+  // thing that makes uploading on hotel wifi unbearable — which is the
+  // whole reason the app shrinks these in the first place. It goes when
+  // somebody says so, from Account. Failure here is swallowed: the
+  // photograph is already safely up, and a full disk must not turn a
+  // successful upload into a failed one.
+  if (keepOriginal) await hold({ id: data.id, blob: prepared.file, name: prepared.file?.name })
+
   return data
 }
+
+/**
+ * Send one held original and point its row at it.
+ *
+ * The display copy is untouched — url and thumb_url still serve every
+ * screen. This only ever fills in original_url, so a half-drained queue is
+ * a partial backup rather than a broken gallery.
+ */
+export async function sendOriginal(row) {
+  const file = row?.blob
+  if (!file) {
+    await drop(row?.id)
+    return false
+  }
+  const name = row.name || 'original'
+  const dot = name.lastIndexOf('.')
+  const ext = dot > 0 ? name.slice(dot + 1).toLowerCase() : 'jpg'
+  const path = `originals/${row.id}.${ext}`
+
+  const up = await supabase.storage.from(BUCKET).upload(path, file, {
+    contentType: file.type || 'application/octet-stream',
+    cacheControl: '31536000',
+    upsert: true,
+  })
+  if (up.error) throw up.error
+
+  const { error } = await supabase
+    .from('photos')
+    .update({ original_url: publicUrl(up.data.path) })
+    .eq('id', row.id)
+  // The file is uploaded but unrecorded, so leave it queued: retrying
+  // overwrites the same path rather than piling up copies, which is why
+  // upsert is on.
+  if (error) throw error
+
+  await drop(row.id)
+  return true
+}
+
+/** Everything still held on this phone. */
+export { queued }
 
 /**
  * Run a whole selection through, a few at a time, reporting each one as it
@@ -73,7 +124,7 @@ export async function store(prepared, { tripId, traveler = null, isHighlight = f
  * A failure is per-photo: one unreadable file out of forty should not lose
  * the other thirty-nine.
  */
-export async function ingest(files, { tripId, traveler, onProgress } = {}) {
+export async function ingest(files, { tripId, traveler, onProgress, keepOriginals = false } = {}) {
   const list = [...files]
   const results = new Array(list.length)
   let next = 0
@@ -94,7 +145,7 @@ export async function ingest(files, { tripId, traveler, onProgress } = {}) {
         report(i, 'shrinking')
         const prepared = await prepare(list[i])
         report(i, 'uploading', { bytes: prepared.display.blob.size, originalBytes: prepared.originalBytes })
-        const photo = await store(prepared, { tripId, traveler })
+        const photo = await store(prepared, { tripId, traveler, keepOriginal: keepOriginals })
         report(i, 'done', {
           bytes: prepared.display.blob.size,
           originalBytes: prepared.originalBytes,

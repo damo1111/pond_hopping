@@ -9206,3 +9206,30 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   text-align: center;
   padding-top: 2px;
 }
+
+/* The keep-originals choice, made where somebody knows the answer: at the
+   moment they are looking at what they picked. */
+.pu-keep {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 2px 2px 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.pu-keep input {
+  margin-top: 2px;
+  flex: none;
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent);
+}
+
+.pu-keep em {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  opacity: 0.65;
+  margin-top: 2px;
+}

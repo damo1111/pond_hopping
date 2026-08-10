@@ -1,6 +1,8 @@
 import { useContext, useEffect, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from '../lib/supabase.js'
+import { queued, sendOriginal } from '../lib/photoIngest.js'
+import { summarise } from '../lib/originals.js'
 import { API_BASE } from '../lib/apiBase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import {
@@ -583,6 +585,68 @@ function DemoCard() {
 // rejected — and there was no way to tell which from the outside.
 //
 // This asks the same question by hand and prints the answer.
+// Originals waiting on this phone.
+//
+// Only ever shown when there are some, because a card explaining a feature
+// nobody used is clutter — and hidden when there are none is also the
+// honest signal that nothing is at risk.
+//
+// The count matters more than it looks. These bytes live in IndexedDB,
+// which iOS can evict under storage pressure, so "23 originals held" is a
+// promise the phone might not keep. Saying so out loud is what makes it
+// possible to act before it does.
+function OriginalsCard() {
+  const [rows, setRows] = useState([])
+  const [sending, setSending] = useState(false)
+  const [done, setDone] = useState(0)
+  const [failed, setFailed] = useState(0)
+
+  const refresh = () => queued().then(setRows)
+  useEffect(() => {
+    refresh()
+  }, [])
+
+  const { count, label } = summarise(rows)
+  if (!count && !done) return null
+
+  async function send() {
+    setSending(true)
+    setDone(0)
+    setFailed(0)
+    // One at a time on purpose: these are the big ones, and a truthful
+    // running count is worth more than finishing a few seconds sooner.
+    for (const row of await queued()) {
+      try {
+        await sendOriginal(row)
+        setDone((n) => n + 1)
+      } catch {
+        // Left in the queue, so trying again picks it up. Uploading is
+        // upsert, so a retry overwrites rather than piling up copies.
+        setFailed((n) => n + 1)
+      }
+      await refresh()
+    }
+    setSending(false)
+  }
+
+  return (
+    <div className="account-card">
+      <div className="account-card-title">Originals on this phone</div>
+      <div className="account-card-body">
+        {count
+          ? `${label}, waiting. The app already uploaded shrunk copies — these are the full-size files, kept here until you send them. Best done on wi-fi.`
+          : 'All sent.'}
+        {failed > 0 && ` ${failed} didn't go — they're still here, try again.`}
+      </div>
+      {count > 0 && (
+        <button className="account-btn" disabled={sending} onClick={send}>
+          {sending ? `Sending… ${done} done` : `Send ${count === 1 ? 'it' : 'them'}`}
+        </button>
+      )}
+    </div>
+  )
+}
+
 function PushCard() {
   const { user } = useAuth()
   const [info, setInfo] = useState(null)
@@ -774,6 +838,7 @@ function SignedIn() {
 
       <DemoCard />
       <ExamplesCard />
+      <OriginalsCard />
       <PushCard />
       <TimelineCard />
 
