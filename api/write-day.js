@@ -80,12 +80,29 @@ export default async function handler(req, res) {
   // rewrites them — a model asked to improve a sentence will sand it down,
   // and "guested into the Concorde Room and got chatting to a Scottish
   // couple" comes back as "enjoyed lounge access at Heathrow".
+  //
+  // The first version of this said "add the facts around it where they
+  // genuinely add something". What came back was his own entry with one
+  // sentence stapled on the end — "The run came out at 21.39km, at 4:50
+  // pace" under "a long run along the river" — while four stops that had
+  // cost a lookup and a vision call went unnamed, because a model reads
+  // "drinks on the rooftop" as already covering the rooftop. Naming the
+  // rooftop is the entire value. Restating the run is padding.
   const keep = theirs
     ? `\n\nThis person already wrote about this day, in these words:\n\n"${theirs}"\n\n` +
-      `Keep every sentence of that exactly as it is, word for word. Add the ` +
-      `facts around it — where they were and when — where those genuinely ` +
-      `add something their own account leaves out. If the facts add nothing, ` +
-      `return their words unchanged.`
+      `Keep every sentence of that exactly as it is, word for word.\n\n` +
+      `What you are adding is the thing they could not remember when they ` +
+      `wrote it: the NAMES of the places. Where a sentence of theirs gestures ` +
+      `at somewhere — "a rooftop bar", "a cheap, cheerful Italian place", ` +
+      `"moved hotels" — and the facts name that place, put the name in. That ` +
+      `is the point of this, and it is usually the only thing worth adding.\n\n` +
+      `Do not add a number to restate something they have already said in ` +
+      `words. If they wrote "a long run", the facts saying 21.39 km is not new ` +
+      `information, it is padding, and it reads as padding. Distances, paces ` +
+      `and photograph counts are shown elsewhere on the page — leave them out ` +
+      `unless the figure is itself the story.\n\n` +
+      `If the facts name nothing their account leaves unnamed, return their ` +
+      `words completely unchanged. That is a good outcome, not a failure.`
     : ''
 
   try {

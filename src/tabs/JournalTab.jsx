@@ -16,8 +16,13 @@ function fmtDate(d) {
 
 function Entry({ e, autoOpen, jumpKey }) {
   const [open, setOpen] = useState(autoOpen)
+  // Their words are what the entry is. The blend is a second reading of the
+  // same day, pieced together from the photographs, and it is offered — not
+  // substituted. What they wrote is always what shows first.
+  const [blended, setBlended] = useState(false)
   const ref = useRef(null)
   const { user } = useAuth()
+  const hasBlend = !!(e.blend && e.note)
 
   useEffect(() => {
     if (autoOpen && ref.current) {
@@ -48,7 +53,20 @@ function Entry({ e, autoOpen, jumpKey }) {
         <span className="je-city">{e.city}</span>
       </div>
       <div className="je-title">{e.title}</div>
-      <div className={`je-note${open ? '' : ' clamp'}`}>{e.note}</div>
+      <div className={`je-note${open ? '' : ' clamp'}`}>
+        {blended && hasBlend ? e.blend : e.note}
+      </div>
+      {open && hasBlend && (
+        <button
+          className="je-blend"
+          onClick={(ev) => {
+            ev.stopPropagation()
+            setBlended((b) => !b)
+          }}
+        >
+          {blended ? 'as you wrote it' : 'with the places filled in'}
+        </button>
+      )}
       {open && (
         <div onClick={(ev) => ev.stopPropagation()}>
           <DayMap tripId={e.trip_id} date={e.entry_date} />
