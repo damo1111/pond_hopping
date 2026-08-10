@@ -148,3 +148,62 @@ undo as to do.
 Analysis last is deliberate. A journal built from dates, places, flights
 and stops is already worth having; one that waits for vision to be wired up
 is worth nothing until then.
+
+## Three views of a day, and whose words they are
+
+David, 10 Aug: "how about we give the Hopper control — they see the
+generated view after their declared view (if they entered anything) or they
+can toggle and see an AI blended view? Model trained using their tone of
+voice. It will learn as they enter more text how they speak and write."
+
+A day can be told three ways, and the hopper picks:
+
+1. **Theirs.** What they wrote. The default whenever it exists, and never
+   touched by anything.
+2. **The places.** What the photographs say — stops, names, times, how long.
+   Arithmetic and a maps lookup; no opinions.
+3. **Blended.** The two woven together, in their voice. A view, offered.
+
+The reason this shape matters is not the toggle, it is what the toggle makes
+impossible. An earlier design had the machine writing into the same field
+the person wrote in, protected by a rule that it must not overwrite them.
+Rules like that hold until they don't. Three views cannot overwrite anybody,
+because the first one is the only place a person's words are kept and
+nothing else writes there.
+
+**The blend is a view, never a record.** It is regenerated from the other
+two whenever either changes, and nothing edits it directly. The moment a
+blend becomes the stored thing people edit, somebody's writing is one
+paraphrase away from gone.
+
+### Voice: prompted, not trained
+
+Not a fine-tune. Their own entries go into the prompt as examples. This is
+free, works from the first entry, improves with every one they write, and
+can be read and revoked — none of which is true of a trained variant, which
+would also need a training run and a hosted model per person to arrive at a
+worse version of the same thing.
+
+Two parts, and they do different jobs:
+
+- **Examples**, sampled at generation time from their recent and longest
+  entries. Always current, no storage, no staleness.
+- **A distilled note** — "short sentences, no adjectives, names places
+  rather than feelings" — kept per person, shown to them, and editable.
+  Cheaper per call than shipping six full entries, and it turns "how we
+  think you write" into something a person can correct rather than
+  something that happens to them.
+
+### The rule that keeps it honest
+
+**Verbatim, or not at all.** A model asked to weave prose around facts will
+sand the prose down: "guested into the Concorde Room and got chatting to a
+Scottish couple heading to South Africa" comes back as "enjoyed lounge
+access at Heathrow before departure". Their sentence, gone. So the blend
+keeps their sentences word for word and weaves place detail around them,
+and their original is always one tap away.
+
+**And below a handful of entries there is no voice to imitate.** Offering a
+blended view to somebody who has written two lines produces a parody of a
+person. Under the threshold the blend is not offered, and the screen says
+why rather than serving a bad impression of somebody to themselves.
