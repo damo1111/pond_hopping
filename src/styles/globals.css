@@ -9255,3 +9255,27 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   font-family: var(--font-display);
   font-size: 14px;
 }
+
+/* A card with no photograph.
+   //
+   Three cards in a row had three silhouettes: one with a picture, one with
+   flags where a picture goes, one blank. The shape of a card should say
+   "trip", not "how much has been filled in yet" — so this occupies exactly
+   the space a cover would, in the trip's own colour, and the row reads as
+   one object repeated.
+   //
+   Deliberately quiet. It is standing in for a photograph, not competing
+   with the ones that have arrived. */
+.wt-cover--drawn {
+  background:
+    radial-gradient(
+      120% 90% at 78% 12%,
+      color-mix(in srgb, var(--card-accent, var(--accent)) 34%, transparent),
+      transparent 68%
+    ),
+    linear-gradient(
+      152deg,
+      color-mix(in srgb, var(--card-accent, var(--accent)) 26%, var(--surface-2)) 0%,
+      var(--surface-2) 82%
+    );
+}
