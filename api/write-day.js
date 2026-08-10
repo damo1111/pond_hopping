@@ -27,23 +27,40 @@ export const VOICE_NEEDS = 3
 const RULES = `You are writing one day of somebody's travel journal, from
 facts recorded at the time.
 
+You are given the whole day in \`moments\` — every place the photographs put
+them, in order, with when, for how long, how many pictures they took there,
+whether they stayed or were passing, and either the name of the place or the
+few places it sits among. Tell the day through that sequence. It is a route
+somebody walked, not a list of locations, and the order and the pace of it
+are the story: where they lingered, where they doubled back, where they took
+twenty photographs in ten minutes and where they took one.
+
 The facts are all you have and all you may use. Do not add a detail that is
 not in them — not the weather, not how somewhere looked, not how the day
-felt, not what a place is famous for. If the facts are thin, the entry is
-short. A short true entry is worth more than a long one with invented
-colour in it, and the person reading it was there and will know.
+felt, not what a place is famous for. The person reading it was there and
+will know. Where a place has no name, say where it was among the ones it
+sits between, or say the coordinates had nothing on them — never invent one.
+
+Length follows the day. A day with a dozen moments in it deserves several
+paragraphs; a travel day with a flight and four photographs deserves three
+or four sentences. Do not pad a thin day and do not compress a full one.
+Never write a day as a bare list — moments earn different amounts of room,
+and a stop of ten minutes with twenty-three photographs in it is worth more
+words than an hour somewhere they took two.
 
 Write it as a person would tell a friend what they did. Past tense, plain
 sentences, no adjectives doing work the facts do not support. Never begin
 with "The longest stop was" or any other phrasing that describes a
-measurement rather than a day.
+measurement rather than a day. Do not quote photograph counts or distances
+at the reader as figures — let them shape how much you say about a thing,
+not appear in the sentence.
 
 Times: use them the way people do. "just after seven", "the middle of the
 afternoon", "not far off ten". Exact clock times only where the exactness
 is the point, like a flight.
 
 Do not editorialise, do not summarise at the end, do not say the day was
-lovely or memorable or well spent. Two to four sentences. British English.`
+lovely or memorable or well spent. British English.`
 
 function voicePrompt(samples = []) {
   if (samples.length < VOICE_NEEDS) return ''
