@@ -1,3 +1,4 @@
+import { words } from './sport.js'
 // The numbers a trip earns the right to boast about.
 //
 // A recap is only worth opening if what it says is true and specific — "6
@@ -32,6 +33,11 @@ function collectCities({ entries = [], flights = [] }) {
 // reporting the size of a query rather than the size of the trip. Everything
 // else (flights, entries, runs) is fetched whole, so `photoCount` is the only
 // override needed; when it isn't passed the array is still the best guess.
+function runLabel(runs = []) {
+  const kinds = [...new Set(runs.map((r) => words(r?.sport).verb))]
+  return kinds.length === 1 ? kinds[0] : 'covered'
+}
+
 export function recapStats({ trip = {}, flights = [], entries = [], runs = [], photos = [], photoCount = null }) {
   const km = flights.reduce((sum, f) => sum + (Number(f.distance_km) || 0), 0)
   const runKm = runs.reduce((sum, r) => sum + (Number(r.distance_km) || 0), 0)
@@ -75,7 +81,14 @@ export function recapStats({ trip = {}, flights = [], entries = [], runs = [], p
       to: 'map',
     },
     airports.size && { key: 'airports', value: String(airports.size), label: 'airports' },
-    runKm >= 1 && { key: 'runs', value: round(runKm).toLocaleString('en-GB'), label: 'km run', to: 'runs' },
+    runKm >= 1 && {
+      key: 'runs',
+      value: round(runKm).toLocaleString('en-GB'),
+      // "km run" for runs, "km walked" for walks. The figure describes what
+      // somebody actually did rather than what this table is called.
+      label: `km ${runLabel(runs)}`,
+      to: 'runs',
+    },
     entries.length && {
       key: 'entries',
       value: String(entries.length),

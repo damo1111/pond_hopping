@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import RunThumb from './RunThumb.jsx'
+import { headingFor, words } from '../lib/sport.js'
 
 // Leaflet only arrives if someone actually opens a run. The recap already
 // warms this chunk on idle, so by then it's a render rather than a fetch.
@@ -31,7 +32,7 @@ export default function RunsPanel({ trip }) {
     let alive = true
     supabase
       .from('runs')
-      .select('id,label,city,run_date,distance_km,pace,hr_avg,hr_max,elevation_m,color,coords,strava_activity_id')
+      .select('id,label,city,run_date,distance_km,pace,hr_avg,hr_max,elevation_m,color,coords,strava_activity_id,sport')
       .eq('trip_id', trip.id)
       .order('run_date', { ascending: true })
       .then(({ data }) => alive && setRuns(data ?? []))
@@ -40,7 +41,7 @@ export default function RunsPanel({ trip }) {
     }
   }, [trip?.id])
 
-  if (!runs) return <div className="tab-loading">loading runs…</div>
+  if (!runs) return <div className="tab-loading">loading…</div>
   if (!runs.length) {
     return (
       <div className="placeholder">

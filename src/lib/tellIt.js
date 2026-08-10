@@ -14,6 +14,8 @@
 // walking, and walking is a gap between things, not a thing.
 
 import { clockIn, hourIn } from './localTime.js'
+import { words } from './sport.js'
+import { onFootIn } from './walkFills.js'
 
 const HOUR = 60
 
@@ -42,15 +44,21 @@ const list = (xs) =>
   xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`
 
 /** A run, as a runner would say it. Distance first, because that is the
- *  fact; pace and climb after, because those are the texture. */
+ *  fact; pace and climb after, because those are the texture.
+ *
+ *  Says "run" for a run and "walk" for a walk, from the row's own type.
+ *  Calling a 21 km run "an activity" would make the app worse for the
+ *  person who ran it in order to be vaguely correct for everybody. */
 export function tellRun(run) {
   if (!run) return null
   const km = Number(run.distance_km)
   if (!Number.isFinite(km) || km <= 0) return null
+  const kind = words(run.sport)
   const bits = []
-  if (run.pace) bits.push(`${run.pace} pace`)
+  // Pace means something for a run and almost nothing for a stroll.
+  if (run.pace && kind.one !== 'walk') bits.push(`${run.pace} pace`)
   if (Number(run.elevation_m) > 40) bits.push(`${Math.round(run.elevation_m)} m of climb`)
-  return `A ${km.toFixed(1)} km run${bits.length ? ` — ${list(bits)}` : ''}.`
+  return `A ${km.toFixed(1)} km ${kind.one}${bits.length ? ` — ${list(bits)}` : ''}.`
 }
 
 /** A flight, as the thing that made the day a travel day. */
@@ -117,6 +125,18 @@ export function tellDay(day, names = {}, known = {}, zone = null) {
   // said only that a flight happened. But on a travel day nobody lingers
   // anywhere — the moving IS the day, and when you finally got there is
   // the thing worth knowing.
+  // What a walk's own track says about the holes between photographs. A
+  // recorded route through a two-hour gap is not an inference at all.
+  const foot = onFootIn(day, known.runs ?? [])
+  if (foot.explained.length) {
+    const g = foot.explained[0]
+    said.push(
+      `The ${howLong(g.minutes) ?? 'gap'} in between was spent walking${
+        foot.km ? ` — ${foot.km} km on foot that day` : ''
+      }.`
+    )
+  }
+
   const flights = known.flights ?? []
   if (flights.length) {
     // When you got there, which is the first photograph after the last
