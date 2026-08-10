@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { traceOf } from '../lib/tripTrace.js'
 import { zoneFor } from '../lib/localTime.js'
 import { clockIn } from '../lib/localTime.js'
-import { BATCH, foldInto, readingList } from '../lib/seeing.js'
+import { BATCH, foldInto, inParallel, readingList } from '../lib/seeing.js'
 import {
   asAsked,
   batches,
@@ -58,6 +58,50 @@ export default function TripStory({ trip, photos = [] }) {
     }
   }, [trip?.id, refresh])
 
+  // It starts itself, in two passes.
+  //
+  // The story is worth having the moment there are photographs, and the
+  // fast half of it — everything ChatGPT was given, a table of times and
+  // coordinates — takes half a minute. So that runs on its own, and then
+  // the reading of the photographs runs behind it and rewrites the story
+  // with what they showed.
+  //
+  // This is safe to automate in a way the sweep this replaced was not. That
+  // one rewrote journal entries; this writes only to trip_stories, beside
+  // somebody's own words and never over them. And photos.seen means a
+  // photograph is read once ever, so adding twenty to a trip costs twenty,
+  // not two hundred and eighty-six.
+  const began = useRef('')
+  useEffect(() => {
+    if (!trip?.id || !mine.length || story || step !== 'idle') return
+    if (!entries) return
+    const mark = `${trip.id}:${mine.length}`
+    if (began.current === mark) return
+    began.current = mark
+    itself()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip?.id, mine.length, story, step, entries])
+
+  async function itself() {
+    setTrouble(null)
+    try {
+      const auth = await token()
+      if (!auth) return
+      const worked = await quickly(auth)
+      if (stillAsking(questions).length) {
+        setStep('asking')
+        return
+      }
+      await write(auth, worked)
+      // Then the slow half, on its own, and the story is rewritten when it
+      // lands. Nobody waits for this.
+      if (needsLooking(mine, 'low').length) await make()
+    } catch (e) {
+      setTrouble(e.message)
+      setStep('idle')
+    }
+  }
+
   async function token() {
     const { data } = await supabase.auth.getSession()
     return data?.session?.access_token
@@ -90,30 +134,73 @@ export default function TripStory({ trip, photos = [] }) {
     setTotal(waiting.length)
     setDone(0)
 
-    const got = []
-    for (const group of batches(waiting, BATCH)) {
-      const { seen } = await post(
-        'see-photos',
-        { photos: group.map((p) => asAsked(p, detail, zone, clockIn)), detail },
-        auth
+    // Nothing about one batch depends on another, so they do not queue.
+    // Twenty-nine sequential calls was minutes of watching a line move.
+    const groups = batches(waiting, BATCH)
+    const out = await inParallel(
+      groups.map((group) => async () => {
+        const { seen } = await post(
+          'see-photos',
+          { photos: group.map((p) => asAsked(p, detail, zone, clockIn)), detail },
+          auth
+        )
+        // Written down as they come back. A run that dies halfway has still
+        // paid for what it looked at, and nothing should make somebody buy
+        // the same photograph twice.
+        await Promise.all(
+          (seen ?? []).map((s) => {
+            const { id, ...rest } = s ?? {}
+            if (!id) return null
+            return supabase
+              .from('photos')
+              .update({ seen: rest, seen_at: new Date().toISOString(), seen_detail: detail })
+              .eq('id', id)
+          })
+        )
+        return seen ?? []
+      }),
+      undefined,
+      (i) => setDone((n) => n + groups[i].length)
+    )
+    return out.flat()
+  }
+
+  /**
+   * The story, from the trace alone. No photographs looked at.
+   *
+   * This is the whole of what ChatGPT was given — a table of times and
+   * coordinates — and it is where nearly all of the reconstruction comes
+   * from. One call, half a minute, a few pence. Putting the image pass in
+   * front of it made somebody wait several minutes for a slower version of
+   * something that was already available immediately.
+   */
+  async function quickly(auth) {
+    setStep('working it out')
+    const seen = mine.filter((p) => p.seen).map((p) => ({ id: p.id, ...p.seen }))
+    const trace = foldInto(traceOf(mine, trip, { flights, runs, zone }), seen)
+    const worked = await post('reconstruct-trip', { trace }, auth)
+    setReconstruction(worked)
+    await ask(worked)
+    return worked
+  }
+
+  /** Whatever the reconstruction could not settle becomes a question. */
+  async function ask(worked) {
+    const asks = (worked.ask ?? []).filter((a) => a?.asks)
+    if (!asks.length) return false
+    const { data } = await supabase
+      .from('story_questions')
+      .insert(
+        asks.map((a) => ({
+          trip_id: trip.id,
+          on_date: a.on_date || null,
+          asks: a.asks,
+          because: a.because || null,
+        }))
       )
-      // Written down as they come back. A run that dies halfway has still
-      // paid for what it looked at, and nothing should make somebody buy
-      // the same photograph twice.
-      await Promise.all(
-        (seen ?? []).map((s) => {
-          const { id, ...rest } = s ?? {}
-          if (!id) return null
-          return supabase
-            .from('photos')
-            .update({ seen: rest, seen_at: new Date().toISOString(), seen_detail: detail })
-            .eq('id', id)
-        })
-      )
-      got.push(...(seen ?? []))
-      setDone((n) => n + group.length)
-    }
-    return got
+      .select()
+    setQuestions((q) => [...q, ...(data ?? [])])
+    return true
   }
 
   async function make() {
@@ -145,20 +232,7 @@ export default function TripStory({ trip, photos = [] }) {
 
       // Anything only they can settle is written down and asked before a
       // word gets written. The answer is evidence; a guess would not be.
-      const asks = (worked.ask ?? []).filter((a) => a?.asks)
-      if (asks.length) {
-        const { data } = await supabase
-          .from('story_questions')
-          .insert(
-            asks.map((a) => ({
-              trip_id: trip.id,
-              on_date: a.on_date || null,
-              asks: a.asks,
-              because: a.because || null,
-            }))
-          )
-          .select()
-        setQuestions((q) => [...q, ...(data ?? [])])
+      if (await ask(worked)) {
         setStep('asking')
         return
       }
@@ -269,16 +343,19 @@ export default function TripStory({ trip, photos = [] }) {
 
   return (
     <div className="story">
-      <button className="story-go" onClick={make}>
-        Tell the story of this trip
-      </button>
       <div className="story-sub">
         {cost.looking > 0
-          ? `Reads all ${cost.looking} photographs, works out what happened, asks you about anything it cannot settle, then writes it.`
-          : `Every photograph has been read already. This works out what happened and writes it.`}
-        {cost.already > 0 && ` ${cost.already} already read — those are not paid for twice.`}
+          ? `Working out the story of this trip. ${cost.looking} photographs still to read — the story appears first and gets better as they are.`
+          : 'Working out the story of this trip.'}
       </div>
-      {trouble && <div className="story-trouble">{trouble}</div>}
+      {trouble && (
+        <>
+          <div className="story-trouble">{trouble}</div>
+          <button className="story-go" onClick={itself}>
+            try again
+          </button>
+        </>
+      )}
     </div>
   )
 }

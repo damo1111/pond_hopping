@@ -19,6 +19,14 @@
 // it aims the expensive tokens at the frames that actually have something
 // to read.
 
+/** How many batches run at once.
+ *
+ *  Twenty-nine sequential calls to look at 286 photographs is several
+ *  minutes of somebody watching a progress line. They do not depend on each
+ *  other in any way, so they should not queue. Four at a time keeps well
+ *  inside rate limits and turns minutes into tens of seconds. */
+export const AT_ONCE = 4
+
 /** Images per request.
  *
  *  The instruction is the expensive part of a small call, so batching pays
@@ -67,6 +75,23 @@ export function costOf(howMany = 0, detail = 'low', { batch = 20, instruction = 
   const images = howMany * (TOKENS[detail] ?? TOKENS.low)
   const prompts = Math.ceil(howMany / batch) * instruction
   return { images, prompts, input: images + prompts, calls: Math.ceil(howMany / batch) }
+}
+
+/** Run the thunks a few at a time rather than all at once or one by one.
+ *  Results come back in the order given, whatever order they finish in. */
+export async function inParallel(jobs = [], at = AT_ONCE, onDone = () => {}) {
+  const out = new Array(jobs.length)
+  let next = 0
+  await Promise.all(
+    Array.from({ length: Math.min(at, jobs.length) }, async () => {
+      while (next < jobs.length) {
+        const i = next++
+        out[i] = await jobs[i]()
+        onDone(i)
+      }
+    })
+  )
+  return out
 }
 
 /** Photographs in groups small enough for one request. */
