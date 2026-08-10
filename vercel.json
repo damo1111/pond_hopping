@@ -28,11 +28,11 @@
       "memory": 1024
     },
     "api/reconstruct-trip.js": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "memory": 1024
     },
     "api/write-trip.js": {
-      "maxDuration": 60,
+      "maxDuration": 300,
       "memory": 1024
     }
   },
