@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import { coverUrl, thumb } from './lib/imgTransform.js'
 import CountryFlags from './components/CountryFlags.jsx'
+import { words } from './lib/sport.js'
 
 // The whole travel log, read-only, behind one revocable link.
 //
@@ -124,7 +125,7 @@ export default function ShowcaseView({ token }) {
                   <span className="showcase-trip-dates">{fmtRange(t)}</span>
                   <span className="showcase-trip-meta">
                     {t.flights.length > 0 && <>✈ {t.flights.length}&nbsp;&nbsp;</>}
-                    {t.runs.length > 0 && <>🏃 {t.runs.length}&nbsp;&nbsp;</>}
+                    {t.runs.length > 0 && <>{words(t.runs[0]?.sport).icon} {t.runs.length}&nbsp;&nbsp;</>}
                     {t.entries.length > 0 && <>📔 {t.entries.length}&nbsp;&nbsp;</>}
                     {km > 0 && <>{num(km)} km</>}
                   </span>
