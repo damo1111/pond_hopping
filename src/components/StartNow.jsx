@@ -57,11 +57,13 @@ export default function StartNow({ onDone, onClose }) {
         status: 'confirmed',
         sort_order: 0,
       })
-      .select('id,title')
+      .select('id,title,slug')
       .single()
     setBusy(false)
     if (err) return setError(err.message)
-    onDone?.()
+    // The slug, so the caller can open the trip it just made rather than
+    // reloading the app and hoping it turns up in a list.
+    onDone?.(data)
     setTrip(data)
   }
 

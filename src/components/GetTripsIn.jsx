@@ -25,7 +25,9 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
   const { user } = useAuth()
   const { openAuth } = useContext(TripContext)
   const [route, setRoute] = useState(null)
-  const [made, setMade] = useState(false)
+  // The trip that was made, not merely that one was — so closing this can
+  // open it instead of dropping you back on the globe to find it.
+  const [made, setMade] = useState(null)
   const [copied, setCopied] = useState(null)
 
   async function copy(what, text) {
@@ -50,20 +52,20 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
 
   const close = () => {
     setRoute(null)
-    if (made) onCreated?.()
+    if (made) onCreated?.(made)
     else onClose?.()
   }
 
   if (route === 'now') {
-    return <StartNow onDone={() => setMade(true)} onClose={close} />
+    return <StartNow onDone={(t) => setMade(t ?? true)} onClose={close} />
   }
 
   if (route === 'photos') {
-    return <StartFromPhotos onDone={() => setMade(true)} onClose={close} />
+    return <StartFromPhotos onDone={(t) => setMade(t ?? true)} onClose={close} />
   }
 
   if (route === 'timeline') {
-    return <StartFromTimeline onDone={() => setMade(true)} onClose={close} />
+    return <StartFromTimeline onDone={(t) => setMade(t ?? true)} onClose={close} />
   }
 
   return (

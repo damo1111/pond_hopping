@@ -121,6 +121,7 @@ export default function WorldTab() {
     selectedTrip,
     setSelectedTrip,
     goToTab,
+    refreshTrips,
     jumpToJournal,
     openPlanner,
     introOpen,
@@ -772,7 +773,21 @@ export default function WorldTab() {
       {routesOpen && (
         <GetTripsIn
           mcpUrl={apiToken ? `https://pond.eend.app/api/mcp?key=${apiToken}` : null}
-          onCreated={() => window.location.reload()}
+          // Was window.location.reload(). Adding one row to a list already
+          // in memory does not justify booting the whole app — on iOS that
+          // is a white flash, the globe rebuilt from scratch and every
+          // query re-run, which reads as a crash at the moment somebody
+          // first trusts the app with something. Fetching the list again
+          // puts the trip on the globe with none of that.
+          //
+          // It deliberately stops there rather than opening the new trip:
+          // selecting one that has not finished sends you to the planner,
+          // and being thrown into a form is not what "I'm off now" asked
+          // for. The trip appears where it belongs and you decide.
+          onCreated={async () => {
+            setRoutesOpen(false)
+            await refreshTrips()
+          }}
           onClose={(go) => {
             setRoutesOpen(false)
             if (go === 'plan') goToTab('plan')
