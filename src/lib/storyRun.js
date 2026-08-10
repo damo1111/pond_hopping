@@ -101,10 +101,15 @@ export function storyRow(trip = {}, written = {}, reconstruction = null, { voice
 /** How far through a run we are, as something a person can read. */
 export const STEPS = ['looking', 'working it out', 'asking', 'writing']
 
+/** What is happening, said the way somebody would say it.
+ *
+ *  "Working out what happened" was the first attempt and it means nothing —
+ *  it is the name of a stage in a pipeline, not a description of anything a
+ *  person can picture. Each of these names the actual work. */
 export function howFar(step, done = 0, total = 0) {
-  if (step === 'looking' && total) return `Looking at ${done} of ${total} photographs`
-  if (step === 'working it out') return 'Working out what happened'
-  if (step === 'asking') return 'A few things only you can settle'
-  if (step === 'writing') return 'Writing it'
+  if (step === 'looking' && total) return `Reading your photographs — ${done} of ${total}`
+  if (step === 'working it out') return 'Retracing where you went'
+  if (step === 'asking') return 'A few things only you can answer'
+  if (step === 'writing') return 'Writing your trip up'
   return ''
 }

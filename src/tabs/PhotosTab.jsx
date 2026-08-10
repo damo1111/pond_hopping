@@ -7,7 +7,6 @@ import CountryFlags from '../components/CountryFlags.jsx'
 import PhotoUpload from '../components/PhotoUpload.jsx'
 import ReceiptScan from '../components/ReceiptScan.jsx'
 import FindDuplicates from '../components/FindDuplicates.jsx'
-import DaysFromPhotos from '../components/DaysFromPhotos.jsx'
 import TripStory from '../components/TripStory.jsx'
 import GmailImport from '../components/planner/GmailImport.jsx'
 
@@ -275,7 +274,6 @@ export default function PhotosTab({ openPhotoId = null }) {
       {heroTrip && <FindDuplicates photos={visible} onDone={() => setReload((r) => r + 1)} />}
 
       {heroTrip && <TripStory trip={heroTrip} photos={visible} />}
-      {heroTrip && <DaysFromPhotos trip={heroTrip} photos={visible} />}
 
       {/* Where you slept, what you booked, what it cost — from the emails
           rather than guessed at from GPS. All of this existed already and
