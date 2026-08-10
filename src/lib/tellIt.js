@@ -108,10 +108,38 @@ export function tellDay(day, names = {}, known = {}, zone = null) {
     if (rest.length) said.push(`Also ${list(rest.map((s) => s.name))}.`)
   }
 
-  // Places you stopped that nothing could name. Said as a count, once,
-  // because "nowhere named" repeated eight times is the piazza list again.
+  // A day of moving is still a day, and the twenty-minute rule erases it.
+  //
+  // Rome's first day has photographs over southern Scotland at 14:37,
+  // Heathrow from 15:47, nothing at 18:04 because the plane was in the
+  // air, and central Rome by 20:46. Not one of those lasted twenty
+  // minutes, so every one was discarded as "passing through" and the day
+  // said only that a flight happened. But on a travel day nobody lingers
+  // anywhere — the moving IS the day, and when you finally got there is
+  // the thing worth knowing.
+  const flights = known.flights ?? []
+  if (flights.length) {
+    // When you got there, which is the first photograph after the last
+    // aeroplane landed — not the last photograph of the day. Those are an
+    // hour apart and only one of them is the arrival.
+    const landed = flights
+      .map((f) => f.arr_time || f.dep_time)
+      .filter(Boolean)
+      .sort()
+      .pop()
+    const after = (day?.segments ?? []).filter((s) => s.from && (!landed || s.from >= landed))
+    const arrival = after[0]
+    if (arrival && !stayed.includes(arrival)) {
+      const where = names[(day.segments ?? []).indexOf(arrival)]
+      said.push(`${where ? `At ${where} by` : 'Out and about by'} ${clockIn(arrival.from, zone)}.`)
+    }
+  }
+
+  // Places you stopped that nothing could name. Only worth saying when
+  // something else was named — on its own it is the app apologising, and
+  // "nowhere named" is not a fact about anybody's holiday.
   const unnamed = stayed.length - named.length
-  if (unnamed > 0)
+  if (unnamed > 0 && named.length)
     said.push(
       `${unnamed === 1 ? 'One more stop' : `${unnamed} more stops`} the map has no name for.`
     )
