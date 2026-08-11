@@ -871,7 +871,7 @@ export default function WorldTab() {
               <div className="wt-section-label">{section.label}</div>
               {section.items.map((item) => {
                 if (item.type === 'trip')
-                  return <TripCard key={item.trip.slug} t={item.trip} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} onOrigin={setOrigin} />
+                  return <TripCard key={item.trip.slug} t={item.trip} covers={covers} coversIn={coversIn} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} onOrigin={setOrigin} />
 
                 const { chapter, trips } = item
                 const cover = trips.map((t) => covers[t.id]).find(Boolean)
@@ -880,7 +880,7 @@ export default function WorldTab() {
                     <div key={chapter} className="wt-chapter-open">
                       <ChapterSpine chapter={chapter} cover={cover} onClick={() => setExpandedChapter(null)} />
                       {trips.map((t) => (
-                        <TripCard key={t.slug} t={t} covers={covers} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} onOrigin={setOrigin} />
+                        <TripCard key={t.slug} t={t} covers={covers} coversIn={coversIn} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} onOrigin={setOrigin} />
                       ))}
                     </div>
                   )
@@ -999,7 +999,11 @@ function ChapterSpine({ chapter, cover, onClick }) {
   )
 }
 
-function TripCard({ t, covers, selectedTrip, setSelectedTrip, onOrigin }) {
+// `coversIn` is a prop, not a closure read: this is a sibling of the
+// component holding that state, not a child of it, so a free variable here
+// is a ReferenceError — and a ReferenceError during render takes the whole
+// app down to "That didn't work" on a cold load, before a card ever draws.
+function TripCard({ t, covers, coversIn, selectedTrip, setSelectedTrip, onOrigin }) {
   const active = selectedTrip === t.slug
   const bounce = useBounce()
   // The example first: it is the app introducing itself and outranks whose
