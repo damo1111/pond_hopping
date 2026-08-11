@@ -10351,3 +10351,112 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 
 .degrees-row { display: flex; gap: 7px; margin-top: 10px; }
 .degrees-row .ph-flag { flex: 1; text-align: center; }
+
+/* ── Photographs arriving ──────────────────────────────────────────────────
+   This was a monospace list of filenames with "added" beside each — a build
+   log about the thing rather than the thing. What is actually happening is
+   worth watching. */
+.pu-progress { margin-top: 12px; }
+
+.pu-progress-said {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.pu-progress-where { color: var(--text-muted); }
+
+.pu-bar {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.pu-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 240ms ease;
+}
+
+.pu-grid {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 4px;
+}
+
+.pu-tile {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.pu-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  /* Arrives dimmed and comes up as it lands, so a grid filling in reads as
+     progress without needing a word for it. */
+  opacity: 0.45;
+  transition: opacity 400ms ease;
+}
+
+.pu-done img { opacity: 1; }
+
+/* Nothing to show yet — waiting its turn to be decoded. */
+.pu-tile-empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(100deg, var(--bg), var(--border), var(--bg));
+  background-size: 240% 100%;
+  animation: pu-wait 1.6s ease-in-out infinite;
+}
+
+@keyframes pu-wait {
+  0% { background-position: 140% 0; }
+  100% { background-position: -40% 0; }
+}
+
+/* The one fact worth marking on a photograph: it knows where it was, so it
+   can put itself on a map and help work out where a trip went. */
+.pu-pin {
+  position: absolute;
+  right: 3px;
+  bottom: 1px;
+  font-size: 13px;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.pu-tile-bad {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(163, 65, 47, 0.75);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.pu-saved { color: var(--text-muted); }
+
+/* The way out, where you are when you want it. */
+.story-open--end {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--hairline, #e7e2da);
+  width: 100%;
+  justify-content: space-between;
+}

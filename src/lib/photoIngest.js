@@ -144,12 +144,21 @@ export async function ingest(files, { tripId, traveler, onProgress, keepOriginal
       try {
         report(i, 'shrinking')
         const prepared = await prepare(list[i])
-        report(i, 'uploading', { bytes: prepared.display.blob.size, originalBytes: prepared.originalBytes })
+        // The thumbnail already exists by this point, so the picture can be
+        // on screen while it is still going up rather than after. Revoked by
+        // the caller — see PhotoUpload.
+        report(i, 'uploading', {
+          bytes: prepared.display.blob.size,
+          originalBytes: prepared.originalBytes,
+          preview: URL.createObjectURL(prepared.thumb.blob),
+          located: prepared.exif.lat != null,
+        })
         const photo = await store(prepared, { tripId, traveler, keepOriginal: keepOriginals })
         report(i, 'done', {
           bytes: prepared.display.blob.size,
           originalBytes: prepared.originalBytes,
           located: prepared.exif.lat != null,
+          preview: results[i]?.preview ?? null,
           photo,
         })
       } catch (e) {

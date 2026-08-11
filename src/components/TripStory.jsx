@@ -563,6 +563,15 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
           <span className="story-open-mark">{open ? '−' : '+'}</span>
         </button>
         {open && written}
+        {/* And a way out at the bottom. Six thousand words in, the toggle
+            that opened this is a long way up the page, and the way to close
+            something should be where you are when you want to. */}
+        {open && (
+          <button className="story-open story-open--end" onClick={() => setOpen(false)}>
+            <span>Hide the story</span>
+            <span className="story-open-mark">−</span>
+          </button>
+        )}
         {trouble && <div className="story-trouble">{trouble}</div>}
       </div>
     )
