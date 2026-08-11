@@ -19,6 +19,8 @@ export const FILLABLE = [
   'airline',
   'registration',
   'aircraft_type_id',
+  'aircraft_model',
+  'call_sign',
   'cabin',
   'seat',
   'distance_km',

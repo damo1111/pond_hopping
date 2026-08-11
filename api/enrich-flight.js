@@ -41,6 +41,19 @@ function ask(path) {
  * nulls — see enrichment(), which treats an empty answer as "not enriched"
  * so that a bad afternoon for an API does not mark every flight done.
  */
+/**
+ * "2026-07-07 03:07Z" into something Postgres will not have to guess at.
+ *
+ * A space where the T belongs and no seconds. Postgres would probably take
+ * it; probably is not a word worth using about the timestamps a story is
+ * going to be written from.
+ */
+export function instant(said) {
+  if (!said) return null
+  const m = String(said).match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})(:\d{2})?Z?$/)
+  return m ? `${m[1]}T${m[2]}${m[3] ?? ':00'}Z` : said
+}
+
 export function mapAnswer(found = {}) {
   const dep = found.departure ?? {}
   const arr = found.arrival ?? {}
@@ -54,8 +67,15 @@ export function mapAnswer(found = {}) {
   put('airline', found.airline?.name)
   // Local and UTC are both offered; UTC is the one that means the same thing
   // everywhere, and every time in this database is stored as an instant.
-  put('actual_dep_time', dep.runwayTime?.utc ?? dep.revisedTime?.utc)
-  put('actual_arr_time', arr.runwayTime?.utc ?? arr.revisedTime?.utc)
+  //
+  // runwayTime is wheels up and wheels down — the aeroplane actually moving
+  // — and revisedTime is the latest estimate for the stand. Prefer the one
+  // that happened. On CX139 out of Hong Kong they are two hours apart:
+  // scheduled 01:10, revised 01:10, off the runway at 03:07.
+  put('actual_dep_time', instant(dep.runwayTime?.utc ?? dep.revisedTime?.utc))
+  put('actual_arr_time', instant(arr.runwayTime?.utc ?? arr.revisedTime?.utc))
+  put('aircraft_model', found.aircraft?.model)
+  put('call_sign', found.callSign)
   put('gate_dep', dep.gate)
   put('gate_arr', arr.gate)
   put('terminal_dep', dep.terminal)
