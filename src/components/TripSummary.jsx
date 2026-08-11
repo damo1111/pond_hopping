@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase.js'
+import { needsRewrite, summaryOf } from '../lib/tripSummary.js'
 
 function fmtWhen(iso) {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -95,24 +96,26 @@ export default function TripSummary({ tripId, hasEntries }) {
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
-    ]).then(([{ data }, { data: newest }]) => {
+      // The written story's last section is the trip looked back on, built
+      // from the photographs as well as the entries. Where there is one, it
+      // is the summary — see tripSummary.js.
+      supabase.from('trip_stories').select('closing,updated_at').eq('trip_id', tripId).maybeSingle(),
+    ]).then(([{ data }, { data: newest }, { data: story }]) => {
       if (!alive) return
-      if (!data) {
-        // Nothing cached yet — kick off generation quietly in the
-        // background so the trip has a summary "always loaded" next time.
-        if (hasEntries) generate(tripId)
-        return
+
+      const { text, from } = summaryOf(story, data)
+      if (text) {
+        setSummary(text)
+        setGeneratedAt(from === 'story' ? story.updated_at : data.generated_at)
       }
 
-      setSummary(data.summary)
-      setGeneratedAt(data.generated_at)
-
-      // Written before the newest edit, so it predates something somebody
-      // said. Rewritten in the background: the old text stays on screen and
-      // is replaced when the new one arrives, because a summary blanking
-      // itself because a typo was fixed is worse than one a minute old.
-      const behind = newest?.updated_at && data.generated_at && newest.updated_at > data.generated_at
-      if (behind && hasEntries) generate(tripId, { quiet: true })
+      // Rewritten in the background where it is genuinely behind: the old
+      // text stays on screen and is replaced when the new one arrives,
+      // because a summary blanking itself because a typo was fixed is worse
+      // than one a minute old. Never over the top of a story.
+      if (needsRewrite({ story, cached: data, newestEntry: newest?.updated_at, hasEntries })) {
+        generate(tripId, { quiet: !!text })
+      }
     })
     return () => {
       alive = false

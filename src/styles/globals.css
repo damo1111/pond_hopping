@@ -10210,6 +10210,9 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
+  /* Something upstream left-aligns buttons, so these sat hard against the
+     left edge of a pill three times wider than the word in it. */
+  text-align: center;
   text-overflow: ellipsis;
   cursor: pointer;
 }
@@ -10232,33 +10235,43 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 /* The panels below the row are already cards in their own right; they only
    need to sit closer to it than they did to each other. */
 .tools .rs,
-.tools .fd,
-.tools .story {
+.tools .fd {
   margin-top: 10px;
+}
+
+/* No card of its own. It holds one line most of the time, and a card drawn
+   around one line reads as something waiting to load. */
+.tools .story {
+  margin-top: 4px;
+  padding: 0;
+  background: none;
+  border-radius: 0;
 }
 
 /* The story, folded away. It is thousands of words on a screen somebody
    opened to look at pictures. */
+/* A line, not a slab. It was a full-width card in 22px type with a card's
+   worth of padding around it, so the one thing on this screen that is not
+   a photograph was also the largest. */
 .story-open {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  padding: 12px 2px;
+  gap: 8px;
+  padding: 6px 0;
   background: none;
   border: 0;
   font-family: var(--font-display);
-  font-size: 15px;
-  color: var(--text);
+  font-size: 14px;
+  color: var(--accent);
   cursor: pointer;
 }
 
 .story-open-mark {
   font-family: var(--font-mono);
-  font-size: 15px;
-  color: var(--text-muted);
+  font-size: 13px;
+  color: var(--accent);
 }
+
 
 /* One question at a time, so it reads as a question and not as a form. */
 .story-asks-top {
@@ -10273,4 +10286,31 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+/* The example trip, on the planning lane.
+   The globe has said "Example" across the corner of these since they
+   existed; this screen said nothing, so the demo read as somebody's actual
+   upcoming holiday — with a countdown on it, which is the most convincing
+   thing a card can carry. Same gold, same mono, same word; a corner ribbon
+   on a card this shallow would cover the photograph, so it sits as a chip. */
+.plan-card--demo {
+  position: relative;
+}
+
+.pc-sash {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: linear-gradient(100deg, #C79A2E, #A8842C);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 7.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
 }

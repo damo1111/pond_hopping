@@ -11,8 +11,18 @@ name: Checks
 # store: the unit tests, the linter (see eslint.config.js — it is narrow on
 # purpose), and a production build. Nothing here publishes anything. Store
 # builds stay on workflow_dispatch, by hand, on purpose.
+# On every push, not on pull_request.
+#
+# `pull_request` fires on opened and synchronize, and a branch pushed
+# *before* its pull request is opened gets neither: two pull requests in a
+# row showed only the Vercel check and no Checks run at all, which is the
+# one failure mode a safety net must not have — a gate that silently isn't
+# there looks exactly like a gate that passed.
+#
+# A push always happens, so this always runs. Pull requests pick the run up
+# by commit sha, so the check still appears on the pull request.
 on:
-  pull_request:
+  push:
   workflow_dispatch:
 
 jobs:

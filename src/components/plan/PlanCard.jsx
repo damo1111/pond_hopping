@@ -1,5 +1,6 @@
 import CountryFlags from '../CountryFlags.jsx'
 import Icon from '../Icon.jsx'
+import { shouldBadge } from '../../lib/demoTour.js'
 import { coverUrl, thumb } from '../../lib/imgTransform.js'
 
 // One card language for the whole lane, because Someday, Planning and Booked
@@ -23,10 +24,14 @@ function Meters({ readiness }) {
 export default function PlanCard({ row, cover, whose, index = 0, onOpen }) {
   const { kind, stage, title, trip, wish, countdown } = row
   const image = kind === 'wish' ? wish.image_url : cover
+  // The globe says which trips are examples and this screen did not, so the
+  // demo trip read as somebody's actual upcoming holiday — with a countdown
+  // on it, which is the most convincing thing a card can have.
+  const example = kind === 'trip' && shouldBadge(trip)
 
   return (
     <button
-      className={`plan-card pc-${stage}`}
+      className={`plan-card pc-${stage}${example ? ' plan-card--demo' : ''}`}
       onClick={onOpen}
       /* Staggered like the recap's figures: the lane assembles rather than
          appearing, which is the same language the rest of the app now uses. */
@@ -61,6 +66,8 @@ export default function PlanCard({ row, cover, whose, index = 0, onOpen }) {
         {kind === 'wish' && wish.notes && <span className="pc-note">{wish.notes}</span>}
         {kind === 'trip' && <Meters readiness={row.readiness} />}
       </span>
+
+      {example && <span className="pc-sash">Example</span>}
 
       <span className="pc-go" aria-hidden="true">
         <Icon name="chevron" size={15} />
