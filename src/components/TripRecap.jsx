@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
+import { spanOf } from '../lib/dateRange.js'
 import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
 import { tripColor } from '../lib/tripColors.js'
@@ -55,13 +56,7 @@ const HINT_TIMES = 3
 // when something ends, and built to be sent to somebody. This is that,
 // assembled from rows the app already has rather than from anything new.
 
-function fmtRange(t) {
-  if (!t?.start_date) return ''
-  const opt = { day: 'numeric', month: 'long', year: 'numeric' }
-  const a = new Date(t.start_date).toLocaleDateString('en-GB', opt)
-  const b = t.end_date ? new Date(t.end_date).toLocaleDateString('en-GB', opt) : null
-  return b && b !== a ? `${a} – ${b}` : a
-}
+const fmtRange = (t) => spanOf(t, { long: true })
 
 // Switched on from Account, off for everyone else. Shows what the sheet's
 // drag actually received on the device it is running on, because three

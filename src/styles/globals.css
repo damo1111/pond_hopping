@@ -3157,7 +3157,15 @@ button {
 
 /* ── Share ─────────────────────────────────────────────────── */
 
-.share-tab { padding: 16px 14px; }
+/* The two cards sat flush against each other with nothing between them,
+   which read as one card that had come apart rather than two things you
+   can do. */
+.share-tab {
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
 
 .share-select {
   width: 100%;
@@ -3185,13 +3193,15 @@ button {
   margin-bottom: 12px;
 }
 
+/* Under the button now, not beside it, and centred on the card. */
 .share-preview {
+  display: block;
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  align-self: center;
-  padding: 10px 12px;
+  text-align: center;
+  padding: 12px;
 }
 
 /* ── Share view (public page) ──────────────────────────────── */

@@ -173,14 +173,17 @@ export default function ShareTab() {
           ))}
         </div>
         <div className="share-url">{url}</div>
-        <div className="jf-actions" style={{ justifyContent: 'stretch' }}>
-          <button className="jf-save" style={{ flex: 1 }} onClick={copy}>
-            {copied ? 'copied ✓' : 'copy link'}
-          </button>
-          <a className="share-preview" href={url} target="_blank" rel="noreferrer">
-            preview →
-          </a>
-        </div>
+        {/* The same button as "Make a link" one card above, because it is the
+            same kind of thing. It was a different class at a different width
+            with a link wedged in beside it, so two cards doing one job read
+            as two screens by different hands. Preview goes underneath: it is
+            a way out, not the thing anybody came here to do. */}
+        <button className="ios-sheet-done" onClick={copy}>
+          {copied ? 'copied ✓' : 'copy link'}
+        </button>
+        <a className="share-preview" href={url} target="_blank" rel="noreferrer">
+          preview →
+        </a>
       </div>
     </div>
   )

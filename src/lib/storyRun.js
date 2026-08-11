@@ -86,6 +86,84 @@ export function couldNotSay(questions = []) {
     .map((q) => ({ on_date: q.on_date ?? null, asked: q.asks }))
 }
 
+/** Outstanding questions, as the reconstruction reads them, so it can avoid
+ *  asking them again in different words. */
+export function stillOpen(questions = []) {
+  return stillAsking(questions).map((q) => ({ on_date: q.on_date ?? null, asked: q.asks }))
+}
+
+/** Words that carry no information about which question this is. Comparing
+ *  raw strings catches nothing: "What was the flight over Scotland before
+ *  you reached Heathrow?" and "What journey brought you over Scotland and
+ *  into Heathrow?" share almost no exact wording and are one question. */
+const NOISE = new Set([
+  'a', 'about', 'an', 'and', 'any', 'anything', 'are', 'around', 'as', 'at', 'be', 'been',
+  'before', 'between', 'brought', 'but', 'by', 'can', 'did', 'do', 'doing', 'during', 'else',
+  'filled', 'for', 'from', 'had', 'happened', 'has', 'have', 'in', 'into', 'is', 'it', 'its',
+  'near', 'of', 'on', 'or', 'over', 'remember', 'that', 'the', 'their', 'them', 'then',
+  'there', 'these', 'they', 'this', 'to', 'took', 'up', 'was', 'were', 'what', 'when',
+  'where', 'which', 'while', 'who', 'why', 'with', 'you', 'your',
+])
+
+function meat(text) {
+  return new Set(
+    String(text ?? '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !NOISE.has(w))
+  )
+}
+
+/** How much two questions are the same question, 0 to 1. */
+export const SAME_ENOUGH = 0.5
+
+export function likeness(a, b) {
+  const x = meat(a)
+  const y = meat(b)
+  if (!x.size || !y.size) return 0
+  let shared = 0
+  for (const w of x) if (y.has(w)) shared++
+  // Against the shorter one: a terse question and a wordy one asking the
+  // same thing should still count as the same thing.
+  return shared / Math.min(x.size, y.size)
+}
+
+/**
+ * Has this already been put to them?
+ *
+ * Same day, and enough of the same content words. The date matters — "what
+ * happened here?" about Monday and about Thursday are two questions — but a
+ * question with no date is compared against everything, because an undated
+ * repeat of a dated question is still a repeat.
+ */
+/**
+ * What is actually worth putting in front of somebody: the open questions,
+ * with the repeats folded away.
+ *
+ * The guard above stops new duplicates being filed. It cannot help with the
+ * ones already on the table — four runs over one trip in Rome left twenty-one
+ * open questions, several of them the same question three times over, and
+ * showing all of those is worse than showing none. The oldest wording of each
+ * is the one kept: it is the one that has been sitting there longest.
+ */
+export function worthAsking(questions = []) {
+  const open = stillAsking(questions)
+  const keep = []
+  for (const q of open) if (!alreadyAsked(keep, q)) keep.push(q)
+  return keep
+}
+
+export function alreadyAsked(questions = [], candidate = {}) {
+  const on = candidate.on_date || null
+  return questions.some((q) => {
+    if (!q?.asks) return false
+    const theirs = q.on_date || null
+    if (on && theirs && on !== theirs) return false
+    return likeness(q.asks, candidate.asks) >= SAME_ENOUGH
+  })
+}
+
 /** Days the hopper wrote themselves, keyed by date, for the writing stage
  *  to keep verbatim. Reconstructions are excluded: this system imitating
  *  itself is how a voice becomes a parody of one. */
