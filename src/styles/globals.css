@@ -10177,3 +10177,100 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   text-align: center;
   margin-bottom: 10px;
 }
+
+/* ── Three things you can do to these photographs ──────────────────────────
+   One row, tight under the uploader. What was here before was three cards
+   stacked down the screen, each with a full-width button and a paragraph
+   explaining itself, so the first photograph sat below the fold on every
+   phone. */
+.tools {
+  /* Nothing of its own. `.photos-tab` is a flex column with a 12px gap, and
+     the cards this replaces each added another 14px of margin on top of
+     that — twenty-six pixels of nothing between the uploader and the first
+     thing you can do with what you uploaded. */
+  margin-top: 0;
+}
+
+.tools-row {
+  display: flex;
+  gap: 7px;
+}
+
+.tools-btn {
+  flex: 1;
+  min-width: 0;
+  padding: 11px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--accent-dim);
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.tools-btn.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Said when the thing is chosen, not before it. */
+.tools-why {
+  margin-top: 9px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* The panels below the row are already cards in their own right; they only
+   need to sit closer to it than they did to each other. */
+.tools .rs,
+.tools .fd,
+.tools .story {
+  margin-top: 10px;
+}
+
+/* The story, folded away. It is thousands of words on a screen somebody
+   opened to look at pictures. */
+.story-open {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 2px;
+  background: none;
+  border: 0;
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.story-open-mark {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+/* One question at a time, so it reads as a question and not as a form. */
+.story-asks-top {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.story-asks-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}

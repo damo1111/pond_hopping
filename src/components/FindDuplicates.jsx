@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { thumb } from '../lib/imgTransform.js'
 import { H, W, dhash, greyscale, groupSame, pickKeeper } from '../lib/phash.js'
@@ -32,7 +32,9 @@ async function hashOne(url) {
   return dhash(greyscale(ctx.getImageData(0, 0, W, H).data))
 }
 
-export default function FindDuplicates({ photos = [], onDone }) {
+// `autoStart`: on Photos the tools row is the button, so this draws only
+// its progress and its findings.
+export default function FindDuplicates({ photos = [], onDone, autoStart = false }) {
   const [phase, setPhase] = useState('idle') // idle | hashing | review | removing | done
   const [done, setDone] = useState(0)
   const [groups, setGroups] = useState([])
@@ -101,7 +103,17 @@ export default function FindDuplicates({ photos = [], onDone }) {
     onDone?.(ids.length)
   }
 
+  const kicked = useRef(false)
+  useEffect(() => {
+    if (autoStart && !kicked.current && phase === 'idle' && photos.length >= 2) {
+      kicked.current = true
+      look()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, phase, photos.length])
+
   if (phase === 'idle') {
+    if (autoStart) return null
     if (photos.length < 2) return null
     return (
       <div className="fd">

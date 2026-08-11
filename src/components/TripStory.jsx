@@ -24,7 +24,7 @@ import {
  *  Typing is the main path and the buttons are the way out of it: "I can't
  *  remember" is a real answer and is recorded as one, so the writing admits
  *  the gap instead of inventing something to fill it. */
-function Ask({ q, onAnswer }) {
+function Ask({ q, onAnswer, onSkip }) {
   const [said, setSaid] = useState('')
   const [sending, setSending] = useState(false)
 
@@ -49,7 +49,7 @@ function Ask({ q, onAnswer }) {
         <button className="story-said" disabled={!said.trim() || sending} onClick={() => send()}>
           {sending ? 'saving…' : 'that was it'}
         </button>
-        <button disabled={sending} onClick={() => send({ verdict: 'unsure' })}>
+        <button disabled={sending} onClick={() => (onSkip ? onSkip() : send({ verdict: 'unsure' }))}>
           can't remember
         </button>
       </div>
@@ -63,8 +63,11 @@ function Ask({ q, onAnswer }) {
 // work out what happened from the whole trace rather than a summary of it,
 // stop and ask the things only the person who was there can settle, then
 // write it — and never over what they wrote themselves.
-export default function TripStory({ trip, photos = [] }) {
+export default function TripStory({ trip, photos = [], runKey = 0 }) {
   const [step, setStep] = useState('idle')
+  // Whether the prose is unfolded. Closed on arrival: this is the photographs
+  // screen, and the story is several thousand words of it.
+  const [open, setOpen] = useState(false)
   const [done, setDone] = useState(0)
   const [total, setTotal] = useState(0)
   const [trouble, setTrouble] = useState(null)
@@ -118,19 +121,50 @@ export default function TripStory({ trip, photos = [] }) {
   // somebody's own words and never over them. And photos.seen means a
   // photograph is read once ever, so adding twenty to a trip costs twenty,
   // not two hundred and eighty-six.
+  // And it starts itself again when photographs arrive after it was written.
+  //
+  // It used to bail the moment a story existed, which meant uploading to a
+  // trip that already had one read the new photographs and then never used
+  // them: the story stayed exactly as it was, and the only way to fold them
+  // in was to know about a button.
+  //
+  // The test is a photograph filed after the story was written, rather than
+  // "are there any unseen photographs" — a photograph the vision pass fails
+  // on stays unseen for ever, and that version would re-run, and charge for
+  // it, every time the app was opened.
+  const newSince = story?.updated_at
+    ? mine.some((p) => p?.created_at && p.created_at > story.updated_at)
+    : false
+
   const began = useRef('')
   useEffect(() => {
     // `story` is null while the fetch is in flight as well as when there
     // is none, and starting a run on the first was how a finished story got
     // hidden behind a progress line the moment somebody came back to it.
     if (!looked || !entries) return
-    if (!trip?.id || !mine.length || story || step !== 'idle') return
-    const mark = `${trip.id}:${mine.length}`
+    if (!trip?.id || !mine.length || step !== 'idle') return
+    if (story && !newSince) return
+    const mark = `${trip.id}:${mine.length}:${story?.updated_at ?? 'none'}`
     if (began.current === mark) return
     began.current = mark
     itself()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip?.id, mine.length, story, step, entries, looked])
+  }, [trip?.id, mine.length, story, newSince, step, entries, looked])
+
+  // "Write again" lives in the row of buttons above, with receipts and
+  // duplicates, so that three actions on the same photographs read as three
+  // actions rather than three cards. The row bumps this; nothing happens on
+  // the first render, only on a change.
+  const ranAt = useRef(runKey)
+  useEffect(() => {
+    if (runKey === ranAt.current) return
+    ranAt.current = runKey
+    if (step === 'idle') {
+      setOpen(true)
+      make()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runKey])
 
   async function itself() {
     setTrouble(null)
@@ -387,6 +421,12 @@ export default function TripStory({ trip, photos = [] }) {
    *  kept on the story row, so this works after a reload too — otherwise
    *  answering a question the day after it was asked had nothing to write
    *  from. */
+  /** Not now. Recorded as unanswered-on-purpose so it stops being asked,
+   *  and so the writing admits the gap rather than inventing something. */
+  async function skip(q) {
+    await answer(q, { verdict: 'unsure' })
+  }
+
   async function carryOn() {
     setTrouble(null)
     try {
@@ -432,15 +472,19 @@ export default function TripStory({ trip, photos = [] }) {
   // unavoidable and unfindable: gone the moment somebody left the screen,
   // and the story never written until they came back. They belong beside the
   // story, answerable whenever, and answering one rewrites it.
+  //
+  // One at a time. Five of these stacked in a column is a form, and a form
+  // about your own holiday is a thing to close rather than fill in. Answered
+  // or skipped, it falls off the list and the next one takes its place, so
+  // the ask is always "one more?" instead of "all of these?".
   const asks = asking.length > 0 && (
     <div className="story-asks">
-      <p className="story-sub">
-        These are things the photographs suggest but cannot prove. Answer any of them, whenever —
-        what you say goes into the story, and you will not be asked again.
-      </p>
-      {asking.map((q) => (
-        <Ask key={q.id} q={q} onAnswer={answer} />
-      ))}
+      <div className="story-asks-top">
+        <span className="story-asks-count">
+          {asking.length === 1 ? 'one thing I could not work out' : `${asking.length} things I could not work out`}
+        </span>
+      </div>
+      <Ask key={asking[0].id} q={asking[0]} onAnswer={answer} onSkip={() => skip(asking[0])} />
     </div>
   )
 
@@ -467,10 +511,14 @@ export default function TripStory({ trip, photos = [] }) {
             Write it again with my answers
           </button>
         )}
-        {written}
-        <button className="story-again" onClick={make}>
-          write it again
+        {/* Folded away by default. It is several thousand words, and this is
+            the photographs screen — somebody who came to look at pictures
+            should not have to scroll a chapter of prose to reach them. */}
+        <button className="story-open" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+          <span>{open ? 'Hide the story' : 'Read the story of this trip'}</span>
+          <span className="story-open-mark">{open ? '−' : '+'}</span>
         </button>
+        {open && written}
         {trouble && <div className="story-trouble">{trouble}</div>}
       </div>
     )
