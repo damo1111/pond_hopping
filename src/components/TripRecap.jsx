@@ -423,7 +423,10 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
             .select('id,url,thumb_url,caption,is_highlight,taken_on')
             .eq('trip_id', trip.id)
             .neq('kind', 'receipt')
-            .order('is_highlight', { ascending: false })
+            // nullsFirst matters now that undecided is null: the default
+            // for a descending order is nulls first, which would put every
+            // photograph nobody chose ahead of the ones they did.
+            .order('is_highlight', { ascending: false, nullsFirst: false })
             .order('taken_on', { ascending: true })
             // More than fits, because starring the thirteenth photograph
             // used to do nothing at all — the twelve were chosen at the

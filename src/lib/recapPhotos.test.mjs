@@ -1,8 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { SHOWN, forRecap, nextTurn, rotating } from './recapPhotos.js'
+import { SHOWN, afterTap, forRecap, nextTurn, rotating, standing } from './recapPhotos.js'
 
-const pic = (n, is_highlight = false) => ({
+// Undecided by default, which is where every photograph starts. `false`
+// now means somebody said no to it, which is a different thing.
+const pic = (n, is_highlight = null) => ({
   id: n,
   is_highlight,
   taken_on: `2024-01-${String((n % 28) + 1).padStart(2, '0')}`,
@@ -80,4 +82,34 @@ test('the counter advances per trip and survives a bad store', () => {
 
   const broken = { getItem: () => 'not json', setItem: () => {} }
   assert.equal(nextTurn('a', broken), 0)
+})
+
+// ── Chosen, refused, or neither ───────────────────────────────────────────
+
+test('a refused photograph never appears, however much room there is', () => {
+  // The one that could not be expressed before: taking out a picture you
+  // never put in. It was showing because the page had room.
+  const all = [pic(1), { ...pic(2), is_highlight: false }, pic(3)]
+  assert.deepEqual(forRecap(all, 0).map((p) => p.id), [1, 3])
+})
+
+test('undecided fills the page, chosen leads it', () => {
+  const all = [pic(1), { ...pic(2), is_highlight: true }, pic(3)]
+  assert.equal(forRecap(all, 0)[0].id, 2)
+})
+
+test('every photograph starts undecided', () => {
+  assert.equal(standing(pic(1)), 'undecided')
+  assert.equal(standing({ is_highlight: true }), 'chosen')
+  assert.equal(standing({ is_highlight: false }), 'refused')
+})
+
+test('tapping what is already true goes back to letting the app decide', () => {
+  assert.equal(afterTap({ is_highlight: null }, 'chosen'), true)
+  assert.equal(afterTap({ is_highlight: true }, 'chosen'), null)
+  assert.equal(afterTap({ is_highlight: null }, 'refused'), false)
+  assert.equal(afterTap({ is_highlight: false }, 'refused'), null)
+  // And crossing from one to the other in a single tap.
+  assert.equal(afterTap({ is_highlight: false }, 'chosen'), true)
+  assert.equal(afterTap({ is_highlight: true }, 'refused'), false)
 })
