@@ -16,9 +16,14 @@ export function thumb(url, { width = 320, height = 320, resize = 'cover', qualit
 // set directly from an uploaded photo, a Supabase Storage url (resized
 // via the transform endpoint like everything else). Picks whichever
 // resize mechanism actually applies instead of assuming Google Photos.
-export function coverUrl(url, { width = 800, height = 450 } = {}) {
+// Quality 60 is right for a grid thumbnail forty millimetres across and
+// wrong for a full-bleed hero, which is what this is mostly used for. The
+// uploaded original is 2048 on its long edge at quality 0.82, so there is
+// plenty of source; the request was simply asking for a third of the pixels
+// a 3x phone screen shows and then compressing them.
+export function coverUrl(url, { width = 800, height = 450, quality = 78 } = {}) {
   if (!url) return url
-  if (url.includes('/storage/v1/object/public/')) return thumb(url, { width, height, resize: 'cover' })
+  if (url.includes('/storage/v1/object/public/')) return thumb(url, { width, height, resize: 'cover', quality })
   if (url.includes('googleusercontent.com')) return `${url}=w${width}-h${height}-c`
   return url
 }

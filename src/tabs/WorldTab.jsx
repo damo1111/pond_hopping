@@ -139,6 +139,11 @@ export default function WorldTab() {
   // planned ones as dotted arcs: same globe, honestly distinguished.
   const [planned, setPlanned] = useState([])
   const [covers, setCovers] = useState({})
+  // Whether the cover query has answered — not whether it found anything.
+  // Without this every card draws its sketch on the way in and then swaps
+  // to a photograph a moment later, which reads as the app changing its
+  // mind about your trips every time you sign in.
+  const [coversIn, setCoversIn] = useState(false)
   const [names, setNames] = useState({})
   const [countries, setCountries] = useState(null)
   // Which "chapter" (e.g. "2024 Gap Year") is currently drilled into on
@@ -254,17 +259,22 @@ export default function WorldTab() {
         if (!alive) return
         setNames(Object.fromEntries((data ?? []).map((p) => [p.email.toLowerCase(), p.display_name || p.email])))
       })
-    supabase
-      .from('photo_cache')
-      .select('trip_id,urls,status')
-      .then(({ data }) => {
-        if (!alive) return
-        const byTrip = {}
-        for (const row of data ?? []) {
-          if (row.status === 'ok' && row.urls?.[0]) byTrip[row.trip_id] = row.urls[0]
-        }
-        setCovers(byTrip)
-      })
+    // A cover somebody chose wins over one scraped from an album.
+    Promise.all([
+      supabase.from('trips').select('id,cover_photo_url'),
+      supabase.from('photo_cache').select('trip_id,urls,status'),
+    ]).then(([t, c]) => {
+      if (!alive) return
+      const byTrip = {}
+      for (const row of c.data ?? []) {
+        if (row.status === 'ok' && row.urls?.[0]) byTrip[row.trip_id] = row.urls[0]
+      }
+      for (const row of t.data ?? []) {
+        if (row.cover_photo_url) byTrip[row.id] = row.cover_photo_url
+      }
+      setCovers(byTrip)
+      setCoversIn(true)
+    })
     return () => {
       alive = false
     }
@@ -1021,12 +1031,19 @@ function TripCard({ t, covers, selectedTrip, setSelectedTrip, onOrigin }) {
           the trip's colour, which fixed the shape and nothing else: it still
           looked like a tile waiting to load. So it gets an actual drawing,
           in the trip's colour, in the same hand as the Add-a-trip tile. */}
-      <span className={`wt-cover${covers[t.id] ? '' : ' wt-cover--drawn'}`} style={{ '--card-accent': tripColor(t.slug) }}>
+      <span
+        className={`wt-cover${covers[t.id] || !coversIn ? '' : ' wt-cover--drawn'}`}
+        style={{ '--card-accent': tripColor(t.slug) }}
+      >
+        {/* The drawing waits until we know there is no photograph. Before
+            that it is simply the trip's colour — a card still loading, which
+            is what it is, rather than a wrong answer shown confidently and
+            then withdrawn. */}
         {covers[t.id] ? (
-          <img src={coverUrl(covers[t.id], { width: 400, height: 220 })} alt="" loading="lazy" />
-        ) : (
+          <img src={coverUrl(covers[t.id], { width: 700, height: 385 })} alt="" loading="lazy" />
+        ) : coversIn ? (
           <DrawnCover slug={t.slug} />
-        )}
+        ) : null}
       </span>
       {/* Says what it is for as long as it is there, not only during the
           tour. Six months from now, someone scrolling past "HK & South Korea"

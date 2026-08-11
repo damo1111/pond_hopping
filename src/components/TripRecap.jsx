@@ -611,7 +611,7 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           {hero && (
             <img
               className="recap-hero-img"
-              src={coverUrl(hero, { width: 900, height: 1200 })}
+              src={coverUrl(hero, { width: 1400, height: 1800, quality: 82 })}
               alt=""
               onError={() => setCoverBroke(true)}
             />

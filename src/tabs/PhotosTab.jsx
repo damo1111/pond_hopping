@@ -141,17 +141,21 @@ export default function PhotosTab({ openPhotoId = null }) {
       .neq('kind', 'receipt')
       .order('taken_on', { ascending: true })
       .then(({ data }) => alive && setPhotos(data ?? []))
-    supabase
-      .from('photo_cache')
-      .select('trip_id,urls,status')
-      .then(({ data }) => {
-        if (!alive) return
-        const byTrip = {}
-        for (const row of data ?? []) {
-          if (row.status === 'ok' && row.urls?.[0]) byTrip[row.trip_id] = row.urls[0]
-        }
-        setCovers(byTrip)
-      })
+    // A cover somebody chose wins over one scraped from an album.
+    Promise.all([
+      supabase.from('trips').select('id,cover_photo_url'),
+      supabase.from('photo_cache').select('trip_id,urls,status'),
+    ]).then(([t, c]) => {
+      if (!alive) return
+      const byTrip = {}
+      for (const row of c.data ?? []) {
+        if (row.status === 'ok' && row.urls?.[0]) byTrip[row.trip_id] = row.urls[0]
+      }
+      for (const row of t.data ?? []) {
+        if (row.cover_photo_url) byTrip[row.id] = row.cover_photo_url
+      }
+      setCovers(byTrip)
+    })
     return () => {
       alive = false
     }
@@ -191,14 +195,22 @@ export default function PhotosTab({ openPhotoId = null }) {
     setLightbox(null)
   }
 
+  // A chosen cover goes on the trip, not in the scrape cache.
+  //
+  // This used to overwrite photo_cache.urls — the cache of pictures scraped
+  // from a Google Photos album — with a single URL. Two things wrong with
+  // that. It threw away whatever else was in that cache, which the planner
+  // reads. And it was not a durable choice: anything that refreshed the
+  // cache would quietly replace it, which is how a deliberately chosen
+  // Trevi Fountain became a table of empty glasses.
+  //
+  // trips.cover_photo_url is the column for this and was sitting empty.
   async function setAsCover(photo) {
     setSettingCover(true)
-    const { error } = await supabase.from('photo_cache').upsert({
-      trip_id: photo.trip_id,
-      urls: [photo.url],
-      status: 'ok',
-      updated_at: new Date().toISOString(),
-    })
+    const { error } = await supabase
+      .from('trips')
+      .update({ cover_photo_url: photo.url })
+      .eq('id', photo.trip_id)
     setSettingCover(false)
     if (error) {
       alert(`Couldn't set cover: ${error.message}`)
