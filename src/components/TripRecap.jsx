@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
 import { spanOf } from '../lib/dateRange.js'
+import { summaryOf } from '../lib/tripSummary.js'
 import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
 import { tripColor } from '../lib/tripColors.js'
@@ -11,6 +12,7 @@ import { beginDrag, extendDrag, finishDrag } from '../lib/sheetDrag.js'
 import { gather } from '../lib/gather.js'
 import { record as debug, clear as clearDebug, read as readDebug, isOn as debugOn, subscribe as onDebug } from '../lib/gestureDebug.js'
 import CountryFlags from './CountryFlags.jsx'
+import GmailImport from './planner/GmailImport.jsx'
 import Icon from './Icon.jsx'
 
 // Lazy so the recap doesn't drag four tab views — and Leaflet — into the
@@ -100,6 +102,7 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
   // object comes from Home's list, which does not know this happened.
   const [isPublic, setIsPublic] = useState(trip?.is_public !== false)
   const [askPublic, setAskPublic] = useState(false)
+  const [findingBookings, setFindingBookings] = useState(false)
   const [publishing, setPublishing] = useState(false)
   // How far the sheet has been pulled down, in px. The handle was drawn as an
   // affordance the sheet didn't honour: it looks like something you can pull,
@@ -424,7 +427,15 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
         },
         {
           query: supabase.from('trip_summaries').select('summary').eq('trip_id', trip.id).maybeSingle(),
-          take: (s) => ({ summary: s.data?.summary ?? null }),
+          take: (s) => ({ cached: s.data ?? null }),
+        },
+        {
+          // The written story's closing is the trip looked back on, from the
+          // photographs as well as the entries. Where there is one it is
+          // what this page says, so enriching the story enriches the cover
+          // — with nothing to invalidate and no second call to make.
+          query: supabase.from('trip_stories').select('closing').eq('trip_id', trip.id).maybeSingle(),
+          take: (s) => ({ story: s.data ?? null }),
         },
         {
           // The strip is twelve; the figure has to be all of them. Counting
@@ -462,6 +473,7 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
   if (!trip) return null
 
   const stats = recapStats({ trip, ...(data ?? {}) })
+  const summary = summaryOf(data?.story, data?.cached)
 
   // The cover, in order of how much it is really this trip's: one chosen
   // deliberately, then the best of its own photographs, then none.
@@ -654,7 +666,7 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           </div>
         )}
 
-        {data?.summary && <p className="recap-prose">{data.summary}</p>}
+        {summary.text && <p className="recap-prose">{summary.text}</p>}
 
         {stats.cities.length > 0 && (
           <div className="recap-cities">
@@ -719,6 +731,17 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           </button>
         )}
 
+        {/* Bookings belong to the trip, not to its photographs. This sat in
+            the middle of the photo stream — a full-width card about email
+            between two pictures — because the planner is the only other
+            place it lived and a finished trip never opens the planner. Here
+            it is one of the things you can do to a trip, next to the others. */}
+        {trip?.start_date && (
+          <button className="recap-share ghost" onClick={() => setFindingBookings(true)}>
+            Find this trip&apos;s bookings in your email
+          </button>
+        )}
+
         <button className="recap-share" onClick={share}>
           {copied ? 'Link copied' : 'Share this trip'}
         </button>
@@ -747,6 +770,10 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           changes who can see somebody's holiday, so it says what it does in
           the plainest words available and offers a way out that is as easy
           to hit as the way through. */}
+      {findingBookings && (
+        <GmailImport trip={trip} onClose={() => setFindingBookings(false)} onImported={() => {}} />
+      )}
+
       {askPublic && (
         <div className="recap-ask" role="dialog" aria-modal="true" aria-label="Make this trip public">
           <div className="recap-ask-card">
