@@ -127,6 +127,66 @@ Return JSON: { "seen": [ ... ] }, one object per image, in the order given.
 Use empty strings and nulls freely. A short honest object beats a long
 speculative one, and every field you fill is paid for twice.`
 
+/**
+ * The looking itself, with no HTTP around it.
+ *
+ * Pulled out so the server-side worker can call it directly. The handler
+ * below is the same function with a request and a response bolted on, and
+ * the browser still uses that — the seeing runs in both places now, and
+ * whichever gets to a photograph first marks it read so nobody pays twice.
+ *
+ * @returns { seen, looked }. Throws with a readable message.
+ */
+export async function look(photos = [], detail = DETAIL.LOW) {
+  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not configured')
+  if (!Array.isArray(photos) || !photos.length) throw new Error('photos required')
+  if (photos.length > BATCH) throw new Error(`${BATCH} at a time`)
+  if (detail !== DETAIL.LOW && detail !== DETAIL.HIGH) throw new Error('detail must be low or high')
+
+  const usable = photos.filter((p) => p?.id != null && typeof p.url === 'string' && p.url)
+  if (!usable.length) throw new Error('no usable photos')
+
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  const ask = (model) => client.chat.completions.create({
+    model,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: RULES },
+      {
+        role: 'user',
+        // The time and place go over as text because they cannot go over
+        // any other way: the API decodes the image and sends pixels, so a
+        // vision model never sees EXIF. Asking one for aperture or bearing
+        // returns twenty invented fields an image. This app strips EXIF at
+        // upload anyway — photoResize re-encodes through a canvas, on
+        // purpose, so the stored file carries no GPS at all.
+        content: usable.flatMap((p) => [
+          {
+            type: 'text',
+            text: [`id: ${p.id}`, p.at && `taken ${p.at}`, p.lat != null && `at ${p.lat}, ${p.lon}`]
+              .filter(Boolean)
+              .join(' · '),
+          },
+          { type: 'image_url', image_url: { url: p.url, detail } },
+        ]),
+      },
+    ],
+  })
+
+  let r
+  try {
+    r = await ask(MODEL)
+  } catch (e) {
+    console.error(`see-photos: ${MODEL} failed (${e.message}) — falling back to ${FALLBACK}`)
+    r = await ask(FALLBACK)
+  }
+  const raw = r.choices[0]?.message?.content?.trim()
+  if (!raw) throw new Error('nothing came back')
+  const out = JSON.parse(raw)
+  if (!Array.isArray(out.seen)) throw new Error('no observations came back')
+  return { seen: out.seen, looked: usable.length }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
@@ -142,72 +202,13 @@ export default async function handler(req, res) {
   }
 
   const { photos = [], detail = DETAIL.LOW } = req.body || {}
-  if (!Array.isArray(photos) || !photos.length) {
-    res.status(400).json({ error: 'photos required' })
-    return
-  }
-  if (photos.length > BATCH) {
-    res.status(400).json({ error: `${BATCH} at a time` })
-    return
-  }
-  if (detail !== DETAIL.LOW && detail !== DETAIL.HIGH) {
-    res.status(400).json({ error: 'detail must be low or high' })
-    return
-  }
-
-  const usable = photos.filter((p) => p?.id != null && typeof p.url === 'string' && p.url)
-  if (!usable.length) {
-    res.status(400).json({ error: 'no usable photos' })
-    return
-  }
-
   try {
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-    const ask = (model) => client.chat.completions.create({
-      model,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: RULES },
-        {
-          role: 'user',
-          // The time and place go over as text because they cannot go over
-          // any other way: the API decodes the image and sends pixels, so a
-          // vision model never sees EXIF. Asking one for aperture or bearing
-          // returns twenty invented fields an image. This app strips EXIF at
-          // upload anyway — photoResize re-encodes through a canvas, on
-          // purpose, so the stored file carries no GPS at all.
-          content: usable.flatMap((p) => [
-            {
-              type: 'text',
-              text: [`id: ${p.id}`, p.at && `taken ${p.at}`, p.lat != null && `at ${p.lat}, ${p.lon}`]
-                .filter(Boolean)
-                .join(' · '),
-            },
-            { type: 'image_url', image_url: { url: p.url, detail } },
-          ]),
-        },
-      ],
-    })
-    let r
-    try {
-      r = await ask(MODEL)
-    } catch (e) {
-      console.error(`see-photos: ${MODEL} failed (${e.message}) — falling back to ${FALLBACK}`)
-      r = await ask(FALLBACK)
-    }
-    const raw = r.choices[0]?.message?.content?.trim()
-    if (!raw) {
-      res.status(502).json({ error: 'nothing came back' })
-      return
-    }
-    const out = JSON.parse(raw)
-    if (!Array.isArray(out.seen)) {
-      res.status(502).json({ error: 'no observations came back' })
-      return
-    }
-    res.status(200).json({ seen: out.seen, looked: usable.length })
+    res.status(200).json(await look(photos, detail))
   } catch (e) {
     console.error(`see-photos: ${e.message}`)
-    res.status(502).json({ error: e.message })
+    // The shape of the complaint decides the status: a bad request is the
+    // caller's, anything else is ours or the model's.
+    const mine = /required|at a time|must be low or high|no usable/.test(e.message)
+    res.status(mine ? 400 : 502).json({ error: e.message })
   }
 }

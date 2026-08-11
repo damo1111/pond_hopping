@@ -1,18 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
-import { zoneFor } from '../lib/localTime.js'
-import { clockIn } from '../lib/localTime.js'
-import { BATCH, inParallel, readingList } from '../lib/seeing.js'
-import {
-  daysAdded,
-  asAsked,
-  batches,
-  confirmed,
-  howFar,
-  needsLooking,
-  whatItCosts,
-  worthAsking,
-} from '../lib/storyRun.js'
+import { daysAdded, confirmed, howFar, whatItCosts, worthAsking } from '../lib/storyRun.js'
 import { running, whatThereIs } from '../lib/storyBuild.js'
 
 /** One question, answered in words.
@@ -71,8 +59,6 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   // Whether the prose is unfolded. Closed on arrival: this is the photographs
   // screen, and the story is several thousand words of it.
   const [open, setOpen] = useState(false)
-  const [done, setDone] = useState(0)
-  const [total, setTotal] = useState(0)
   const [trouble, setTrouble] = useState(null)
   const [story, setStory] = useState(null)
   const [questions, setQuestions] = useState([])
@@ -241,7 +227,6 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       const auth = await token()
       if (!auth) return
       await build(auth)
-      if (needsLooking(mine, 'low').length) await make()
     } catch (e) {
       setTrouble(e.message)
       setStep('idle')
@@ -283,54 +268,6 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     throw new Error(why || `${where} — ${r.status} ${said.slice(0, 140).replace(/<[^>]*>/g, ' ').trim()}`)
   }
 
-  const zone = zoneFor({
-    flights,
-    lon: mine.find((p) => p.lon != null)?.lon ?? null,
-    when: mine.find((p) => p.taken_at)?.taken_at ?? null,
-  })
-
-  /** Stage one, and the expensive one. Every photograph, once, then a
-   *  second look only at the frames the first pass said have writing in
-   *  them — because at 512 pixels an unreadable sign and no sign look the
-   *  same. */
-  async function look(auth, detail, only = null) {
-    const waiting = needsLooking(mine, detail).filter((p) => !only || only.has(String(p.id)))
-    if (!waiting.length) return []
-    setStep('looking')
-    setTotal(waiting.length)
-    setDone(0)
-
-    // Nothing about one batch depends on another, so they do not queue.
-    // Twenty-nine sequential calls was minutes of watching a line move.
-    const groups = batches(waiting, BATCH)
-    const out = await inParallel(
-      groups.map((group) => async () => {
-        const { seen } = await post(
-          'see-photos',
-          { photos: group.map((p) => asAsked(p, detail, zone, clockIn)), detail },
-          auth
-        )
-        // Written down as they come back. A run that dies halfway has still
-        // paid for what it looked at, and nothing should make somebody buy
-        // the same photograph twice.
-        await Promise.all(
-          (seen ?? []).map((s) => {
-            const { id, ...rest } = s ?? {}
-            if (!id) return null
-            return supabase
-              .from('photos')
-              .update({ seen: rest, seen_at: new Date().toISOString(), seen_detail: detail })
-              .eq('id', id)
-          })
-        )
-        return seen ?? []
-      }),
-      undefined,
-      (i) => setDone((n) => n + groups[i].length)
-    )
-    return out.flat()
-  }
-
   /**
    * Work out what happened and write it — on the server, to completion.
    *
@@ -347,35 +284,34 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
    *
    * @param only  dates to rewrite; empty rewrites the whole trip.
    */
-  async function build(auth, only = []) {
-    setStep('working it out')
-    const out = await post('build-story', { trip_id: trip.id, only }, auth)
+  async function build(auth) {
+    setStep('looking')
+    const out = await post('build-story', { trip_id: trip.id }, auth)
+    // Nothing to wait for. The answer comes back in milliseconds — it says
+    // "started", not "finished" — and from here the screen watches
+    // story_runs like anybody else's device would.
+    setRun({ started_at: new Date().toISOString(), step: 'looking', stage: 'seeing', to_see: out?.to_see ?? 0 })
     setStep('idle')
-    setRefresh((n) => n + 1)
     return out
   }
 
   /** @param only  dates to rewrite; empty rewrites the whole trip. */
-  async function make({ only = [] } = {}) {
+  // Nothing here reads a photograph any more.
+  //
+  // The seeing was the last stage in the browser, and it was the one that
+  // could not be moved by putting it behind an endpoint: three hundred
+  // photographs, ten to a call, does not fit in a single 300-second
+  // invocation however it is arranged. It needed a queue and something
+  // outside the request to turn the handle, which is pg_cron poking
+  // api/story-step once a minute until the trip is written.
+  //
+  // So this asks, and stops. Closing the app now costs nothing at all.
+  async function make() {
     setTrouble(null)
     try {
       const auth = await token()
       if (!auth) throw new Error('Sign in first.')
-
-      // The one stage still in the browser: it needs the photographs' own
-      // bytes and a lot of small parallel calls, and three hundred of them
-      // do not fit in a single server invocation.
-      const cheap = await look(auth, 'low')
-      const already = mine.filter((p) => p.seen).map((p) => ({ id: p.id, ...p.seen }))
-      const everything = [...already, ...cheap]
-
-      // The frames worth reading properly. The cheap pass chooses them
-      // rather than geometry: the awning is as likely to be in the shot
-      // walking up to a place as in the four taken at the table.
-      const worth = new Set(readingList(everything, { limit: 60 }).map(String))
-      if (worth.size) await look(auth, 'high', worth)
-
-      await build(auth, only)
+      await build(auth)
     } catch (e) {
       setTrouble(e.message)
       setStep('idle')
@@ -487,10 +423,15 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     // The server knows which stage it is on; the browser only knows it is
     // waiting. Reading the photographs is the exception — that is still here,
     // and it is the one with a count worth showing.
-    const doing = step === 'looking' ? step : run?.step || (step === 'idle' ? 'working it out' : step)
+    // Read off the run rather than counted here. This tab is a spectator
+    // now — the numbers are the same whichever device is looking, and they
+    // survive the app being closed and reopened.
+    const doing = run?.step || (step === 'idle' ? 'working it out' : step)
+    const read = run?.seen ?? 0
+    const all = read + (run?.to_see ?? 0)
     return (
       <div className="story">
-        <div className="story-doing">{howFar(doing, done, total)}</div>
+        <div className="story-doing">{howFar(doing, read, all)}</div>
         {asks}
         {trouble && <div className="story-trouble">{trouble}</div>}
         {written && <div className="story-sofar">{written}</div>}
