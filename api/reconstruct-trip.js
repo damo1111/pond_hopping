@@ -144,6 +144,35 @@ Nothing in "context" may be given as a cause of anything in their day.
 
 Titles are three or four words. Everything else is notes, not sentences.`
 
+// What they wrote themselves, at the time.
+//
+// This reached the writing stage and stopped there, which meant the stage
+// that decides what happened was working blind next to a written account of
+// the same days. It asked "Where did the trip begin?" about a day whose own
+// entry opens "Flew Edinburgh → London → Rome", and asked where they stayed
+// on a trip whose entry says they moved hotels. Three of the five questions
+// left standing on the Rome trip are answered in their own words, one screen
+// away.
+//
+// Evidence and testimony are different things and the testimony wins.
+function theirAccount(theirs = {}) {
+  const dates = Object.keys(theirs).filter((d) => theirs[d])
+  if (!dates.length) return ''
+  return (
+    `\n\nTHEIR OWN ACCOUNT OF THESE DAYS\n\n` +
+    `On these days they wrote an entry themselves, at the time. This is not ` +
+    `evidence to be weighed against the photographs — it is testimony from ` +
+    `the person who was there, and where it disagrees with the coordinates ` +
+    `the coordinates are wrong.\n\n` +
+    `Everything it states is settled: write it into the episodes for that ` +
+    `day with certainty "certain", using their names for things. Never put ` +
+    `something in "ask" or "unexplained" that their own entry already says. ` +
+    `Asking somebody what happened on a day they have described is the ` +
+    `single worst thing this stage can do.\n\n` +
+    dates.map((d) => `${d}:\n"${theirs[d]}"`).join('\n\n')
+  )
+}
+
 // What they have already been asked, and what they said back.
 //
 // Without this the reconstruction has no memory: it regenerates the same
@@ -205,7 +234,7 @@ export default async function handler(req, res) {
     return
   }
 
-  const { trace, answered = [], could_not_say = [], already_asked = [] } = req.body || {}
+  const { trace, theirs = {}, answered = [], could_not_say = [], already_asked = [] } = req.body || {}
   if (!trace?.days?.length) {
     res.status(400).json({ error: 'trace required' })
     return
@@ -218,7 +247,7 @@ export default async function handler(req, res) {
       response_format: { type: 'json_object' },
       max_completion_tokens: 32000,
       messages: [
-        { role: 'system', content: RULES + alreadyKnown({ answered, could_not_say, already_asked }) },
+        { role: 'system', content: RULES + theirAccount(theirs) + alreadyKnown({ answered, could_not_say, already_asked }) },
         { role: 'user', content: JSON.stringify(trace) },
       ],
     })

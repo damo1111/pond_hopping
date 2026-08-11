@@ -256,6 +256,9 @@ export default function TripStory({ trip, photos = [] }) {
    *  back on every run. */
   function whatWeKnow() {
     return {
+      // Their own entries, which the reconstruction was working without —
+      // so it asked where the trip began about a day they had written up.
+      theirs: theirWords(entries),
       answered: confirmed(questions),
       could_not_say: couldNotSay(questions),
       already_asked: stillOpen(questions),
