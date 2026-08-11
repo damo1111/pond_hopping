@@ -191,12 +191,23 @@ function keepTheirs(theirs = {}) {
   const dates = Object.keys(theirs).filter((d) => theirs[d])
   if (!dates.length) return ''
   return (
-    `\n\nOn these days they wrote their own entry at the time. Keep every ` +
-    `sentence of it exactly as it is, word for word, and write the rest of ` +
-    `the day around it. What you add is what they left unnamed — where they ` +
-    `wrote "a rooftop bar" or "a cheap Italian place" and the reconstruction ` +
-    `says which one. Do not restate in numbers something they said in words: ` +
-    `under "a long run", the distance is padding and reads as padding.\n\n` +
+    `\n\nTHEIR OWN ACCOUNT — THIS OVERRIDES EVERYTHING ABOVE\n\n` +
+    `On these days they wrote their own entry, at the time. It is the most ` +
+    `reliable thing in this entire request: written by the person who was ` +
+    `there, on the day. The photographs are evidence; this is testimony.\n\n` +
+    `Every fact in it is true and must appear in your chapter for that day. ` +
+    `You may NEVER write that something is forgotten, unknown or lost when ` +
+    `their entry states it. If they wrote "Flew Edinburgh to London to Rome", ` +
+    `the day does not begin "somewhere north of London, though I can no ` +
+    `longer say exactly where". That is the worst thing you can do here: it ` +
+    `tells somebody their own memory has gone while they are looking at it.\n\n` +
+    `Keep their distinctive sentences word for word. A Scottish couple ` +
+    `heading to South Africa, a phone call to Matt, the name of a hotel — ` +
+    `these are what nothing else in the pipeline can recover, and putting ` +
+    `them in your own words loses them. Weave the photographs around their ` +
+    `sentences, never in place of them.\n\n` +
+    `Do not restate in numbers something they said in words: under "a long ` +
+    `run", the distance is padding and reads as padding.\n\n` +
     dates.map((d) => `${d}:\n"${theirs[d]}"`).join('\n\n')
   )
 }
