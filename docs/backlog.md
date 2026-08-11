@@ -179,16 +179,37 @@ Two things to get right when it is written, both learned the hard way:
   hundreds of rows needs a `maxDuration`, or it dies on the default and cron
   retries it for ever.
 
-## 7. Flight data: AeroAPI
+## 7. Flight data: three sources, and which reaches what
 
-Decided but not committed to. **Standard tier, $100/month minimum**, which
-is a floor rather than a subscription on top of usage — per-query fees draw
-down against it, and the volume here does not come close.
+**AeroDataBox** — live, free, and the only one working today. 365 days on
+every tier it sells, which is 113 of 482 flights here. `REACH.aerodatabox`
+is that limit, and `worthAsking()` uses it so the other 369 cost nothing
+rather than 369 refusals.
 
-Personal is not an option: no historical data, no alerts, and personal or
-academic use only. History reaches back to 2011, which removes the need for
-a second provider. Standard permits storage and distribution for
-business-to-consumer purposes, which covers caching in Supabase.
+**Cirium** (Flex APIs) — the adapter is built and the account is live. It
+is the only source that plausibly reaches October 2009, which is where this
+archive starts. **The mapping has still not been confirmed against a real
+answer**: `?peek=1` tries both plausible historical paths and reports which
+one answered, and there is a button in Account. Do not let it near 369
+flights until that has been run.
+
+  Two variables, both on every request: `CIRIUM_API_KEY` and
+  `CIRIUM_APP_ID`. The app id identifies you and the key must not be
+  committed, so neither is in the source and the endpoint says which one is
+  missing by name.
+
+  **The trap.** Vercel injects environment variables at build time. Adding
+  one in the dashboard does nothing to a deployment that has already been
+  built — the endpoint kept reporting `CIRIUM_APP_ID is missing` for a
+  variable that was plainly there. It needs a redeploy, and a push to main
+  is one.
+
+**AeroAPI** — the fallback if Cirium disappoints. Standard tier, $100/month
+minimum, which is a floor rather than a subscription on top of usage.
+Personal is not an option: no historical data, and personal or academic use
+only. History reaches 2011, so it would leave the four flights from 2009
+and 2010 unreachable by anything. Standard permits storage and
+distribution, which covers caching in Supabase.
 
 See `docs/lounges.md`.
 
