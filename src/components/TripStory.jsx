@@ -6,12 +6,14 @@ import { clockIn } from '../lib/localTime.js'
 import { BATCH, foldInto, inParallel, readingList } from '../lib/seeing.js'
 import {
   alreadyAsked,
+  daysAdded,
   asAsked,
   batches,
   confirmed,
   couldNotSay,
   howFar,
   needsLooking,
+  spliceChapters,
   stillOpen,
   storyRow,
   theirWords,
@@ -121,20 +123,27 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   // somebody's own words and never over them. And photos.seen means a
   // photograph is read once ever, so adding twenty to a trip costs twenty,
   // not two hundred and eighty-six.
-  // And it starts itself again when photographs arrive after it was written.
+  // Photographs that arrived after the story was written.
   //
-  // It used to bail the moment a story existed, which meant uploading to a
-  // trip that already had one read the new photographs and then never used
-  // them: the story stayed exactly as it was, and the only way to fold them
-  // in was to know about a button.
+  // This used to start a rebuild on its own, which was wrong in a way worth
+  // writing down: adding one picture to a trip of two hundred and eighty-six
+  // re-reconstructed the whole trip and rewrote every chapter of it, twice —
+  // once from the trace and once after reading the new photograph. Two of the
+  // most expensive calls the app makes, for one frame.
   //
-  // The test is a photograph filed after the story was written, rather than
-  // "are there any unseen photographs" — a photograph the vision pass fails
-  // on stays unseen for ever, and that version would re-run, and charge for
-  // it, every time the app was opened.
-  const newSince = story?.updated_at
-    ? mine.some((p) => p?.created_at && p.created_at > story.updated_at)
-    : false
+  // And the writing is not deterministic. A story somebody has read, liked
+  // and shown to somebody else would come back different, without being
+  // asked and without warning, which is a worse failure than the stale text
+  // it was fixing. Nobody wants their journal rewritten because they
+  // remembered to upload a picture of a menu.
+  //
+  // So it is offered. The count is honest, the tap is theirs, and the story
+  // they have already got stays exactly as it is until they say otherwise.
+  //
+  // The test is "filed after the story was written" rather than "not yet
+  // read": a photograph the vision pass fails on stays unread for ever, and
+  // that version would nag, and charge, every time the app was opened.
+  const freshDays = daysAdded(mine, story)
 
   const began = useRef('')
   useEffect(() => {
@@ -143,13 +152,18 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     // hidden behind a progress line the moment somebody came back to it.
     if (!looked || !entries) return
     if (!trip?.id || !mine.length || step !== 'idle') return
-    if (story && !newSince) return
+    // A trip with photographs and no story gets one without being asked,
+    // because that is the thing this app does. A trip that already has one
+    // gets only the days its new photographs belong to — never the whole
+    // thing, and never a chapter nobody's pictures touched.
+    if (story && !freshDays.length) return
     const mark = `${trip.id}:${mine.length}:${story?.updated_at ?? 'none'}`
     if (began.current === mark) return
     began.current = mark
-    itself()
+    if (story) make({ only: freshDays })
+    else itself()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip?.id, mine.length, story, newSince, step, entries, looked])
+  }, [trip?.id, mine.length, story, freshDays.length, step, entries, looked])
 
   // "Write again" lives in the row of buttons above, with receipts and
   // duplicates, so that three actions on the same photographs read as three
@@ -326,7 +340,8 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     return true
   }
 
-  async function make() {
+  /** @param only  dates to rewrite; empty rewrites the whole trip. */
+  async function make({ only = [] } = {}) {
     setTrouble(null)
     try {
       const auth = await token()
@@ -367,18 +382,20 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       // over. It gets written from what is known, the questions sit above it
       // waiting, and an answer rewrites it.
       await ask(worked)
-      await write(auth, worked)
+      await write(auth, worked, only)
     } catch (e) {
       setTrouble(e.message)
       setStep('idle')
     }
   }
 
-  async function write(auth, worked) {
+  /** @param only  dates to rewrite; empty means the whole trip. */
+  async function write(auth, worked, only = []) {
     setStep('writing')
     const written = await post(
       'write-trip',
       {
+        only,
         reconstruction: {
           ...worked,
           // What they told us outranks everything else in here.
@@ -393,6 +410,14 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       auth
     )
     const row = storyRow(trip, written, worked, { voice: learnVoice ? 'theirs' : 'narrator' })
+    // A day's rewrite is spliced into the story rather than replacing it.
+    // The other chapters are kept word for word — they were already read,
+    // and the writing is not deterministic enough to redo them for free.
+    if (only.length) {
+      row.chapters = spliceChapters(story?.chapters ?? [], written.days ?? [])
+      row.opening = written.opening ?? story?.opening ?? null
+      row.closing = written.closing ?? story?.closing ?? null
+    }
     const { error } = await supabase.from('trip_stories').upsert(row, { onConflict: 'trip_id' })
     if (error) throw new Error(error.message)
     setStep('idle')

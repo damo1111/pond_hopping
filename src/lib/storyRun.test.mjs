@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { alreadyAsked, asAsked, confirmed, couldNotSay, howFar, needsLooking, stillAsking, stillOpen, storyRow, theirWords, likeness, SAME_ENOUGH, whatItCosts, worthAsking } from './storyRun.js'
+import { alreadyAsked, asAsked, daysAdded, spliceChapters, confirmed, couldNotSay, howFar, needsLooking, stillAsking, stillOpen, storyRow, theirWords, likeness, SAME_ENOUGH, whatItCosts, worthAsking } from './storyRun.js'
 import { clockIn } from './localTime.js'
 
 const pic = (id, over = {}) => ({
@@ -277,4 +277,46 @@ test('and the four days each keep the questions that differ', () => {
   // And the nearest thing to a false positive, comfortably below it.
   assert.ok(same(4, 11) < SAME_ENOUGH, `Tiber vs after-the-run: ${same(4, 11)}`)
   assert.ok(same(0, 14) < SAME_ENOUGH, `getting around vs the gap: ${same(0, 14)}`)
+})
+
+// ── One photograph changes one day ────────────────────────────────────────
+
+test('a photograph added later marks only its own day', () => {
+  const story = { updated_at: '2026-08-11T04:00:00Z' }
+  const photos = [
+    { created_at: '2026-08-10T00:00:00Z', taken_on: '2024-01-22' },
+    { created_at: '2026-08-11T05:00:00Z', taken_on: '2024-01-24' },
+    { created_at: '2026-08-11T05:01:00Z', taken_on: '2024-01-24' },
+  ]
+  assert.deepEqual(daysAdded(photos, story), ['2024-01-24'])
+})
+
+test('nothing to do when the story is newer than everything', () => {
+  const story = { updated_at: '2026-08-11T06:00:00Z' }
+  assert.deepEqual(daysAdded([{ created_at: '2026-08-11T05:00:00Z', taken_on: '2024-01-24' }], story), [])
+  assert.deepEqual(daysAdded([{ created_at: '2026-08-11T05:00:00Z' }], null), [])
+})
+
+test('only the rewritten day is replaced', () => {
+  const existing = [
+    { date: '2024-01-22', title: 'Arrival', note: 'the first day, as written' },
+    { date: '2024-01-23', title: 'The river', note: 'the second day, as written' },
+  ]
+  const out = spliceChapters(existing, [{ date: '2024-01-23', title: 'The river again', note: 'rewritten' }])
+  assert.equal(out[0].note, 'the first day, as written')
+  assert.equal(out[1].note, 'rewritten')
+  assert.equal(out[1].title, 'The river again')
+})
+
+test('a day the story never had is added, in its place in the order', () => {
+  const existing = [{ date: '2024-01-22', title: 'Arrival', note: 'day one' }]
+  const out = spliceChapters(existing, [{ date: '2024-01-21', title: 'The night before', note: 'new day' }])
+  assert.deepEqual(out.map((c) => c.date), ['2024-01-21', '2024-01-22'])
+})
+
+test('a day that came back empty keeps what it had', () => {
+  // A model that returns nothing for a day must never be able to erase one.
+  const existing = [{ date: '2024-01-22', title: 'Arrival', note: 'day one' }]
+  assert.deepEqual(spliceChapters(existing, [{ date: '2024-01-22', note: '' }]), existing)
+  assert.deepEqual(spliceChapters(existing, []), existing)
 })

@@ -226,3 +226,43 @@ export function howFar(step, done = 0, total = 0) {
   if (step === 'writing') return 'Writing your trip up'
   return ''
 }
+
+/**
+ * Which days a story does not yet know about.
+ *
+ * A photograph added after the story was written belongs to a day, and that
+ * day is the only part of the writing that can possibly have changed. The
+ * rest of the trip happened exactly as it did before somebody uploaded a
+ * picture of a menu.
+ */
+export function daysAdded(photos = [], story = null) {
+  const written = story?.updated_at
+  if (!written) return []
+  const days = new Set()
+  for (const p of photos) {
+    if (!p?.created_at || !(p.created_at > written)) continue
+    const d = p.taken_on || String(p.taken_at ?? '').slice(0, 10)
+    if (d) days.add(d)
+  }
+  return [...days].sort()
+}
+
+/**
+ * The new chapters, in the old story, with everything else untouched.
+ *
+ * Rewriting a whole trip because one day changed is expensive and — worse —
+ * not deterministic: chapters somebody has already read and liked come back
+ * different, unasked. Only the days that were rewritten are replaced; a day
+ * that came back empty keeps what it had rather than losing it.
+ */
+export function spliceChapters(existing = [], written = []) {
+  const fresh = new Map()
+  for (const d of written) if (d?.date && d?.note) fresh.set(d.date, d)
+
+  const out = existing.map((c) => (fresh.has(c.date) ? { ...c, ...fresh.get(c.date) } : c))
+  // A day that did not exist in the story at all — the first photograph of
+  // a day nobody had recorded — is an addition rather than a replacement.
+  const known = new Set(existing.map((c) => c.date))
+  for (const [date, d] of fresh) if (!known.has(date)) out.push({ date, title: d.title ?? null, note: d.note })
+  return out.sort((a, b) => String(a.date).localeCompare(String(b.date)))
+}
