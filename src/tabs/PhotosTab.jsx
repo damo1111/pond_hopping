@@ -6,9 +6,7 @@ import { thumb, coverUrl } from '../lib/imgTransform.js'
 import { spanOf } from '../lib/dateRange.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PhotoUpload from '../components/PhotoUpload.jsx'
-import ReceiptScan from '../components/ReceiptScan.jsx'
-import FindDuplicates from '../components/FindDuplicates.jsx'
-import TripStory from '../components/TripStory.jsx'
+import TripTools from '../components/TripTools.jsx'
 import GmailImport from '../components/planner/GmailImport.jsx'
 
 const fmtRange = (t) => spanOf(t, { empty: 'dates tbc' })
@@ -271,16 +269,8 @@ export default function PhotosTab({ openPhotoId = null }) {
       {/* Only inside a trip. "Find the receipts across everything you have
           ever photographed" is a bill, not a feature. */}
       {heroTrip && (
-        <ReceiptScan
-          trip={heroTrip}
-          photos={visible}
-          onDone={() => setReload((r) => r + 1)}
-        />
+        <TripTools trip={heroTrip} photos={visible} onDone={() => setReload((r) => r + 1)} />
       )}
-
-      {heroTrip && <FindDuplicates photos={visible} onDone={() => setReload((r) => r + 1)} />}
-
-      {heroTrip && <TripStory trip={heroTrip} photos={visible} />}
 
       {/* Where you slept, what you booked, what it cost — from the emails
           rather than guessed at from GPS. All of this existed already and

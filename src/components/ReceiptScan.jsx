@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { thumb } from '../lib/imgTransform.js'
 import { readingToCost, summarise } from '../lib/receipt.js'
@@ -20,7 +20,9 @@ const BATCH = 12
 // What the scan did, in order, so nothing about it is a surprise.
 const PHASES = { idle: 'idle', reading: 'reading', review: 'review', saving: 'saving', done: 'done' }
 
-export default function ReceiptScan({ trip, photos = [], onDone }) {
+// `autoStart` is for the tools row on Photos: that row's button is the
+// trigger, so this must not draw a second one underneath it.
+export default function ReceiptScan({ trip, photos = [], onDone, autoStart = false }) {
   const [phase, setPhase] = useState(PHASES.idle)
   const [done, setDone] = useState(0)
   const [results, setResults] = useState([])
@@ -114,7 +116,27 @@ export default function ReceiptScan({ trip, photos = [], onDone }) {
 
   const totals = summarise(results)
 
+  // One shot, on the tap that opened this. A ref rather than state because
+  // re-rendering must never start a second read of the same photographs.
+  const kicked = useRef(false)
+  useEffect(() => {
+    if (autoStart && !kicked.current && phase === PHASES.idle && unread.length) {
+      kicked.current = true
+      scan()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoStart, phase, unread.length])
+
   if (phase === PHASES.idle) {
+    if (autoStart) {
+      // Started by the row above; the only thing left to say is when there
+      // is nothing to do, which would otherwise look like a dead button.
+      return unread.length ? null : (
+        <div className="rs">
+          <div className="rs-note">Every photograph here has already been read.</div>
+        </div>
+      )
+    }
     if (!unread.length) return null
     return (
       <div className="rs">
