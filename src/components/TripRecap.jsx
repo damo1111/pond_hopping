@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
 import { spanOf } from '../lib/dateRange.js'
 import { summaryOf } from '../lib/tripSummary.js'
+import { asDegrees, tripAverage, tripSky } from '../lib/weather.js'
 import { forRecap, nextTurn } from '../lib/recapPhotos.js'
 import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
@@ -447,6 +448,17 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           take: (s) => ({ story: s.data ?? null }),
         },
         {
+          // Whatever the journal has already cached. Nothing is fetched from
+          // the archive here — a recap is a page you open and look at, not a
+          // place to start filling in a database.
+          query: supabase.from('day_weather').select('on_date,high_c,code').eq('trip_id', trip.id),
+          take: (w) => ({ weather: w.data ?? [] }),
+        },
+        {
+          query: supabase.from('profiles').select('temp_unit').maybeSingle(),
+          take: (p) => ({ unit: p.data?.temp_unit || 'device' }),
+        },
+        {
           // The strip is twelve; the figure has to be all of them. Counting
           // the twelve gave "12 photos" for a trip with 181. A head request
           // costs one round trip and no rows.
@@ -483,6 +495,10 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
 
   const stats = recapStats({ trip, ...(data ?? {}) })
   const summary = summaryOf(data?.story, data?.cached)
+  // The trip in one temperature: the mean of the days' highs, which is a
+  // statement about afternoons — when anybody was outside in it.
+  const warmth = asDegrees(tripAverage(data?.weather ?? []), data?.unit ?? 'device')
+  const skies = tripSky(data?.weather ?? [])
   // Twelve of them, rotated where somebody starred more. Decided once per
   // opening rather than per render: a grid that reshuffles while you are
   // looking at it is worse than one that never changes.
@@ -690,6 +706,15 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
               read the whole thing →
             </button>
           </p>
+        )}
+
+        {/* Small, to the right, and absent when there is nothing to say.
+            A trip whose days have never been opened in the journal has no
+            cached weather and simply does not mention it. */}
+        {(warmth || skies) && (
+          <div className="recap-weather">
+            {skies} {warmth ? `${warmth.text} average` : null}
+          </div>
         )}
 
         {stats.cities.length > 0 && (
