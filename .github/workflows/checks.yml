@@ -1,0 +1,35 @@
+name: Checks
+
+# The cheap gate, on every pull request.
+#
+# It exists because "coversIn is not defined" reached pond.eend.app and took
+# the whole app down on a cold load. `vite build` had passed: a bundler treats
+# an identifier it does not recognise as a global and leaves it to the
+# browser, so nothing between the edit and production ever looked at it.
+#
+# Three things run here, all of them seconds long, none of them touching a
+# store: the unit tests, the linter (see eslint.config.js — it is narrow on
+# purpose), and a production build. Nothing here publishes anything. Store
+# builds stay on workflow_dispatch, by hand, on purpose.
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm test
+
+      - run: npm run build
