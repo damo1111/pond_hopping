@@ -44,6 +44,20 @@ if [ ! -f "$REPO_ROOT/ios/RELEASE_UNLOCKED" ]; then
 fi
 
 
+# A build number Apple has not seen before.
+#
+# CURRENT_PROJECT_VERSION is 1 in the project file and nothing moved it, so
+# every archive claimed to be build 1 and the second upload of it is rejected
+# — after the archive, at the end, having spent the whole build.
+#
+# Xcode Cloud hands us its own run number; use it. Guarded so that a failure
+# here cannot take the build down with it: a wrong build number is a rejected
+# upload, and no build number at all is exactly what we have today.
+if [ -n "$CI_BUILD_NUMBER" ]; then
+  ( cd "$REPO_ROOT/ios/App" && agvtool new-version -all "$CI_BUILD_NUMBER" ) \
+    || echo "Could not set the build number to $CI_BUILD_NUMBER — carrying on."
+fi
+
 npm ci
 npm run build
 npx cap sync ios
