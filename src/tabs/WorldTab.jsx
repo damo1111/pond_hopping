@@ -200,18 +200,6 @@ export default function WorldTab() {
   }, [tripsLoaded, introOpen])
 
   const home = useMemo(() => homeCoords(), [])
-  // Nothing at all to show: their own part of the world, which is the only
-  // thing known about somebody with no trips yet.
-  //
-  // Otherwise the middle of what they have. Airports rather than segments,
-  // because a trip with no flights recorded still has none either way and
-  // this is about where to stand, not what to draw.
-  const overviewPov = useMemo(() => {
-    if (isEmpty) return { lat: home.lat, lng: home.lng, altitude: 1.9 }
-    const middle = overviewOf(airports.map((a) => a.pos), null)
-    return middle ? { ...middle, altitude: 1.9 } : OVERVIEW_POV
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEmpty, home.lat, home.lng, airports])
   const idleSpin = isEmpty ? 0.9 : 0.35
 
   // "Three years ago today". Filtering happens here rather than in SQL
@@ -464,6 +452,28 @@ export default function WorldTab() {
 
     return { segments: [...segs.values()], airports: [...apts.values()], travelers: [...who].sort() }
   }, [flights, planned, selectedTrip, tripsById])
+
+  // Where to stand when nothing is selected.
+  //
+  // Nothing at all to show: their own part of the world, which is the only
+  // thing known about somebody with no trips yet. Otherwise the middle of
+  // what they have — airports rather than segments, because this is about
+  // where to stand, not what to draw.
+  //
+  // This has to live *below* the memo above, and that is not a matter of
+  // taste. `airports` is a const, so reading it from anything declared
+  // earlier in this function is a temporal dead zone: the component throws
+  // on its first render, every time, for everybody. It built cleanly and
+  // shipped, because a bundler has no opinion about the order in which a
+  // function reads its own variables and nothing in the pipeline ever
+  // rendered the page. Anything new that needs `airports`, `segments` or
+  // `travelers` goes here or after.
+  const overviewPov = useMemo(() => {
+    if (isEmpty) return { lat: home.lat, lng: home.lng, altitude: 1.9 }
+    const middle = overviewOf(airports.map((a) => a.pos), null)
+    return middle ? { ...middle, altitude: 1.9 } : OVERVIEW_POV
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEmpty, home.lat, home.lng, airports])
 
   // The cold open. Once, on the first load of the session: the earth starts
   // far out and empty, your flights draw themselves onto it oldest-first, and
