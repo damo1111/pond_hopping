@@ -242,6 +242,46 @@ function alreadyKnown({ answered = [], could_not_say = [], already_asked = [] } 
   return out
 }
 
+/**
+ * The stage itself, with no HTTP around it.
+ *
+ * Pulled out of the handler so the server-side runner can call it directly
+ * rather than making an HTTP request to its own deployment — which is a real
+ * round trip, a second cold start, and one more thing to time out between
+ * two pieces of code sitting in the same repository.
+ *
+ * @returns the reconstruction, parsed. Throws with a readable message.
+ */
+export async function reconstruct({
+  trace,
+  theirs = {},
+  answered = [],
+  could_not_say = [],
+  already_asked = [],
+} = {}) {
+  if (!trace?.days?.length) throw new Error('trace required')
+  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not configured')
+
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  const r = await client.chat.completions.create({
+    model: MODEL,
+    response_format: { type: 'json_object' },
+    max_completion_tokens: 32000,
+    messages: [
+      {
+        role: 'system',
+        content: RULES + theirAccount(theirs) + alreadyKnown({ answered, could_not_say, already_asked }),
+      },
+      { role: 'user', content: JSON.stringify(trace) },
+    ],
+  })
+  const raw = r.choices[0]?.message?.content?.trim()
+  if (!raw) throw new Error('nothing came back')
+  const out = JSON.parse(raw)
+  if (!Array.isArray(out.days)) throw new Error('no days came back')
+  return out
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
@@ -263,27 +303,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-    const r = await client.chat.completions.create({
-      model: MODEL,
-      response_format: { type: 'json_object' },
-      max_completion_tokens: 32000,
-      messages: [
-        { role: 'system', content: RULES + theirAccount(theirs) + alreadyKnown({ answered, could_not_say, already_asked }) },
-        { role: 'user', content: JSON.stringify(trace) },
-      ],
-    })
-    const raw = r.choices[0]?.message?.content?.trim()
-    if (!raw) {
-      res.status(502).json({ error: 'nothing came back' })
-      return
-    }
-    const out = JSON.parse(raw)
-    if (!Array.isArray(out.days)) {
-      res.status(502).json({ error: 'no days came back' })
-      return
-    }
-    res.status(200).json(out)
+    res.status(200).json(await reconstruct({ trace, theirs, answered, could_not_say, already_asked }))
   } catch (e) {
     console.error(`reconstruct-trip: ${e.message}`)
     res.status(502).json({ error: e.message })

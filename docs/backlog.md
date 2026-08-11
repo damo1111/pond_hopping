@@ -7,35 +7,34 @@ Roughly in the order it is worth doing, not in the order it was asked for.
 
 ## 1. The story pipeline runs server-side, and pushes when it is done
 
-**Agreed. The next thing to build.**
+**Half done.** Everything except the reading of the photographs now runs in
+`api/build-story.js`, which finishes whether or not the tab is open.
 
-Today the whole pipeline — read the photographs, reconstruct the trip, ask
-the questions, write it — runs in the browser tab. Moving around inside the
-app is fine, because the requests are already in flight and the save lands
-whether or not the component is still mounted. Backgrounding the app or
-locking the phone is not: the JavaScript is suspended and the run dies with
-it.
+What moved: build the trace, reconstruct, file the questions, write, save.
+It fetches its own evidence rather than being handed whatever a browser
+happened to have loaded, and it acts as the person who asked — their token,
+their row-level security, no service key. `story_runs` records that a run is
+in progress, so a double tap gets a 409 rather than two runs racing to write
+the same story and the loser's version winning. A claim that goes quiet for
+a quarter of an hour is taken over, because a crashed invocation must not
+lock a trip for ever. The screen polls that row, so coming back to the app
+mid-run shows progress instead of quietly starting a second one.
 
-Nothing is lost that was already saved — a photograph that has been read is
-marked read and never gets paid for twice — but the story does not finish
-writing, and there is no way to know that except by coming back and finding
-it unchanged.
+It also fixed something nobody had noticed. `TripStory` returned null
+without photographs, so six trips imported from a Google Timeline — 4,217
+recorded positions, 212 stays, a journal entry on nearly every day, not one
+picture — had no story and no button anywhere in the app that could give
+them one. They were not failing. They were unreachable.
 
-This has bitten twice in one evening, which is what moves it to the top.
+**What is left.**
 
-What it needs:
-
-- the loop moved behind an endpoint that runs to completion on its own
-- somewhere to record that a run is in progress, so two do not start
-- a push when it finishes, and a push when the questions are ready — the
-  latter was asked for explicitly and is one line once there is a server
-  side to send it from
-- the screen reads state rather than driving it, so opening the app
-  mid-run shows progress rather than starting a second one
-
-The 300-second Vercel limit is the constraint worth designing around: a
-trip of 286 photographs does not fit in one invocation, so this wants to be
-a queue of small steps rather than one long call.
+- **The seeing.** Reading three hundred photographs does not fit in one
+  300-second invocation, so it is still in the tab, and a big first upload
+  still wants the app left open. This is the queue-of-small-steps part, and
+  it is the whole of the remaining work.
+- **The push.** One when the questions are ready, one when it finishes.
+  A line or two now: there is a server side to send it from, and
+  `story_runs.finished_at` is the moment to send it.
 
 ---
 

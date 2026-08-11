@@ -1,26 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
-import { traceOf } from '../lib/tripTrace.js'
 import { zoneFor } from '../lib/localTime.js'
 import { clockIn } from '../lib/localTime.js'
-import { BATCH, foldInto, inParallel, readingList } from '../lib/seeing.js'
+import { BATCH, inParallel, readingList } from '../lib/seeing.js'
 import {
-  alreadyAsked,
   daysAdded,
   asAsked,
   batches,
   confirmed,
-  couldNotSay,
   howFar,
   needsLooking,
-  spliceChapters,
-  stillOpen,
-  widerThanADay,
-  storyRow,
-  theirWords,
   whatItCosts,
   worthAsking,
 } from '../lib/storyRun.js'
+import { running, whatThereIs } from '../lib/storyBuild.js'
 
 /** One question, answered in words.
  *
@@ -66,6 +59,13 @@ function Ask({ q, onAnswer, onSkip }) {
 // work out what happened from the whole trace rather than a summary of it,
 // stop and ask the things only the person who was there can settle, then
 // write it — and never over what they wrote themselves.
+//
+// Only the first of those still happens here. Reading the photographs needs
+// their bytes and a lot of small parallel calls, so it stays in the browser;
+// everything after it moved to /api/build-story, which runs to completion
+// whether or not this tab is still open. Locking the phone halfway through
+// used to kill the run silently, and the only way to find out was to come
+// back later and see the story unchanged.
 export default function TripStory({ trip, photos = [], runKey = 0 }) {
   const [step, setStep] = useState('idle')
   // Whether the prose is unfolded. Closed on arrival: this is the photographs
@@ -76,18 +76,25 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   const [trouble, setTrouble] = useState(null)
   const [story, setStory] = useState(null)
   const [questions, setQuestions] = useState([])
-  const [reconstruction, setReconstruction] = useState(null)
   const [entries, setEntries] = useState([])
   const [flights, setFlights] = useState([])
   const [runs, setRuns] = useState([])
   const [tracks, setTracks] = useState([])
   const [visits, setVisits] = useState([])
-  const [learnVoice, setLearnVoice] = useState(false)
+  // What the server says it is doing, if anything. The screen reads this
+  // rather than being the only thing that knows about the run.
+  const [run, setRun] = useState(null)
   const [refresh, setRefresh] = useState(0)
   // Whether the story fetch has answered — not whether it found one.
   const [looked, setLooked] = useState(false)
 
   const mine = photos.filter((p) => p.trip_id === trip?.id)
+
+  // Whether there is anything to write from at all — which is not the same
+  // question as "are there photographs", and treating it as though it were
+  // is why six trips with a journal entry on nearly every day, 212 recorded
+  // stays and no pictures had no story and no way to ask for one.
+  const have = whatThereIs({ photos: mine, tracks, visits, entries, flights, runs })
 
   useEffect(() => {
     if (!trip?.id) return
@@ -114,8 +121,8 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       .then(({ data }) => alive && setTracks(data ?? []))
     supabase.from('location_visits').select('arrived_at,departed_at,lat,lng,source')
       .then(({ data }) => alive && setVisits(data ?? []))
-    supabase.from('profiles').select('learn_my_voice').maybeSingle()
-      .then(({ data }) => alive && setLearnVoice(!!data?.learn_my_voice))
+    supabase.from('story_runs').select('*').eq('trip_id', trip.id).maybeSingle()
+      .then(({ data }) => alive && setRun(data ?? null))
     return () => {
       alive = false
     }
@@ -162,11 +169,15 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     // is none, and starting a run on the first was how a finished story got
     // hidden behind a progress line the moment somebody came back to it.
     if (!looked || !entries) return
-    if (!trip?.id || !mine.length || step !== 'idle') return
-    // A trip with photographs and no story gets one without being asked,
-    // because that is the thing this app does. A trip that already has one
-    // gets only the days its new photographs belong to — never the whole
-    // thing, and never a chapter nobody's pictures touched.
+    if (!trip?.id || !have.enough || step !== 'idle') return
+    // Somebody else — another tab, another device, the run that was going
+    // when the phone locked — already has this trip. Two runs writing one
+    // story means the loser's version wins.
+    if (running(run)) return
+    // A trip with something recorded and no story gets one without being
+    // asked, because that is the thing this app does. A trip that already
+    // has one gets only the days its new photographs belong to — never the
+    // whole thing, and never a chapter nobody's pictures touched.
     if (story && !freshDays.length) return
     const mark = `${trip.id}:${mine.length}:${story?.updated_at ?? 'none'}`
     if (began.current === mark) return
@@ -174,7 +185,30 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     if (story) make({ only: freshDays })
     else itself()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip?.id, mine.length, story, freshDays.length, step, entries, looked])
+  }, [trip?.id, mine.length, story, freshDays.length, step, entries, looked, have.enough, run])
+
+  // What the server is doing, while it is doing it.
+  //
+  // The run no longer belongs to this tab, so the tab has to ask. Every few
+  // seconds while something is in flight, and never otherwise — a story
+  // somebody is reading does not need polling. When the row says it has
+  // finished, the story itself is re-read, which is how a run started on a
+  // phone appears on a laptop without anybody refreshing anything.
+  const watching = step !== 'idle' || running(run)
+  useEffect(() => {
+    if (!trip?.id || !watching) return
+    let alive = true
+    const timer = setInterval(async () => {
+      const { data } = await supabase.from('story_runs').select('*').eq('trip_id', trip.id).maybeSingle()
+      if (!alive) return
+      setRun(data ?? null)
+      if (data?.finished_at) setRefresh((n) => n + 1)
+    }, 4000)
+    return () => {
+      alive = false
+      clearInterval(timer)
+    }
+  }, [trip?.id, watching])
 
   // "Write again" lives in the row of buttons above, with receipts and
   // duplicates, so that three actions on the same photographs read as three
@@ -191,15 +225,22 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runKey])
 
+  // It starts itself, in two passes.
+  //
+  // The story is worth having the moment there is anything to go on, and the
+  // fast half of it — a table of times, coordinates and recorded stays — is
+  // one server call. So that runs on its own, and the reading of the
+  // photographs runs behind it and writes the trip again with what they
+  // showed.
+  //
+  // For a trip with no photographs the first pass is the whole thing, which
+  // is the case this used to have no answer for at all.
   async function itself() {
     setTrouble(null)
     try {
       const auth = await token()
       if (!auth) return
-      const worked = await quickly(auth)
-      await write(auth, worked)
-      // Then the slow half, on its own, and the story is rewritten when it
-      // lands. Nobody waits for this.
+      await build(auth)
       if (needsLooking(mine, 'low').length) await make()
     } catch (e) {
       setTrouble(e.message)
@@ -291,64 +332,27 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   }
 
   /**
-   * The story, from the trace alone. No photographs looked at.
+   * Work out what happened and write it — on the server, to completion.
    *
-   * This is the whole of what ChatGPT was given — a table of times and
-   * coordinates — and it is where nearly all of the reconstruction comes
-   * from. One call, half a minute, a few pence. Putting the image pass in
-   * front of it made somebody wait several minutes for a slower version of
-   * something that was already available immediately.
+   * Everything below this line used to happen here: build the trace, call
+   * the reconstruction, file the questions, call the writing, save the row.
+   * All of it depended on this tab staying awake for two or three minutes,
+   * and none of it needed to. Now it is one request that either finishes or
+   * says why, and the run survives a locked phone.
+   *
+   * It also fetches its own evidence, which is the part that matters for a
+   * trip this component cannot see: the entries, the flights, the recorded
+   * stays. Nothing about the reconstruction depends on what a browser
+   * happened to have loaded.
+   *
+   * @param only  dates to rewrite; empty rewrites the whole trip.
    */
-  async function quickly(auth) {
+  async function build(auth, only = []) {
     setStep('working it out')
-    const seen = mine.filter((p) => p.seen).map((p) => ({ id: p.id, ...p.seen }))
-    const trace = foldInto(traceOf(mine, trip, { flights, runs, zone, tracks, visits }), seen)
-    const worked = await post('reconstruct-trip', { trace, ...whatWeKnow() }, auth)
-    setReconstruction(worked)
-    await ask(worked)
-    return worked
-  }
-
-  /** Everything they have already told us, for the stage that decides what
-   *  happened. It used to reach only the writing, which meant the answers
-   *  never became part of the reconstruction and the same questions came
-   *  back on every run. */
-  function whatWeKnow() {
-    return {
-      // Their own entries, which the reconstruction was working without —
-      // so it asked where the trip began about a day they had written up.
-      theirs: theirWords(entries),
-      answered: confirmed(questions),
-      could_not_say: couldNotSay(questions),
-      already_asked: stillOpen(questions),
-    }
-  }
-
-  /** Whatever the reconstruction could not settle becomes a question.
-   *
-   *  Only once. The same gap in the trace prompts the same doubt on every
-   *  run, so without this a re-run files another near-copy of everything it
-   *  asked last time — twenty-one questions about a four-day trip, the first
-   *  evening near Santa Maria Maggiore asked about three separate times in
-   *  three different wordings. The reconstruction is now told what has
-   *  already been put to them; this is the second line of defence for when
-   *  it asks anyway. */
-  async function ask(worked) {
-    const asks = (worked.ask ?? []).filter((a) => a?.asks && !alreadyAsked(questions, a))
-    if (!asks.length) return false
-    const { data } = await supabase
-      .from('story_questions')
-      .insert(
-        asks.map((a) => ({
-          trip_id: trip.id,
-          on_date: a.on_date || null,
-          asks: a.asks,
-          because: a.because || null,
-        }))
-      )
-      .select()
-    setQuestions((q) => [...q, ...(data ?? [])])
-    return true
+    const out = await post('build-story', { trip_id: trip.id, only }, auth)
+    setStep('idle')
+    setRefresh((n) => n + 1)
+    return out
   }
 
   /** @param only  dates to rewrite; empty rewrites the whole trip. */
@@ -358,6 +362,9 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       const auth = await token()
       if (!auth) throw new Error('Sign in first.')
 
+      // The one stage still in the browser: it needs the photographs' own
+      // bytes and a lot of small parallel calls, and three hundred of them
+      // do not fit in a single server invocation.
       const cheap = await look(auth, 'low')
       const already = mine.filter((p) => p.seen).map((p) => ({ id: p.id, ...p.seen }))
       const everything = [...already, ...cheap]
@@ -366,81 +373,13 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       // rather than geometry: the awning is as likely to be in the shot
       // walking up to a place as in the four taken at the table.
       const worth = new Set(readingList(everything, { limit: 60 }).map(String))
-      if (worth.size) {
-        const second = await look(auth, 'high', worth)
-        for (const s of second) {
-          const at = everything.findIndex((e) => String(e.id) === String(s.id))
-          if (at >= 0) everything[at] = { ...everything[at], ...s }
-        }
-      }
+      if (worth.size) await look(auth, 'high', worth)
 
-      setStep('working it out')
-      const trace = foldInto(traceOf(mine, trip, { flights, runs, zone, tracks, visits }), everything)
-      const worked = await post('reconstruct-trip', { trace, ...whatWeKnow() }, auth)
-      setReconstruction(worked)
-
-      // A day-scoped rebuild stays day-scoped only while the trip's own
-      // threads hold. If the new photographs changed what the trip was
-      // about — a fourth crossing of a square that three chapters call the
-      // third — the chapters leaning on it are stale, and the honest answer
-      // is to write the trip again rather than leave a sentence that has
-      // quietly become untrue.
-      const scope = widerThanADay(story?.reconstruction, worked) ? [] : only
-
-      // Anything only they can settle is written down and asked — and then
-      // it writes anyway.
-      //
-      // This used to stop here and wait. It meant a re-run produced no story
-      // at all: the reconstruction always finds something to ask about, so
-      // the run halted every time on a question nobody had answered, and the
-      // last story on file stayed as it was. Four runs over one trip in Rome
-      // and not one of them wrote a word — from the outside, a button that
-      // did nothing.
-      //
-      // A question is worth asking. It is not worth withholding the story
-      // over. It gets written from what is known, the questions sit above it
-      // waiting, and an answer rewrites it.
-      await ask(worked)
-      await write(auth, worked, scope)
+      await build(auth, only)
     } catch (e) {
       setTrouble(e.message)
       setStep('idle')
     }
-  }
-
-  /** @param only  dates to rewrite; empty means the whole trip. */
-  async function write(auth, worked, only = []) {
-    setStep('writing')
-    const written = await post(
-      'write-trip',
-      {
-        only,
-        reconstruction: {
-          ...worked,
-          // What they told us outranks everything else in here.
-          answered: confirmed(questions),
-          // And what they were asked but could not say, so a gap is admitted
-          // rather than filled.
-          could_not_say: couldNotSay(questions),
-        },
-        theirs: theirWords(entries),
-        voice: learnVoice ? entries.filter((e) => !e.built_from).map((e) => e.note).filter(Boolean) : [],
-      },
-      auth
-    )
-    const row = storyRow(trip, written, worked, { voice: learnVoice ? 'theirs' : 'narrator' })
-    // A day's rewrite is spliced into the story rather than replacing it.
-    // The other chapters are kept word for word — they were already read,
-    // and the writing is not deterministic enough to redo them for free.
-    if (only.length) {
-      row.chapters = spliceChapters(story?.chapters ?? [], written.days ?? [])
-      row.opening = written.opening ?? story?.opening ?? null
-      row.closing = written.closing ?? story?.closing ?? null
-    }
-    const { error } = await supabase.from('trip_stories').upsert(row, { onConflict: 'trip_id' })
-    if (error) throw new Error(error.message)
-    setStep('idle')
-    setRefresh((n) => n + 1)
   }
 
   // An open question deserves an open answer.
@@ -461,33 +400,36 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     setQuestions((all) => all.map((x) => (x.id === q.id ? { ...x, ...row } : x)))
   }
 
-  /** Write it again with what they have just told us. The reconstruction is
-   *  kept on the story row, so this works after a reload too — otherwise
-   *  answering a question the day after it was asked had nothing to write
-   *  from. */
   /** Not now. Recorded as unanswered-on-purpose so it stops being asked,
    *  and so the writing admits the gap rather than inventing something. */
   async function skip(q) {
     await answer(q, { verdict: 'unsure' })
   }
 
+  /** Write it again with what they have just told us.
+   *
+   *  This used to skip the reconstruction and go straight to the writing,
+   *  which was a saving made in the wrong place: an answer is evidence about
+   *  what happened, not decoration on the prose. "A pasta-making course at
+   *  Eatalian Cooks, then dinner" should settle the episode, not be dropped
+   *  into a chapter built around a gap. So it runs the whole thing, and the
+   *  answer reaches the stage that decides what the evening was. */
   async function carryOn() {
     setTrouble(null)
     try {
       const auth = await token()
-      const worked = reconstruction ?? story?.reconstruction
-      if (!worked) {
-        await make()
-        return
-      }
-      await write(auth, worked)
+      if (!auth) throw new Error('Sign in first.')
+      await build(auth)
     } catch (e) {
       setTrouble(e.message)
       setStep('idle')
     }
   }
 
-  if (!trip?.id || !mine.length) return null
+  // Nothing recorded at all — no photographs, no places, no entries, no
+  // flights. Not a trip that failed to be written; a trip that has not
+  // happened yet.
+  if (!trip?.id || !have.enough) return null
 
   const asking = worthAsking(questions)
   const cost = whatItCosts(mine, 'low')
@@ -535,10 +477,20 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   // Answered something since this was last written? Offer to fold it in.
   const toFold = story && confirmed(questions).length > 0 && step === 'idle'
 
-  if (step !== 'idle') {
+  // A run this tab did not start: another device, or this one before the
+  // phone locked. Saying so is the whole point of moving the run out of the
+  // browser — coming back to the app mid-run should show progress rather
+  // than an idle screen that quietly starts a second one.
+  const elsewhere = step === 'idle' && running(run)
+
+  if (step !== 'idle' || elsewhere) {
+    // The server knows which stage it is on; the browser only knows it is
+    // waiting. Reading the photographs is the exception — that is still here,
+    // and it is the one with a count worth showing.
+    const doing = step === 'looking' ? step : run?.step || (step === 'idle' ? 'working it out' : step)
     return (
       <div className="story">
-        <div className="story-doing">{howFar(step, done, total)}</div>
+        <div className="story-doing">{howFar(doing, done, total)}</div>
         {asks}
         {trouble && <div className="story-trouble">{trouble}</div>}
         {written && <div className="story-sofar">{written}</div>}

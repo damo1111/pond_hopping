@@ -267,6 +267,41 @@ function inTheirVoice(samples = []) {
   )
 }
 
+/**
+ * The writing, with no HTTP around it, so the server-side runner can reach
+ * it without posting to its own deployment.
+ *
+ * @returns { opening, days, closing, voiced }. Throws with a readable message.
+ */
+export async function writeUp({ reconstruction, theirs = {}, voice = [], only = [] } = {}) {
+  if (!reconstruction?.days?.length) throw new Error('reconstruction required')
+  if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY is not configured')
+
+  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  const r = await client.chat.completions.create({
+    model: MODEL,
+    response_format: { type: 'json_object' },
+    // Reasoning counts against this, and a whole trip of chapters is the
+    // longest thing the app asks anybody to write. Room for a dozen days
+    // at a thousand words each, plus the thinking to get there.
+    max_completion_tokens: 32000,
+    messages: [
+      { role: 'system', content: RULES + onlyThese(only) + inTheirVoice(voice) + keepTheirs(theirs) },
+      { role: 'user', content: JSON.stringify(reconstruction) },
+    ],
+  })
+  const raw = r.choices[0]?.message?.content?.trim()
+  if (!raw) throw new Error('nothing came back')
+  const out = JSON.parse(raw)
+  if (!Array.isArray(out.days)) throw new Error('no days came back')
+  return {
+    opening: out.opening ?? null,
+    days: out.days,
+    closing: out.closing ?? null,
+    voiced: voice.length >= VOICE_NEEDS,
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
@@ -288,35 +323,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-    const r = await client.chat.completions.create({
-      model: MODEL,
-      response_format: { type: 'json_object' },
-      // Reasoning counts against this, and a whole trip of chapters is the
-      // longest thing the app asks anybody to write. Room for a dozen days
-      // at a thousand words each, plus the thinking to get there.
-      max_completion_tokens: 32000,
-      messages: [
-        { role: 'system', content: RULES + onlyThese(only) + inTheirVoice(voice) + keepTheirs(theirs) },
-        { role: 'user', content: JSON.stringify(reconstruction) },
-      ],
-    })
-    const raw = r.choices[0]?.message?.content?.trim()
-    if (!raw) {
-      res.status(502).json({ error: 'nothing came back' })
-      return
-    }
-    const out = JSON.parse(raw)
-    if (!Array.isArray(out.days)) {
-      res.status(502).json({ error: 'no days came back' })
-      return
-    }
-    res.status(200).json({
-      opening: out.opening ?? null,
-      days: out.days,
-      closing: out.closing ?? null,
-      voiced: voice.length >= VOICE_NEEDS,
-    })
+    res.status(200).json(await writeUp({ reconstruction, theirs, voice, only }))
   } catch (e) {
     console.error(`write-trip: ${e.message}`)
     res.status(502).json({ error: e.message })
