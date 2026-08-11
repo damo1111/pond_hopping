@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import { thumb, coverUrl } from '../lib/imgTransform.js'
+import { applied } from '../lib/applied.js'
 import { spanOf } from '../lib/dateRange.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PhotoUpload from '../components/PhotoUpload.jsx'
@@ -179,9 +180,15 @@ export default function PhotosTab({ openPhotoId = null }) {
   async function removePhoto(photo) {
     if (!globalThis.confirm?.('Remove this photo from the trip? It stays in storage.')) return
     setRemoving(true)
-    const { error } = await supabase.from('photos').delete().eq('id', photo.id)
+    // .select() so the refusal is visible: without it a delete that RLS
+    // declines returns no error and no rows, and this took the photograph
+    // off the screen and put it back on the next load.
+    const done = applied(
+      await supabase.from('photos').delete().eq('id', photo.id).select('id'),
+      'that photo'
+    )
     setRemoving(false)
-    if (error) return alert(`Couldn't remove it: ${error.message}`)
+    if (!done.ok) return alert(done.why)
     setPhotos((rows) => rows.filter((r) => r.id !== photo.id))
     setLightbox(null)
   }
@@ -198,13 +205,17 @@ export default function PhotosTab({ openPhotoId = null }) {
   // trips.cover_photo_url is the column for this and was sitting empty.
   async function setAsCover(photo) {
     setSettingCover(true)
-    const { error } = await supabase
-      .from('trips')
-      .update({ cover_photo_url: photo.url })
-      .eq('id', photo.trip_id)
+    const done = applied(
+      await supabase
+        .from('trips')
+        .update({ cover_photo_url: photo.url })
+        .eq('id', photo.trip_id)
+        .select('id'),
+      'the cover'
+    )
     setSettingCover(false)
-    if (error) {
-      alert(`Couldn't set cover: ${error.message}`)
+    if (!done.ok) {
+      alert(done.why)
       return
     }
     setCovers((c) => ({ ...c, [photo.trip_id]: photo.url }))
@@ -220,9 +231,12 @@ export default function PhotosTab({ openPhotoId = null }) {
   async function toggleHighlight(photo) {
     const next = !photo.is_highlight
     setStarring(true)
-    const { error } = await supabase.from('photos').update({ is_highlight: next }).eq('id', photo.id)
+    const done = applied(
+      await supabase.from('photos').update({ is_highlight: next }).eq('id', photo.id).select('id'),
+      'that photo'
+    )
     setStarring(false)
-    if (error) return alert(`Couldn't change it: ${error.message}`)
+    if (!done.ok) return alert(done.why)
     setPhotos((rows) => rows.map((r) => (r.id === photo.id ? { ...r, is_highlight: next } : r)))
     setLightbox((l) => (l && l.id === photo.id ? { ...l, is_highlight: next } : l))
   }
