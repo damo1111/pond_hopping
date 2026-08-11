@@ -118,3 +118,49 @@ export function homePov(timeZone, altitude = 1.9) {
   const { lat, lng } = homeCoords(timeZone)
   return { lat, lng, altitude }
 }
+
+/**
+ * Where to point the globe so that what somebody can actually see is on it.
+ *
+ * The overview used to be a constant — lat -8, lng 122, which is Indonesia.
+ * It was tuned to one collection, and it was wrong for anybody else's: a
+ * signed-out visitor sees the two example trips, both of them in Europe, and
+ * the earth opened on an empty stretch of the Java Sea with nothing on it at
+ * all. The globe is the first thing anybody sees and it was pointing away
+ * from the only things it had to show.
+ *
+ * Longitude is averaged as an angle rather than a number, which is the part
+ * that is easy to get wrong and impossible to notice on one person's data. A
+ * trip to Auckland at 174° and one to Los Angeles at −118° average
+ * arithmetically to 28° — Egypt, a quarter of the world from either. Summing
+ * the unit vectors and taking the direction back out puts the camera in the
+ * Pacific, between them, which is where somebody standing back would be.
+ *
+ * @param points  [lat, lng] pairs — airports, stops, anywhere real
+ * @param fallback used when there is nothing to average
+ */
+export function overviewOf(points = [], fallback = null) {
+  const real = (points ?? []).filter(
+    (p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1])
+  )
+  if (!real.length) return fallback
+
+  const rad = Math.PI / 180
+  let x = 0
+  let y = 0
+  let lat = 0
+  for (const [a, o] of real) {
+    lat += a
+    x += Math.cos(o * rad)
+    y += Math.sin(o * rad)
+  }
+  // Every point diametrically opposed to another leaves no direction at all.
+  // Rare, and a real answer is not available — so say so rather than return
+  // an arbitrary meridian.
+  if (Math.abs(x) < 1e-9 && Math.abs(y) < 1e-9) return fallback
+
+  return {
+    lat: Math.round((lat / real.length) * 100) / 100,
+    lng: Math.round((Math.atan2(y, x) / rad) * 100) / 100,
+  }
+}

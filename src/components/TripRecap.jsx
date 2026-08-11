@@ -722,27 +722,41 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
                 goes somewhere, and the paragraph it follows is the reason
                 somebody would want to. */}
             <button className="recap-more" onClick={() => setLayer('journal')}>
-              read the whole thing →
+              read the whole thing
             </button>
           </p>
         )}
 
-        {/* Small, to the right, and absent when there is nothing to say.
-            A trip whose days have never been opened in the journal has no
-            cached weather and simply does not mention it. */}
-        {(warmth || skies) && (
-          <div className="recap-weather">
-            {skies} {warmth ? `${warmth.text} average` : null}
-          </div>
-        )}
+        {/* Where the trip was, and what the weather was doing there — one
+            row, because they are the same kind of fact and were reading as
+            two unrelated afterthoughts.
 
-        {stats.cities.length > 0 && (
-          <div className="recap-cities">
-            {stats.cities.map((c) => (
-              <span className="recap-city" key={c}>
-                {c}
-              </span>
-            ))}
+            The weather used to be its own block above this one, with no
+            horizontal padding of its own, so it sat hard against the card's
+            edge while the places were inset twenty pixels. Nothing lined up
+            with anything, and on a page whose whole argument is quiet
+            alignment that is the detail the eye goes to first.
+
+            Either half can be absent: a trip whose days have never been
+            opened in the journal has no cached weather, and a trip can have
+            no named cities. The row survives either way. */}
+        {(stats.cities.length > 0 || warmth || skies) && (
+          <div className="recap-where">
+            {stats.cities.length > 0 && (
+              <div className="recap-cities">
+                {stats.cities.map((c) => (
+                  <span className="recap-city" key={c}>
+                    {c}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {(warmth || skies) && (
+              <div className="recap-weather">
+                {skies} {warmth ? `${warmth.text} average` : null}
+              </div>
+            )}
           </div>
         )}
 

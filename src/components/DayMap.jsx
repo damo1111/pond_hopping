@@ -2,10 +2,36 @@ import { useEffect, useState } from 'react'
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup } from 'react-leaflet'
 import { supabase } from '../lib/supabase.js'
 import { words } from '../lib/sport.js'
+import { AIRPORT_COORDS } from '../lib/airportCoords.js'
 
 const INK = '#1A1611'
 const GOLD = '#A8842C'
 const GREEN = '#3E7D54'
+const SKY = '#4A6FA5'
+
+/**
+ * The day's flights, as legs between two known airports.
+ *
+ * The day nobody could see. A travel day is often the only one with no
+ * photographs, no recorded stops and no run — you are in a seat, not taking
+ * pictures — so every source this map had went quiet exactly on the day with
+ * the most geography in it. Rome's last day is Rome → London → Edinburgh and
+ * it drew nothing at all.
+ *
+ * Airports whose coordinates are not known are skipped rather than guessed:
+ * half a flight drawn from a real airport to an invented one is worse than
+ * no line.
+ */
+function legsOf(flights = []) {
+  return flights
+    .map((f) => {
+      const from = AIRPORT_COORDS[String(f.dep_airport ?? '').toUpperCase()]
+      const to = AIRPORT_COORDS[String(f.arr_airport ?? '').toUpperCase()]
+      if (!from || !to) return null
+      return { from, to, number: f.flight_number, dep: f.dep_airport, arr: f.arr_airport }
+    })
+    .filter(Boolean)
+}
 
 function fmtDur(min) {
   if (min >= 60) return `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`
@@ -61,6 +87,8 @@ export default function DayMap({ tripId, date }) {
   // were rather than only that you were somewhere. Dots are the basics; a
   // name against a dot is the point.
   const [named, setNamed] = useState([])
+  // Where the day went by air. See legsOf().
+  const [legs, setLegs] = useState([])
 
   useEffect(() => {
     let alive = true
@@ -88,7 +116,14 @@ export default function DayMap({ tripId, date }) {
         .not('lat', 'is', null)
         .order('taken_at'),
       supabase.from('trip_stories').select('reconstruction').eq('trip_id', tripId).maybeSingle(),
-    ]).then(([t, r, v, p, story]) => {
+      supabase
+        .from('flights')
+        .select('flight_number,dep_airport,arr_airport,dep_time')
+        .eq('trip_id', tripId)
+        .gte('dep_time', dayStart)
+        .lte('dep_time', dayEnd)
+        .order('dep_time'),
+    ]).then(([t, r, v, p, story, f]) => {
       if (!alive) return
       setTrack(t.data?.[0] ?? null)
       setRuns(r.data ?? [])
@@ -97,6 +132,9 @@ export default function DayMap({ tripId, date }) {
       // day is decided in too.
       setRecorded((v.data ?? []).filter((row) => localDay(row.arrived_at) === date).map(asVisit))
       setShots((p.data ?? []).map((row) => [row.lat, row.lon]))
+      // Same local-day test as the stops: a flight leaving Tokyo at eight in
+      // the morning departs the previous day in UTC.
+      setLegs(legsOf((f.data ?? []).filter((row) => localDay(row.dep_time) === date)))
       const day = (story.data?.reconstruction?.days ?? []).find((d) => d.date === date)
       setNamed(
         (day?.episodes ?? []).filter((e) => e?.where && e.lat != null && e.lon != null)
@@ -108,7 +146,8 @@ export default function DayMap({ tripId, date }) {
   }, [tripId, date])
 
   if (track === undefined) return <div className="daymap-loading">loading the day…</div>
-  if (!track && !runs.length && !recorded.length && !shots.length && !named.length) return null
+  if (!track && !runs.length && !recorded.length && !shots.length && !named.length && !legs.length)
+    return null
 
   const path = track?.path ?? []
   const visits = [...(track?.visits ?? []), ...recorded]
@@ -118,6 +157,7 @@ export default function DayMap({ tripId, date }) {
     ...runs.flatMap((r) => [r.coords[0], r.coords[r.coords.length - 1]]),
     ...shots,
     ...named.map((e) => [e.lat, e.lon]),
+    ...legs.flatMap((l) => [l.from, l.to]),
   ]
   if (!bounds.length) return null
 
@@ -165,6 +205,34 @@ export default function DayMap({ tripId, date }) {
             pathOptions={{ color: GOLD, fillColor: GOLD, fillOpacity: 0.85, weight: 0 }}
           />
         ))}
+
+        {/* The flights, and the airports at each end. Drawn under the
+            places so a day that has both reads as a day with a journey in
+            it rather than a day made of aeroplanes. */}
+        {legs.map((l, i) => (
+          <Polyline
+            key={`f${i}`}
+            positions={[l.from, l.to]}
+            pathOptions={{ color: SKY, weight: 2, opacity: 0.8, dashArray: '6 6' }}
+          >
+            <Popup>
+              <div className="world-pop">
+                <div className="world-pop-route">{l.dep} → {l.arr}</div>
+                {l.number && <div className="world-pop-flight">{l.number}</div>}
+              </div>
+            </Popup>
+          </Polyline>
+        ))}
+        {legs.flatMap((l, i) =>
+          [l.from, l.to].map((at, j) => (
+            <CircleMarker
+              key={`fa${i}-${j}`}
+              center={at}
+              radius={4}
+              pathOptions={{ color: SKY, fillColor: '#FFFFFF', fillOpacity: 1, weight: 2 }}
+            />
+          ))
+        )}
 
         {/* The places the day was actually made of, named. */}
         {named.map((e, i) => (
