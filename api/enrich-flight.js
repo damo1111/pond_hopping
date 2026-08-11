@@ -1,0 +1,120 @@
+// What somebody else knows about a flight you were on.
+//
+// One flight, one lookup, once ever. Historical flight data does not change,
+// so a flight that has been asked about is never asked again — which is what
+// keeps any paid source at one query per flight rather than one per view.
+//
+// The rules for what may be written live in src/lib/flightEnrich.js and are
+// deliberately not here: fill what is empty, keep what somebody recorded,
+// and where the two disagree keep both. You were on the aeroplane and the
+// API was not.
+//
+// AeroDataBox, through RapidAPI, because it has a free tier and returns the
+// same shape of fields a paid source would — so the swap later is a mapping,
+// not a rewrite. FLIGHT_API_KEY in Vercel.
+//
+// ── Reading a response before trusting it ─────────────────────────────────
+//
+// `?peek=1` returns whatever the source said, untouched, and writes nothing.
+// The mapping below was written against the documented shape; the peek is
+// how it gets checked against the real one before forty flights are filled
+// in from a guess. Delete neither the peek nor this paragraph until the
+// mapping has been confirmed against an actual answer.
+
+const HOST = 'aerodatabox.p.rapidapi.com'
+
+function ask(path) {
+  return fetch(`https://${HOST}${path}`, {
+    headers: {
+      'X-RapidAPI-Key': process.env.FLIGHT_API_KEY,
+      'X-RapidAPI-Host': HOST,
+    },
+  })
+}
+
+/**
+ * One flight's worth of answer, in this app's column names.
+ *
+ * Everything is optional and everything may be absent: a source that knows
+ * only the registration should fill only the registration, and one that
+ * knows nothing at all must return an empty object rather than a row of
+ * nulls — see enrichment(), which treats an empty answer as "not enriched"
+ * so that a bad afternoon for an API does not mark every flight done.
+ */
+export function mapAnswer(found = {}) {
+  const dep = found.departure ?? {}
+  const arr = found.arrival ?? {}
+  const out = {}
+
+  const put = (key, value) => {
+    if (value != null && value !== '') out[key] = value
+  }
+
+  put('registration', found.aircraft?.reg)
+  put('airline', found.airline?.name)
+  // Local and UTC are both offered; UTC is the one that means the same thing
+  // everywhere, and every time in this database is stored as an instant.
+  put('actual_dep_time', dep.runwayTime?.utc ?? dep.revisedTime?.utc)
+  put('actual_arr_time', arr.runwayTime?.utc ?? arr.revisedTime?.utc)
+  put('gate_dep', dep.gate)
+  put('gate_arr', arr.gate)
+  put('terminal_dep', dep.terminal)
+  put('terminal_arr', arr.terminal)
+  put('distance_km', found.greatCircleDistance?.km)
+  return out
+}
+
+/** Which of several answers is the flight somebody actually took. */
+export function pickLeg(list = [], flight = {}) {
+  const from = String(flight.dep_airport ?? '').toUpperCase()
+  if (!Array.isArray(list) || !list.length) return null
+  if (!from) return list[0]
+  return (
+    list.find((l) => String(l?.departure?.airport?.iata ?? '').toUpperCase() === from) ?? list[0]
+  )
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'POST only' })
+    return
+  }
+  if (!process.env.FLIGHT_API_KEY) {
+    res.status(500).json({ error: 'FLIGHT_API_KEY is not configured' })
+    return
+  }
+  if (!(req.headers.authorization || '').startsWith('Bearer ')) {
+    res.status(401).json({ error: 'sign in first' })
+    return
+  }
+
+  const { number, on, from } = req.body || {}
+  if (!number || !on) {
+    res.status(400).json({ error: 'number and on (YYYY-MM-DD) required' })
+    return
+  }
+
+  try {
+    const r = await ask(`/flights/number/${encodeURIComponent(number)}/${encodeURIComponent(on)}`)
+    const said = await r.text()
+    if (!r.ok) {
+      // 204 is the source saying it has no record of that flight on that
+      // date, which is an answer rather than a failure — and on a free tier
+      // it is also how "outside my historical window" arrives.
+      res.status(200).json({ found: false, status: r.status, said: said.slice(0, 300) })
+      return
+    }
+
+    const list = JSON.parse(said || '[]')
+    if (req.query?.peek) {
+      res.status(200).json({ peek: true, count: Array.isArray(list) ? list.length : 0, raw: list })
+      return
+    }
+
+    const leg = pickLeg(list, { dep_airport: from })
+    res.status(200).json({ found: !!leg, fields: leg ? mapAnswer(leg) : {} })
+  } catch (e) {
+    console.error(`enrich-flight: ${e.message}`)
+    res.status(502).json({ error: e.message })
+  }
+}
