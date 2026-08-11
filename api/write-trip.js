@@ -157,15 +157,24 @@ across twelve hours is somewhere around eight hundred to twelve hundred
 words, with every one of those places in it. A day with two flights and
 twenty-eight photographs is two or three hundred. If a dense day comes out
 at three hundred words, you have written a summary of it and thrown the day
-away. A day with a dozen episodes earns
-several hundred words; a travel day with a flight and a hotel earns a couple
-of paragraphs.
+away.
+
+The reconstruction gives you episodes. Roughly a hundred words each is the
+right density — ten episodes is a thousand words, and if ten episodes came
+out as four hundred you have listed them rather than told them.
 
 If you have been given a sample of how this person writes, match their
 vocabulary and their rhythm — never their length. Somebody whose own entries
 are one line long has not asked for a one-line chapter; they wrote briefly in
 a text box, which is a fact about text boxes. Never write less because they
 write short.
+
+EVERY DAY
+
+One chapter for every day in the reconstruction, in order, none left out. A
+day with a flight and almost no photographs still gets its paragraph — it
+was a day of the trip and its absence is more conspicuous than its
+thinness. Never silently drop one because there is little to say.
 
 RETURN
 
@@ -239,6 +248,10 @@ export default async function handler(req, res) {
     const r = await client.chat.completions.create({
       model: MODEL,
       response_format: { type: 'json_object' },
+      // Reasoning counts against this, and a whole trip of chapters is the
+      // longest thing the app asks anybody to write. Room for a dozen days
+      // at a thousand words each, plus the thinking to get there.
+      max_completion_tokens: 32000,
       messages: [
         { role: 'system', content: RULES + inTheirVoice(voice) + keepTheirs(theirs) },
         { role: 'user', content: JSON.stringify(reconstruction) },
