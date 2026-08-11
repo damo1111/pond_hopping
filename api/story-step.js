@@ -44,6 +44,22 @@ import { howItWent, newQuestions } from '../src/lib/storyBuild.js'
 // this worker without having been through it. This carries out a decision;
 // it does not make one.
 
+// The limit this needs is declared in vercel.json, not here, and it is the
+// one thing about this file that is easy to get wrong.
+//
+// A tick that only looks at ten photographs is quick. A tick that finds
+// nothing left to look at does the reconstruction and the writing in the
+// same invocation — the two calls that needed the full five minutes when
+// they lived in build-story.js. reconstruct-trip.js and write-trip.js have
+// their own 300 in vercel.json and it does not help: this imports their
+// functions and runs them inside its own invocation, under its own limit.
+//
+// Without an entry of its own this ran on the default. The seeing would
+// have looked fine and the writing would have timed out every time, and
+// because a failed tick leaves the run unfinished on purpose, cron would
+// have retried the most expensive call in the app every two minutes until
+// the run was abandoned.
+
 /** One batch a tick. Comfortably inside the limit, and small enough that a
  *  failure costs ten photographs rather than three hundred. */
 export const PER_TICK = BATCH
