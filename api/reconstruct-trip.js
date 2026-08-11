@@ -164,6 +164,7 @@ export default async function handler(req, res) {
     const r = await client.chat.completions.create({
       model: MODEL,
       response_format: { type: 'json_object' },
+      max_completion_tokens: 32000,
       messages: [
         { role: 'system', content: RULES },
         { role: 'user', content: JSON.stringify(trace) },
