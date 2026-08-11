@@ -10073,3 +10073,107 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   padding-top: 18px;
   border-top: 1px solid var(--hairline, #e7e2da);
 }
+
+/* ── Forwarding a booking in ───────────────────────────────────────────────
+   The address has to be the most legible thing in the sheet: it is what
+   somebody is about to retype into their mail app if the copy button does
+   not work on their phone. Monospace, full size, never truncated. */
+.fwd {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  padding: 13px;
+  margin-bottom: 14px;
+}
+
+.fwd-lead {
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--text);
+  margin-bottom: 9px;
+}
+
+.fwd-address {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  background: var(--card, #fff);
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  padding: 11px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.fwd-address-text {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.fwd-copy {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.fwd-open {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--accent);
+  padding: 11px;
+}
+
+.fwd-note {
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.fwd-note strong {
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.fwd-another {
+  margin-top: 10px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.fwd-add { margin-top: 10px }
+.fwd-add-buttons { display: flex; gap: 8px; margin-top: 8px }
+
+.fwd-trouble {
+  margin-top: 9px;
+  font-size: 0.82rem;
+  color: var(--danger, #a3412f);
+}
+
+/* Between the two ways of doing this, so neither reads as the fine print
+   of the other. */
+.gm-or {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 10px;
+}
