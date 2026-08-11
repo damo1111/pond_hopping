@@ -161,7 +161,10 @@ export default function PlanTab() {
   function loadDrafts() {
     supabase
       .from('trips')
-      .select('id,slug,title,subtitle,start_date,end_date,countries,sort_order,traveler')
+      // is_demo, or the lane cannot know an example is one — the sash was
+      // added to PlanCard and could never render because the flag it reads
+      // was not among the columns asked for.
+      .select('id,slug,title,subtitle,start_date,end_date,countries,sort_order,traveler,is_demo')
       .eq('status', 'draft')
       .order('sort_order', { ascending: true })
       .then(({ data }) => {

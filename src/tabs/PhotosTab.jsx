@@ -373,7 +373,16 @@ export default function PhotosTab({ openPhotoId = null }) {
                 toggleHighlight(lightbox)
               }}
             >
-              {starring ? 'saving…' : lightbox.is_highlight ? '★ in the recap' : '☆ show in the recap'}
+              {/* A status, where it needed to be an action. "★ in the recap"
+                  is true and tells you nothing about what tapping it does,
+                  so there appeared to be no way to take a picture back out
+                  — the button was already the way, and said so in the past
+                  tense. */}
+              {starring
+                ? 'saving…'
+                : lightbox.is_highlight
+                  ? '★ remove from the recap'
+                  : '☆ show in the recap'}
             </button>
             <button
               className="lb-cover-btn"

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
 import { spanOf } from '../lib/dateRange.js'
 import { summaryOf } from '../lib/tripSummary.js'
+import { forRecap, nextTurn } from '../lib/recapPhotos.js'
 import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
 import { tripColor } from '../lib/tripColors.js'
@@ -103,6 +104,8 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
   const [isPublic, setIsPublic] = useState(trip?.is_public !== false)
   const [askPublic, setAskPublic] = useState(false)
   const [findingBookings, setFindingBookings] = useState(false)
+  // Which turn through the starred photographs this opening gets.
+  const [turn] = useState(() => nextTurn(trip?.id))
   const [publishing, setPublishing] = useState(false)
   // How far the sheet has been pulled down, in px. The handle was drawn as an
   // affordance the sheet didn't honour: it looks like something you can pull,
@@ -422,7 +425,10 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
             .neq('kind', 'receipt')
             .order('is_highlight', { ascending: false })
             .order('taken_on', { ascending: true })
-            .limit(12),
+            // More than fits, because starring the thirteenth photograph
+            // used to do nothing at all — the twelve were chosen at the
+            // database and the rest were never fetched. See recapPhotos.js.
+            .limit(120),
           take: (p) => ({ photos: p.data ?? [] }),
         },
         {
@@ -474,6 +480,10 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
 
   const stats = recapStats({ trip, ...(data ?? {}) })
   const summary = summaryOf(data?.story, data?.cached)
+  // Twelve of them, rotated where somebody starred more. Decided once per
+  // opening rather than per render: a grid that reshuffles while you are
+  // looking at it is worse than one that never changes.
+  const shown = forRecap(data?.photos, turn)
 
   // The cover, in order of how much it is really this trip's: one chosen
   // deliberately, then the best of its own photographs, then none.
@@ -678,7 +688,7 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           </div>
         )}
 
-        {data?.photos?.length > 0 && (
+        {shown.length > 0 && (
           /* Every photograph on this page is now a way in to the rest of
              them. It looked tappable and wasn't, which on a page whose
              figures are all buttons reads as broken rather than decorative
@@ -688,7 +698,7 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
              returned to the grid to find again what you just pointed at is
              the small insult that makes people stop tapping. */
           <div className="recap-photos">
-            {data.photos.map((p) => (
+            {shown.map((p) => (
               <button
                 key={p.url}
                 type="button"
