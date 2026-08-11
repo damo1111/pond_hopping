@@ -82,7 +82,38 @@ export function hamming(a, b) {
  *
  * @returns groups of two or more, largest first
  */
-export function groupSame(photos = [], within = SAME_PICTURE) {
+/** How far apart a burst may be, given that it was a burst.
+ *
+ *  Perceptual distance alone cannot separate "the same photograph twice"
+ *  from "two photographs of the same fountain": both land in the teens. On a
+ *  real trip of a hundred and three pictures, nothing at all was within
+ *  twelve, and of the pairs between thirteen and eighteen, eleven were taken
+ *  within ninety seconds of each other — one pair in the same instant — and
+ *  eleven were hours apart.
+ *
+ *  So the second number is time. Two pictures this alike, taken a minute
+ *  apart, are somebody holding the shutter down. The same two taken on
+ *  different afternoons are two visits to the same place, and offering to
+ *  delete one of those is the failure worth avoiding. */
+export const SAME_BURST = 18
+export const BURST_SECONDS = 90
+
+const when = (p) => (p?.taken_at ? Date.parse(p.taken_at) : NaN)
+
+/** Are these two the same photograph, by distance or by distance and time? */
+export function sameShot(a, b, { within = SAME_PICTURE, burst = SAME_BURST, seconds = BURST_SECONDS } = {}) {
+  const apart = hamming(a.phash, b.phash)
+  if (apart <= within) return true
+  if (apart > burst) return false
+  const ta = when(a)
+  const tb = when(b)
+  // No time on either is no evidence of a burst, so the tighter test stands.
+  if (!Number.isFinite(ta) || !Number.isFinite(tb)) return false
+  return Math.abs(ta - tb) <= seconds * 1000
+}
+
+export function groupSame(photos = [], opts = {}) {
+  const how = typeof opts === 'number' ? { within: opts } : opts
   const usable = photos.filter((p) => typeof p?.phash === 'string' && p.phash.length === 16)
   const taken = new Set()
   const groups = []
@@ -93,7 +124,7 @@ export function groupSame(photos = [], within = SAME_PICTURE) {
     taken.add(seed.id)
     for (const other of usable) {
       if (taken.has(other.id)) continue
-      if (hamming(seed.phash, other.phash) <= within) {
+      if (sameShot(seed, other, how)) {
         group.push(other)
         taken.add(other.id)
       }

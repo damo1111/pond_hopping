@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { H, SAME_PICTURE, W, dhash, greyscale, groupSame, hamming, pickKeeper } from './phash.js'
+import { H, SAME_PICTURE, W, dhash, greyscale, groupSame, hamming, pickKeeper, sameShot } from './phash.js'
 
 // A gradient left to right: every pixel is brighter than the one to its
 // right is false everywhere, so every bit is 0.
@@ -110,4 +110,57 @@ test('an even match falls to whichever arrived first', () => {
 test('the threshold is a real number of bits, not a fraction', () => {
   assert.ok(SAME_PICTURE > 0 && SAME_PICTURE < 64)
   assert.equal(W * H, 72)
+})
+
+// ── The same photograph twice, versus the same fountain twice ─────────────
+//
+// Measured on a real trip: of a hundred and three pictures, nothing at all
+// was within twelve bits. Of the pairs between thirteen and eighteen,
+// eleven were taken within ninety seconds and eleven were hours apart.
+
+const shot = (id, phash, taken_at) => ({ id, phash, taken_at })
+
+// Sixteen hex characters; these differ in a handful of bits.
+const A = 'f0f0f0f0f0f0f0f0'
+const NEAR = 'f0f0f0f0f0f0f0f3' // two bits away
+const TEENS = 'f0f0f0f0f3f3ff3f' // fourteen bits — genuinely in the teens
+
+test('a resave is the same photograph whenever it was taken', () => {
+  const groups = groupSame([
+    shot(1, A, '2024-01-23T12:00:00Z'),
+    shot(2, NEAR, '2024-06-01T12:00:00Z'),
+  ])
+  assert.equal(groups.length, 1)
+})
+
+test('a burst is the same photograph, though it is further apart', () => {
+  assert.equal(
+    sameShot(shot(1, A, '2024-01-23T12:00:00Z'), shot(2, TEENS, '2024-01-23T12:00:04Z')),
+    true
+  )
+})
+
+test('the same scene on two afternoons is two photographs', () => {
+  // The failure worth avoiding: offering to delete one of these.
+  assert.equal(
+    sameShot(shot(1, A, '2024-01-23T09:00:00Z'), shot(2, TEENS, '2024-01-23T16:00:00Z')),
+    false
+  )
+})
+
+test('without a time there is no evidence of a burst, so the tight test stands', () => {
+  assert.equal(sameShot(shot(1, A, null), shot(2, TEENS, null)), false)
+  assert.equal(sameShot(shot(1, A, null), shot(2, NEAR, null)), true)
+})
+
+test('too far apart is too far apart, however close in time', () => {
+  assert.equal(
+    sameShot(shot(1, A, '2024-01-23T12:00:00Z'), shot(2, '0f0f0f0f0f0f0f0f', '2024-01-23T12:00:01Z')),
+    false
+  )
+})
+
+test('a number still works where one used to be passed', () => {
+  // groupSame(photos, 12) was the old shape and is called that way.
+  assert.equal(groupSame([shot(1, A, null), shot(2, NEAR, null)], 12).length, 1)
 })
