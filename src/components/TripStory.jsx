@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { daysAdded, confirmed, howFar, whatItCosts, worthAsking } from '../lib/storyRun.js'
 import { running, whatThereIs } from '../lib/storyBuild.js'
+import { callApi } from '../lib/apiBase.js'
+import { oops } from '../lib/analytics.js'
 
 /** One question, answered in words.
  *
@@ -247,7 +249,7 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   // time, the model refused, and the key is missing. Everything else at
   // least says its status and the first line of what came back.
   async function post(where, body, auth) {
-    const r = await fetch(`/api/${where}`, {
+    const r = await callApi(`/api/${where}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
       body: JSON.stringify(body),
@@ -255,6 +257,7 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     if (r.ok) return r.json()
 
     const said = await r.text().catch(() => '')
+    oops('story', { message: `${where} answered ${r.status}` }, said.slice(0, 300))
     let why = ''
     try {
       why = JSON.parse(said)?.error ?? ''

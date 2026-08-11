@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase.js'
-import { API_BASE } from '../../lib/apiBase.js'
+import { callApi } from '../../lib/apiBase.js'
 import { getGoogleToken } from '../../lib/google.js'
 import { KIND_META } from '../../lib/planItems.js'
 import SheetGrip from '../SheetGrip.jsx'
@@ -35,7 +35,7 @@ export default function GmailImport({ trip, onClose, onImported }) {
     if (!text.trim()) return
     setState('working')
     try {
-      const r = await fetch(`${API_BASE}/api/parse-booking`, {
+      const r = await callApi(`/api/parse-booking`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, start: trip.start_date, end: trip.end_date }),
@@ -54,7 +54,7 @@ export default function GmailImport({ trip, onClose, onImported }) {
     if (!token) return
     setState('working')
     try {
-      const r = await fetch(`${API_BASE}/api/gmail-scan`, {
+      const r = await callApi(`/api/gmail-scan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accessToken: token, start: trip.start_date, end: trip.end_date }),

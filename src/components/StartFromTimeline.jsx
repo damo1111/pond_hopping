@@ -11,6 +11,7 @@ import {
 import { slugify } from '../lib/tripFromPhotos.js'
 import TrackPlaces from './TrackPlaces.jsx'
 import SheetGrip from './SheetGrip.jsx'
+import { track } from '../lib/analytics.js'
 
 // "Every trip I've ever taken."
 //
@@ -101,6 +102,7 @@ export default function StartFromTimeline({ onDone, onClose }) {
     existing.some((h) => h.start_date <= (t.end || t.start) && (h.end_date ?? h.start_date) >= t.start)
 
   async function create() {
+    track('trip_from_timeline', { trips: picked.length })
     setPhase('saving')
     setError(null)
     setProgress({ done: 0, total: picked.length })

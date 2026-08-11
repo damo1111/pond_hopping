@@ -5,7 +5,7 @@ import { backfill } from '../lib/flightBackfill.js'
 import { REACH } from '../lib/flightEnrich.js'
 import { queued, sendOriginal } from '../lib/photoIngest.js'
 import { summarise } from '../lib/originals.js'
-import { API_BASE } from '../lib/apiBase.js'
+import { callApi } from '../lib/apiBase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import {
   visitStatus,
@@ -162,7 +162,7 @@ function InviteForm({ onInvited }) {
     let delivered = false
     try {
       const { data: s } = await supabase.auth.getSession()
-      const res = await fetch(`${API_BASE}/api/send-invite`, {
+      const res = await callApi(`/api/send-invite`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -355,6 +355,76 @@ function ConnectCard() {
       <div className="account-hint">Both links contain a private key — treat them like a password.</div>
     </div>
   )
+}
+
+// What is broken, for whoever runs the app.
+//
+// The app white-screened on every load for hours on 11 August and the way
+// anybody found out was a screenshot. Faults are recorded now — but a table
+// nobody opens is storage, not tracking, so here is the table, in the app,
+// on the screen the owner already visits.
+//
+// Grouped by build on purpose. "Something is broken" and "something broke in
+// the deploy an hour ago" are different sentences, and only the second one
+// tells you what to do about it.
+function BrokenCard() {
+  const [rows, setRows] = useState(null)
+  const [open, setOpen] = useState(null)
+
+  useEffect(() => {
+    // Refused for anybody who is not an admin, by the function rather than
+    // by this component — so a missing check here cannot leak anything.
+    supabase.rpc('what_is_broken', { p_since: '14 days' }).then(({ data }) => setRows(data ?? []))
+  }, [])
+
+  if (rows === null || (rows.length === 0 && !thisBuild)) return null
+
+  return (
+    <section className="account-card">
+      <div className="account-card-title">What is broken</div>
+      {rows.length === 0 ? (
+        <div className="account-card-body">
+          Nothing reported in the last fortnight. This build is {thisBuild}.
+        </div>
+      ) : (
+        <ul className="broken-list">
+          {rows.map((r, i) => (
+            <li key={i} className={`broken${r.build === thisBuild ? ' broken--now' : ''}`}>
+              <button className="broken-head" onClick={() => setOpen(open === i ? null : i)}>
+                <span className="broken-kind">{r.kind}</span>
+                <span className="broken-what">{r.message}</span>
+                <span className="broken-count">
+                  {r.people} {r.people === 1 ? 'person' : 'people'} · {r.times}×
+                </span>
+              </button>
+              {open === i && (
+                <div className="broken-more">
+                  <div className="broken-when">
+                    build {r.build ?? 'unknown'} · first {whenish(r.first_at)} · last{' '}
+                    {whenish(r.last_at)}
+                  </div>
+                  {r.where_at && <pre className="broken-where">{r.where_at}</pre>}
+                  {r.stack && <pre className="broken-stack">{r.stack}</pre>}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+const thisBuild = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'
+
+function whenish(iso) {
+  if (!iso) return 'never'
+  const mins = Math.round((Date.now() - Date.parse(iso)) / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins} min ago`
+  const hours = Math.round(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.round(hours / 24)}d ago`
 }
 
 // Which trips the whole app offers as its example. Only whoever runs the
@@ -682,7 +752,7 @@ function FlightSourceCard() {
 
       const tally = await backfill(flights ?? [], {
         ask: async (f) => {
-          const r = await fetch('/api/enrich-flight', {
+          const r = await callApi('/api/enrich-flight', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({
@@ -1061,6 +1131,7 @@ function SignedIn() {
       <ConnectCard />
 
       <DemoCard />
+      <BrokenCard />
       <ExamplesCard />
       <OriginalsCard />
       <PushCard />

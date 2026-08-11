@@ -142,6 +142,60 @@ zone-crossing flight is the import's fault rather than the airline's.
 
 ---
 
+## 1d. Knowing what people do, and when it breaks
+
+**Half built. The capture layer is done; the coverage is not.**
+
+The app white-screened on every load for hours on 11 August and the way
+anybody found out was a screenshot. The error boundary did its job and then
+wrote the reason to a console on somebody else's phone. There was no record
+that it had happened, to how many people, on which build, or since when.
+
+And the usage log was three events — the app opening, a tab, a trip — which
+answers "is anybody using it" and nothing else. It could not say where
+somebody gave up in onboarding, whether an upload finished, or how long a
+story took.
+
+**What exists now.**
+
+- `app_events` gains `user_id` and `build`. Every event carries which shell
+  it came from and which tab it happened on.
+- `app_errors`, written only through `note_error()` and read only through
+  `what_is_broken()`. **No RLS policies at all** — no direct insert, no
+  direct select, from any key. Deduplicated on
+  `(session, kind, build, message)` with a count, so a render loop is one
+  row saying 400 rather than 400 rows. A new build is a new row on purpose.
+- `oops()` goes out as a **bare fetch to PostgREST**, no client library
+  underneath it, because a crash report is produced at the moment the app is
+  least able to do anything — supabase-js may be what broke.
+- `window.onerror`, `unhandledrejection`, failed asset loads, and
+  `Boundary.componentDidCatch` with the component stack.
+- `callApi()` — every one of our own endpoints, with failures recorded and
+  timings on the ones that call a model.
+- A **What is broken** card in Account, admin-only, loud for the running
+  build and quiet for history.
+- Events queue in `sessionStorage` when offline and flush on reconnect,
+  carrying their real time. This is an app for people on aeroplanes.
+
+**What is instrumented.** Boot (with time-to-first-render and shell), sign
+in as three separate steps, onboarding through to done, trip creation from
+photographs and from a Timeline, uploads start-to-finish with counts and
+duration, story failures, API failures, crashes.
+
+**What is not, and should be.** Journal writing, the planner, sharing, the
+demo tour, flight triage, the photo grid, the install prompt, asking for
+push permission, and the moment a signed-out visitor hits the "this trip
+isn't yours" wall — which is the single most interesting event in the app
+and is currently invisible.
+
+**The next real step is a notification, not a screen.** A card in Account
+only helps somebody who thinks to open it. `pg_cron` already ticks and the
+push endpoint already exists: a job that fires once when a *new* fault
+appears on the *current* build would have turned six hours of downtime into
+six minutes. Once per fault per build, or it becomes noise and gets muted.
+
+---
+
 ## 2. Re-ordering photographs
 
 **For marketing. There is no way to do this today.**

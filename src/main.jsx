@@ -3,8 +3,15 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import Boundary from './components/Boundary.jsx'
 import { AuthProvider } from './lib/AuthContext.jsx'
+import { watchForTrouble } from './lib/analytics.js'
 import 'leaflet/dist/leaflet.css'
 import './styles/globals.css'
+
+// Before anything renders, and before the service worker below, because the
+// failure this exists for is an exception thrown during the very first
+// render. That is what white-screened the app on 11 August, and the only
+// way anybody found out was a screenshot.
+watchForTrouble()
 
 // The service worker already skipWaiting()/clientsClaim()s on a new
 // deploy, but an already-open tab keeps running its old in-memory JS

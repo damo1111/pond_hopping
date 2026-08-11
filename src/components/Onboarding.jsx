@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
+import { track } from '../lib/analytics.js'
 
 // First run, for someone who isn't David. The problem this solves isn't
 // "explain the app" — it's that a travel log with nothing in it is
@@ -43,6 +44,7 @@ export default function Onboarding({ onDone }) {
   }, [user?.email])
 
   function copy(what, text) {
+    track('onboarding_copied', { what })
     navigator.clipboard?.writeText(text)
     setCopied(what)
     setTimeout(() => setCopied(null), 1800)
@@ -50,6 +52,10 @@ export default function Onboarding({ onDone }) {
 
   async function finish() {
     setSaving(true)
+    // The last step of the only sequence everybody goes through, and until
+    // now the app could not tell somebody who finished it from somebody who
+    // closed it halfway.
+    track('onboarding_done', { partner: Boolean(partner.trim()) })
     await supabase
       .from('profiles')
       .update({

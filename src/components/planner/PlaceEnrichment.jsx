@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { API_BASE } from '../../lib/apiBase.js'
+import { callApi } from '../../lib/apiBase.js'
 
 // The antidote to the bare edit form: fetch what Foursquare knows about
 // this place and lead with it — a real photo, its rating, and a handful of
@@ -22,7 +22,7 @@ export default function PlaceEnrichment({ name, city, onAddNearby }) {
     let alive = true
     const q = new URLSearchParams({ name })
     if (city) q.set('city', city)
-    fetch(`${API_BASE}/api/place-enrich?${q}`)
+    callApi(`/api/place-enrich?${q}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r)))
       .then((d) => alive && setData(d.place ? d : null))
       .catch(() => alive && setData(null))

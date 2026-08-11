@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import CountryFlags from './CountryFlags.jsx'
 import TrackPlaces, { offersTracking } from './TrackPlaces.jsx'
 import { supabase } from '../lib/supabase.js'
-import { API_BASE } from '../lib/apiBase.js'
+import { callApi } from '../lib/apiBase.js'
 import Penning from './Penning.jsx'
 
 const SpeechRecognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)
@@ -208,7 +208,7 @@ export default function PlanChat({ tripId, traveler = 'both', autoSend, seedMess
       // required for member-gated (private) trips, harmless otherwise.
       const { data: sess } = await supabase.auth.getSession()
       const token = sess?.session?.access_token
-      const res = await fetch(`${API_BASE}/api/plan-chat`, {
+      const res = await callApi(`/api/plan-chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ message: trimmed, threadId, tripId: activeTripId, traveler }),

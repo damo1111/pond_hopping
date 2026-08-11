@@ -6,6 +6,7 @@ import { savingsLabel } from '../lib/photoResize.js'
 import { clusterPhotos, looksOngoing, slugify, suggestTitle } from '../lib/tripFromPhotos.js'
 import { UNDATED, describeRow, newTripCount, planUpload, readyToUpload } from '../lib/photoPlan.js'
 import Icon from './Icon.jsx'
+import { oops, tookMs, track } from '../lib/analytics.js'
 
 // Adding photos used to mean pasting a URL, which assumes you had already
 // uploaded them somewhere else. This takes them off the phone.
@@ -104,6 +105,9 @@ export default function PhotoUpload({ trip, trips = [], traveler = null, onDone 
   async function go() {
     setPhase('running')
     setError(null)
+    const at = performance.now()
+    const asked = plan.reduce((n, row) => n + row.photos.length, 0)
+    track('upload_start', { photos: asked, trips: plan.length, new_trips: newTripCount(plan) })
     const all = []
     try {
       for (const row of plan) {
@@ -120,8 +124,16 @@ export default function PhotoUpload({ trip, trips = [], traveler = null, onDone 
         setRows([...all])
       }
     } catch (e) {
+      // Half an upload that stopped is the failure that matters here, and
+      // the person only ever saw a sentence about it.
+      oops('upload', e, `${all.length} of ${asked} photographs in`)
       setError(e?.message || 'Something went wrong partway through.')
     }
+    tookMs('upload_done', at, {
+      asked,
+      done: all.filter((r) => r.state === 'done').length,
+      failed: all.filter((r) => r.state !== 'done').length,
+    })
     setPhase('done')
     setRows([...all])
     if (all.some((r) => r.state === 'done')) onDone?.(all)

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { supabase } from './supabase.js'
 import { rememberGoogleToken } from './google.js'
 import { registerPush } from './push.js'
+import { itIs, tokenIs, track } from './analytics.js'
 
 export const AuthContext = createContext({
   session: null,
@@ -16,6 +17,15 @@ export const AuthContext = createContext({
 // is what makes a fresh install show a spinning globe full of real
 // journeys rather than an empty state. Writing anything, though, now
 // requires a session — RLS was tightened to trip-editor scope.
+// The usage log holds who and which token, because it will not ask
+// supabase-js for either — a crash report has to go out when the client
+// library may be exactly what broke, so it needs a plain string it already
+// has rather than a call it might not survive.
+function tellTheLog(session) {
+  itIs(session?.user?.id ?? null)
+  tokenIs(session?.access_token ?? null)
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
@@ -26,11 +36,19 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data }) => {
       if (!alive) return
       rememberGoogleToken(data.session)
+      tellTheLog(data.session)
       setSession(data.session)
       setAuthLoading(false)
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       rememberGoogleToken(s)
+      tellTheLog(s)
+      // Named events rather than a session diff, because "signed in" and
+      // "the token refreshed itself" look identical from the outside and
+      // only one of them is a person doing something.
+      if (event === 'SIGNED_IN') track('signed_in')
+      if (event === 'SIGNED_OUT') track('signed_out')
+      if (event === 'USER_UPDATED') track('account_updated')
       setSession(s)
     })
     return () => {
