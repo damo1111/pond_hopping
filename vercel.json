@@ -34,6 +34,10 @@
     "api/write-trip.js": {
       "maxDuration": 300,
       "memory": 1024
+    },
+    "api/story-step.js": {
+      "maxDuration": 300,
+      "memory": 1024
     }
   },
   "headers": [
