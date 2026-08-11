@@ -6535,11 +6535,27 @@ button {
   white-space: pre-wrap;
 }
 
+/* The places and the weather, on one line.
+
+   The inset lives here rather than on either half, which is the whole point:
+   the weather used to carry no padding of its own and sat against the card's
+   edge while the places were twenty pixels in. Baselines differ — 12px
+   display type against 10px monospace — so they are centred on each other
+   rather than sharing a baseline, which is what "aligned" looks like when
+   two things are different sizes. */
+.recap-where {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 20px 0;
+}
+
 .recap-cities {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 20px 20px 0;
+  min-width: 0;
 }
 
 .recap-city {
@@ -10340,7 +10356,12 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 }
 
 .recap-weather {
-  margin-top: -4px;
+  /* Pushed right even when there are no places to sit beside, and never
+     wrapped or squeezed: "14°C AVERAGE" broken across two lines is worse
+     than a shorter row of pills. */
+  margin-left: auto;
+  flex: none;
+  white-space: nowrap;
   text-align: right;
   font-family: var(--font-mono);
   font-size: 10px;
