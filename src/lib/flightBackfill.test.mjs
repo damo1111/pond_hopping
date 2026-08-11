@@ -138,5 +138,55 @@ test('one at a time, with a gap between them', async () => {
 
 test('nothing to do is not an error', async () => {
   const tally = await run([], async () => ({ ok: true, answer: {} }), async () => {})
-  assert.deepEqual(tally, { total: 0, done: 0, filled: 0, nothing: 0, failed: 0, disagreed: 0 })
+  assert.deepEqual(tally, {
+    total: 0, done: 0, filled: 0, nothing: 0, failed: 0, beyond: 0, disagreed: 0,
+  })
+})
+
+// ── A refusal is not an answer ────────────────────────────────────────────
+//
+// The bug this pair of tests exists for: 185 flights were stamped "no
+// record" by a source that had declined to look at the date at all, which
+// retired them permanently — from every future source as well as that one.
+
+test('outside the source window is not a record of anything', () => {
+  assert.equal(verdictOf({ found: false, beyond: true, status: 400 }), 'beyond')
+  // Without the flag it is the source having looked, which is final.
+  assert.equal(verdictOf({ found: false, status: 404 }), 'nothing')
+})
+
+test('a flight the source cannot reach is left completely unmarked', async () => {
+  const saved = []
+  const tally = await run(
+    [flown(1, { dep_time: '2022-11-01T08:00:00Z' })],
+    async () => ({ ok: true, answer: { found: false, beyond: true, status: 400 } }),
+    async (id, patch) => saved.push([id, patch])
+  )
+  assert.equal(tally.beyond, 1)
+  assert.equal(tally.nothing, 0)
+  // Nothing written at all: the next source gets a clean slate.
+  assert.deepEqual(saved, [])
+})
+
+test('a source is not asked about dates it has said it cannot see', async () => {
+  const asked = []
+  const tally = await backfill(
+    [
+      flown(1, { dep_time: '2026-07-07T01:10:00Z' }), // inside a year
+      flown(2, { dep_time: '2022-11-01T08:00:00Z' }), // years old
+    ],
+    {
+      ask: async (f) => {
+        asked.push(f.id)
+        return { ok: true, answer: { found: true, fields: { registration: 'B-KPU' } } }
+      },
+      save: async () => {},
+      now: NOW,
+      reach: 365,
+      breath: 0,
+      wait: async () => {},
+    }
+  )
+  assert.deepEqual(asked, [1])
+  assert.equal(tally.total, 1)
 })

@@ -1,3 +1,5 @@
+import { REACH } from '../src/lib/flightEnrich.js'
+
 // What somebody else knows about a flight you were on.
 //
 // One flight, one lookup, once ever. Historical flight data does not change,
@@ -22,6 +24,29 @@
 // mapping has been confirmed against an actual answer.
 
 const HOST = 'aerodatabox.p.rapidapi.com'
+
+/** How far back this source can see. Kept in flightEnrich.js beside the
+ *  other facts about sources, because the backfill needs it too. */
+export const REACH_DAYS = REACH.aerodatabox
+
+/**
+ * Is this refusal about the date rather than the flight?
+ *
+ * The distinction is the whole of the bug this exists to prevent. "I have no
+ * record of that flight" is an answer, and a flight that gets it is finished
+ * with for ever, because historical data does not change. "That date is
+ * outside my window" is not an answer at all — the source never looked — and
+ * recording it as one retires the flight permanently from every future
+ * source too.
+ *
+ * 185 flights were stamped "no record" by a source that had refused to open
+ * its eyes. They would have been skipped by the next provider, silently, and
+ * the only sign would have been a backfill that came back suspiciously fast.
+ */
+export function beyondReach(status, said = '') {
+  if (status !== 400 && status !== 422) return false
+  return /earlier than|not be earlier|out of range|older than|historical/i.test(String(said))
+}
 
 function ask(path) {
   return fetch(`https://${HOST}${path}`, {
@@ -118,10 +143,21 @@ export default async function handler(req, res) {
     const r = await ask(`/flights/number/${encodeURIComponent(number)}/${encodeURIComponent(on)}`)
     const said = await r.text()
     if (!r.ok) {
-      // 204 is the source saying it has no record of that flight on that
-      // date, which is an answer rather than a failure — and on a free tier
-      // it is also how "outside my historical window" arrives.
-      res.status(200).json({ found: false, status: r.status, said: said.slice(0, 300) })
+      // Two different things arrive here and only one of them is an answer.
+      //
+      // 204, or a 404: the source looked and has no record of that flight on
+      // that date. Historical data does not change, so that is final.
+      //
+      // 400 "must not be earlier than 365 day(s) ago": the source did not
+      // look. Treating that as "no record" is what stamped 185 flights as
+      // finished with when nothing had been asked, and would have had the
+      // next provider skip every one of them.
+      res.status(200).json({
+        found: false,
+        beyond: beyondReach(r.status, said),
+        status: r.status,
+        said: said.slice(0, 300),
+      })
       return
     }
 

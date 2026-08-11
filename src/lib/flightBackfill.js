@@ -33,13 +33,30 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
  * Kept apart from the asking so the decision can be tested without a
  * network: it is the part that decides whether a flight is finished with.
  *
- * @returns 'filled' | 'nothing' | 'again' — 'again' means the source
- *          failed rather than answered, so the flight stays in the queue.
+ * @returns 'filled' | 'nothing' | 'again' | 'beyond'
+ *
+ *   filled   the source knew something and it has been written down
+ *   nothing  the source looked and has no record. Final, because historical
+ *            flight data does not change
+ *   again    the source failed rather than answered — a rate limit, a bad
+ *            gateway. Stays in the queue and is tried again
+ *   beyond   the date is outside what this source can see. It did not look,
+ *            so there is nothing to retry and nothing to record, and the
+ *            flight keeps its blank slate for whichever source comes next
+ *
+ * The difference between 'nothing' and 'beyond' is the one that cost
+ * something. 185 flights were marked "no record" by a source that had
+ * refused to open its eyes — permanently, since that mark is exactly what
+ * stops a flight being asked about twice. The next provider would have
+ * skipped every one of them, and the only symptom would have been a
+ * backfill that finished suspiciously quickly.
  */
 export function verdictOf(answer = {}, ok = true) {
   if (!ok) return 'again'
   // A rate limit is the source declining to answer, not an answer.
   if (answer.status === 429 || answer.status === 503) return 'again'
+  // Nor is "that date is older than I am allowed to look at".
+  if (answer.beyond) return 'beyond'
   if (answer.found === false) return 'nothing'
   if (answer.fields && Object.keys(answer.fields).length) return 'filled'
   return 'nothing'
@@ -56,10 +73,10 @@ export function verdictOf(answer = {}, ok = true) {
  */
 export async function backfill(
   flights = [],
-  { ask, save, onStep = null, now = new Date(), breath = BREATH_MS, wait = sleep } = {}
+  { ask, save, onStep = null, now = new Date(), breath = BREATH_MS, wait = sleep, reach = null } = {}
 ) {
-  const queue = worthAsking(flights, { now })
-  const tally = { total: queue.length, done: 0, filled: 0, nothing: 0, failed: 0, disagreed: 0 }
+  const queue = worthAsking(flights, { now, reach })
+  const tally = { total: queue.length, done: 0, filled: 0, nothing: 0, failed: 0, beyond: 0, disagreed: 0 }
   if (!queue.length) return tally
 
   for (const flight of queue) {
@@ -76,6 +93,11 @@ export async function backfill(
 
     if (verdict === 'again') {
       tally.failed++
+    } else if (verdict === 'beyond') {
+      // Nothing written down at all. The source never looked, so this flight
+      // is exactly as unasked as it was a second ago — which is the point:
+      // the next source gets to try it.
+      tally.beyond++
     } else {
       const { patch, disagreed } = enrichment(flight, answer.fields ?? {}, 'aerodatabox')
       if (verdict === 'nothing' && !Object.keys(patch).length) {
