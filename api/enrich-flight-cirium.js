@@ -55,6 +55,50 @@ export function paths({ carrier, number, on }) {
 }
 
 /**
+ * Everywhere a historical lookup might live, for the peek only.
+ *
+ * The first peek settled two things and left one open. The credentials are
+ * right — the status service answered with a structured Flex error naming
+ * the date, which it could not have done otherwise. And the status service
+ * on this account reaches back seven days:
+ *
+ *   "The date specified is not within the expected range.
+ *    Earliest allowed date '2026-08-04'"
+ *
+ * Seven days is useless for an archive that starts in 2009, so everything
+ * depends on the historical service, and that answered 404. A 404 is two
+ * different things wearing one number: a URL that does not exist, or a
+ * product this account is not subscribed to. Guessing between them from one
+ * probe is how the Aviation Edge assessment nearly went wrong.
+ *
+ * So the peek tries every shape the service is known to have taken, and the
+ * pattern of answers tells them apart. If they all 404 identically it is
+ * the subscription, and no amount of URL-guessing will help. If one answers
+ * differently, that is the path, and it goes into paths() above.
+ *
+ * Deliberately peek-only: the real lookup must stay at one or two requests
+ * per flight, not six, or a backfill of 369 flights becomes 2,214.
+ */
+export function candidates({ carrier, number, on }) {
+  const [y, m, d] = String(on).split('-').map((n) => Number(n))
+  const pad = (n) => String(n).padStart(2, '0')
+  const tail = `${carrier}/${number}/dep/${y}/${m}/${d}`
+  const padded = `${carrier}/${number}/dep/${y}/${pad(m)}/${pad(d)}`
+  return [
+    { name: 'historical v1', url: `${BASE}/flightstatus/historical/rest/v1/json/flight/${tail}` },
+    { name: 'historical v2', url: `${BASE}/flightstatus/historical/rest/v2/json/flight/${tail}` },
+    { name: 'historical v3', url: `${BASE}/flightstatus/historical/rest/v3/json/flight/${tail}` },
+    // Some Flex products keep history under the ordinary status tree with a
+    // version of its own rather than a separate one.
+    { name: 'status v3', url: `${BASE}/flightstatus/rest/v3/json/flight/status/${tail}` },
+    // And zero-padded dates, in case the 404 is nothing more interesting
+    // than that.
+    { name: 'historical v1, padded', url: `${BASE}/flightstatus/historical/rest/v1/json/flight/${padded}` },
+    { name: 'status v2', url: `${BASE}/flightstatus/rest/v2/json/flight/status/${tail}` },
+  ]
+}
+
+/**
  * "CX139" into a carrier and a number.
  *
  * Cirium wants them apart; this app stores them together, because that is how
@@ -201,10 +245,11 @@ export default async function handler(req, res) {
     // rather than a recollection. Writes nothing.
     if (req.query?.peek) {
       const seen = []
-      for (const t of tries) {
+      // Every shape, not only the two the real lookup uses — see candidates().
+      for (const t of candidates({ ...split, on })) {
         const r = await fetch(`${t.url}?${credentials}`)
         const body = await r.text()
-        seen.push({ path: t.name, url: t.url, status: r.status, said: body.slice(0, 1500) })
+        seen.push({ path: t.name, status: r.status, said: body.slice(0, 400) })
       }
       res.status(200).json({ peek: true, asked: `${split.carrier} ${split.number} on ${on}`, seen })
       return
