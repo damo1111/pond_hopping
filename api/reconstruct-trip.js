@@ -112,6 +112,8 @@ yes or no would answer it.
 Be sparing. Three good questions are worth more than a dozen, and being
 asked twelve things about a weekend is its own kind of failure.
 
+Being asked the same question twice is worse than either. See below.
+
 WHAT TO RETURN
 
 JSON only:
@@ -142,6 +144,53 @@ Nothing in "context" may be given as a cause of anything in their day.
 
 Titles are three or four words. Everything else is notes, not sentences.`
 
+// What they have already been asked, and what they said back.
+//
+// Without this the reconstruction has no memory: it regenerates the same
+// three questions on every run, because the same gap in the trace prompts
+// the same doubt. Twenty-one questions were asked about a four-day trip in
+// Rome, and the first evening near Santa Maria Maggiore was asked about
+// three separate times in three slightly different words.
+//
+// So an answer is not only a note for the writer at the end — it is evidence
+// here, at the point where what happened is decided, and it settles the
+// question that produced it for good.
+function alreadyKnown({ answered = [], could_not_say = [], already_asked = [] } = {}) {
+  if (!answered.length && !could_not_say.length && !already_asked.length) return ''
+  const say = (list) => list.map((a) => `- ${a.on_date || 'the trip'}: ${a.asked}`).join('\n')
+  let out = `\n\nWHAT THEY HAVE ALREADY TOLD YOU\n\nThis trip has been reconstructed before and these questions were put to them.\n`
+
+  if (answered.length) {
+    out +=
+      `\nThey answered these. Every one is settled — it is testimony from the ` +
+      `person who was there, it outranks anything you can infer from the ` +
+      `trace, and where it contradicts the coordinates the coordinates are ` +
+      `wrong. Build the episode from what they said, in "what", with ` +
+      `certainty "certain". Never ask any of these again in any wording.\n\n` +
+      answered
+        .map((a) => `- ${a.on_date || 'the trip'}: asked "${a.asked}" — they said: "${a.said}"`)
+        .join('\n') +
+      '\n'
+  }
+  if (could_not_say.length) {
+    out +=
+      `\nThey were asked these and could not remember. Asking again is asking ` +
+      `somebody to remember something they have just told you they cannot. ` +
+      `Leave the gap in "unexplained" and never ask these again.\n\n` +
+      say(could_not_say) +
+      '\n'
+  }
+  if (already_asked.length) {
+    out +=
+      `\nThese are outstanding — already asked, not yet answered. Do not ` +
+      `repeat them or reword them. Ask only what is genuinely new, and if ` +
+      `nothing is, return an empty "ask".\n\n` +
+      say(already_asked) +
+      '\n'
+  }
+  return out
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
@@ -156,7 +205,7 @@ export default async function handler(req, res) {
     return
   }
 
-  const { trace } = req.body || {}
+  const { trace, answered = [], could_not_say = [], already_asked = [] } = req.body || {}
   if (!trace?.days?.length) {
     res.status(400).json({ error: 'trace required' })
     return
@@ -169,7 +218,7 @@ export default async function handler(req, res) {
       response_format: { type: 'json_object' },
       max_completion_tokens: 32000,
       messages: [
-        { role: 'system', content: RULES },
+        { role: 'system', content: RULES + alreadyKnown({ answered, could_not_say, already_asked }) },
         { role: 'user', content: JSON.stringify(trace) },
       ],
     })

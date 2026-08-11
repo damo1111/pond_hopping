@@ -5,16 +5,18 @@ import { zoneFor } from '../lib/localTime.js'
 import { clockIn } from '../lib/localTime.js'
 import { BATCH, foldInto, inParallel, readingList } from '../lib/seeing.js'
 import {
+  alreadyAsked,
   asAsked,
   batches,
   confirmed,
   couldNotSay,
   howFar,
   needsLooking,
-  stillAsking,
+  stillOpen,
   storyRow,
   theirWords,
   whatItCosts,
+  worthAsking,
 } from '../lib/storyRun.js'
 
 /** One question, answered in words.
@@ -136,10 +138,6 @@ export default function TripStory({ trip, photos = [] }) {
       const auth = await token()
       if (!auth) return
       const worked = await quickly(auth)
-      if (stillAsking(questions).length) {
-        setStep('asking')
-        return
-      }
       await write(auth, worked)
       // Then the slow half, on its own, and the story is rewritten when it
       // lands. Nobody waits for this.
@@ -246,15 +244,35 @@ export default function TripStory({ trip, photos = [] }) {
     setStep('working it out')
     const seen = mine.filter((p) => p.seen).map((p) => ({ id: p.id, ...p.seen }))
     const trace = foldInto(traceOf(mine, trip, { flights, runs, zone }), seen)
-    const worked = await post('reconstruct-trip', { trace }, auth)
+    const worked = await post('reconstruct-trip', { trace, ...whatWeKnow() }, auth)
     setReconstruction(worked)
     await ask(worked)
     return worked
   }
 
-  /** Whatever the reconstruction could not settle becomes a question. */
+  /** Everything they have already told us, for the stage that decides what
+   *  happened. It used to reach only the writing, which meant the answers
+   *  never became part of the reconstruction and the same questions came
+   *  back on every run. */
+  function whatWeKnow() {
+    return {
+      answered: confirmed(questions),
+      could_not_say: couldNotSay(questions),
+      already_asked: stillOpen(questions),
+    }
+  }
+
+  /** Whatever the reconstruction could not settle becomes a question.
+   *
+   *  Only once. The same gap in the trace prompts the same doubt on every
+   *  run, so without this a re-run files another near-copy of everything it
+   *  asked last time — twenty-one questions about a four-day trip, the first
+   *  evening near Santa Maria Maggiore asked about three separate times in
+   *  three different wordings. The reconstruction is now told what has
+   *  already been put to them; this is the second line of defence for when
+   *  it asks anyway. */
   async function ask(worked) {
-    const asks = (worked.ask ?? []).filter((a) => a?.asks)
+    const asks = (worked.ask ?? []).filter((a) => a?.asks && !alreadyAsked(questions, a))
     if (!asks.length) return false
     const { data } = await supabase
       .from('story_questions')
@@ -295,16 +313,23 @@ export default function TripStory({ trip, photos = [] }) {
 
       setStep('working it out')
       const trace = foldInto(traceOf(mine, trip, { flights, runs, zone }), everything)
-      const worked = await post('reconstruct-trip', { trace }, auth)
+      const worked = await post('reconstruct-trip', { trace, ...whatWeKnow() }, auth)
       setReconstruction(worked)
 
-      // Anything only they can settle is written down and asked before a
-      // word gets written. The answer is evidence; a guess would not be.
-      if (await ask(worked)) {
-        setStep('asking')
-        return
-      }
-
+      // Anything only they can settle is written down and asked — and then
+      // it writes anyway.
+      //
+      // This used to stop here and wait. It meant a re-run produced no story
+      // at all: the reconstruction always finds something to ask about, so
+      // the run halted every time on a question nobody had answered, and the
+      // last story on file stayed as it was. Four runs over one trip in Rome
+      // and not one of them wrote a word — from the outside, a button that
+      // did nothing.
+      //
+      // A question is worth asking. It is not worth withholding the story
+      // over. It gets written from what is known, the questions sit above it
+      // waiting, and an answer rewrites it.
+      await ask(worked)
       await write(auth, worked)
     } catch (e) {
       setTrouble(e.message)
@@ -355,20 +380,29 @@ export default function TripStory({ trip, photos = [] }) {
     setQuestions((all) => all.map((x) => (x.id === q.id ? { ...x, ...row } : x)))
   }
 
+  /** Write it again with what they have just told us. The reconstruction is
+   *  kept on the story row, so this works after a reload too — otherwise
+   *  answering a question the day after it was asked had nothing to write
+   *  from. */
   async function carryOn() {
     setTrouble(null)
     try {
       const auth = await token()
-      await write(auth, reconstruction)
+      const worked = reconstruction ?? story?.reconstruction
+      if (!worked) {
+        await make()
+        return
+      }
+      await write(auth, worked)
     } catch (e) {
       setTrouble(e.message)
-      setStep('asking')
+      setStep('idle')
     }
   }
 
   if (!trip?.id || !mine.length) return null
 
-  const asking = stillAsking(questions)
+  const asking = worthAsking(questions)
   const cost = whatItCosts(mine, 'low')
 
   // The story is the thing. Progress and questions go with it, never
@@ -390,26 +424,31 @@ export default function TripStory({ trip, photos = [] }) {
     </>
   )
 
+  // The questions, wherever the run has got to. They used to appear only
+  // during a run, in a state that blocked the writing — so they were both
+  // unavoidable and unfindable: gone the moment somebody left the screen,
+  // and the story never written until they came back. They belong beside the
+  // story, answerable whenever, and answering one rewrites it.
+  const asks = asking.length > 0 && (
+    <div className="story-asks">
+      <p className="story-sub">
+        These are things the photographs suggest but cannot prove. Answer any of them, whenever —
+        what you say goes into the story, and you will not be asked again.
+      </p>
+      {asking.map((q) => (
+        <Ask key={q.id} q={q} onAnswer={answer} />
+      ))}
+    </div>
+  )
+
+  // Answered something since this was last written? Offer to fold it in.
+  const toFold = story && confirmed(questions).length > 0 && step === 'idle'
+
   if (step !== 'idle') {
     return (
       <div className="story">
         <div className="story-doing">{howFar(step, done, total)}</div>
-        {step === 'asking' && (
-          <div className="story-asks">
-            <p className="story-sub">
-              These are things the photographs suggest but cannot prove. Your answer becomes part of
-              the story; a no is remembered and you will not be asked again.
-            </p>
-            {asking.map((q) => (
-              <Ask key={q.id} q={q} onAnswer={answer} />
-            ))}
-            {!asking.length && (
-              <button className="story-go" onClick={carryOn}>
-                Write it
-              </button>
-            )}
-          </div>
-        )}
+        {asks}
         {trouble && <div className="story-trouble">{trouble}</div>}
         {written && <div className="story-sofar">{written}</div>}
       </div>
@@ -419,6 +458,12 @@ export default function TripStory({ trip, photos = [] }) {
   if (story) {
     return (
       <div className="story">
+        {asks}
+        {toFold && (
+          <button className="story-go" onClick={carryOn}>
+            Write it again with my answers
+          </button>
+        )}
         {written}
         <button className="story-again" onClick={make}>
           write it again

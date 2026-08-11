@@ -5,6 +5,7 @@ import { isInAustralia } from '../lib/geo.js'
 import { AIRPORT_COORDS } from '../lib/airportCoords.js'
 import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
+import { spanOf } from '../lib/dateRange.js'
 import { words } from '../lib/sport.js'
 import { coverUrl } from '../lib/imgTransform.js'
 import CountryFlags from '../components/CountryFlags.jsx'
@@ -64,13 +65,7 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 }
 
-function fmtRange(t) {
-  if (!t.start_date) return 'dates tbc'
-  const opt = { day: 'numeric', month: 'short' }
-  const a = new Date(t.start_date).toLocaleDateString('en-GB', opt)
-  const b = t.end_date ? new Date(t.end_date).toLocaleDateString('en-GB', opt) : null
-  return b ? `${a} – ${b}` : a
-}
+const fmtRange = (t) => spanOf(t, { empty: 'dates tbc' })
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))

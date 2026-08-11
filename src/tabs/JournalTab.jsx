@@ -16,13 +16,19 @@ function fmtDate(d) {
 
 function Entry({ e, chapter, autoOpen, jumpKey }) {
   const [open, setOpen] = useState(autoOpen)
-  // Their words are what the entry is. The chapter is a second reading of
-  // the same day, pieced together from the photographs, and it is offered —
-  // never substituted. What they wrote is always what shows first.
-  const [blended, setBlended] = useState(false)
+  const hasBlend = !!(chapter?.note && e.note)
+  // The fuller story leads, where there is one.
+  //
+  // It was the other way round — their own words first, the chapter behind
+  // the toggle. But the chapter is built *from* their words: every sentence
+  // they wrote is carried into it, with the photographs woven around them.
+  // Leading with the shorter version was showing somebody the note and
+  // hiding the thing it became. Their entry is never lost: one tap on "as
+  // you wrote it" brings it back exactly as they typed it, which is the
+  // guarantee that actually matters.
+  const [blended, setBlended] = useState(hasBlend)
   const ref = useRef(null)
   const { user } = useAuth()
-  const hasBlend = !!(chapter?.note && e.note)
 
   useEffect(() => {
     if (autoOpen && ref.current) {

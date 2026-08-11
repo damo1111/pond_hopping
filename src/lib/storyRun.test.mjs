@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { asAsked, confirmed, couldNotSay, howFar, needsLooking, stillAsking, storyRow, theirWords, whatItCosts } from './storyRun.js'
+import { alreadyAsked, asAsked, confirmed, couldNotSay, howFar, needsLooking, stillAsking, stillOpen, storyRow, theirWords, whatItCosts, worthAsking } from './storyRun.js'
 import { clockIn } from './localTime.js'
 
 const pic = (id, over = {}) => ({
@@ -111,4 +111,117 @@ test('the progress line names the work, not the pipeline stage', () => {
   assert.equal(howFar('looking', 40, 286), 'Reading your photographs — 40 of 286')
   assert.equal(howFar('working it out'), 'Retracing where you went')
   assert.equal(howFar('writing'), 'Writing your trip up')
+})
+
+// ── Not asking the same thing twice ───────────────────────────────────────
+//
+// These are the real questions, from four runs over the same four days in
+// Rome. Twenty-one of them, none answered, because every re-run asked again.
+
+test('the same question in different words is the same question', () => {
+  const asked = [
+    { on_date: '2024-01-22', asks: 'What was the flight over Scotland before you reached Heathrow?' },
+  ]
+  assert.equal(
+    alreadyAsked(asked, {
+      on_date: '2024-01-22',
+      asks: 'What journey brought you over Scotland and into Heathrow before the Rome flight?',
+    }),
+    true
+  )
+})
+
+test('and again, for the first evening near Santa Maria Maggiore', () => {
+  const asked = [
+    { on_date: '2024-01-22', asks: 'Did you spend the first Rome night near Santa Maria Maggiore?' },
+  ]
+  assert.equal(
+    alreadyAsked(asked, {
+      on_date: '2024-01-22',
+      asks: 'Where were you staying or stopping that first evening near Santa Maria Maggiore?',
+    }),
+    true
+  )
+})
+
+test('a different question on the same day is a different question', () => {
+  const asked = [
+    { on_date: '2024-01-23', asks: 'What filled the four hours between the run and the Forum?' },
+  ]
+  assert.equal(
+    alreadyAsked(asked, {
+      on_date: '2024-01-23',
+      asks: 'What took you to the Tiber near the Foro Italico that morning?',
+    }),
+    false
+  )
+})
+
+test('the same question about a different day is a new question', () => {
+  const asked = [{ on_date: '2024-01-23', asks: 'What filled the long gap in the afternoon?' }]
+  assert.equal(
+    alreadyAsked(asked, { on_date: '2024-01-24', asks: 'What filled the long gap in the afternoon?' }),
+    false
+  )
+})
+
+test('an answered question is still an asked question', () => {
+  // The whole point of remembering: they told us it was a pasta course, and
+  // nobody should be asked what they were doing there ever again.
+  const asked = [
+    {
+      on_date: '2024-01-24',
+      asks: 'What were you doing near Piazza Navona for that final hour?',
+      answered_at: '2026-08-11T00:00:00Z',
+      said: 'A pasta-making course at Eatalian Cooks.',
+    },
+  ]
+  assert.equal(
+    alreadyAsked(asked, { on_date: '2024-01-24', asks: 'What occupied the final hour around Piazza Navona?' }),
+    true
+  )
+})
+
+test('nothing asked yet means nothing is a repeat', () => {
+  assert.equal(alreadyAsked([], { on_date: '2024-01-22', asks: 'Anything at all?' }), false)
+})
+
+test('what is still open goes to the reconstruction so it stops repeating', () => {
+  const qs = [
+    { asks: 'Answered one', on_date: '2024-01-22', answered_at: '2026-08-11T00:00:00Z', said: 'yes it was' },
+    { asks: 'Open one', on_date: '2024-01-23' },
+  ]
+  assert.deepEqual(stillOpen(qs), [{ on_date: '2024-01-23', asked: 'Open one' }])
+})
+
+test('the repeats already on the table are folded away, oldest wording kept', () => {
+  const open = [
+    { id: 1, on_date: '2024-01-22', asks: 'What was the flight over Scotland before you reached Heathrow?' },
+    { id: 2, on_date: '2024-01-23', asks: 'What filled the four hours between the run and the Forum?' },
+    { id: 3, on_date: '2024-01-22', asks: 'What journey brought you over Scotland and into Heathrow?' },
+    { id: 4, on_date: '2024-01-23', asks: 'What did you do between finishing the run and reappearing at the Forum?' },
+  ]
+  assert.deepEqual(worthAsking(open).map((q) => q.id), [1, 2])
+})
+
+test('an answered question is not re-asked, and does not clutter the screen', () => {
+  const qs = [
+    { id: 1, asks: 'Where did you eat that evening?', on_date: '2024-01-22', answered_at: '2026-08-11T00:00:00Z', said: 'Roscioli' },
+    { id: 2, asks: 'Where did you eat, later on that evening?', on_date: '2024-01-22' },
+  ]
+  // Only the open one reaches the screen...
+  assert.deepEqual(worthAsking(qs).map((q) => q.id), [2])
+  // ...and a third wording of it never gets filed at all.
+  assert.equal(alreadyAsked(qs, { on_date: '2024-01-22', asks: 'Where did you eat on that first evening?' }), true)
+})
+
+test('what this cannot do, said plainly', () => {
+  // Shared content words, not meaning. "Where did you eat?" and "Where did
+  // you have dinner?" are the same question and this will not know it —
+  // they have no word in common that carries any information. The
+  // reconstruction being told what it has already asked is the real
+  // defence; this is the net underneath it, and a net with holes in it
+  // still catches the three-times-in-three-runs case it was built for.
+  const asked = [{ on_date: '2024-01-22', asks: 'Where did you eat?' }]
+  assert.equal(alreadyAsked(asked, { on_date: '2024-01-22', asks: 'Where did you have dinner?' }), false)
 })
