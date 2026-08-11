@@ -7,10 +7,22 @@ name: Checks
 # an identifier it does not recognise as a global and leaves it to the
 # browser, so nothing between the edit and production ever looked at it.
 #
-# Three things run here, all of them seconds long, none of them touching a
-# store: the unit tests, the linter (see eslint.config.js — it is narrow on
-# purpose), and a production build. Nothing here publishes anything. Store
-# builds stay on workflow_dispatch, by hand, on purpose.
+# Then it happened again, in a different way: WorldTab read a const from
+# above its own declaration, which is a temporal dead zone, and the app threw
+# on first render for everybody. All three checks below passed, because none
+# of them had ever opened the page — a bundler has no opinion about the order
+# in which a function reads its own variables, and node:test over pure
+# modules never mounts a component.
+#
+# So there is a fourth now. `npm run smoke` serves dist, loads it in headless
+# Chromium and fails if anything throws or the error boundary draws. It is
+# the only check here that would have caught either outage, and it is a few
+# seconds. See scripts/smoke.mjs.
+#
+# Four things run here, all of them quick, none of them touching a store: the
+# unit tests, the linter (see eslint.config.js — it is narrow on purpose), a
+# production build, and that build actually rendering. Nothing here publishes
+# anything. Store builds stay on workflow_dispatch, by hand, on purpose.
 # On every push, not on pull_request.
 #
 # `pull_request` fires on opened and synchronize, and a branch pushed
@@ -43,3 +55,9 @@ jobs:
       - run: npm test
 
       - run: npm run build
+
+      # Only Chromium, and only its dependencies — not the full Playwright
+      # download of three browsers, which this has no use for.
+      - run: npx playwright-core install --with-deps chromium
+
+      - run: npm run smoke

@@ -21,6 +21,12 @@ export const AIRPORT_COORDS = {
   BUD: [47.4369, 19.2556],
   BVC: [16.1364, -22.8889],
   CDG: [49.0097, 2.5479],
+  // Not flown from, and here on purpose: Ciampino is fourteen kilometres
+  // from the middle of Rome and Fiumicino is twenty-four, so a photograph
+  // taken in the city is *nearer* the airport nobody used. Leaving it out
+  // would let deduce.js name Fiumicino with false confidence — a gap in
+  // this table reads downstream as certainty.
+  CIA: [41.7994, 12.5949],
   CFU: [39.6019, 19.9117],
   CHC: [-43.4894, 172.5322],
   CNS: [-16.8858, 145.7553],

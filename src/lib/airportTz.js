@@ -16,6 +16,7 @@ export const AIRPORT_TZ = {
   BUD: 'Europe/Budapest',
   BVC: 'Atlantic/Cape_Verde',
   CDG: 'Europe/Paris',
+  CIA: 'Europe/Rome',
   CFU: 'Europe/Athens',
   CHC: 'Pacific/Auckland',
   CNS: 'Australia/Brisbane',
