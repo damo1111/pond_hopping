@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from '../lib/supabase.js'
+import { backfill } from '../lib/flightBackfill.js'
 import { queued, sendOriginal } from '../lib/photoIngest.js'
 import { summarise } from '../lib/originals.js'
 import { API_BASE } from '../lib/apiBase.js'
@@ -660,6 +661,60 @@ function FlightSourceCard() {
   const { user } = useAuth()
   const [busy, setBusy] = useState(false)
   const [said, setSaid] = useState(null)
+  const [filling, setFilling] = useState(false)
+  const [progress, setProgress] = useState(null)
+
+  /** Every flight the source can see, one at a time, once ever. */
+  async function fill() {
+    setFilling(true)
+    setProgress('looking at what needs asking about…')
+    try {
+      const { data: sess } = await supabase.auth.getSession()
+      const token = sess?.session?.access_token
+      const { data: flights } = await supabase
+        .from('flights')
+        .select('*')
+        .not('flight_number', 'is', null)
+        .is('enriched_at', null)
+        .order('dep_time', { ascending: false })
+
+      const tally = await backfill(flights ?? [], {
+        ask: async (f) => {
+          const r = await fetch('/api/enrich-flight', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              number: f.flight_number,
+              on: String(f.dep_time).slice(0, 10),
+              from: f.dep_airport,
+            }),
+          })
+          return { ok: r.ok, answer: await r.json().catch(() => ({})) }
+        },
+        save: async (id, patch) => {
+          if (!Object.keys(patch).length) return
+          await supabase.from('flights').update(patch).eq('id', id)
+        },
+        onStep: (t, f) =>
+          setProgress(
+            `${t.done} of ${t.total} · ${t.filled} filled in · ${t.nothing} not on record` +
+              `${t.failed ? ` · ${t.failed} to try again` : ''} — ${f.flight_number}`
+          ),
+      })
+
+      setProgress(
+        tally.total === 0
+          ? 'Nothing left to ask about.'
+          : `Done. ${tally.filled} of ${tally.total} filled in, ${tally.nothing} not on record` +
+            `${tally.failed ? `, ${tally.failed} to try again` : ''}` +
+            `${tally.disagreed ? `, ${tally.disagreed} disagreed with what you had` : ''}.`
+      )
+    } catch (e) {
+      setProgress(`Stopped: ${e.message}. Nothing already filled in is lost — run it again.`)
+    } finally {
+      setFilling(false)
+    }
+  }
 
   async function look() {
     setBusy(true)
@@ -723,6 +778,14 @@ function FlightSourceCard() {
         {busy ? 'asking…' : 'Ask about two flights'}
       </button>
       {said && <pre className="account-peek">{said}</pre>}
+
+      {/* And the whole lot. Paced, resumable, and asked once ever: a flight
+          that has been asked about carries enriched_at, so closing this
+          costs the one in flight and nothing else. */}
+      <button className="account-btn ghost" disabled={filling} onClick={fill}>
+        {filling ? 'filling in…' : 'Fill in every flight it can see'}
+      </button>
+      {progress && <div className="account-progress">{progress}</div>}
     </div>
   )
 }

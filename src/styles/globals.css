@@ -10479,3 +10479,15 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   max-height: 380px;
   overflow: auto;
 }
+
+/* How far through a long run of requests. Said as it goes rather than at
+   the end, because seven minutes of nothing looks like seven minutes of
+   broken. */
+.account-progress {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  word-break: break-word;
+}
