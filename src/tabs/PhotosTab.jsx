@@ -389,7 +389,7 @@ export default function PhotosTab({ openPhotoId = null }) {
                 toggleHighlight(lightbox, 'chosen')
               }}
             >
-              {starring ? 'saving…' : standing(lightbox) === 'chosen' ? '★ always show' : '☆ always show'}
+              {starring ? 'saving…' : '★ always show'}
             </button>
             {/* The other half of the choice, and the one that was missing.
                 A photograph can be on the recap without being chosen — the
@@ -407,7 +407,12 @@ export default function PhotosTab({ openPhotoId = null }) {
                 toggleHighlight(lightbox, 'refused')
               }}
             >
-              {starring ? 'saving…' : standing(lightbox) === 'refused' ? '✕ never show' : 'remove from the recap'}
+              {/* "Remove from the recap" was wrong on almost every
+                  photograph: most are undecided and not on the page, so it
+                  offered to take out something that was never in. The pair
+                  is symmetrical and true whatever the state — always show,
+                  never show, or neither. */}
+              {starring ? 'saving…' : '✕ never show'}
             </button>
             <button
               className="lb-cover-btn"
