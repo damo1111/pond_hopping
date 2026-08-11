@@ -74,6 +74,8 @@ export default function TripStory({ trip, photos = [] }) {
   const [runs, setRuns] = useState([])
   const [learnVoice, setLearnVoice] = useState(false)
   const [refresh, setRefresh] = useState(0)
+  // Whether the story fetch has answered — not whether it found one.
+  const [looked, setLooked] = useState(false)
 
   const mine = photos.filter((p) => p.trip_id === trip?.id)
 
@@ -81,7 +83,11 @@ export default function TripStory({ trip, photos = [] }) {
     if (!trip?.id) return
     let alive = true
     supabase.from('trip_stories').select('*').eq('trip_id', trip.id).maybeSingle()
-      .then(({ data }) => alive && setStory(data ?? null))
+      .then(({ data }) => {
+        if (!alive) return
+        setStory(data ?? null)
+        setLooked(true)
+      })
     supabase.from('story_questions').select('*').eq('trip_id', trip.id)
       .then(({ data }) => alive && setQuestions(data ?? []))
     supabase.from('journal_entries').select('entry_date,note,built_from').eq('trip_id', trip.id)
@@ -112,14 +118,17 @@ export default function TripStory({ trip, photos = [] }) {
   // not two hundred and eighty-six.
   const began = useRef('')
   useEffect(() => {
+    // `story` is null while the fetch is in flight as well as when there
+    // is none, and starting a run on the first was how a finished story got
+    // hidden behind a progress line the moment somebody came back to it.
+    if (!looked || !entries) return
     if (!trip?.id || !mine.length || story || step !== 'idle') return
-    if (!entries) return
     const mark = `${trip.id}:${mine.length}`
     if (began.current === mark) return
     began.current = mark
     itself()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip?.id, mine.length, story, step, entries])
+  }, [trip?.id, mine.length, story, step, entries, looked])
 
   async function itself() {
     setTrouble(null)
@@ -362,6 +371,25 @@ export default function TripStory({ trip, photos = [] }) {
   const asking = stillAsking(questions)
   const cost = whatItCosts(mine, 'low')
 
+  // The story is the thing. Progress and questions go with it, never
+  // instead of it — leaving the app and coming back should not make three
+  // days of writing disappear behind a status line.
+  const written = story && (
+    <>
+      {story.opening && <div className="story-opening">{story.opening}</div>}
+      {(story.chapters ?? []).map((c) => (
+        <div key={c.date} className="story-chapter">
+          <h3>{c.title}</h3>
+          <div className="story-when">
+            {new Date(c.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </div>
+          <div className="story-note">{c.note}</div>
+        </div>
+      ))}
+      {story.closing && <div className="story-closing">{story.closing}</div>}
+    </>
+  )
+
   if (step !== 'idle') {
     return (
       <div className="story">
@@ -383,6 +411,7 @@ export default function TripStory({ trip, photos = [] }) {
           </div>
         )}
         {trouble && <div className="story-trouble">{trouble}</div>}
+        {written && <div className="story-sofar">{written}</div>}
       </div>
     )
   }
@@ -390,17 +419,7 @@ export default function TripStory({ trip, photos = [] }) {
   if (story) {
     return (
       <div className="story">
-        {story.opening && <div className="story-opening">{story.opening}</div>}
-        {(story.chapters ?? []).map((c) => (
-          <div key={c.date} className="story-chapter">
-            <h3>{c.title}</h3>
-            <div className="story-when">
-              {new Date(c.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </div>
-            <div className="story-note">{c.note}</div>
-          </div>
-        ))}
-        {story.closing && <div className="story-closing">{story.closing}</div>}
+        {written}
         <button className="story-again" onClick={make}>
           write it again
         </button>

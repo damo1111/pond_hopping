@@ -10054,3 +10054,12 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 }
 
 .story-buttons button:disabled { opacity: 0.45; cursor: default }
+
+/* The story, while something is still running over it. Set back a little so
+   the progress line reads as the newer thing, but present — three days of
+   writing should not vanish because a second pass is in flight. */
+.story-sofar {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--hairline, #e7e2da);
+}
