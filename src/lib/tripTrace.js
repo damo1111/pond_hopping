@@ -131,7 +131,67 @@ export function groundCovered(photos = []) {
  * @param trip     the trip row, for its dates and title
  * @param extras   { flights, runs, zone }
  */
-export function traceOf(photos = [], trip = {}, { flights = [], runs = [], zone = null } = {}) {
+/**
+ * Where somebody actually was, as opposed to where they took a photograph.
+ *
+ * Two sources, one shape. `day_tracks.visits` is what a Google Timeline
+ * export knew — stays with an arrival, a departure and a duration, already
+ * in local clock time. `location_visits` is what this app recorded itself
+ * when somebody turned it on.
+ *
+ * This is the thing the photographs cannot give you. A trace built from
+ * pictures alone goes quiet whenever the camera does, and the reconstruction
+ * has to say so — "I stopped somewhere near the Trevi for the best part of
+ * an hour and I genuinely cannot tell you what I was doing". Half of those
+ * hours are not a mystery at all: something was recording the whole time.
+ *
+ * It is evidence of presence and nothing more. Four hours at a coordinate
+ * says where somebody was, never what they were doing there, and the
+ * reconstruction is told so in as many words.
+ */
+export function staysOn(date, { tracks = [], visits = [], zone = null } = {}) {
+  const out = []
+
+  for (const t of tracks) {
+    if (t?.track_date !== date) continue
+    for (const v of t.visits ?? []) {
+      if (v?.lat == null || v?.lon == null) continue
+      out.push({
+        from: v.t ?? null,
+        to: v.e ?? null,
+        minutes: Number(v.min) || null,
+        lat: Number(v.lat.toFixed(5)),
+        lon: Number(v.lon.toFixed(5)),
+        how: 'timeline',
+      })
+    }
+  }
+
+  for (const v of visits) {
+    const day = iso(v?.arrived_at).slice(0, 10)
+    if (day !== date || v?.lat == null || v?.lng == null) continue
+    const minutes =
+      v.arrived_at && v.departed_at
+        ? Math.round((new Date(v.departed_at) - new Date(v.arrived_at)) / 60000)
+        : null
+    out.push({
+      from: v.arrived_at ? clockIn(v.arrived_at, zone) : null,
+      to: v.departed_at ? clockIn(v.departed_at, zone) : null,
+      minutes: minutes && minutes > 0 ? minutes : null,
+      lat: Number(Number(v.lat).toFixed(5)),
+      lon: Number(Number(v.lng).toFixed(5)),
+      how: v.source === 'manual' ? 'noted' : 'recorded',
+    })
+  }
+
+  return out.sort((a, b) => String(a.from ?? '').localeCompare(String(b.from ?? '')))
+}
+
+export function traceOf(
+  photos = [],
+  trip = {},
+  { flights = [], runs = [], zone = null, tracks = [], visits = [] } = {}
+) {
   const byDay = new Map()
   for (const p of photos) {
     const d = p?.taken_on || iso(p?.taken_at).slice(0, 10)
@@ -145,6 +205,12 @@ export function traceOf(photos = [], trip = {}, { flights = [], runs = [], zone 
     if (d && !byDay.has(d)) byDay.set(d, [])
   }
   for (const r of runs) if (r?.run_date && !byDay.has(r.run_date)) byDay.set(r.run_date, [])
+  // A day somebody was somewhere and photographed nothing is still a day.
+  for (const t of tracks) if (t?.track_date && !byDay.has(t.track_date)) byDay.set(t.track_date, [])
+  for (const v of visits) {
+    const d = iso(v?.arrived_at).slice(0, 10)
+    if (d && !byDay.has(d)) byDay.set(d, [])
+  }
 
   const dates = [...byDay.keys()].sort()
   const start = trip.start_date || dates[0]
@@ -182,6 +248,9 @@ export function traceOf(photos = [], trip = {}, { flights = [], runs = [], zone 
           pace: r.pace ?? null,
           climb_m: Number(r.elevation_m) || null,
         })),
+      // Where they were, from whatever was recording — which is often the
+      // answer to a gap the photographs leave open.
+      stayed: staysOn(date, { tracks, visits, zone }),
       // The day itself. Every photograph, in order, at full precision.
       trace: rows,
     }

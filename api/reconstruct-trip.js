@@ -34,7 +34,9 @@ photographs left, so that a later stage can write it up. You are not writing
 the journal. Do not write prose.
 
 You are given every photograph: local time, latitude and longitude to five
-decimal places, in order, day by day. Where the photographs have been looked
+decimal places, in order, day by day. Some days also carry "stayed": where
+they actually were, with arrival and departure times, from a phone or a
+location history that was recording whether or not anybody took a picture. Where the photographs have been looked
 at, each row also carries what is actually in the picture — the subject, any
 text legible in it, what was happening, the light, and what the person
 appears to have been pointing the camera at. You are also given the flights,
@@ -65,8 +67,28 @@ attempts at the same column against an evening sky is a different fact from
 "visited Trajan's Forum". Recurring subjects across days matter more than
 any single picture.
 
-Respect the gaps. Four hours with no photographs cannot be reconstructed, and
-saying so plainly beats filling it. Never invent an activity to cover one.
+WHERE THEY WERE, AS OPPOSED TO WHERE THEY PHOTOGRAPHED
+
+"stayed" is the strongest evidence of place in the whole record and the
+weakest evidence of activity. Something was recording; it knows they were at
+a coordinate from 09:10 to 11:40 and it knows nothing whatever about what
+they were doing there.
+
+So use it to place them and to time them, and never to say what happened. An
+hour and a half at a coordinate among restaurants is an hour and a half at
+that address, not lunch. If a photograph from the same stretch shows a
+plate, that is lunch, and the stay is what tells you how long it lasted.
+
+Where it disagrees with a photograph's coordinate, prefer the photograph for
+the moment it was taken and the stay for the hours around it: a camera knows
+where it was at 12:04, a stay knows where somebody was all afternoon.
+
+Respect the gaps — but check "stayed" before calling one a gap. Four hours
+with no photographs is not a mystery if something recorded a stay through
+all four of them; it is four hours somewhere, and saying where is the whole
+point of having it. A gap is only a gap when nothing at all was watching.
+
+Never invent an activity to cover one.
 
 Distances given are straight lines between photographs with the impossible
 hops removed, so they are floors. Say so where you use them.

@@ -80,6 +80,8 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   const [entries, setEntries] = useState([])
   const [flights, setFlights] = useState([])
   const [runs, setRuns] = useState([])
+  const [tracks, setTracks] = useState([])
+  const [visits, setVisits] = useState([])
   const [learnVoice, setLearnVoice] = useState(false)
   const [refresh, setRefresh] = useState(0)
   // Whether the story fetch has answered — not whether it found one.
@@ -104,6 +106,14 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       .then(({ data }) => alive && setFlights(data ?? []))
     supabase.from('runs').select('run_date,distance_km,pace,elevation_m,sport').eq('trip_id', trip.id)
       .then(({ data }) => alive && setRuns(data ?? []))
+    // Where they were, from whatever was recording. A Google Timeline
+    // export lands in day_tracks; the app's own recording lands in
+    // location_visits. Neither has ever reached the reconstruction, which
+    // is why it kept admitting gaps that something already knew about.
+    supabase.from('day_tracks').select('track_date,visits').eq('trip_id', trip.id)
+      .then(({ data }) => alive && setTracks(data ?? []))
+    supabase.from('location_visits').select('arrived_at,departed_at,lat,lng,source')
+      .then(({ data }) => alive && setVisits(data ?? []))
     supabase.from('profiles').select('learn_my_voice').maybeSingle()
       .then(({ data }) => alive && setLearnVoice(!!data?.learn_my_voice))
     return () => {
@@ -292,7 +302,7 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   async function quickly(auth) {
     setStep('working it out')
     const seen = mine.filter((p) => p.seen).map((p) => ({ id: p.id, ...p.seen }))
-    const trace = foldInto(traceOf(mine, trip, { flights, runs, zone }), seen)
+    const trace = foldInto(traceOf(mine, trip, { flights, runs, zone, tracks, visits }), seen)
     const worked = await post('reconstruct-trip', { trace, ...whatWeKnow() }, auth)
     setReconstruction(worked)
     await ask(worked)
@@ -365,7 +375,7 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       }
 
       setStep('working it out')
-      const trace = foldInto(traceOf(mine, trip, { flights, runs, zone }), everything)
+      const trace = foldInto(traceOf(mine, trip, { flights, runs, zone, tracks, visits }), everything)
       const worked = await post('reconstruct-trip', { trace, ...whatWeKnow() }, auth)
       setReconstruction(worked)
 

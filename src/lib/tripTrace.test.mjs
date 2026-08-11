@@ -113,3 +113,71 @@ test('a flight is not ground covered on foot', () => {
   // Twenty-three kilometres of Scotland in three minutes is a car.
   assert.ok(groundCovered(rows) <= 0.2, `expected a couple of hundred metres, got ${groundCovered(rows)}`)
 })
+
+// ── Where they actually were ──────────────────────────────────────────────
+
+test('a timeline knows the hours the camera did not', () => {
+  // The gap the story otherwise has to admit: nothing was photographed
+  // between 08:52 and 13:16, and something was recording the whole time.
+  const trace = traceOf([shot('2024-01-23T12:00:00Z', 41.9, 12.5)], { start_date: '2024-01-23' }, {
+    zone: ZONE,
+    tracks: [
+      {
+        track_date: '2024-01-23',
+        visits: [
+          { t: '09:10', e: '11:40', min: 150, lat: 41.90121, lon: 12.49554 },
+          { t: '12:05', e: '13:02', min: 57, lat: 41.89843, lon: 12.49713 },
+        ],
+      },
+    ],
+  })
+  const stayed = trace.days[0].stayed
+  assert.equal(stayed.length, 2)
+  assert.deepEqual(stayed[0], { from: '09:10', to: '11:40', minutes: 150, lat: 41.90121, lon: 12.49554, how: 'timeline' })
+})
+
+test('what the phone recorded itself counts the same', () => {
+  const trace = traceOf([], { start_date: '2024-01-23' }, {
+    zone: ZONE,
+    visits: [
+      {
+        arrived_at: '2024-01-23T09:00:00Z',
+        departed_at: '2024-01-23T10:30:00Z',
+        lat: 41.9,
+        lng: 12.5,
+        source: 'auto',
+      },
+    ],
+  })
+  assert.deepEqual(trace.days[0].stayed, [
+    { from: '10:00', to: '11:30', minutes: 90, lat: 41.9, lon: 12.5, how: 'recorded' },
+  ])
+})
+
+test('a day nobody photographed but something recorded is still a day', () => {
+  const trace = traceOf([], { start_date: '2024-01-22' }, {
+    zone: ZONE,
+    tracks: [{ track_date: '2024-01-24', visits: [{ t: '09:00', e: '10:00', min: 60, lat: 41.9, lon: 12.5 }] }],
+  })
+  assert.deepEqual(trace.days.map((d) => d.date), ['2024-01-24'])
+  assert.equal(trace.days[0].photographs, 0)
+  assert.equal(trace.days[0].stayed.length, 1)
+})
+
+test('both sources on one day are read in order, and neither is dropped', () => {
+  const trace = traceOf([], { start_date: '2024-01-23' }, {
+    zone: ZONE,
+    tracks: [{ track_date: '2024-01-23', visits: [{ t: '14:00', e: '15:00', min: 60, lat: 41.9, lon: 12.5 }] }],
+    visits: [{ arrived_at: '2024-01-23T07:00:00Z', departed_at: '2024-01-23T07:30:00Z', lat: 41.8, lng: 12.4 }],
+  })
+  assert.deepEqual(trace.days[0].stayed.map((s) => s.from), ['08:00', '14:00'])
+  assert.deepEqual(trace.days[0].stayed.map((s) => s.how), ['recorded', 'timeline'])
+})
+
+test('a stay with no coordinate is not a stay', () => {
+  const trace = traceOf([], { start_date: '2024-01-23' }, {
+    zone: ZONE,
+    tracks: [{ track_date: '2024-01-23', visits: [{ t: '14:00', e: '15:00', min: 60 }] }],
+  })
+  assert.deepEqual(trace.days[0].stayed, [])
+})
