@@ -59,10 +59,49 @@ export function forRecap(photos = [], turn = 0) {
 
   if (starred.length >= SHOWN) return windowOf(starred, turn)
 
-  // Not enough stars to fill it. The unstarred are a backdrop rather than a
-  // choice, so they do not rotate — swapping them about would make the page
-  // restless without making it better.
-  return [...starred, ...rest.slice(0, SHOWN - starred.length)]
+  // Not enough chosen to fill the page, so the rest is a draw rather than
+  // the first however-many in date order. Taking them in order meant a trip
+  // was represented by its first morning: twelve pictures of an airport,
+  // and the four days after it never seen by anybody who did not scroll.
+  //
+  // Shuffled by the same turn that rotates the chosen ones, so it is stable
+  // for one viewing and for one shared link, and different when you come
+  // back. Read in date order once drawn — a page of one trip should still
+  // read as a day going past.
+  const need = SHOWN - starred.length
+  const filled = shuffled(rest, turn)
+    .slice(0, need)
+    .sort((a, b) => String(a.taken_on ?? '').localeCompare(String(b.taken_on ?? '')))
+  return [...starred, ...filled]
+}
+
+/**
+ * A shuffle that gives the same answer twice.
+ *
+ * Math.random() would reshuffle on every render — the grid would change
+ * while somebody was looking at it, and two people opening the same link
+ * would see different pages. This is a Fisher-Yates driven by a small
+ * deterministic generator, seeded by the turn, so it is only as random as it
+ * needs to be and no more.
+ */
+function shuffled(list, turn = 0) {
+  const out = [...list]
+  let seed = (turn * 2654435761 + 12345) >>> 0
+  const next = () => {
+    // xorshift32 — a few instructions, no dependency, and well past good
+    // enough for deciding which photographs somebody sees today.
+    seed ^= seed << 13
+    seed >>>= 0
+    seed ^= seed >>> 17
+    seed ^= seed << 5
+    seed >>>= 0
+    return seed / 0x100000000
+  }
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(next() * (i + 1))
+    ;[out[i], out[j]] = [out[j], out[i]]
+  }
+  return out
 }
 
 /** Whether it is worth saying that there are more than fit. */

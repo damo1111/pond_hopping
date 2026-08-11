@@ -679,7 +679,18 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           </div>
         )}
 
-        {summary.text && <p className="recap-prose">{summary.text}</p>}
+        {summary.text && (
+          <p className="recap-prose">
+            {summary.text}{' '}
+            {/* A link, not a button. There are already two buttons on this
+                page and both of them do something to the trip; this only
+                goes somewhere, and the paragraph it follows is the reason
+                somebody would want to. */}
+            <button className="recap-more" onClick={() => setLayer('journal')}>
+              read the whole thing →
+            </button>
+          </p>
+        )}
 
         {stats.cities.length > 0 && (
           <div className="recap-cities">

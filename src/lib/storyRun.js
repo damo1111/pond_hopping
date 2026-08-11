@@ -266,3 +266,29 @@ export function spliceChapters(existing = [], written = []) {
   for (const [date, d] of fresh) if (!known.has(date)) out.push({ date, title: d.title ?? null, note: d.note })
   return out.sort((a, b) => String(a.date).localeCompare(String(b.date)))
 }
+
+/** The parts of a reconstruction that are about the trip rather than a day. */
+const ACROSS = ['patterns', 'returned_to', 'attention']
+
+const settled = (v) =>
+  JSON.stringify((Array.isArray(v) ? v : []).map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).sort())
+
+/**
+ * Did the new photographs change something the whole trip depends on?
+ *
+ * Scoping a rebuild to the day a photograph belongs to is right almost
+ * always, and wrong in one specific way: the writer is told to weave the
+ * trip's threads through the days, at the point a reader would notice them.
+ * "The second time I crossed Piazza Navona" is a sentence in Tuesday's
+ * chapter that a photograph uploaded about Thursday can make false.
+ *
+ * So the cross-trip findings are compared before and after. If they are the
+ * same — which is the usual case, because one more picture of a fountain
+ * rarely changes what the trip was about — only the days that moved get
+ * rewritten. If they have changed, the chapters that lean on them are stale,
+ * and the honest thing is to write the trip again.
+ */
+export function widerThanADay(before = null, after = null) {
+  if (!before || !after) return true
+  return ACROSS.some((key) => settled(before[key]) !== settled(after[key]))
+}

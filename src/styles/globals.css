@@ -10314,3 +10314,18 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
   pointer-events: none;
 }
+
+/* Reads as a link because it behaves like one — it goes somewhere rather
+   than doing something. A button element for the keyboard and the screen
+   reader; nothing of a button's appearance. */
+.recap-more {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
