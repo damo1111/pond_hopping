@@ -14,15 +14,15 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-function Entry({ e, autoOpen, jumpKey }) {
+function Entry({ e, chapter, autoOpen, jumpKey }) {
   const [open, setOpen] = useState(autoOpen)
-  // Their words are what the entry is. The blend is a second reading of the
-  // same day, pieced together from the photographs, and it is offered — not
-  // substituted. What they wrote is always what shows first.
+  // Their words are what the entry is. The chapter is a second reading of
+  // the same day, pieced together from the photographs, and it is offered —
+  // never substituted. What they wrote is always what shows first.
   const [blended, setBlended] = useState(false)
   const ref = useRef(null)
   const { user } = useAuth()
-  const hasBlend = !!(e.blend && e.note)
+  const hasBlend = !!(chapter?.note && e.note)
 
   useEffect(() => {
     if (autoOpen && ref.current) {
@@ -52,19 +52,20 @@ function Entry({ e, autoOpen, jumpKey }) {
         <span className="je-date">{fmtDate(e.entry_date)}</span>
         <span className="je-city">{e.city}</span>
       </div>
-      <div className="je-title">{e.title}</div>
+      <div className="je-title">{blended && hasBlend ? chapter.title || e.title : e.title}</div>
       <div className={`je-note${open ? '' : ' clamp'}`}>
-        {blended && hasBlend ? e.blend : e.note}
+        {blended && hasBlend ? chapter.note : e.note}
       </div>
-      {open && hasBlend && (
+      {hasBlend && (
         <button
           className="je-blend"
           onClick={(ev) => {
             ev.stopPropagation()
             setBlended((b) => !b)
+            setOpen(true)
           }}
         >
-          {blended ? 'as you wrote it' : 'with the places filled in'}
+          {blended ? 'as you wrote it' : 'the fuller story of this day'}
         </button>
       )}
       {open && (
@@ -179,6 +180,7 @@ function AddEntry({ tripMeta, selectedTrip, onSaved }) {
 export default function JournalTab() {
   const { tripMeta, selectedTrip, journalJump, clearJournalJump, userId } = useContext(TripContext)
   const [entries, setEntries] = useState(null)
+  const [chapters, setChapters] = useState({})
   const [reload, setReload] = useState(0)
 
   useEffect(() => {
@@ -188,6 +190,18 @@ export default function JournalTab() {
       .select('*')
       .order('entry_date', { ascending: true })
       .then(({ data }) => alive && setEntries(data ?? []))
+    // The pieced-together story, keyed trip+date, so a day can offer its own
+    // chapter beside what somebody wrote at the time.
+    supabase
+      .from('trip_stories')
+      .select('trip_id,chapters')
+      .then(({ data }) => {
+        if (!alive) return
+        const by = {}
+        for (const row of data ?? [])
+          for (const c of row.chapters ?? []) by[`${row.trip_id}:${c.date}`] = c
+        setChapters(by)
+      })
     return () => {
       alive = false
     }
@@ -258,6 +272,7 @@ export default function JournalTab() {
             <Entry
               key={e.id}
               e={e}
+              chapter={chapters[`${e.trip_id}:${e.entry_date}`]}
               autoOpen={jumpEntry?.id === e.id}
             />
           ))}
