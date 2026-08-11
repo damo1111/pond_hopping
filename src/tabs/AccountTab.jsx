@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from '../lib/supabase.js'
 import { backfill } from '../lib/flightBackfill.js'
+import { REACH } from '../lib/flightEnrich.js'
 import { queued, sendOriginal } from '../lib/photoIngest.js'
 import { summarise } from '../lib/originals.js'
 import { API_BASE } from '../lib/apiBase.js'
@@ -700,14 +701,27 @@ function FlightSourceCard() {
             `${t.done} of ${t.total} · ${t.filled} filled in · ${t.nothing} not on record` +
               `${t.failed ? ` · ${t.failed} to try again` : ''} — ${f.flight_number}`
           ),
+        // This source cannot see past a year, and it says so rather than
+        // answering. Asking anyway spent 185 requests on refusals and wrote
+        // every one of them down as "no record", which retired those flights
+        // from the next source too.
+        reach: REACH.aerodatabox,
       })
+
+      // What this source was never going to be able to answer. Said out
+      // loud, because "105 of 482" reads as a failure and "105 of 113, and
+      // 369 are older than this source can see" reads as what happened.
+      const outOfReach = (flights?.length ?? 0) - tally.total
 
       setProgress(
         tally.total === 0
-          ? 'Nothing left to ask about.'
+          ? outOfReach
+            ? `Nothing left to ask this source. ${outOfReach} flights are older than it can see — they are still waiting for one that reaches further back.`
+            : 'Nothing left to ask about.'
           : `Done. ${tally.filled} of ${tally.total} filled in, ${tally.nothing} not on record` +
             `${tally.failed ? `, ${tally.failed} to try again` : ''}` +
-            `${tally.disagreed ? `, ${tally.disagreed} disagreed with what you had` : ''}.`
+            `${tally.disagreed ? `, ${tally.disagreed} disagreed with what you had` : ''}.` +
+            `${outOfReach ? ` ${outOfReach} more are older than this source can see and were left alone.` : ''}`
       )
     } catch (e) {
       setProgress(`Stopped: ${e.message}. Nothing already filled in is lost — run it again.`)
