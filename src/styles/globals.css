@@ -10460,3 +10460,22 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   width: 100%;
   justify-content: space-between;
 }
+
+/* Raw answer from an API, for reading and for screenshotting. Monospace and
+   wrapped, because the interesting part of a response is usually a field
+   name somebody needs to see exactly. */
+.account-peek {
+  margin: 12px 0 0;
+  padding: 11px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 380px;
+  overflow: auto;
+}

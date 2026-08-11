@@ -647,6 +647,77 @@ function OriginalsCard() {
   )
 }
 
+// Does the flight source answer, and how far back?
+//
+// The whole flight-enrichment decision turns on one question — whether a
+// free tier can look up a flight from two years ago or only one from last
+// week — and the answer is one request away. This asks it with the oldest
+// flight on the account and the newest, and shows exactly what came back.
+//
+// `?peek=1` writes nothing. Nothing here changes a single row: it is a
+// question put to an API, and the answer printed.
+function FlightSourceCard() {
+  const { user } = useAuth()
+  const [busy, setBusy] = useState(false)
+  const [said, setSaid] = useState(null)
+
+  async function look() {
+    setBusy(true)
+    setSaid(null)
+    try {
+      const { data: sess } = await supabase.auth.getSession()
+      const token = sess?.session?.access_token
+      // The oldest and the newest flown flight with a number: the two that
+      // bracket how far back this source can see.
+      const { data: flights } = await supabase
+        .from('flights')
+        .select('flight_number,dep_airport,dep_time')
+        .not('flight_number', 'is', null)
+        .lt('dep_time', new Date().toISOString())
+        .order('dep_time', { ascending: true })
+      const list = flights ?? []
+      const pick = [list[0], list[list.length - 1]].filter(Boolean)
+      if (!pick.length) {
+        setSaid('No flights with a number to ask about yet.')
+        return
+      }
+
+      const out = []
+      for (const f of pick) {
+        const on = String(f.dep_time).slice(0, 10)
+        const r = await fetch('/api/enrich-flight?peek=1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ number: f.flight_number, on, from: f.dep_airport }),
+        })
+        const body = await r.text()
+        out.push(`── ${f.flight_number} · ${on} · from ${f.dep_airport} · HTTP ${r.status}\n${body.slice(0, 3000)}`)
+      }
+      setSaid(out.join('\n\n'))
+    } catch (e) {
+      setSaid(`Could not ask: ${e.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!user) return null
+
+  return (
+    <div className="account-card">
+      <div className="account-card-title">Flight data</div>
+      <div className="account-card-body">
+        Asks the flight source about your oldest flight and your newest, and shows what comes back.
+        Nothing is saved — this only asks.
+      </div>
+      <button className="account-btn" disabled={busy} onClick={look}>
+        {busy ? 'asking…' : 'Ask about two flights'}
+      </button>
+      {said && <pre className="account-peek">{said}</pre>}
+    </div>
+  )
+}
+
 function PushCard() {
   const { user } = useAuth()
   const [info, setInfo] = useState(null)
@@ -892,6 +963,7 @@ function SignedIn() {
       <ExamplesCard />
       <OriginalsCard />
       <PushCard />
+      <FlightSourceCard />
       <TimelineCard />
 
       <InviteForm onInvited={load} />
