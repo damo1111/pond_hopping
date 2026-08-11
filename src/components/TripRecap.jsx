@@ -722,7 +722,7 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
                 goes somewhere, and the paragraph it follows is the reason
                 somebody would want to. */}
             <button className="recap-more" onClick={() => setLayer('journal')}>
-              read the whole thing →
+              read the whole thing
             </button>
           </p>
         )}
