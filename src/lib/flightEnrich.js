@@ -24,8 +24,14 @@
  * it has told you it cannot reach wastes a request at best, and at worst —
  * as happened — the refusal gets recorded as an answer and the flight is
  * retired from every future source too.
+ *
+ * Cirium is deliberately null rather than a number. Its historical
+ * entitlement is not something to guess at, and a reach set too short here
+ * would silently skip the 2009 flights — the exact flights it is being paid
+ * to reach. Null means ask about everything and let it refuse, which is now
+ * safe: a refusal records nothing.
  */
-export const REACH = { aerodatabox: 365 }
+export const REACH = { aerodatabox: 365, cirium: null }
 
 /** Fields a source may fill. Everything else on a flight is untouchable. */
 export const FILLABLE = [

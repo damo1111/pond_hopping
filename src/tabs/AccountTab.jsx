@@ -660,7 +660,8 @@ function OriginalsCard() {
 // question put to an API, and the answer printed.
 function FlightSourceCard() {
   const { user } = useAuth()
-  const [busy, setBusy] = useState(false)
+  // Which source is being asked, rather than merely whether one is.
+  const [busy, setBusy] = useState(null)
   const [said, setSaid] = useState(null)
   const [filling, setFilling] = useState(false)
   const [progress, setProgress] = useState(null)
@@ -730,8 +731,11 @@ function FlightSourceCard() {
     }
   }
 
-  async function look() {
-    setBusy(true)
+  /** @param who  which adapter to ask — they answer in the same shape, and
+   *              the whole point of the peek is to see whether they really
+   *              do before four hundred flights depend on it. */
+  async function look(who = 'aerodatabox') {
+    setBusy(who)
     setSaid(null)
     try {
       const { data: sess } = await supabase.auth.getSession()
@@ -763,7 +767,8 @@ function FlightSourceCard() {
         if (!first) await breathe()
         first = false
         const on = String(f.dep_time).slice(0, 10)
-        const r = await fetch('/api/enrich-flight?peek=1', {
+        const where = who === 'cirium' ? '/api/enrich-flight-cirium' : '/api/enrich-flight'
+        const r = await fetch(`${where}?peek=1`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ number: f.flight_number, on, from: f.dep_airport }),
@@ -775,7 +780,7 @@ function FlightSourceCard() {
     } catch (e) {
       setSaid(`Could not ask: ${e.message}`)
     } finally {
-      setBusy(false)
+      setBusy(null)
     }
   }
 
@@ -788,8 +793,18 @@ function FlightSourceCard() {
         Asks the flight source about your oldest flight and your newest, and shows what comes back.
         Nothing is saved — this only asks.
       </div>
-      <button className="account-btn" disabled={busy} onClick={look}>
-        {busy ? 'asking…' : 'Ask about two flights'}
+      <button className="account-btn" disabled={!!busy} onClick={() => look('aerodatabox')}>
+        {busy === 'aerodatabox' ? 'asking…' : 'Ask AeroDataBox about two flights'}
+      </button>
+
+      {/* Cirium has not been confirmed against a real answer yet. Its
+          historical lookup is a different path from its ordinary one and the
+          adapter tries both, reporting which answered — so this button is
+          how the mapping stops being a recollection and becomes a fact.
+          Point it at the oldest flight on record: October 2009 is the thing
+          no other source can reach and the only reason to pay for this one. */}
+      <button className="account-btn" disabled={!!busy} onClick={() => look('cirium')}>
+        {busy === 'cirium' ? 'asking…' : 'Ask Cirium about two flights'}
       </button>
       {said && <pre className="account-peek">{said}</pre>}
 
