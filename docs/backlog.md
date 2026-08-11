@@ -196,8 +196,10 @@ See `docs/lounges.md`.
 
 ## Smaller things
 
-- **`ios/RELEASE_UNLOCKED` comes off main** once the iOS build has landed,
-  or the next merge cuts another store build.
+- ~~**`ios/RELEASE_UNLOCKED` comes off main**~~ — done. Build 116 reached
+  App Store Connect on 11 August and the file came out in the same day's
+  work. Store builds are off again until somebody creates it and says why:
+  `touch ios/RELEASE_UNLOCKED && git add -f ios/RELEASE_UNLOCKED`.
 - **The example trip rewrites itself** when photographs are added, which
   overwrote a hand-written story once already. A guard skipping the
   auto-rerun on demo trips would keep an approved version approved.
