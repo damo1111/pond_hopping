@@ -23,14 +23,6 @@ import Icon from './Icon.jsx'
 // read first, off the phone and before anything is uploaded, and the screen
 // says what it is about to do. Usually there is nothing to ask.
 
-const STATE_LABEL = {
-  waiting: 'waiting',
-  shrinking: 'shrinking',
-  uploading: 'uploading',
-  done: 'added',
-  failed: 'failed',
-}
-
 /**
  * Dates only: a slice of each file, no decoding and no upload. Forty photos
  * read in well under a second, which is what makes it affordable to state a
@@ -213,15 +205,42 @@ export default function PhotoUpload({ trip, trips = [], traveler = null, onDone 
         </div>
       )}
 
+      {/* The photographs, not their filenames.
+          //
+          This was a monospace list — IMG_0043.JPG … added, forty-four times
+          — which is a build log about the thing rather than the thing. What
+          is actually happening is worth watching: pictures arriving, most
+          of them knowing where they were taken, two hundred megabytes
+          becoming eighteen. So the pictures arrive, in a grid, each one
+          appearing the moment it has been shrunk and filling in as it
+          lands. The filenames are gone; nobody ever wanted them. */}
       {rows?.length > 0 && (
-        <ul className="pu-list">
-          {rows.map((r, i) => (
-            <li className={`pu-row pu-${r.state}`} key={`${r.name}-${i}`}>
-              <span className="pu-name">{r.name}</span>
-              <span className="pu-state">{r.state === 'failed' ? r.error : STATE_LABEL[r.state]}</span>
-            </li>
-          ))}
-        </ul>
+        <>
+          {phase === 'running' && (
+            <div className="pu-progress">
+              <div className="pu-progress-said">
+                {totals.done} of {rows.length}
+                {totals.located > 0 && <span className="pu-progress-where"> · {totals.located} know where they were</span>}
+              </div>
+              <div className="pu-bar">
+                <span style={{ width: `${rows.length ? (totals.done / rows.length) * 100 : 0}%` }} />
+              </div>
+            </div>
+          )}
+          <ul className="pu-grid">
+            {rows.map((r, i) => (
+              <li className={`pu-tile pu-${r.state}`} key={`${r.name}-${i}`} title={r.state === 'failed' ? r.error : r.name}>
+                {r.preview ? (
+                  <img src={r.preview} alt="" />
+                ) : (
+                  <span className="pu-tile-empty" aria-hidden="true" />
+                )}
+                {r.located && <span className="pu-pin" aria-hidden="true">◦</span>}
+                {r.state === 'failed' && <span className="pu-tile-bad" aria-hidden="true">!</span>}
+              </li>
+            ))}
+          </ul>
+        </>
       )}
 
       {error && <div className="pu-bad">{error}</div>}
@@ -231,9 +250,13 @@ export default function PhotoUpload({ trip, trips = [], traveler = null, onDone 
           {/* The location count is the point of the whole exercise, not a
               footnote: those are the photos that can put themselves on the
               map and reconstruct where a trip went. */}
-          <strong>{totals.done} added</strong>
-          {totals.located > 0 && <span>{totals.located} with a location</span>}
-          {saving && <span>{saving}</span>}
+          {/* One sentence. The location count is the point of the whole
+              exercise, not a footnote: those are the photographs that can
+              put themselves on a map and reconstruct where a trip went. */}
+          <strong>
+            {totals.done} added{totals.located > 0 ? `, ${totals.located} knowing where they were` : ''}
+          </strong>
+          {saving && <span className="pu-saved">{saving}</span>}
           {totals.failed > 0 && <span className="pu-bad">{totals.failed} failed</span>}
         </div>
       )}
