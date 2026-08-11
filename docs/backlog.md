@@ -7,18 +7,19 @@ Roughly in the order it is worth doing, not in the order it was asked for.
 
 ## 1. The story pipeline runs server-side, and pushes when it is done
 
-**Half done.** Everything except the reading of the photographs now runs in
-`api/build-story.js`, which finishes whether or not the tab is open.
+**Done, and proven with a real run rather than assumed.**
 
-What moved: build the trace, reconstruct, file the questions, write, save.
-It fetches its own evidence rather than being handed whatever a browser
-happened to have loaded, and it acts as the person who asked — their token,
-their row-level security, no service key. `story_runs` records that a run is
-in progress, so a double tap gets a 409 rather than two runs racing to write
-the same story and the loser's version winning. A claim that goes quiet for
-a quarter of an hour is taken over, because a crashed invocation must not
-lock a trip for ever. The screen polls that row, so coming back to the app
-mid-run shows progress instead of quietly starting a second one.
+`api/build-story.js` is now only a door: it decides whether somebody may
+write this trip — their token, their row-level security, `is_trip_editor()`
+— claims the run, and answers 202 in milliseconds. Everything after that is
+`api/story-step.js`, which pg_cron pokes through pg_net once a minute until
+the trip is written. One batch of ten photographs a tick, each written down
+as it comes back, then reconstruct, ask, write, save, push.
+
+No service key anywhere in it. The worker holds the shared secret Vercel
+already had as `PUSH_SECRET` and reaches the database through seven
+functions that each take that secret and a single trip id. Authorisation
+happens once, by a person, at the door.
 
 It also fixed something nobody had noticed. `TripStory` returned null
 without photographs, so six trips imported from a Google Timeline — 4,217
@@ -26,15 +27,30 @@ recorded positions, 212 stays, a journal entry on nearly every day, not one
 picture — had no story and no button anywhere in the app that could give
 them one. They were not failing. They were unreachable.
 
-**What is left.**
+**What the first real run showed.** The Voyage, claimed 10:49:23, finished
+10:52:25, `ok = true`, three chapters and 3,891 characters from testimony,
+flights, one run and fifteen recorded stays — no photographs at all. The
+push landed on an iPhone. Every link is now evidence rather than inference.
 
-- **The seeing.** Reading three hundred photographs does not fit in one
-  300-second invocation, so it is still in the tab, and a big first upload
-  still wants the app left open. This is the queue-of-small-steps part, and
-  it is the whole of the remaining work.
-- **The push.** One when the questions are ready, one when it finishes.
-  A line or two now: there is a server side to send it from, and
-  `story_runs.finished_at` is the moment to send it.
+**Two things worth writing down.**
+
+- **`vercel.json` is where the worker's time limit lives**, and it was
+  missing. The seeing would have looked fine and the writing would have
+  timed out every time, with cron retrying the most expensive call in the
+  app every two minutes. `reconstruct-trip.js` and `write-trip.js` having
+  their own 300 does not help: story-step imports their functions and runs
+  them under its own limit. Anything new that calls a model needs its own
+  entry.
+- **`net._http_response` records `status_code: null`** for a poke, because
+  pg_net gives up waiting long before a three-minute invocation returns.
+  That is fire-and-forget working as intended, and it means the only record
+  of a failed tick is `story_runs.note`. Do not add a check that reads the
+  pg_net response and concludes anything from it.
+
+**Still not exercised.** The seeing has never run under the worker — the
+trip that proved the pipeline had no photographs. The next upload is its
+first real test. The high-detail second pass over frames with legible text
+is not wired into the worker at all; the low pass covers every trip today.
 
 ---
 
@@ -144,15 +160,24 @@ So it is two moments, not one:
                 and look a day or so later
 
 `worthAsking()` already answers both correctly — it skips flights whose
-departure is in the future and picks them up once it is past. What is
-missing is anything that *runs* it on a schedule, which is the same missing
-piece as the story pipeline: there is no server-side loop. These two want
-building together.
+departure is in the future and picks them up once it is past. What was
+missing was anything that *ran* it on a schedule.
 
-Until then the pass can run when the flights screen opens, which covers the
-backfill and everything historical, and leaves upcoming flights to be
-enriched the next time somebody opens the app after landing. That is not
-"without being asked", but it is close enough to be worth having.
+**That part now exists.** pg_cron ticks every minute and pg_net pokes an
+endpoint; `tick_story_runs()` is the working example, and the secret-gated
+`SECURITY DEFINER` pattern beside it is how a worker reaches the database
+without a service key. A `tick_flight_enrichment()` on the same shape is a
+short job rather than an architecture — hourly rather than by the minute,
+since a flight that landed an hour ago is soon enough.
+
+Two things to get right when it is written, both learned the hard way:
+
+- **a source's reach.** Pass `reach` so a source is never asked about dates
+  it has said it cannot see. Asking anyway cost 369 pointless requests and,
+  worse, wrote every refusal down as an answer.
+- **its own `vercel.json` entry.** Anything that calls a model or loops over
+  hundreds of rows needs a `maxDuration`, or it dies on the default and cron
+  retries it for ever.
 
 ## 7. Flight data: AeroAPI
 
