@@ -57,6 +57,10 @@ export default function DayMap({ tripId, date }) {
   // with a hundred and seventeen geotagged photographs across Rome was
   // drawing a fifty-metre fragment of somebody else's data.
   const [shots, setShots] = useState([])
+  // The places the reconstruction actually named, so the map says where you
+  // were rather than only that you were somewhere. Dots are the basics; a
+  // name against a dot is the point.
+  const [named, setNamed] = useState([])
 
   useEffect(() => {
     let alive = true
@@ -83,7 +87,8 @@ export default function DayMap({ tripId, date }) {
         .eq('taken_on', date)
         .not('lat', 'is', null)
         .order('taken_at'),
-    ]).then(([t, r, v, p]) => {
+      supabase.from('trip_stories').select('reconstruction').eq('trip_id', tripId).maybeSingle(),
+    ]).then(([t, r, v, p, story]) => {
       if (!alive) return
       setTrack(t.data?.[0] ?? null)
       setRuns(r.data ?? [])
@@ -92,6 +97,10 @@ export default function DayMap({ tripId, date }) {
       // day is decided in too.
       setRecorded((v.data ?? []).filter((row) => localDay(row.arrived_at) === date).map(asVisit))
       setShots((p.data ?? []).map((row) => [row.lat, row.lon]))
+      const day = (story.data?.reconstruction?.days ?? []).find((d) => d.date === date)
+      setNamed(
+        (day?.episodes ?? []).filter((e) => e?.where && e.lat != null && e.lon != null)
+      )
     })
     return () => {
       alive = false
@@ -99,7 +108,7 @@ export default function DayMap({ tripId, date }) {
   }, [tripId, date])
 
   if (track === undefined) return <div className="daymap-loading">loading the day…</div>
-  if (!track && !runs.length && !recorded.length && !shots.length) return null
+  if (!track && !runs.length && !recorded.length && !shots.length && !named.length) return null
 
   const path = track?.path ?? []
   const visits = [...(track?.visits ?? []), ...recorded]
@@ -108,6 +117,7 @@ export default function DayMap({ tripId, date }) {
     ...visits.map((v) => [v.lat, v.lon]),
     ...runs.flatMap((r) => [r.coords[0], r.coords[r.coords.length - 1]]),
     ...shots,
+    ...named.map((e) => [e.lat, e.lon]),
   ]
   if (!bounds.length) return null
 
@@ -154,6 +164,27 @@ export default function DayMap({ tripId, date }) {
             radius={2.5}
             pathOptions={{ color: GOLD, fillColor: GOLD, fillOpacity: 0.85, weight: 0 }}
           />
+        ))}
+
+        {/* The places the day was actually made of, named. */}
+        {named.map((e, i) => (
+          <CircleMarker
+            key={`n${i}`}
+            center={[e.lat, e.lon]}
+            radius={6}
+            pathOptions={{ color: INK, fillColor: GOLD, fillOpacity: 1, weight: 2 }}
+          >
+            <Popup>
+              <div className="world-pop">
+                <div className="world-pop-route">{e.where}</div>
+                {(e.from || e.what) && (
+                  <div className="world-pop-flight">
+                    {[e.from && `${e.from}${e.to ? `–${e.to}` : ''}`, e.what].filter(Boolean).join(' · ')}
+                  </div>
+                )}
+              </div>
+            </Popup>
+          </CircleMarker>
         ))}
 
         {runs.map((r, i) => (

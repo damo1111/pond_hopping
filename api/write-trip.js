@@ -206,6 +206,13 @@ function keepTheirs(theirs = {}) {
     `these are what nothing else in the pipeline can recover, and putting ` +
     `them in your own words loses them. Weave the photographs around their ` +
     `sentences, never in place of them.\n\n` +
+    `Where their account and the photographs describe the SAME thing, say it ` +
+    `once, using their sentence and the better name. They wrote "moved ` +
+    `hotels to Hotel 10" and the pictures show H10 Palazzo Galla: that is ` +
+    `one move to one hotel, written once, with the full name in it. Never ` +
+    `narrate the same event twice because two sources mentioned it, and ` +
+    `never leave a contradiction standing — they were there, so their ` +
+    `version is the true one and the evidence only adds detail to it.\n\n` +
     `Do not restate in numbers something they said in words: under "a long ` +
     `run", the distance is padding and reads as padding.\n\n` +
     dates.map((d) => `${d}:\n"${theirs[d]}"`).join('\n\n')
