@@ -31,6 +31,23 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // "autoUpdate" downloads the new service worker but, by default, it
+      // waits: the old one keeps serving until every tab is closed. On a
+      // phone that is never, so a fix shipped ten minutes ago is invisible
+      // for days. Four separate rounds this morning were spent looking at
+      // components that had already been deleted.
+      //
+      // skipWaiting takes over as soon as the new worker installs;
+      // clientsClaim puts the open page under it without waiting for a
+      // navigation. Together they mean a reload is enough, which is what
+      // everybody assumes a reload does.
+      workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        // The shell is the thing that goes stale. Anything else can be
+        // fetched fresh.
+        cleanupOutdatedCaches: true,
+      },
       // duck.png as well as the icon. It is the brand mark in the header
       // and every pin on the globe, and it was being fetched from the
       // network on every cold start — 220KB, over whatever connection
