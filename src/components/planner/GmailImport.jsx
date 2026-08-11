@@ -4,6 +4,7 @@ import { API_BASE } from '../../lib/apiBase.js'
 import { getGoogleToken } from '../../lib/google.js'
 import { KIND_META } from '../../lib/planItems.js'
 import SheetGrip from '../SheetGrip.jsx'
+import ForwardBookings from './ForwardBookings.jsx'
 
 // Turn a booking into trip items with zero setup: paste (or forward →
 // copy) the confirmation email and the same AI extraction pulls out the
@@ -99,9 +100,14 @@ export default function GmailImport({ trip, onClose, onImported }) {
           <>
             <div className="ios-sheet-title">Add a booking</div>
             <div className="ios-sheet-sub">
-              Paste a confirmation email (flight, hotel, restaurant, tickets) and I'll pull out what belongs to this
-              trip. Forward it to yourself first if it's easier, then copy the text in.
+              A confirmation — flight, hotel, restaurant, tickets — and I'll pull out what belongs to
+              this trip. Nothing is added until you have looked at it.
             </div>
+            {/* Forwarding first: it is one tap from the mail app the
+                confirmation is already sitting in, where pasting means
+                select-all in an email and a text field on a phone. */}
+            <ForwardBookings />
+            <div className="gm-or">or paste it in</div>
             <textarea
               className="account-input gm-paste"
               rows={6}
