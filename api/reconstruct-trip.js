@@ -117,13 +117,16 @@ WHAT TO RETURN
 JSON only:
 
 { "days": [ { "date", "title", "episodes": [ { "from", "to", "where",
-  "what", "shows", "moved", "certainty", "unsure" } ], "gaps": [],
-  "on_foot_km" } ],
+  "lat", "lon", "what", "shows", "moved", "certainty", "unsure" } ],
+  "gaps": [], "on_foot_km" } ],
   "patterns": [], "returned_to": [], "attention": [], "unexplained": [],
   "ask": [ { "on_date", "asks", "because" } ],
   "context": [ { "on_date", "what", "certain" } ] }
 
-"where" is the place, at whatever precision the evidence supports.
+"where" is the place, at whatever precision the evidence supports. "lat"
+and "lon" are copied from the photographs of that episode, to five decimals,
+so a map can put the name where it belongs — never invented, and null where
+the episode has no located photograph.
 "shows" is what the photographs themselves show, and is empty where none
 were looked at. "moved" is how they got there. "unsure" is what you could
 not settle. "patterns" is the trip's habits — early mornings, walking over

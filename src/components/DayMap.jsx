@@ -51,6 +51,16 @@ export default function DayMap({ tripId, date }) {
   const [track, setTrack] = useState(undefined) // undefined loading, null none
   const [runs, setRuns] = useState([])
   const [recorded, setRecorded] = useState([])
+  // Where the photographs were taken. On a trip reconstructed years later
+  // this is the only record of the day's route that exists — there is no
+  // Google Timeline export and the phone was not recording visits. A day
+  // with a hundred and seventeen geotagged photographs across Rome was
+  // drawing a fifty-metre fragment of somebody else's data.
+  const [shots, setShots] = useState([])
+  // The places the reconstruction actually named, so the map says where you
+  // were rather than only that you were somewhere. Dots are the basics; a
+  // name against a dot is the point.
+  const [named, setNamed] = useState([])
 
   useEffect(() => {
     let alive = true
@@ -70,7 +80,15 @@ export default function DayMap({ tripId, date }) {
         .gte('arrived_at', dayStart)
         .lte('arrived_at', dayEnd)
         .order('arrived_at'),
-    ]).then(([t, r, v]) => {
+      supabase
+        .from('photos')
+        .select('lat,lon,taken_at')
+        .eq('trip_id', tripId)
+        .eq('taken_on', date)
+        .not('lat', 'is', null)
+        .order('taken_at'),
+      supabase.from('trip_stories').select('reconstruction').eq('trip_id', tripId).maybeSingle(),
+    ]).then(([t, r, v, p, story]) => {
       if (!alive) return
       setTrack(t.data?.[0] ?? null)
       setRuns(r.data ?? [])
@@ -78,6 +96,11 @@ export default function DayMap({ tripId, date }) {
       // while you are on the trip it is the trip's — so it is the one the
       // day is decided in too.
       setRecorded((v.data ?? []).filter((row) => localDay(row.arrived_at) === date).map(asVisit))
+      setShots((p.data ?? []).map((row) => [row.lat, row.lon]))
+      const day = (story.data?.reconstruction?.days ?? []).find((d) => d.date === date)
+      setNamed(
+        (day?.episodes ?? []).filter((e) => e?.where && e.lat != null && e.lon != null)
+      )
     })
     return () => {
       alive = false
@@ -85,7 +108,7 @@ export default function DayMap({ tripId, date }) {
   }, [tripId, date])
 
   if (track === undefined) return <div className="daymap-loading">loading the day…</div>
-  if (!track && !runs.length && !recorded.length) return null
+  if (!track && !runs.length && !recorded.length && !shots.length && !named.length) return null
 
   const path = track?.path ?? []
   const visits = [...(track?.visits ?? []), ...recorded]
@@ -93,6 +116,8 @@ export default function DayMap({ tripId, date }) {
     ...path,
     ...visits.map((v) => [v.lat, v.lon]),
     ...runs.flatMap((r) => [r.coords[0], r.coords[r.coords.length - 1]]),
+    ...shots,
+    ...named.map((e) => [e.lat, e.lon]),
   ]
   if (!bounds.length) return null
 
@@ -120,6 +145,47 @@ export default function DayMap({ tripId, date }) {
         {path.length > 1 && (
           <Polyline positions={path} pathOptions={{ color: INK, weight: 2, opacity: 0.55 }} />
         )}
+
+        {/* Where the photographs were taken, in order. Dashed, because it is
+            not a recorded track — it is the line between the places somebody
+            stopped to take a picture, and the walking between them is
+            inferred rather than known. On a trip pieced together years
+            afterwards it is the only route there is. */}
+        {shots.length > 1 && (
+          <Polyline
+            positions={shots}
+            pathOptions={{ color: GOLD, weight: 2, opacity: 0.75, dashArray: '4 5' }}
+          />
+        )}
+        {shots.map((p, i) => (
+          <CircleMarker
+            key={`s${i}`}
+            center={p}
+            radius={2.5}
+            pathOptions={{ color: GOLD, fillColor: GOLD, fillOpacity: 0.85, weight: 0 }}
+          />
+        ))}
+
+        {/* The places the day was actually made of, named. */}
+        {named.map((e, i) => (
+          <CircleMarker
+            key={`n${i}`}
+            center={[e.lat, e.lon]}
+            radius={6}
+            pathOptions={{ color: INK, fillColor: GOLD, fillOpacity: 1, weight: 2 }}
+          >
+            <Popup>
+              <div className="world-pop">
+                <div className="world-pop-route">{e.where}</div>
+                {(e.from || e.what) && (
+                  <div className="world-pop-flight">
+                    {[e.from && `${e.from}${e.to ? `–${e.to}` : ''}`, e.what].filter(Boolean).join(' · ')}
+                  </div>
+                )}
+              </div>
+            </Popup>
+          </CircleMarker>
+        ))}
 
         {runs.map((r, i) => (
           <Polyline key={i} positions={r.coords} pathOptions={{ color: r.color || GREEN, weight: 3, opacity: 0.9 }}>
