@@ -15,13 +15,20 @@ import { INTRO, arcsShown, chronological } from '../lib/globeIntro.js'
 import { tripPhase } from '../lib/tripPhase.js'
 import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
 import { sectionTrips } from '../lib/tripPhase.js'
-import { homeCoords } from '../lib/homePov.js'
+import { overviewOf, homeCoords } from '../lib/homePov.js'
 import { shouldBadge, shouldTour, TOUR_SEEN_KEY } from '../lib/demoTour.js'
 import DemoTour from '../components/DemoTour.jsx'
 import GetTripsIn from '../components/GetTripsIn.jsx'
 
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.
+/* Where the earth sits before anybody has chosen a trip.
+ *
+ * The last resort rather than the answer: overviewOf() puts the camera on
+ * whatever this person can actually see, and this is only used when there is
+ * nothing to point at. It used to be the answer, and it is one collection's
+ * centre — a signed-out visitor sees two European examples and opened on the
+ * Java Sea, looking at nothing. */
 const OVERVIEW_POV = { lat: -8, lng: 122, altitude: 1.9 }
 
 // Long enough that flying to a trip is something you watch rather than a
@@ -193,7 +200,18 @@ export default function WorldTab() {
   }, [tripsLoaded, introOpen])
 
   const home = useMemo(() => homeCoords(), [])
-  const overviewPov = isEmpty ? { lat: home.lat, lng: home.lng, altitude: 1.9 } : OVERVIEW_POV
+  // Nothing at all to show: their own part of the world, which is the only
+  // thing known about somebody with no trips yet.
+  //
+  // Otherwise the middle of what they have. Airports rather than segments,
+  // because a trip with no flights recorded still has none either way and
+  // this is about where to stand, not what to draw.
+  const overviewPov = useMemo(() => {
+    if (isEmpty) return { lat: home.lat, lng: home.lng, altitude: 1.9 }
+    const middle = overviewOf(airports.map((a) => a.pos), null)
+    return middle ? { ...middle, altitude: 1.9 } : OVERVIEW_POV
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEmpty, home.lat, home.lng, airports])
   const idleSpin = isEmpty ? 0.9 : 0.35
 
   // "Three years ago today". Filtering happens here rather than in SQL
