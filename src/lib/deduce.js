@@ -46,7 +46,17 @@
 // kilometres apart and share a name, and the whole answer to "was this a
 // train or a flight" is which of the two the geotag is sitting on.
 
-import { BANDS, CLEARLY_NEARER, MODES, ON_FOOT_KMH, bandFor, kmApart, nodesNear, partAt } from './legs.js'
+import {
+  BANDS,
+  CLEARLY_NEARER,
+  MODES,
+  ON_FOOT_KMH,
+  bandFor,
+  kmApart,
+  nodesNear,
+  partAt,
+  zoneAt,
+} from './legs.js'
 import { offsetOfZone } from './localTime.js'
 
 /**
@@ -61,6 +71,22 @@ export const CROSSING_KM = 60
 
 /** Anything above this between two fixes was not somebody on the ground. */
 export const CROSSING_KMH = MODES.road.ceiling
+
+/**
+ * Above this, nothing was moving — the trace is wrong.
+ *
+ * This is a straight-line average across the whole gap between two fixes,
+ * so it is always below the true ground speed, and airliners top out around
+ * 1,000 with a strong tailwind. A Guangzhou–Shanghai crossing in this
+ * archive comes out at 1,399 km/h, and the cause is a Timeline visit
+ * recorded as ending four hours after the aeroplane it was waiting for had
+ * already landed.
+ *
+ * Not filtered out. Named. A trace that contradicts itself is a fact worth
+ * showing somebody, and quietly dropping it would leave a real journey
+ * missing with no explanation.
+ */
+export const IMPOSSIBLE_KMH = 1200
 
 const iso = (t) => String(t ?? '')
 const ms = (t) => Date.parse(iso(t))
@@ -93,9 +119,16 @@ export function fixesFrom({ photos = [], stays = [] } = {}) {
  * A Google Timeline day, as fixes.
  *
  * The export keeps local clock times with no offset on them — "08:00" and
- * "→05:38", where the arrow means it ran past midnight — so the zone has to
- * be supplied. Getting this wrong by an hour is survivable; getting the day
- * wrong is not, which is why the arrow is honoured rather than ignored.
+ * "→05:38", where the arrow means it ran past midnight. Getting the offset
+ * wrong by an hour is survivable; getting the day wrong is not, which is
+ * why the arrow is honoured rather than ignored.
+ *
+ * **Each visit gets its own zone, from its own coordinate.** Passing one
+ * zone for a trip is the obvious thing and it is wrong: a day that starts
+ * in Beijing and ends in Tokyo has its two clock times an hour apart in a
+ * way no trip-level zone can express, and every multi-country day in this
+ * archive is one of those. `zone` still overrides, for a caller that knows
+ * better than the coordinate does.
  */
 export function stayFixes(tracks = [], zone = null) {
   const stays = []
@@ -103,11 +136,12 @@ export function stayFixes(tracks = [], zone = null) {
     if (!t?.track_date) continue
     for (const v of t.visits ?? []) {
       if (v?.lat == null || v?.lon == null) continue
+      const here = zone ?? zoneAt([v.lat, v.lon])
       stays.push({
         lat: v.lat,
         lon: v.lon,
-        arrived_at: instantOf(t.track_date, v.t, zone),
-        departed_at: instantOf(t.track_date, v.e, zone),
+        arrived_at: instantOf(t.track_date, v.t, here),
+        departed_at: instantOf(t.track_date, v.e, here),
       })
     }
   }
@@ -337,6 +371,30 @@ export const HABITS = {
  */
 export const MARGIN_MINUTES = 60
 
+/**
+ * Slack on the rejection bound, as distinct from the ranking one.
+ *
+ * The tight `landed_by` is right for ranking and wrong for throwing things
+ * away. QF163 into Wellington is scheduled to land at 23:55 and the
+ * Timeline has them at the hotel at 00:05 — ten minutes, which is not
+ * possible and is nonetheless what the data says, because a schedule is not
+ * an arrival and Google's idea of when a visit began is its own. Rejecting
+ * on the tight bound threw out the right flight.
+ *
+ * The departure end needs it for a better reason, and one that took real
+ * data to see. A recorded stay at an airport does not end when the
+ * aeroplane leaves — it ends when the *phone* leaves the airport's
+ * footprint, and the phone is on the aeroplane. Wellington on 17 June has
+ * them still inside the airport twenty-five minutes after QF282 pushed
+ * back, which is not a contradiction, it is what boarding looks like. Both
+ * of these flights were being thrown away for being real.
+ *
+ * So: **hard facts reject, soft fits rank**, and the facts get three
+ * quarters of an hour of slack at both ends. Ranking keeps the tight
+ * number, because a candidate an hour better is still an hour better.
+ */
+export const GRACE_MINUTES = 45
+
 /** How long it takes to get from a node to a point `km` away, in ms. */
 export function reachMs(km) {
   const hours = Math.max(0, Number(km) || 0) / HABITS.ground_kmh
@@ -366,6 +424,11 @@ export function askFor(leg, crossing) {
     from_part: leg.from.part?.name ?? null,
     // Weak, and known to be weak: they were in the lounge.
     left_after: crossing.from.at,
+    // How that last sighting was come by, because it changes what it
+    // proves. A recorded stay at an airport can outlast the aeroplane —
+    // the phone is on it. A photograph cannot: somebody standing in a
+    // terminal at 12:40 was not on the 12:10.
+    left_how: crossing.from.how ?? null,
     // Strong: they were somewhere else by then, and it takes this long to
     // get there from the airport.
     landed_by: landedBy,
@@ -410,8 +473,17 @@ export function narrow(services = [], ask) {
       no(`leaves from ${s.terminal_from}; the trace is in ${ask.from_part}`)
       continue
     }
-    if (s.dep && ms(s.dep) < ms(ask.left_after)) { no('had already gone when they were last seen at the airport'); continue }
-    if (s.arr && ms(s.arr) > ms(ask.landed_by)) { no('lands after they were already somewhere else'); continue }
+    // A photograph pins them to the ground; a recorded stay only pins the
+    // phone to the airport, and the phone boards the aeroplane.
+    const slack = ask.left_how === 'photograph' ? 0 : GRACE_MINUTES * 60000
+    if (s.dep && ms(s.dep) < ms(ask.left_after) - slack) {
+      no(slack ? 'had long gone when they were last seen at the airport' : 'had gone before they were photographed at the airport')
+      continue
+    }
+    if (s.arr && ms(s.arr) > ms(ask.landed_by) + GRACE_MINUTES * 60000) {
+      no('lands well after they were already somewhere else')
+      continue
+    }
     keep.push({ service: s, waited: s.arr ? ms(ask.landed_by) - ms(s.arr) : Infinity })
   }
 
@@ -453,6 +525,15 @@ export function legsFor(trace, opts = {}) {
   return crossings.map((c) => {
     const airborne = fixes.length > 0 && c.from.at === fixes[0].at
     const out = deduce(c, opts)
+    if (c.kmh > IMPOSSIBLE_KMH) {
+      out.trace_contradicts_itself = true
+      for (const leg of out.legs) {
+        leg.certainty = 'unknown'
+        leg.why.unshift(
+          `${c.kmh} km/h over ${c.km} km, which nothing flies — one of these two times is wrong, not the journey`
+        )
+      }
+    }
     if (airborne) {
       out.began_moving = true
       for (const leg of out.legs) {

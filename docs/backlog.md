@@ -54,6 +54,94 @@ is not wired into the worker at all; the low pass covers every trip today.
 
 ---
 
+## 1b. Deducing the leg from the trace
+
+**The library exists and is proven against the real archive. Nothing in the
+app calls it yet.** `src/lib/legs.js` and `src/lib/deduce.js`.
+
+A leg is a journey between two places on somebody else's timetable, and the
+shape is the same for a Eurostar and a 787 — only the mode differs. So a
+node is somewhere a service leaves from, a part is the bit of it you stood
+in, and an airport and a station are one object with a different `kind`.
+Built that way from the first line rather than retrofitted, which is the
+only reason trains work at all.
+
+**What it does.** A hole in the trace nobody crossed on the ground is a
+leg. It merges consecutive fast segments so two window photographs are one
+flight rather than three. It names Heathrow Terminal 5 from a geotag. It
+returns a ranked list with reasons, and — the part that matters — the
+question to put to a timetable: mode, both ends as *lists*, and a window.
+
+**What it will not do.** Never returns `confirmed`. A photograph is
+inference, and inference does not get to sit on the same rung as testimony.
+
+### What the sweep over the real archive settled
+
+Run over China & Japan and both NZ status runs, against the recorded
+flights. Not two hand-picked days — the whole trips.
+
+- **NZ: 7 of 7 crossings found**, all four recorded flights matched, and
+  all four narrowed to exactly one service — including two identical
+  SYD–WLG and two identical WLG–BNE a week apart. That is the hopper case.
+- **China: 4 of 6** correctly identified, including the train.
+- **Four flights found that are not in the database at all** — MEL–BNE on
+  21 May, MEL–SYD twice on the status runs, BNE–MEL on 24 June. Positioning
+  legs, the same gap the Rome BA1433/BA1446 pair turned out to be.
+
+**The two things it got wrong, and both were the same mistake.** A bound
+correct in principle that threw away real flights:
+
+- **A recorded stay at an airport outlasts the aeroplane**, because it ends
+  when the *phone* leaves the airport's footprint and the phone is on the
+  aeroplane. Wellington on 17 June has them inside the airport twenty-five
+  minutes after QF282 pushed back. Rejecting on that bound discarded the
+  right flight for being real. Now `GRACE_MINUTES`, and only for stays — a
+  *photograph* in a terminal at 12:40 does rule out the 12:10.
+- **A scheduled arrival is not an arrival.** QF163 lands at 23:55 and the
+  Timeline has them at the hotel at 00:05.
+
+**What it cannot do, and should not pretend to.** Hong Kong to Guangzhou is
+107 km in two hours — 52 km/h. That is a real CX982, and from position
+alone it is indistinguishable from a coach or the ferry. Anything under the
+road ceiling is invisible to this, permanently.
+
+**A trace that contradicts itself is named, not smoothed.** Guangzhou to
+Shanghai comes out at 1,399 km/h because a Timeline visit is recorded as
+ending four hours after the aeroplane landed. Above `IMPOSSIBLE_KMH` the
+route is still reported and the certainty drops to `unknown`.
+
+**Still to do.** Nothing calls it. It wants: a screen that offers what it
+found, the timetable lookup behind `ask` (AeroDataBox by route and date
+already exists; rail has no equivalent yet), and writing accepted legs
+back. Trains have no `flights` table to go in — see item 3 below.
+
+---
+
+## 1c. `actual_dep_time` and `actual_arr_time` are wrong on 272 flights
+
+**A live data bug, found while building the deduction.** The Flighty import
+wrote naive local clock times into `timestamptz` columns, so every leg that
+crosses a timezone has actual times out by the offset.
+
+The evidence is the shape of it. Comparing actual block time against
+scheduled, the differences cluster on **whole hours** — 42 legs at 0, then
+piles at −8, −5, −1, +1, +2, +5, +8. Delays do not do that. Zone offsets do.
+BA546 Heathrow–Fiumicino claims to have landed at 19:41 UTC and the next
+photograph is in the middle of Rome five minutes later.
+
+- 208 of 245 `flighty`, 44 of 52 `aerodatabox+flighty`, 10 of 15
+  `byair+flighty`, 1 of 1 — 263 legs, plus 9 of 35 pure `aerodatabox`
+  which are a separate question and may be genuine delays.
+- **It is recoverable.** `flights_unfiled` kept the naive local values in
+  purpose-built columns and the raw row beside them, and `AIRPORT_TZ` turns
+  a local clock and an airport into an instant.
+
+This matters beyond tidiness: narrowing a leg to one service compares
+instants. Until it is fixed, every disagreement it finds on a
+zone-crossing flight is the import's fault rather than the airline's.
+
+---
+
 ## 2. Re-ordering photographs
 
 **For marketing. There is no way to do this today.**

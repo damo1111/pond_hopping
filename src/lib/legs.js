@@ -20,6 +20,7 @@
 
 import { AIRPORT_COORDS } from './airportCoords.js'
 import { AIRPORT_CITY } from './airportCities.js'
+import { AIRPORT_TZ } from './airportTz.js'
 
 /**
  * How a gap gets crossed, and what that implies.
@@ -321,6 +322,28 @@ export function bandFor(kind, km) {
   if (km <= band.at) return 'at'
   if (km <= band.serves) return 'near'
   return 'far'
+}
+
+/**
+ * What the clocks said where this happened.
+ *
+ * A Google Timeline export keeps local clock times with no offset on them,
+ * and the offset that matters is the one *at that coordinate*, not the one
+ * for the trip. A day that begins in Beijing and ends in Tokyo has its two
+ * times an hour apart in a way no single trip-level zone can express, and
+ * applying one of them to both makes a four-hour flight look like three.
+ *
+ * The nearest airport answers it exactly, daylight saving included, because
+ * AIRPORT_TZ holds IANA names rather than numbers. Longitude is the
+ * fallback and is good to about an hour — worth having, but only as a
+ * fallback: it puts Seoul on +8 and Kuala Lumpur on +7, both wrong, and
+ * both of which the airport thirty miles away gets right.
+ */
+export function zoneAt([lat, lon], { within = 100 } = {}) {
+  const near = nodesNear([lat, lon], { kind: 'airport', within })[0]
+  const named = near ? AIRPORT_TZ[near.code] : null
+  if (named) return named
+  return Number.isFinite(lon) ? Math.round(lon / 15) : null
 }
 
 /** A leg in words, for a list or a card. Mode-agnostic on purpose. */

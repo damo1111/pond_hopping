@@ -11,7 +11,7 @@ import {
   samePart,
   stayFixes,
 } from './deduce.js'
-import { partAt, nodesNear } from './legs.js'
+import { partAt, nodesNear, zoneAt } from './legs.js'
 
 // Both fixtures below are real traces out of the database, copied unchanged.
 // Made-up coordinates would have let every one of these tests pass while the
@@ -173,6 +173,7 @@ test('two hoppers an hour apart: the one that landed last wins', () => {
     to: ['EDI'],
     from_part: 'Terminal 5',
     left_after: '2024-06-01T12:40:00.000Z',
+    left_how: 'photograph',
     landed_by: '2024-06-01T17:25:00.000Z',
     landed_after: '2024-06-01T15:25:00.000Z',
   }
@@ -188,8 +189,8 @@ test('two hoppers an hour apart: the one that landed last wins', () => {
   // The 12:10 had gone before they were last seen; the 17:00 lands after
   // they were already in Edinburgh; the easyJet leaves the wrong airport.
   assert.equal(ranked.length, 2)
-  assert.ok(rejected.some((r) => r.service.number === 'BA1444' && r.why.includes('already gone')))
-  assert.ok(rejected.some((r) => r.service.number === 'BA1450' && r.why.includes('lands after')))
+  assert.ok(rejected.some((r) => r.service.number === 'BA1444' && r.why.includes('photographed')))
+  assert.ok(rejected.some((r) => r.service.number === 'BA1450' && r.why.includes('lands well after')))
   assert.ok(rejected.some((r) => r.service.number === 'U22987'))
 })
 
@@ -228,4 +229,99 @@ test('a terminal in the trace throws out everything that leaves from another', (
   )
   assert.deepEqual(ranked.map((r) => r.number), ['BA1448'])
   assert.ok(samePart('Terminal 5', '5') && samePart('T5', '5') && !samePart('5', '3'))
+})
+
+// ── What the sweep over the real archive taught it ─────────────────────
+//
+// Everything below came from running this over China & Japan and the NZ
+// status runs and looking at what it got wrong, rather than from imagining
+// what might go wrong. The two calibration bugs it found were both of the
+// same kind: a bound that was correct in principle and threw away real
+// flights in practice.
+
+test('a speed nothing flies means the trace is wrong, not that the journey was fast', () => {
+  // Guangzhou to Shanghai, 24 May 2026, verbatim. Google has them still at
+  // Baiyun four hours after the aeroplane they were waiting for landed, so
+  // 1,189 km appear to have been covered in fifty-one minutes.
+  const [bad] = legsFor(
+    stayFixes([
+      {
+        track_date: '2026-05-24',
+        visits: [
+          { t: '11:43', e: '18:04', lat: 23.39591, lon: 113.30797 },
+          { t: '18:55', e: '→05:38', lat: 31.25593, lon: 121.48711 },
+        ],
+      },
+    ])
+  )
+  assert.equal(bad.trace_contradicts_itself, true)
+  assert.ok(bad.crossing.kmh > 1200, `${bad.crossing.kmh} km/h`)
+  // The route is still right — Baiyun to Hongqiao — and it still says so.
+  // What it will not do is call it likely.
+  assert.equal(bad.legs[0].from.node.code, 'CAN')
+  assert.equal(bad.legs[0].certainty, 'unknown')
+  assert.ok(bad.legs[0].why[0].includes('one of these two times is wrong'))
+})
+
+test('an airport visit outlasts the aeroplane, because the phone is on it', () => {
+  // Wellington, 17 June 2026. The recorded stay at the airport ends at
+  // 16:05 local; QF282 pushed back at 15:40. Rejecting on the tight bound
+  // threw the right flight away for being real.
+  const ask = {
+    mode: 'air', from: ['WLG'], to: ['BNE'], from_part: null,
+    left_after: '2026-06-17T04:05:00.000Z',
+    landed_by: '2026-06-17T08:00:00.000Z',
+    landed_after: '2026-06-17T06:00:00.000Z',
+  }
+  const qf282 = { number: 'QF282', from: 'WLG', to: 'BNE', dep: '2026-06-17T03:40:00Z', arr: '2026-06-17T07:55:00Z' }
+  assert.equal(narrow([qf282], ask).one?.number, 'QF282')
+  // Grace, not surrender: three hours early is still somebody else's flight.
+  const earlier = { ...qf282, number: 'QF280', dep: '2026-06-17T01:00:00Z', arr: '2026-06-17T05:15:00Z' }
+  assert.deepEqual(narrow([earlier], ask).ranked, [])
+})
+
+test('a hundred kilometres at fifty an hour could be a car, and is not claimed', () => {
+  // Hong Kong airport to Guangzhou, 22 May 2026 — a real CX982 that this
+  // cannot see and should not pretend to. Two hours for a hundred and seven
+  // kilometres is a coach, a ferry or a flight, and position cannot tell.
+  const quiet = stayFixes([
+    {
+      track_date: '2026-05-22',
+      visits: [
+        { t: '06:34', e: '08:01', lat: 22.31347, lon: 113.91373 },
+        { t: '10:05', e: '11:59', lat: 23.14091, lon: 113.30986 },
+      ],
+    },
+  ])
+  assert.deepEqual(legsFor(quiet), [])
+})
+
+test('each stay is dated by the clocks where it happened, not the trip', () => {
+  // Seoul is +9 and its longitude says +8; Kuala Lumpur is +8 and its
+  // longitude says +7. The airport half an hour away knows better than the
+  // arithmetic does, and knows about daylight saving as well.
+  assert.equal(zoneAt([37.53192, 126.96244]), 'Asia/Seoul')
+  assert.equal(zoneAt([3.14552, 101.66249]), 'Asia/Kuala_Lumpur')
+  assert.equal(zoneAt([-37.85057, 144.98567]), 'Australia/Melbourne')
+  // Nowhere near an airport: longitude, and honest about being rough.
+  assert.equal(zoneAt([21.5, 45.0]), 3)
+
+  // Beijing to Tokyo in one day. One trip-level zone cannot hold both, and
+  // using one would move the flight an hour in the wrong direction.
+  const [leg] = legsFor(
+    stayFixes([
+      {
+        track_date: '2026-05-31',
+        visits: [
+          { t: '04:32', e: '08:18', lat: 40.07986, lon: 116.60311 }, // +8
+          { t: '12:21', e: '12:58', lat: 35.5483, lon: 139.778 }, // +9
+        ],
+      },
+    ])
+  )
+  assert.equal(leg.legs[0].from.node.code, 'PEK')
+  assert.equal(leg.legs[0].to.node.code, 'HND')
+  // 00:18Z to 03:21Z — the recorded NH964 is 00:20Z to 03:55Z.
+  assert.equal(leg.crossing.from.at, '2026-05-31T00:18:00.000Z')
+  assert.ok(leg.crossing.kmh > 600 && leg.crossing.kmh < 800, `${leg.crossing.kmh} km/h`)
 })
