@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { alreadyAsked, asAsked, confirmed, couldNotSay, howFar, needsLooking, stillAsking, stillOpen, storyRow, theirWords, whatItCosts, worthAsking } from './storyRun.js'
+import { alreadyAsked, asAsked, confirmed, couldNotSay, howFar, needsLooking, stillAsking, stillOpen, storyRow, theirWords, likeness, SAME_ENOUGH, whatItCosts, worthAsking } from './storyRun.js'
 import { clockIn } from './localTime.js'
 
 const pic = (id, over = {}) => ({
@@ -224,4 +224,57 @@ test('what this cannot do, said plainly', () => {
   // still catches the three-times-in-three-runs case it was built for.
   const asked = [{ on_date: '2024-01-22', asks: 'Where did you eat?' }]
   assert.equal(alreadyAsked(asked, { on_date: '2024-01-22', asks: 'Where did you have dinner?' }), false)
+})
+
+// The fifteen questions four runs actually left on the Rome trip. The
+// threshold is set from these, so they are the test.
+const ROME = [
+  ['2024-01-23', 'How did you travel during the early-morning sequence between the Colosseum, the Tiber, the northern river and Via Nazionale?'],
+  ['2024-01-22', 'Where did you stay on the first night near Santa Maria Maggiore?'],
+  ['2024-01-25', 'What happened on the final day of the trip?'],
+  ['2024-01-22', 'Did you spend the first Rome night near Santa Maria Maggiore and then move to H10 Palazzo Galla on 23 January?'],
+  ['2024-01-23', 'What took you to the Tiber near the Foro Italico that morning, and how did you travel there and back?'],
+  ['2024-01-25', 'How did the Rome trip end on 25 January?'],
+  ['2024-01-22', 'Where did the trip begin, and were the photographs over Scotland and at Heathrow from two connecting flights?'],
+  ['2024-01-22', 'Did you spend the first Rome night near Santa Maria Maggiore before moving to H10 Palazzo Galla?'],
+  ['2024-01-25', 'What happened on the final listed day of the trip?'],
+  ['2024-01-22', 'What journey brought you over Scotland and into Heathrow before the Rome flight?'],
+  ['2024-01-22', 'What was the place overlooking Santa Maria Maggiore where you had wine, and where did you stay that first night?'],
+  ['2024-01-23', 'What did you do between finishing the morning run and reappearing in Monti after 13:00?'],
+  ['2024-01-22', 'What was the flight over Scotland before you reached Heathrow, and where had that travel day begun?'],
+  ['2024-01-22', 'Where were you staying or stopping that first evening near Santa Maria Maggiore, and what led to the move to H10 Palazzo Galla the next day?'],
+  ['2024-01-23', 'What filled the four hours between the end of the morning run and the first midday street photographs?'],
+].map(([on_date, asks], i) => ({ id: i + 1, on_date, asks }))
+
+test('fifteen questions about four days come down to five', () => {
+  const keep = worthAsking(ROME)
+  assert.deepEqual(
+    keep.map((q) => q.asks),
+    [
+      'How did you travel during the early-morning sequence between the Colosseum, the Tiber, the northern river and Via Nazionale?',
+      'Where did you stay on the first night near Santa Maria Maggiore?',
+      'What happened on the final day of the trip?',
+      'Where did the trip begin, and were the photographs over Scotland and at Heathrow from two connecting flights?',
+      'What did you do between finishing the morning run and reappearing in Monti after 13:00?',
+    ]
+  )
+})
+
+test('a light stem is what gets the Scotland pair over the line', () => {
+  // "flight"/"flights" and "connecting"/"connect" are one word each; without
+  // that these two score 0.29 and both reach the screen.
+  assert.ok(likeness(ROME[6].asks, ROME[12].asks) >= SAME_ENOUGH)
+})
+
+test('and the four days each keep the questions that differ', () => {
+  // The morning of the 23rd genuinely holds two: how they got around, and
+  // the four-hour hole after the run. Folding those together would lose one.
+  const same = (a, b) => likeness(ROME[a].asks, ROME[b].asks)
+  // The duplicates, all above the line.
+  assert.ok(same(2, 5) >= SAME_ENOUGH, `final day vs trip end: ${same(2, 5)}`)
+  assert.ok(same(6, 9) >= SAME_ENOUGH, `trip begin vs Scotland: ${same(6, 9)}`)
+  assert.ok(same(11, 14) >= SAME_ENOUGH, `after the run, twice: ${same(11, 14)}`)
+  // And the nearest thing to a false positive, comfortably below it.
+  assert.ok(same(4, 11) < SAME_ENOUGH, `Tiber vs after-the-run: ${same(4, 11)}`)
+  assert.ok(same(0, 14) < SAME_ENOUGH, `getting around vs the gap: ${same(0, 14)}`)
 })

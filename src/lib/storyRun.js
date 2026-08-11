@@ -105,6 +105,16 @@ const NOISE = new Set([
   'where', 'which', 'while', 'who', 'why', 'with', 'you', 'your',
 ])
 
+/** Enough of a stem to see that "flight" and "flights" are one word, and
+ *  "connecting" and "connect". Not a real stemmer and not trying to be —
+ *  "begun" and "begin" stay two words, which is a limit rather than a bug. */
+function stem(w) {
+  for (const end of ['ings', 'ing', 'ies', 'es', 'ed', 's']) {
+    if (w.endsWith(end) && w.length - end.length >= 4) return w.slice(0, -end.length)
+  }
+  return w
+}
+
 function meat(text) {
   return new Set(
     String(text ?? '')
@@ -112,11 +122,22 @@ function meat(text) {
       .replace(/[^a-z0-9\s]/g, ' ')
       .split(/\s+/)
       .filter((w) => w.length > 2 && !NOISE.has(w))
+      .map(stem)
   )
 }
 
-/** How much two questions are the same question, 0 to 1. */
-export const SAME_ENOUGH = 0.5
+/** How much two questions are the same question, 0 to 1.
+ *
+ *  Set from the real thing rather than by feel. Across the fifteen open
+ *  questions four runs left on the Rome trip, every pair a person would call
+ *  the same question scores between 0.33 and 0.57, and every pair that is
+ *  genuinely two questions scores 0.17 or less. There is a clean gap with
+ *  nothing in it, so the line goes in the middle of the gap.
+ *
+ *  0.5 was the first guess and it sat above four of those duplicates: "What
+ *  happened on the final day of the trip?" and "How did the Rome trip end on
+ *  25 January?" share only the word "trip", and scored 0.33. */
+export const SAME_ENOUGH = 0.3
 
 export function likeness(a, b) {
   const x = meat(a)
@@ -129,14 +150,6 @@ export function likeness(a, b) {
   return shared / Math.min(x.size, y.size)
 }
 
-/**
- * Has this already been put to them?
- *
- * Same day, and enough of the same content words. The date matters — "what
- * happened here?" about Monday and about Thursday are two questions — but a
- * question with no date is compared against everything, because an undated
- * repeat of a dated question is still a repeat.
- */
 /**
  * What is actually worth putting in front of somebody: the open questions,
  * with the repeats folded away.
@@ -154,6 +167,14 @@ export function worthAsking(questions = []) {
   return keep
 }
 
+/**
+ * Has this already been put to them?
+ *
+ * Same day, and enough of the same content words. The date matters — "what
+ * happened here?" about Monday and about Thursday are two questions — but a
+ * question with no date is compared against everything, because an undated
+ * repeat of a dated question is still a repeat.
+ */
 export function alreadyAsked(questions = [], candidate = {}) {
   const on = candidate.on_date || null
   return questions.some((q) => {
