@@ -228,6 +228,32 @@ function keepTheirs(theirs = {}) {
   )
 }
 
+// One day changed, so write one day.
+//
+// Somebody adding a photograph to a trip of two hundred and eighty-six does
+// not want the other eleven chapters rewritten. They are expensive, and —
+// worse — the writing is not deterministic, so chapters already read, liked
+// and shown to somebody come back different without being asked. A new
+// photograph belongs to a day. That day is what can have changed.
+//
+// The whole reconstruction still goes over, because a day cannot be written
+// without knowing what the trip around it was: the third crossing of the
+// same square is only worth remarking on if you know about the first two.
+function onlyThese(dates = []) {
+  if (!dates.length) return ''
+  return (
+    `\n\nONLY THESE DAYS\n\n` +
+    `Write chapters for these dates and no others: ${dates.join(', ')}.\n\n` +
+    `The rest of this trip has already been written and is being kept word ` +
+    `for word. You are given all of it so that what you write sits inside ` +
+    `the same trip — the patterns, the places returned to, what came before ` +
+    `and after — but "days" comes back holding only the dates above.\n\n` +
+    `Leave "opening" and "closing" out entirely. They are about the trip as ` +
+    `a whole, that has not changed, and rewriting them would replace ` +
+    `something somebody has already read for no reason.`
+  )
+}
+
 function inTheirVoice(samples = []) {
   if (samples.length < VOICE_NEEDS) return ''
   return (
@@ -255,7 +281,7 @@ export default async function handler(req, res) {
     return
   }
 
-  const { reconstruction, theirs = {}, voice = [] } = req.body || {}
+  const { reconstruction, theirs = {}, voice = [], only = [] } = req.body || {}
   if (!reconstruction?.days?.length) {
     res.status(400).json({ error: 'reconstruction required' })
     return
@@ -271,7 +297,7 @@ export default async function handler(req, res) {
       // at a thousand words each, plus the thinking to get there.
       max_completion_tokens: 32000,
       messages: [
-        { role: 'system', content: RULES + inTheirVoice(voice) + keepTheirs(theirs) },
+        { role: 'system', content: RULES + onlyThese(only) + inTheirVoice(voice) + keepTheirs(theirs) },
         { role: 'user', content: JSON.stringify(reconstruction) },
       ],
     })

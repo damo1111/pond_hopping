@@ -389,7 +389,11 @@ export default function PhotosTab({ openPhotoId = null }) {
                 toggleHighlight(lightbox, 'chosen')
               }}
             >
-              {starring ? 'saving…' : '★ always show'}
+              {/* Named for where it goes. "Always show" is an instruction
+                  with no object — show where? — and somebody looking for
+                  the way to put a picture into the twelve on the recap
+                  could not find it, because nothing on screen said recap. */}
+              {starring ? 'saving…' : '★ add to the recap'}
             </button>
             {/* The other half of the choice, and the one that was missing.
                 A photograph can be on the recap without being chosen — the
@@ -407,12 +411,11 @@ export default function PhotosTab({ openPhotoId = null }) {
                 toggleHighlight(lightbox, 'refused')
               }}
             >
-              {/* "Remove from the recap" was wrong on almost every
-                  photograph: most are undecided and not on the page, so it
-                  offered to take out something that was never in. The pair
-                  is symmetrical and true whatever the state — always show,
-                  never show, or neither. */}
-              {starring ? 'saving…' : '✕ never show'}
+              {/* Not "remove from the recap": most photographs are
+                  undecided and not on that page, so it offered to take out
+                  something that was never in. This is true whichever state
+                  it is in, and the lit one is the one that is set. */}
+              {starring ? 'saving…' : '✕ keep out of the recap'}
             </button>
             <button
               className="lb-cover-btn"
