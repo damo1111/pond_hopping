@@ -5,6 +5,7 @@ import { spanOf } from '../lib/dateRange.js'
 import { summaryOf } from '../lib/tripSummary.js'
 import { asDegrees, tripAverage, tripSky } from '../lib/weather.js'
 import { forRecap, nextTurn } from '../lib/recapPhotos.js'
+import { useWeather } from '../lib/useWeather.js'
 import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
 import { tripColor } from '../lib/tripColors.js'
@@ -448,11 +449,17 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           take: (s) => ({ story: s.data ?? null }),
         },
         {
-          // Whatever the journal has already cached. Nothing is fetched from
-          // the archive here — a recap is a page you open and look at, not a
-          // place to start filling in a database.
-          query: supabase.from('day_weather').select('on_date,high_c,code').eq('trip_id', trip.id),
-          take: (w) => ({ weather: w.data ?? [] }),
+          // Where each day was, for the weather. Four numbers a row, and it
+          // has to be its own query rather than reusing the twelve above:
+          // those are ordered by what somebody chose, so a fortnight's trip
+          // could be represented by three days of it and the rest would
+          // never get a temperature.
+          query: supabase
+            .from('photos')
+            .select('taken_on,taken_at,lat,lon')
+            .eq('trip_id', trip.id)
+            .not('lat', 'is', null),
+          take: (p) => ({ coords: p.data ?? [] }),
         },
         {
           query: supabase.from('profiles').select('temp_unit').maybeSingle(),
@@ -491,14 +498,26 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
     }
   }, [])
 
+  // Filled here rather than only read here. Leaving it to the journal meant
+  // the front page of a trip had no temperature on it until somebody had
+  // been into the days one by one, which is not a thing anybody does before
+  // showing a trip to somebody else.
+  //
+  // Above the early return, because it is a hook: the linter caught this
+  // sitting below `if (!trip) return null`, where it would have run on some
+  // renders and not others.
+  const weather = useWeather(trip?.id, data?.coords ?? [])
+
   if (!trip) return null
 
   const stats = recapStats({ trip, ...(data ?? {}) })
+  const days = Object.values(weather)
+
   const summary = summaryOf(data?.story, data?.cached)
   // The trip in one temperature: the mean of the days' highs, which is a
   // statement about afternoons — when anybody was outside in it.
-  const warmth = asDegrees(tripAverage(data?.weather ?? []), data?.unit ?? 'device')
-  const skies = tripSky(data?.weather ?? [])
+  const warmth = asDegrees(tripAverage(days), data?.unit ?? 'device')
+  const skies = tripSky(days)
   // Twelve of them, rotated where somebody starred more. Decided once per
   // opening rather than per render: a grid that reshuffles while you are
   // looking at it is worse than one that never changes.
