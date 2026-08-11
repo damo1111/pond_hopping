@@ -120,6 +120,41 @@ Not urgent. It is an open door.
 
 ---
 
+## 6b. Every flight gets enriched, once, without being asked
+
+The rule: a flight that arrives in this app — typed in, imported from an
+email, pulled off a boarding pass — gets whatever a flight source knows
+about it, automatically. Nobody should have to press anything.
+
+`flightEnrich.js` already holds the half that does not depend on the source:
+which fields may be filled, that recorded values are never overwritten, that
+disagreements are kept rather than settled, and `worthAsking()` — has a
+number, has a departure time, has not been enriched before.
+
+**The hole in the rule as stated.** "Whenever a flight is added" is not
+enough, because half of them are added *before* they happen. A booking
+imported in March for a flight in September has no registration, no gate, no
+actual times and no track, because none of those exist yet. Asking at the
+moment it is added gets a schedule, which is what we already had.
+
+So it is two moments, not one:
+
+  on add        for anything already flown — the backfill case, and any
+                historical flight somebody enters afterwards
+  after it flies  for everything else, which needs something to come back
+                and look a day or so later
+
+`worthAsking()` already answers both correctly — it skips flights whose
+departure is in the future and picks them up once it is past. What is
+missing is anything that *runs* it on a schedule, which is the same missing
+piece as the story pipeline: there is no server-side loop. These two want
+building together.
+
+Until then the pass can run when the flights screen opens, which covers the
+backfill and everything historical, and leaves upcoming flights to be
+enriched the next time somebody opens the app after landing. That is not
+"without being asked", but it is close enough to be worth having.
+
 ## 7. Flight data: AeroAPI
 
 Decided but not committed to. **Standard tier, $100/month minimum**, which
