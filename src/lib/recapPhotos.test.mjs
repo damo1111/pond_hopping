@@ -48,13 +48,30 @@ test('a window is read in order, not in the order it wrapped', () => {
   assert.deepEqual(dates, [...dates].sort())
 })
 
-test('two stars still fill the page from the rest', () => {
+test('two chosen still fill the page from the rest', () => {
   const all = [...starred(2), ...Array.from({ length: 40 }, (_, i) => pic(100 + i))]
   const out = forRecap(all, 3)
   assert.equal(out.length, SHOWN)
   assert.equal(out.filter((p) => p.is_highlight).length, 2)
-  // The unstarred do not rotate — the same ones every time.
-  assert.deepEqual(forRecap(all, 9).map((p) => p.id), out.map((p) => p.id))
+})
+
+test('the ones drawn to fill it are a draw, not the first twelve', () => {
+  // Taking them in order meant a trip was represented by its first morning.
+  const all = Array.from({ length: 60 }, (_, i) => pic(i))
+  const inOrder = all.slice(0, SHOWN).map((p) => p.id)
+  assert.notDeepEqual(forRecap(all, 1).map((p) => p.id), inOrder)
+})
+
+test('but the same draw for the same turn, twice', () => {
+  const all = Array.from({ length: 60 }, (_, i) => pic(i))
+  assert.deepEqual(forRecap(all, 5).map((p) => p.id), forRecap(all, 5).map((p) => p.id))
+  assert.notDeepEqual(forRecap(all, 5).map((p) => p.id), forRecap(all, 6).map((p) => p.id))
+})
+
+test('and it still reads in date order once drawn', () => {
+  const all = Array.from({ length: 60 }, (_, i) => pic(i))
+  const dates = forRecap(all, 8).map((p) => p.taken_on)
+  assert.deepEqual(dates, [...dates].sort())
 })
 
 test('a trip with barely any photographs shows what it has', () => {

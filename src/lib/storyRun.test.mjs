@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { alreadyAsked, asAsked, daysAdded, spliceChapters, confirmed, couldNotSay, howFar, needsLooking, stillAsking, stillOpen, storyRow, theirWords, likeness, SAME_ENOUGH, whatItCosts, worthAsking } from './storyRun.js'
+import { alreadyAsked, asAsked, daysAdded, spliceChapters, widerThanADay, confirmed, couldNotSay, howFar, needsLooking, stillAsking, stillOpen, storyRow, theirWords, likeness, SAME_ENOUGH, whatItCosts, worthAsking } from './storyRun.js'
 import { clockIn } from './localTime.js'
 
 const pic = (id, over = {}) => ({
@@ -319,4 +319,24 @@ test('a day that came back empty keeps what it had', () => {
   const existing = [{ date: '2024-01-22', title: 'Arrival', note: 'day one' }]
   assert.deepEqual(spliceChapters(existing, [{ date: '2024-01-22', note: '' }]), existing)
   assert.deepEqual(spliceChapters(existing, []), existing)
+})
+
+test('one more picture of a fountain does not change what the trip was about', () => {
+  const before = { patterns: ['early mornings', 'walks over transport'], returned_to: ['Piazza Venezia'], attention: ['domes'] }
+  const after = { patterns: ['walks over transport', 'early mornings'], returned_to: ['Piazza Venezia'], attention: ['domes'] }
+  // Same findings, different order. Not a reason to rewrite eleven chapters.
+  assert.equal(widerThanADay(before, after), false)
+})
+
+test('a new thread means the chapters that lean on it are stale', () => {
+  const before = { patterns: ['early mornings'], returned_to: ['Piazza Venezia'], attention: [] }
+  const after = { patterns: ['early mornings'], returned_to: ['Piazza Venezia', 'Piazza Navona'], attention: [] }
+  assert.equal(widerThanADay(before, after), true)
+})
+
+test('with nothing to compare against, rewrite the trip', () => {
+  // A story from before the reconstruction was kept has no `before`. Better
+  // to spend the call than to splice a day into something unknown.
+  assert.equal(widerThanADay(null, { patterns: [] }), true)
+  assert.equal(widerThanADay({ patterns: [] }, null), true)
 })

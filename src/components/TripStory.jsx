@@ -15,6 +15,7 @@ import {
   needsLooking,
   spliceChapters,
   stillOpen,
+  widerThanADay,
   storyRow,
   theirWords,
   whatItCosts,
@@ -368,6 +369,14 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       const worked = await post('reconstruct-trip', { trace, ...whatWeKnow() }, auth)
       setReconstruction(worked)
 
+      // A day-scoped rebuild stays day-scoped only while the trip's own
+      // threads hold. If the new photographs changed what the trip was
+      // about — a fourth crossing of a square that three chapters call the
+      // third — the chapters leaning on it are stale, and the honest answer
+      // is to write the trip again rather than leave a sentence that has
+      // quietly become untrue.
+      const scope = widerThanADay(story?.reconstruction, worked) ? [] : only
+
       // Anything only they can settle is written down and asked — and then
       // it writes anyway.
       //
@@ -382,7 +391,7 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       // over. It gets written from what is known, the questions sit above it
       // waiting, and an answer rewrites it.
       await ask(worked)
-      await write(auth, worked, only)
+      await write(auth, worked, scope)
     } catch (e) {
       setTrouble(e.message)
       setStep('idle')
