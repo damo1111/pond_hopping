@@ -683,7 +683,16 @@ function FlightSourceCard() {
       }
 
       const out = []
+      // One at a time, with a breath between them. The BASIC tier limits by
+      // the second, so two requests fired back to back answered the first
+      // and returned 429 to the second — which reads as "this flight is not
+      // available" when it means "you asked too quickly". Any backfill over
+      // hundreds of flights has to be paced the same way.
+      const breathe = () => new Promise((r) => setTimeout(r, 1400))
+      let first = true
       for (const f of pick) {
+        if (!first) await breathe()
+        first = false
         const on = String(f.dep_time).slice(0, 10)
         const r = await fetch('/api/enrich-flight?peek=1', {
           method: 'POST',
