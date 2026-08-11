@@ -167,12 +167,81 @@ Stored as a list — programme, alliance, tier — because people hold several,
 and alliance plus tier is what eligibility actually needs. The programme
 name is only there to make the question feel like it knows you.
 
-## Flight status, related
+## Flight data: which API, and why
 
-Push notifications for gates and delays want **FlightAware AeroAPI with
-Alerts** rather than polling: register an alert per flight when the booking
-is imported, receive a webhook when something changes. Seconds rather than
-minutes, no scheduler, and cost that scales with travellers rather than with
-patience. Verify gate coverage at CMB, MEL and SYD before committing —
-Cirium is the escalation if it is thin, at the price of an enterprise
-contract.
+Decided 11 August 2026. Revisited because the first version of this section
+recorded one option as though it were the only one, and Flightradar24 had to
+be argued back into the room twice from memory. That is what this document
+exists to prevent, so this time the alternatives are written down with it.
+
+### The choice
+
+**FlightAware AeroAPI**, self-serve, one key.
+
+The finding that settled it: **Flighty runs on FlightAware Firehose**.
+Firehose and AeroAPI are the same underlying data — the difference is
+delivery and contract. Firehose is a persistent stream on an enterprise
+deal; AeroAPI is pay-per-query with **Alerts**, a webhook when something
+about a registered flight changes.
+
+So the question was never FlightAware versus Flightradar24. It was which
+door into FlightAware, and whether anything else is cheaper for history.
+
+AeroAPI gives, on a self-serve account: gate, scheduled versus actual,
+delays, cancellations, diversions, aircraft type and **registration** —
+which is the field that cascades, because the aircraft photograph is a
+lookup keyed on the tail number.
+
+### What it does not give, ever
+
+**Cabin, seat, fare, booking reference.** These are ticket data, not flight
+data. No flight API knows which seat somebody sat in. They come from the
+booking confirmation email, which `gmail-scan` and `extractBookingItems`
+already read.
+
+Getting this wrong sent one conversation down a blind alley: the blank
+fields on a flight card are not all the same kind of blank.
+
+### The alternatives, and why not
+
+**Flightradar24 API.** History back to 2016, self-serve, credits from around
+$9 a month, lookup by registration, callsign or airport pair. Genuinely
+strong on retro, and cheaper than AeroAPI's historical query class is likely
+to be. Kept as the fallback for **backfill only**: if AeroAPI's historical
+pricing is steep for the forty-odd flights already in the log, add FR24 for
+those and leave everything live on AeroAPI. The `flightradar24.com` link on
+the flight card is a deep link for a human, not a data source.
+
+**FlightAware Firehose.** What Flighty uses. Best in class and an
+enterprise contract. Not worth it to draw level with a competitor on the one
+screen where they are strongest.
+
+**Cirium.** The escalation if gate coverage turns out thin. Enterprise
+pricing.
+
+### To check before committing
+
+- **Gate coverage at CMB, MEL and SYD.** Unchanged from the original note.
+- **The cost of a historical query**, for about forty flights, each looked
+  up once and cached for ever. This is the single number that decides
+  whether FR24 is needed at all.
+
+### Caching
+
+Same pattern as `place_lookups` and `photos.seen`, at two lifetimes.
+
+A registration's aircraft photograph **never changes** — cache it for ever,
+once per tail number, shared across every user. Gate and status cache
+briefly and are then updated by the alert webhook; the entire point of
+alerts is not re-querying.
+
+### On beating Flighty
+
+Not at live flight tracking, and it is not worth trying. They have a
+streaming enterprise feed and years of polish on exactly that screen.
+
+The flight card here should be excellent and unremarkable — gate, delay,
+registration, aircraft, seat, all correct. The advantage is everything
+around it. Flighty knows a flight was late. This knows the four-hour gap
+that followed, has the photographs of what came next, and comes back and
+asks what happened in it. A flight tracker's data model ends at the gate.
