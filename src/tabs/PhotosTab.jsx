@@ -4,6 +4,7 @@ import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import { thumb, coverUrl } from '../lib/imgTransform.js'
 import { applied } from '../lib/applied.js'
+import { afterTap, standing } from '../lib/recapPhotos.js'
 import { spanOf } from '../lib/dateRange.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PhotoUpload from '../components/PhotoUpload.jsx'
@@ -38,7 +39,8 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
       city: form.city || null,
       taken_on: form.date || null,
       is_reel: form.is_reel,
-      is_highlight: form.is_highlight,
+      // null, not false: false now means somebody refused it.
+      is_highlight: form.is_highlight || null,
     })
     setSaving(false)
     if (!error) {
@@ -228,8 +230,8 @@ export default function PhotosTab({ openPhotoId = null }) {
   // first one uploaded", and a trip with three hundred and one pictures
   // showed whichever nine the sort happened to reach — which is no way to
   // choose what a trip looks like to somebody you are showing it to.
-  async function toggleHighlight(photo) {
-    const next = !photo.is_highlight
+  async function toggleHighlight(photo, want = 'chosen') {
+    const next = afterTap(photo, want)
     setStarring(true)
     const done = applied(
       await supabase.from('photos').update({ is_highlight: next }).eq('id', photo.id).select('id'),
@@ -347,7 +349,7 @@ export default function PhotosTab({ openPhotoId = null }) {
                   if (ev.currentTarget.src !== p.url) ev.currentTarget.src = p.url
                 }}
               />
-              {p.is_highlight && <span className="photo-star">⭐</span>}
+              {p.is_highlight === true && <span className="photo-star">⭐</span>}
             </button>
           ))}
         </div>
@@ -380,23 +382,32 @@ export default function PhotosTab({ openPhotoId = null }) {
                 there are, highlights first — so this is how you choose
                 which, and until now there was no way to. */}
             <button
-              className={`lb-star-btn${lightbox.is_highlight ? ' on' : ''}`}
+              className={`lb-star-btn${standing(lightbox) === 'chosen' ? ' on' : ''}`}
               disabled={starring}
               onClick={(ev) => {
                 ev.stopPropagation()
-                toggleHighlight(lightbox)
+                toggleHighlight(lightbox, 'chosen')
               }}
             >
-              {/* A status, where it needed to be an action. "★ in the recap"
-                  is true and tells you nothing about what tapping it does,
-                  so there appeared to be no way to take a picture back out
-                  — the button was already the way, and said so in the past
-                  tense. */}
-              {starring
-                ? 'saving…'
-                : lightbox.is_highlight
-                  ? '★ remove from the recap'
-                  : '☆ show in the recap'}
+              {starring ? 'saving…' : standing(lightbox) === 'chosen' ? '★ always show' : '☆ always show'}
+            </button>
+            {/* The other half of the choice, and the one that was missing.
+                A photograph can be on the recap without being chosen — the
+                page fills itself — so "unstar" could not take it out, and
+                the only button on offer said "show in the recap" to
+                somebody looking at it in the recap.
+
+                Tapping whichever is already true goes back to undecided,
+                which is the way back to letting the app choose. */}
+            <button
+              className={`lb-star-btn${standing(lightbox) === 'refused' ? ' on' : ''}`}
+              disabled={starring}
+              onClick={(ev) => {
+                ev.stopPropagation()
+                toggleHighlight(lightbox, 'refused')
+              }}
+            >
+              {starring ? 'saving…' : standing(lightbox) === 'refused' ? '✕ never show' : 'remove from the recap'}
             </button>
             <button
               className="lb-cover-btn"

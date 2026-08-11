@@ -45,9 +45,17 @@ function windowOf(list, turn) {
  * @param turn    how many times this recap has been opened
  */
 export function forRecap(photos = [], turn = 0) {
+  // Three states, not two. A photograph can be chosen, refused, or neither —
+  // and "neither" is where every photograph starts, which is why a recap
+  // fills itself before anybody has chosen anything.
+  //
+  // Two states could not express the thing somebody actually wants to do
+  // here: take a picture out of the recap that they never put in. It was
+  // showing because the page had room and it was next in order, and
+  // unstarring an unstarred photograph does nothing.
   const all = photos.filter(Boolean)
-  const starred = all.filter((p) => p.is_highlight)
-  const rest = all.filter((p) => !p.is_highlight)
+  const starred = all.filter((p) => p.is_highlight === true)
+  const rest = all.filter((p) => p.is_highlight == null)
 
   if (starred.length >= SHOWN) return windowOf(starred, turn)
 
@@ -59,7 +67,28 @@ export function forRecap(photos = [], turn = 0) {
 
 /** Whether it is worth saying that there are more than fit. */
 export function rotating(photos = []) {
-  return photos.filter((p) => p?.is_highlight).length > SHOWN
+  return photos.filter((p) => p?.is_highlight === true).length > SHOWN
+}
+
+/**
+ * What the buttons on one photograph should say.
+ *
+ * `chosen` and `refused` are the two things somebody can have said about it;
+ * neither is the state everything starts in. Tapping the one that is already
+ * true takes it back to undecided, which is how a toggle should behave and
+ * is the only way back to "let the app decide".
+ */
+export function standing(photo = {}) {
+  if (photo.is_highlight === true) return 'chosen'
+  if (photo.is_highlight === false) return 'refused'
+  return 'undecided'
+}
+
+/** What tapping "always show" or "never show" sets it to. */
+export function afterTap(photo = {}, want = 'chosen') {
+  const now = standing(photo)
+  if (want === 'chosen') return now === 'chosen' ? null : true
+  return now === 'refused' ? null : false
 }
 
 const KEY = 'ph_recap_turn'
