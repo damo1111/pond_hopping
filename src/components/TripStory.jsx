@@ -8,6 +8,7 @@ import {
   asAsked,
   batches,
   confirmed,
+  couldNotSay,
   howFar,
   needsLooking,
   stillAsking,
@@ -15,6 +16,44 @@ import {
   theirWords,
   whatItCosts,
 } from '../lib/storyRun.js'
+
+/** One question, answered in words.
+ *
+ *  Typing is the main path and the buttons are the way out of it: "I can't
+ *  remember" is a real answer and is recorded as one, so the writing admits
+ *  the gap instead of inventing something to fill it. */
+function Ask({ q, onAnswer }) {
+  const [said, setSaid] = useState('')
+  const [sending, setSending] = useState(false)
+
+  async function send(over) {
+    setSending(true)
+    await onAnswer(q, over ?? { said: said.trim() })
+    setSending(false)
+  }
+
+  return (
+    <div className="story-ask">
+      <div className="story-q">{q.asks}</div>
+      {q.because && <div className="story-because">{q.because}</div>}
+      <textarea
+        className="story-say"
+        rows={2}
+        placeholder="However much or little you remember…"
+        value={said}
+        onChange={(e) => setSaid(e.target.value)}
+      />
+      <div className="story-buttons">
+        <button className="story-said" disabled={!said.trim() || sending} onClick={() => send()}>
+          {sending ? 'saving…' : 'that was it'}
+        </button>
+        <button disabled={sending} onClick={() => send({ verdict: 'unsure' })}>
+          can't remember
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // The story of a trip, made in three stages, with a question in the middle.
 //
@@ -35,6 +74,8 @@ export default function TripStory({ trip, photos = [] }) {
   const [runs, setRuns] = useState([])
   const [learnVoice, setLearnVoice] = useState(false)
   const [refresh, setRefresh] = useState(0)
+  // Whether the story fetch has answered — not whether it found one.
+  const [looked, setLooked] = useState(false)
 
   const mine = photos.filter((p) => p.trip_id === trip?.id)
 
@@ -42,7 +83,11 @@ export default function TripStory({ trip, photos = [] }) {
     if (!trip?.id) return
     let alive = true
     supabase.from('trip_stories').select('*').eq('trip_id', trip.id).maybeSingle()
-      .then(({ data }) => alive && setStory(data ?? null))
+      .then(({ data }) => {
+        if (!alive) return
+        setStory(data ?? null)
+        setLooked(true)
+      })
     supabase.from('story_questions').select('*').eq('trip_id', trip.id)
       .then(({ data }) => alive && setQuestions(data ?? []))
     supabase.from('journal_entries').select('entry_date,note,built_from').eq('trip_id', trip.id)
@@ -73,14 +118,17 @@ export default function TripStory({ trip, photos = [] }) {
   // not two hundred and eighty-six.
   const began = useRef('')
   useEffect(() => {
+    // `story` is null while the fetch is in flight as well as when there
+    // is none, and starting a run on the first was how a finished story got
+    // hidden behind a progress line the moment somebody came back to it.
+    if (!looked || !entries) return
     if (!trip?.id || !mine.length || story || step !== 'idle') return
-    if (!entries) return
     const mark = `${trip.id}:${mine.length}`
     if (began.current === mark) return
     began.current = mark
     itself()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip?.id, mine.length, story, step, entries])
+  }, [trip?.id, mine.length, story, step, entries, looked])
 
   async function itself() {
     setTrouble(null)
@@ -269,7 +317,14 @@ export default function TripStory({ trip, photos = [] }) {
     const written = await post(
       'write-trip',
       {
-        reconstruction: { ...worked, answered: confirmed(questions) },
+        reconstruction: {
+          ...worked,
+          // What they told us outranks everything else in here.
+          answered: confirmed(questions),
+          // And what they were asked but could not say, so a gap is admitted
+          // rather than filled.
+          could_not_say: couldNotSay(questions),
+        },
         theirs: theirWords(entries),
         voice: learnVoice ? entries.filter((e) => !e.built_from).map((e) => e.note).filter(Boolean) : [],
       },
@@ -282,12 +337,22 @@ export default function TripStory({ trip, photos = [] }) {
     setRefresh((n) => n + 1)
   }
 
-  async function answer(q, said) {
-    await supabase
-      .from('story_questions')
-      .update({ answer: said, answered_at: new Date().toISOString() })
-      .eq('id', q.id)
-    setQuestions((all) => all.map((x) => (x.id === q.id ? { ...x, answer: said, answered_at: 'now' } : x)))
+  // An open question deserves an open answer.
+  //
+  // These came back as "What occupied the four-hour break?" and "What were
+  // you doing in Piazza Navona for the final hour?", and the screen offered
+  // yes, no and can't remember. None of those answers the question. The
+  // most valuable thing anybody can give here is a sentence — "a
+  // pasta-making course at Eatalian Cooks, then dinner" — and there was
+  // nowhere to put it.
+  async function answer(q, { said = null, verdict = null } = {}) {
+    const row = {
+      said: said || null,
+      answer: verdict ?? (said ? 'yes' : null),
+      answered_at: new Date().toISOString(),
+    }
+    await supabase.from('story_questions').update(row).eq('id', q.id)
+    setQuestions((all) => all.map((x) => (x.id === q.id ? { ...x, ...row } : x)))
   }
 
   async function carryOn() {
@@ -306,6 +371,25 @@ export default function TripStory({ trip, photos = [] }) {
   const asking = stillAsking(questions)
   const cost = whatItCosts(mine, 'low')
 
+  // The story is the thing. Progress and questions go with it, never
+  // instead of it — leaving the app and coming back should not make three
+  // days of writing disappear behind a status line.
+  const written = story && (
+    <>
+      {story.opening && <div className="story-opening">{story.opening}</div>}
+      {(story.chapters ?? []).map((c) => (
+        <div key={c.date} className="story-chapter">
+          <h3>{c.title}</h3>
+          <div className="story-when">
+            {new Date(c.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+          </div>
+          <div className="story-note">{c.note}</div>
+        </div>
+      ))}
+      {story.closing && <div className="story-closing">{story.closing}</div>}
+    </>
+  )
+
   if (step !== 'idle') {
     return (
       <div className="story">
@@ -317,15 +401,7 @@ export default function TripStory({ trip, photos = [] }) {
               the story; a no is remembered and you will not be asked again.
             </p>
             {asking.map((q) => (
-              <div key={q.id} className="story-ask">
-                <div className="story-q">{q.asks}</div>
-                {q.because && <div className="story-because">{q.because}</div>}
-                <div className="story-buttons">
-                  <button onClick={() => answer(q, 'yes')}>yes</button>
-                  <button onClick={() => answer(q, 'no')}>no</button>
-                  <button onClick={() => answer(q, 'unsure')}>can't remember</button>
-                </div>
-              </div>
+              <Ask key={q.id} q={q} onAnswer={answer} />
             ))}
             {!asking.length && (
               <button className="story-go" onClick={carryOn}>
@@ -335,6 +411,7 @@ export default function TripStory({ trip, photos = [] }) {
           </div>
         )}
         {trouble && <div className="story-trouble">{trouble}</div>}
+        {written && <div className="story-sofar">{written}</div>}
       </div>
     )
   }
@@ -342,17 +419,7 @@ export default function TripStory({ trip, photos = [] }) {
   if (story) {
     return (
       <div className="story">
-        {story.opening && <div className="story-opening">{story.opening}</div>}
-        {(story.chapters ?? []).map((c) => (
-          <div key={c.date} className="story-chapter">
-            <h3>{c.title}</h3>
-            <div className="story-when">
-              {new Date(c.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-            </div>
-            <div className="story-note">{c.note}</div>
-          </div>
-        ))}
-        {story.closing && <div className="story-closing">{story.closing}</div>}
+        {written}
         <button className="story-again" onClick={make}>
           write it again
         </button>

@@ -68,8 +68,22 @@ export function stillAsking(questions = []) {
  *  sending it back would invite the model to argue with it. */
 export function confirmed(questions = []) {
   return questions
-    .filter((q) => q?.answer === 'yes')
-    .map((q) => ({ on_date: q.on_date ?? null, is: q.asks }))
+    .filter((q) => q?.said?.trim() || q?.answer === 'yes')
+    .map((q) => ({
+      on_date: q.on_date ?? null,
+      asked: q.asks,
+      // What they typed, where they typed something. A sentence from the
+      // person who was there outranks everything else in the pipeline.
+      said: q.said?.trim() || null,
+    }))
+}
+
+/** What they were asked and could not answer. Worth sending too: it is the
+ *  difference between a gap the writing admits and a gap it fills. */
+export function couldNotSay(questions = []) {
+  return questions
+    .filter((q) => q?.answer === 'unsure' && !q?.said?.trim())
+    .map((q) => ({ on_date: q.on_date ?? null, asked: q.asks }))
 }
 
 /** Days the hopper wrote themselves, keyed by date, for the writing stage
