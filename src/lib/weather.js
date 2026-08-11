@@ -5,9 +5,14 @@
 // Nothing has to be asked for and nothing has to be remembered.
 //
 // Open-Meteo's archive is the source. It reaches back to 1940, needs no key,
-// and answers in one request per day-and-place — see api/day-weather.js. Its
-// free tier is for non-commercial use, which is a decision rather than a
-// detail and is written up in docs/backlog.md.
+// answers with CORS headers — so this can be asked from the browser and
+// needs no function of ours in front of it — and takes a whole trip's worth
+// of days in one request per place.
+//
+// Its free tier is for non-commercial use. That is a real decision and it is
+// in docs/backlog.md; the underlying data is ERA5, which is Copernicus and
+// open even commercially, so the paid tier is a convenience rather than a
+// gate. Nothing about the shape of this changes if the source does.
 //
 // Deliberately small on screen: a symbol and a number. A travel journal that
 // starts reporting humidity and wind direction has stopped being a journal.
@@ -101,4 +106,95 @@ export function tripSky(days = []) {
   let best = null
   for (const [symbol, n] of seen) if (!best || n > best.n) best = { symbol, n }
   return best?.symbol ?? null
+}
+
+
+const ARCHIVE = 'https://archive-api.open-meteo.com/v1/archive'
+
+/**
+ * Where each day of a trip was, from the photographs taken on it.
+ *
+ * One coordinate per day, and the first located photograph of the day is as
+ * good as any: the weather over a city is the weather over all of it, and a
+ * centroid of somewhere they walked across is no more true than a point on
+ * it. Days with no located photograph are left out — there is nowhere to ask
+ * about.
+ */
+export function placesByDay(photos = []) {
+  const byDay = new Map()
+  for (const p of [...photos].sort((a, b) => String(a.taken_at ?? '').localeCompare(String(b.taken_at ?? '')))) {
+    const d = p?.taken_on || String(p?.taken_at ?? '').slice(0, 10)
+    if (!d || p?.lat == null || p?.lon == null || byDay.has(d)) continue
+    byDay.set(d, { on_date: d, lat: Math.round(p.lat * 10) / 10, lon: Math.round(p.lon * 10) / 10 })
+  }
+  return [...byDay.values()].sort((a, b) => a.on_date.localeCompare(b.on_date))
+}
+
+/**
+ * Which days still need asking about.
+ *
+ * The weather on a past date does not change, so anything already cached is
+ * done for ever. Only the gaps are worth a request.
+ */
+export function stillToAsk(wanted = [], cached = []) {
+  const have = new Set(cached.map((c) => c.on_date))
+  return wanted.filter((d) => !have.has(d.on_date))
+}
+
+/**
+ * Ask the archive for a run of days at one place.
+ *
+ * Grouped by coordinate so a four-day trip in one city is one request rather
+ * than four. Returns rows ready to store; a day the archive has no answer
+ * for is simply absent rather than stored as a null, so it can be asked
+ * again if the archive fills in later.
+ */
+export async function askArchive(days = [], fetcher = globalThis.fetch) {
+  if (!days.length) return []
+  const byPlace = new Map()
+  for (const d of days) {
+    const key = `${d.lat},${d.lon}`
+    if (!byPlace.has(key)) byPlace.set(key, [])
+    byPlace.get(key).push(d)
+  }
+
+  const out = []
+  for (const [key, group] of byPlace) {
+    const [lat, lon] = key.split(',')
+    const dates = group.map((g) => g.on_date).sort()
+    const url =
+      `${ARCHIVE}?latitude=${lat}&longitude=${lon}` +
+      `&start_date=${dates[0]}&end_date=${dates[dates.length - 1]}` +
+      `&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=UTC`
+
+    let answer = null
+    try {
+      const r = await fetcher(url)
+      if (!r?.ok) continue
+      answer = await r.json()
+    } catch {
+      // A day without weather is a day without a symbol on it. Nothing here
+      // is worth failing a screen over.
+      continue
+    }
+
+    const wanted = new Set(dates)
+    const time = answer?.daily?.time ?? []
+    for (let i = 0; i < time.length; i++) {
+      if (!wanted.has(time[i])) continue
+      const high = answer.daily.temperature_2m_max?.[i]
+      const low = answer.daily.temperature_2m_min?.[i]
+      const code = answer.daily.weather_code?.[i]
+      if (high == null && low == null && code == null) continue
+      out.push({
+        on_date: time[i],
+        lat: Number(lat),
+        lon: Number(lon),
+        high_c: high ?? null,
+        low_c: low ?? null,
+        code: code ?? null,
+      })
+    }
+  }
+  return out
 }

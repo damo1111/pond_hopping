@@ -735,6 +735,57 @@ function PushCard() {
 // david2@ became "david2" — which is both wrong and the sort of thing that
 // reads as the app knowing more about you than it does. Nothing sets it
 // now except the person it belongs to.
+// Degrees.
+//
+// "Follow this device" is the answer for almost everybody and is what nobody
+// has to choose — it reads the browser's locale, and the test is for the
+// handful of places that use Fahrenheit rather than against a list of the
+// many that do not. The other two are here because somebody who has moved
+// countries usually still thinks in the scale they grew up with.
+function DegreesCard() {
+  const { user, profile, refreshProfile } = useAuth()
+  const [busy, setBusy] = useState(false)
+  const now = profile?.temp_unit || 'device'
+
+  async function choose(unit) {
+    if (busy || unit === now) return
+    setBusy(true)
+    await supabase
+      .from('profiles')
+      .update({ temp_unit: unit === 'device' ? null : unit })
+      .eq('id', user.id)
+    await refreshProfile()
+    setBusy(false)
+  }
+
+  if (!user) return null
+
+  return (
+    <div className="account-card">
+      <div className="account-card-title">Temperature</div>
+      <div className="account-card-body">
+        Shown against each day of a trip, and averaged on its front page.
+      </div>
+      <div className="degrees-row">
+        {[
+          ['device', 'This device'],
+          ['c', '°C'],
+          ['f', '°F'],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            className={`ph-flag${now === id ? ' on' : ''}`}
+            disabled={busy}
+            onClick={() => choose(id)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function NameCard() {
   const { user, profile, refreshProfile } = useAuth()
   const [editing, setEditing] = useState(false)
@@ -833,6 +884,7 @@ function SignedIn() {
   return (
     <>
       <NameCard />
+      <DegreesCard />
 
       <ConnectCard />
 

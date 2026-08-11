@@ -10329,3 +10329,25 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   text-underline-offset: 3px;
   cursor: pointer;
 }
+
+/* Weather. A symbol and a number, never more — a travel journal that starts
+   reporting humidity has stopped being a journal. */
+.je-weather {
+  margin-left: auto;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.recap-weather {
+  margin-top: -4px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.degrees-row { display: flex; gap: 7px; margin-top: 10px; }
+.degrees-row .ph-flag { flex: 1; text-align: center; }

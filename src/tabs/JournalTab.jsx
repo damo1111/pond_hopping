@@ -7,6 +7,8 @@ import CountryFlags from '../components/CountryFlags.jsx'
 import Icon from '../components/Icon.jsx'
 import PrivateNote from '../components/PrivateNote.jsx'
 import { useAuth } from '../lib/AuthContext.jsx'
+import { useWeather } from '../lib/useWeather.js'
+import { asDegrees, sky } from '../lib/weather.js'
 
 const MOODS = ['😄', '🌅', '🏃', '🤔', '😮', '😤', '🌧️', '✈️', '🧱', '🌀', '🧵', '🌊']
 
@@ -14,7 +16,21 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 }
 
-function Entry({ e, chapter, autoOpen, jumpKey }) {
+/** A symbol and a number, and nothing else. A journal that starts reporting
+ *  humidity has stopped being a journal. */
+function Weather({ day, unit }) {
+  if (!day) return null
+  const { symbol, said } = sky(day.code)
+  const high = asDegrees(day.high_c, unit)
+  if (!symbol && !high) return null
+  return (
+    <span className="je-weather" title={said ?? undefined}>
+      {symbol} {high?.text}
+    </span>
+  )
+}
+
+function Entry({ e, chapter, autoOpen, jumpKey, weather, unit }) {
   const [open, setOpen] = useState(autoOpen)
   const hasBlend = !!(chapter?.note && e.note)
   // The fuller story leads, where there is one.
@@ -57,6 +73,7 @@ function Entry({ e, chapter, autoOpen, jumpKey }) {
         <span className="je-day">{e.day_number ? `Day ${e.day_number}` : ''}</span>
         <span className="je-date">{fmtDate(e.entry_date)}</span>
         <span className="je-city">{e.city}</span>
+        <Weather day={weather} unit={unit} />
       </div>
       <div className="je-title">{blended && hasBlend ? chapter.title || e.title : e.title}</div>
       <div className={`je-note${open ? '' : ' clamp'}`}>
@@ -188,6 +205,13 @@ export default function JournalTab() {
   const [entries, setEntries] = useState(null)
   const [chapters, setChapters] = useState({})
   const [reload, setReload] = useState(0)
+  // Every day of weather this account can see, keyed trip and date. One
+  // small query for the whole journal — a row is five numbers and a date.
+  const [weather, setWeather] = useState({})
+  // Where each day of the open trip was, for filling the gaps. Only the
+  // coordinates: this is not the photographs screen and does not want them.
+  const [coords, setCoords] = useState([])
+  const [unit, setUnit] = useState('device')
 
   useEffect(() => {
     let alive = true
@@ -198,6 +222,20 @@ export default function JournalTab() {
       .then(({ data }) => alive && setEntries(data ?? []))
     // The pieced-together story, keyed trip+date, so a day can offer its own
     // chapter beside what somebody wrote at the time.
+    supabase
+      .from('day_weather')
+      .select('trip_id,on_date,high_c,low_c,code')
+      .then(({ data }) => {
+        if (!alive) return
+        const by = {}
+        for (const r of data ?? []) by[`${r.trip_id}:${r.on_date}`] = r
+        setWeather(by)
+      })
+    supabase
+      .from('profiles')
+      .select('temp_unit')
+      .maybeSingle()
+      .then(({ data }) => alive && setUnit(data?.temp_unit || 'device'))
     supabase
       .from('trip_stories')
       .select('trip_id,chapters')
@@ -231,6 +269,27 @@ export default function JournalTab() {
     if (entries && journalJump) clearJournalJump()
   }, [entries, journalJump, clearJournalJump])
 
+  const selectedTripId = selectedTrip ? tripMeta.find((t) => t.slug === selectedTrip)?.id : null
+
+  // Coordinates for the open trip only. Filling the weather for every trip
+  // an account has ever taken, every time the journal opens, is a lot of
+  // requests for days nobody is looking at.
+  useEffect(() => {
+    if (!selectedTripId) return setCoords([])
+    let alive = true
+    supabase
+      .from('photos')
+      .select('taken_on,taken_at,lat,lon')
+      .eq('trip_id', selectedTripId)
+      .not('lat', 'is', null)
+      .then(({ data }) => alive && setCoords(data ?? []))
+    return () => {
+      alive = false
+    }
+  }, [selectedTripId])
+
+  const filled = useWeather(selectedTripId, coords)
+
   if (!entries) return <div className="tab-loading">loading journal…</div>
 
   const visible = entries.filter(
@@ -251,8 +310,6 @@ export default function JournalTab() {
       if (byTrip.has(t.id)) groups.push({ trip: t, entries: byTrip.get(t.id) })
     }
   }
-
-  const selectedTripId = selectedTrip ? tripMeta.find((t) => t.slug === selectedTrip)?.id : null
 
   return (
     <div className="journal-tab">
@@ -279,6 +336,8 @@ export default function JournalTab() {
               key={e.id}
               e={e}
               chapter={chapters[`${e.trip_id}:${e.entry_date}`]}
+              weather={weather[`${e.trip_id}:${e.entry_date}`] ?? filled[e.entry_date]}
+              unit={unit}
               autoOpen={jumpEntry?.id === e.id}
             />
           ))}
