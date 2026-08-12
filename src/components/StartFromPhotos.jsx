@@ -16,6 +16,8 @@ import {
 } from '../lib/tripFromPhotos.js'
 import SheetGrip from './SheetGrip.jsx'
 import { oops, track } from '../lib/analytics.js'
+import { withDeadline, ONE_PHOTO_MS } from '../lib/deadline.js'
+import { whatIsNew, fingerprintOf } from '../lib/alreadyHere.js'
 
 // "I've already been somewhere."
 //
@@ -57,6 +59,10 @@ export default function StartFromPhotos({ onDone, onClose }) {
   const [phase, setPhase] = useState('idle') // idle | reading | confirm | saving | done
   const [progress, setProgress] = useState({ done: 0, total: 0, bytes: 0, original: 0 })
   const [error, setError] = useState(null)
+  // Photographs the run gave up on, so the end can say so.
+  const [missed, setMissed] = useState(0)
+  // Photographs the trip already had, so nothing is sent twice.
+  const [already, setAlready] = useState(0)
 
   async function choose(e) {
     const picked = [...(e.target.files || [])]
@@ -71,7 +77,10 @@ export default function StartFromPhotos({ onDone, onClose }) {
     const meta = []
     for (const f of picked) {
       try {
-        meta.push({ file: f, ...readExif(await f.slice(0, HEAD_BYTES).arrayBuffer()) })
+        const head = await f.slice(0, HEAD_BYTES).arrayBuffer()
+        // Fingerprinted here, off the same slice, so that by the time
+        // somebody chooses a trip we already know which of these it has.
+        meta.push({ file: f, fingerprint: await fingerprintOf(head, f.size), ...readExif(head) })
       } catch {
         meta.push({ file: f })
       }
@@ -149,26 +158,66 @@ export default function StartFromPhotos({ onDone, onClose }) {
         trip = made.data
       }
 
+      // Which of these the trip has not got.
+      //
+      // Picking the same camera roll twice — after a stall, or because
+      // nobody was sure the first go worked — used to upload every one of
+      // them again. Only worth asking when adding to a trip that already
+      // exists; a trip made a moment ago holds nothing.
+      let sending = toUpload
+      let alreadyThere = 0
+      if (into) {
+        const { data: has } = await supabase
+          .from('photos')
+          .select('fingerprint,taken_at')
+          .eq('trip_id', trip.id)
+        const { fresh, already } = whatIsNew(
+          toUpload.map((p) => ({ ...p, takenAt: p.takenAt ?? p.taken_at ?? null })),
+          has ?? [],
+        )
+        sending = fresh
+        alreadyThere = already
+        setAlready(already)
+      }
+
       let done = 0
       let bytes = 0
       let original = 0
-      setProgress({ done: 0, total: toUpload.length, bytes: 0, original: 0 })
+      let skipped = 0
+      setProgress({ done: 0, total: sending.length, bytes: 0, original: 0, already: alreadyThere })
 
       // Sequential on purpose here rather than the ingest helper's three at a
       // time: this screen is showing a running count, and a truthful count is
       // worth more on a first run than a few seconds.
-      for (const p of toUpload) {
+      for (const p of sending) {
         try {
-          const prepared = await prepare(p.file)
-          await store(prepared, { tripId: trip.id, isHighlight: !into && done === 0 })
-          bytes += prepared.display.blob.size + prepared.thumb.blob.size
-          original += prepared.originalBytes
-        } catch {
-          // One bad file does not lose the trip or the other thirty-nine.
+          // Each photograph gets a deadline, because the way this loop failed
+          // was not an exception. Somebody watched it stop at "198 of 262":
+          // one of decode-and-shrink or upload never returned, and a promise
+          // that never settles is not something a catch can see. Sixty-four
+          // photographs behind it were never going to be tried, and nothing
+          // anywhere said so.
+          //
+          // The abandoned work is not cancelled — it cannot be — so a photo
+          // that finishes late still arrives, just uncounted. That is a much
+          // smaller problem than the rest never arriving at all.
+          await withDeadline(async () => {
+            const prepared = await prepare(p.file)
+            await store(prepared, { tripId: trip.id, isHighlight: !into && done === 0 })
+            bytes += prepared.display.blob.size + prepared.thumb.blob.size
+            original += prepared.originalBytes
+          }, ONE_PHOTO_MS, p.file?.name || 'a photo')
+        } catch (e) {
+          // One bad file does not lose the trip or the other two hundred.
+          skipped += 1
+          oops('photos', e, 'StartFromPhotos/upload')
         }
-        setProgress({ done: ++done, total: toUpload.length, bytes, original })
+        setProgress({ done: ++done, total: sending.length, bytes, original, already: alreadyThere })
       }
 
+      // Said rather than silently absorbed. A run that quietly drops eleven
+      // photographs looks exactly like a run that uploaded everything.
+      setMissed(skipped)
       setPhase('done')
       onDone?.(trip)
     } catch (e) {
@@ -321,9 +370,21 @@ export default function StartFromPhotos({ onDone, onClose }) {
           <>
             <div className="ios-sheet-title">That's on the globe now</div>
             <div className="ios-sheet-sub">
-              {progress.total} photos ·{' '}
+              {progress.total - missed} photos ·{' '}
               {savingsLabel(progress.original, progress.bytes) || 'uploaded'}
             </div>
+            {already > 0 && (
+              <div className="ios-sheet-sub">
+                {already} {already === 1 ? 'was' : 'were'} already here, so {already === 1 ? 'it' : 'they'}{' '}
+                didn&apos;t go up again.
+              </div>
+            )}
+            {missed > 0 && (
+              <div className="ios-sheet-sub">
+                {missed} {missed === 1 ? 'photo' : 'photos'} wouldn&apos;t go up. Choosing them
+                again will only send the ones that are missing.
+              </div>
+            )}
             {/* If this is the trip they're on, the rest of it can log itself. */}
             <TrackPlaces compact />
             <button className="ios-sheet-done" onClick={onClose}>

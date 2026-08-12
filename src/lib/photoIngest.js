@@ -2,6 +2,7 @@ import { supabase } from './supabase.js'
 import { begin } from './busy.js'
 import { drop, hold, queued } from './originals.js'
 import { readExif } from './exif.js'
+import { fingerprintOf } from './alreadyHere.js'
 import { renderSizes, DISPLAY, THUMB, extFor } from './photoResize.js'
 
 const BUCKET = 'photos'
@@ -19,9 +20,13 @@ export const HEAD_BYTES = 256 * 1024
 
 /** Read the metadata, then make the two sizes we actually store. */
 export async function prepare(file) {
-  const exif = readExif(await file.slice(0, HEAD_BYTES).arrayBuffer())
+  const head = await file.slice(0, HEAD_BYTES).arrayBuffer()
+  const exif = readExif(head)
+  // Free, because the head is already in hand for the EXIF. It is what lets
+  // the same camera roll be offered twice without going up twice.
+  const fingerprint = await fingerprintOf(head, file.size)
   const [display, thumb] = await renderSizes(file, [DISPLAY, THUMB])
-  return { file, exif, display, thumb, originalBytes: file.size }
+  return { file, exif, fingerprint, display, thumb, originalBytes: file.size }
 }
 
 function publicUrl(path) {
@@ -61,7 +66,7 @@ export async function uploadCover(file, tripId) {
  * of where someone lives.
  */
 export async function store(prepared, { tripId, traveler = null, isHighlight = false, keepOriginal = false } = {}) {
-  const { exif, display, thumb } = prepared
+  const { exif, display, thumb, fingerprint } = prepared
   const ext = extFor(display.type)
   const id = crypto.randomUUID()
   const base = `${tripId}/${id}`
@@ -82,6 +87,7 @@ export async function store(prepared, { tripId, traveler = null, isHighlight = f
     lon: exif.lon,
     traveler,
     is_highlight: isHighlight,
+    fingerprint: fingerprint ?? null,
   }
   const { data, error } = await supabase.from('photos').insert(row).select().single()
   if (error) {

@@ -133,7 +133,15 @@ export default function PhotosTab({ openPhotoId = null }) {
       // still photographs and still in this table; they are just not part
       // of anybody's holiday.
       .neq('kind', 'receipt')
+      // Day, then the instant inside it. Ordering on taken_on alone sorts to
+      // day granularity and leaves everything within a day in whatever order
+      // Postgres felt like — so a day's photographs came back shuffled, and
+      // differently on each load. id last so the order is total: photos with
+      // no EXIF time at all still land somewhere stable rather than moving
+      // about between renders.
       .order('taken_on', { ascending: true })
+      .order('taken_at', { ascending: true, nullsFirst: true })
+      .order('id', { ascending: true })
       .then(({ data }) => alive && setPhotos(data ?? []))
     // A cover somebody chose wins over one scraped from an album.
     Promise.all([
