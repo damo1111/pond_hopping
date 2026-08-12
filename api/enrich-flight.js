@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 import { REACH } from '../src/lib/flightEnrich.js'
 
 // What somebody else knows about a flight you were on.
@@ -120,6 +121,7 @@ export function pickLeg(list = [], flight = {}) {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

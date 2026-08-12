@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 // Receives forwarded booking confirmations from whichever inbound-email
 // provider is pointed at it. Runs the same AI extraction as the
 // paste-a-booking flow, guesses which draft trip it belongs to by matching
@@ -115,6 +116,7 @@ function guessTripLegacy(items, trips) {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 import { REACH } from '../src/lib/flightEnrich.js'
 
 // Cirium, for the flights nothing else can reach.
@@ -207,6 +208,7 @@ export function beyondReach(status, said = '') {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

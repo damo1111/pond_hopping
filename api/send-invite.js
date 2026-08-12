@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 // Sends the email an invited person actually receives.
 //
 // Until now "Send invite" wrote a `connections` row and stopped — the app
@@ -69,6 +70,7 @@ function text({ inviter, invitee }) {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

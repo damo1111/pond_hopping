@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 import sharp from 'sharp'
 
 // Generates a small static JPEG thumbnail (once, forever) for photos that
@@ -13,6 +14,10 @@ const LONG_EDGE = 640
 const QUALITY = 72
 
 export default async function handler(req, res) {
+  // No method guard on this one, so nothing was rejecting a preflight —
+  // but nothing was answering one either, and an OPTIONS falling through
+  // into the body would go off and resize photographs.
+  if (preflight(req, res)) return
   const limit = Number(req.query?.limit ?? req.body?.limit ?? 20)
 
   const listRes = await fetch(

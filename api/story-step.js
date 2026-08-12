@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 import { look } from './see-photos.js'
 import { reconstruct } from './reconstruct-trip.js'
 import { writeUp } from './write-trip.js'
@@ -87,6 +88,7 @@ async function rpc(name, args) {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 import OpenAI from 'openai'
 
 // Reads photographs and says which of them are receipts.
@@ -107,6 +108,7 @@ async function readOne(client, photo) {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

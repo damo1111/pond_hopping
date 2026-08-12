@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 // Lazily fetches one photo for a Foursquare place — kept as its own
 // endpoint (rather than bundled into explore-search) so the search list
 // renders fast and photos load per-card, same pattern as the Planespotters
@@ -6,6 +7,7 @@ const KEY = process.env.FOURSQUARE_API_KEY
 const API_VERSION = '2025-06-17'
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'GET only' })
     return

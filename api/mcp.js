@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 // Pond Hopping as an MCP server. Connect it to Claude, ChatGPT or Gemini
 // and your own assistant can read your travel history and write to it —
 // which is how you backfill years of trips without Pond Hopping ever
@@ -154,6 +155,7 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'This MCP endpoint is POST-only (stateless streamable HTTP).' })
     return
   }
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 // Ambient enrichment: given a planned item's name + city, find it on
 // Foursquare and hand back what makes a card feel alive — a photo, the
 // rating, the category, a website — plus a few genuinely-nearby things to
@@ -23,6 +24,7 @@ function photoUrl(p, size = '400x300') {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'GET only' })
     return

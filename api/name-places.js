@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 // What is at a set of coordinates.
 //
 // One call per stop, not per photograph. A three-day trip is perhaps twenty
@@ -19,6 +20,7 @@ export const RADIUS_M = 120
 export const MAX_STOPS = 40
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

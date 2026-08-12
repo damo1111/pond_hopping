@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 // Somebody new made an account.
 //
 // Called by a trigger on auth.users — see the migration
@@ -30,6 +31,7 @@ async function adminEmails(secret) {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

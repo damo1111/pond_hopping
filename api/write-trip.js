@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 import OpenAI from 'openai'
 
 // The last stage, and the only one allowed to write.
@@ -303,6 +304,7 @@ export async function writeUp({ reconstruction, theirs = {}, voice = [], only = 
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return
