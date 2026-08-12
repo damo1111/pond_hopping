@@ -116,13 +116,32 @@ this repo has `ios/` in it.
 ## One person, one account
 
 Somebody who taps Apple on Monday and Google on Tuesday should find their
-trips either way.
+trips either way — **and so should somebody who used a code on Sunday.**
 
-Supabase links identities on a **verified** email address, which both Apple
-and Google supply. The setting is in Authentication → Sign In / Providers →
-*Allow manual/automatic linking*; it must be on, or the second provider makes
-a second account and a returning hopper meets an empty globe with no way back
-to their own trips.
+Three ways in, one account. The code is not a lesser one: it is what every
+existing hopper has, so it is the account the other two have to join rather
+than the other way round. All five identities on this project today are
+`email`, and every one of them must survive somebody tapping Apple once.
+
+Supabase links identities on a **verified** email address. Apple and Google
+both supply one, and so does the code — entering it is what verifies the
+address, which is the whole mechanism. So the same setting covers all three:
+Authentication → Sign In / Providers → *Allow manual/automatic linking*. It
+must be on, or the second way in makes a second account and a returning
+hopper meets an empty globe with no way back to their own trips.
+
+It is worth proving rather than assuming, and it takes one query. Sign in
+all three ways with the same address, then:
+
+```sql
+select u.email, count(*) as ways_in, array_agg(i.provider order by i.provider)
+from auth.identities i join auth.users u on u.id = i.user_id
+group by u.email having count(*) > 1;
+```
+
+One row, three providers, one email is what right looks like. Three rows of
+one is the setting being off — and the sooner that is found the fewer
+stranded accounts there are to merge by hand.
 
 One thing to know about Apple: if somebody chooses **Hide My Email**, the
 address is a private relay (`…@privaterelay.appleid.com`) and will not match
