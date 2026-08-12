@@ -7948,30 +7948,40 @@ button {
 
 /* ── Sign-in, asked for where the need arises ─────────────────── */
 
+/* One row, not a stack. The reason on the left and the button on the right,
+   because a full-width black pill under a single line of grey is a wall
+   where a nudge was wanted. */
 .plan-signin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 14px;
   margin: 4px 16px 14px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--accent-bg);
 }
 
 .plan-signin-body {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.4;
   color: var(--text-muted);
 }
 
 .plan-signin-btn {
-  margin-top: 10px;
-  width: 100%;
-  padding: 11px 16px;
+  flex: none;
+  padding: 9px 20px;
   border: 0;
   border-radius: 999px;
   background: var(--text);
   color: var(--bg);
   font-family: var(--font-display);
   font-size: 14px;
+  cursor: pointer;
 }
 
 /* The recap's own grab handle. The sheets have had one for weeks; the page
@@ -10716,6 +10726,9 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   stroke-linejoin: round;
 }
 
+/* Sized so the pattern divides the shaft's 14 units exactly — 2+4 twice
+   plus a final 2 — so the last dash always lands on the same spot rather
+   than wherever the repeat runs out. */
 .gti-arrow { stroke-dasharray: 2 4; }
 
 .gti-route {
@@ -11520,89 +11533,84 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   background: var(--border);
 }
 
-/* ── Before I write this up ───────────────────────────────────────────
-   Asked at the only moment anybody is willing to answer it: they have just
-   watched the thing work and they want it to be good. */
-.bww { max-height: 86vh; overflow-y: auto; }
+/* ── Off I go ─────────────────────────────────────────────────────────
+   A prompt for more, not a form to complete. Five ticked rows and a
+   checklist read as five things to do before you are allowed to press the
+   button; the writing is the headline and the extras are chips under it. */
+.bww { text-align: center; }
 
-.bww-list {
-  list-style: none;
-  margin: 4px 0 18px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  overflow: hidden;
+.bww-top {
+  font-size: 20px;
+  font-weight: 300;
+  margin-bottom: 14px;
 }
 
-.bww-row {
+/* The whole explanation, without a word of it. Colour by colour it says what
+   the story is made of; the empty part says there is more available. */
+.bww-bar {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 13px;
+  gap: 3px;
+  height: 12px;
+  margin-bottom: 10px;
 }
 
-.bww-row + .bww-row { border-top: 1px solid var(--border); }
-
-.bww-tick {
-  flex: none;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--accent);
+.bww-seg {
+  border-radius: 3px;
+  background: var(--surface-2);
 }
 
-.bww-box {
-  width: 13px;
-  height: 13px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-}
+.bww-seg--got { background: var(--seg); }
 
-.bww-what {
-  flex: 1 1 auto;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
+.bww-seg:first-child { border-radius: 6px 3px 3px 6px; }
+.bww-seg:last-child { border-radius: 3px 6px 6px 3px; }
 
-.bww-label { font-size: 14px; }
-
-/* What is missing is quieter than what is there, because the point is to
-   make somebody want to add one more thing rather than to feel they have
-   failed an inspection. */
-.bww-row:not(.bww-row--got) .bww-label { color: var(--text-muted); }
-
-.bww-n {
+.bww-said {
   font-family: var(--font-mono);
   font-size: 11px;
+  letter-spacing: 0.04em;
   color: var(--text-muted);
+  margin-bottom: 20px;
 }
 
-/* A chip, not a sentence: a long label here pushed the row it sits beside
-   onto three lines. */
-.bww-get {
-  flex: none;
-  max-width: 42%;
-  padding: 6px 11px;
-  white-space: nowrap;
-  border: 1px solid var(--accent);
+.bww-go { margin-bottom: 18px; }
+
+.bww-more-said {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 9px;
+}
+
+.bww-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+
+.bww-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: none;
-  color: var(--accent);
+  background: var(--surface);
+  color: inherit;
   font: inherit;
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
 }
 
-/* The whole reason a checklist is bearable is knowing it is not a gate. */
-.bww-note {
-  margin: 12px 0 4px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--text-muted);
-  text-align: center;
-  text-wrap: pretty;
+/* The chip carries the colour of the segment it would fill in, so choosing
+   one is visibly the same act as lengthening the bar. */
+.bww-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--seg);
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .bww-seg { transition: background 260ms ease; }
+}
+

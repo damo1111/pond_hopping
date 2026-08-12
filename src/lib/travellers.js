@@ -99,3 +99,59 @@ export function asNewMember(tripId, email, name) {
     is_traveller: true,
   }
 }
+
+/**
+ * The tense to say it in.
+ *
+ * "Who was there" on a trip that has not happened yet is wrong, and "0 of
+ * you" underneath it is worse — a planned trip with nobody marked reads as a
+ * failure rather than as a trip nobody has been on yet, because they have
+ * not been.
+ *
+ * @param trip  needs start_date and end_date
+ * @param today YYYY-MM-DD, passed in so this can be tested
+ */
+export function tenseFor(trip, today) {
+  const now = today ?? new Date().toISOString().slice(0, 10)
+  const start = trip?.start_date || null
+
+  // Nothing at all: a trip somebody has named and not dated. Ahead is the
+  // safer read — a trip with no dates is far more likely to be an idea than
+  // a finished holiday nobody recorded the end of.
+  if (!start && !trip?.end_date) return AHEAD
+
+  // Only an end date can put a trip in the past. A start with no end is
+  // exactly what "I'm off now" makes — open-ended on purpose, because nobody
+  // knew when it would finish — and reading that as over would ask "who was
+  // there" of somebody standing in an airport.
+  if (trip?.end_date && trip.end_date < now) return BEHIND
+  if (start && start > now) return AHEAD
+  return NOW
+}
+
+const BEHIND = {
+  when: 'past',
+  title: 'Who was there',
+  came: 'came along',
+  didnt: 'planning only',
+  add: 'Someone else was there',
+  none: 'Nobody marked yet',
+}
+
+const NOW = {
+  when: 'now',
+  title: "Who's on this trip",
+  came: 'on the trip',
+  didnt: 'planning only',
+  add: 'Someone else is here',
+  none: 'Just you so far',
+}
+
+const AHEAD = {
+  when: 'future',
+  title: "Who's coming",
+  came: 'coming',
+  didnt: 'planning only',
+  add: 'Someone else is coming',
+  none: 'Nobody else yet',
+}

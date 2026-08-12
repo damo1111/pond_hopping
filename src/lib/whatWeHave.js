@@ -29,42 +29,52 @@
 export const HAVES = [
   {
     key: 'said',
-    has: 'Days you wrote yourself',
+    has: 'yours',
     missing: 'Nothing written in your own words',
-    get: 'Write a day',
+    get: 'a day of your own',
     route: 'journal',
+    weight: 3,
+    colour: '#1A1611',
     // Never presented as a gap to fill: most people write nothing, and a
     // travel log that opens by telling you off is not one anybody keeps.
     optional: true,
   },
   {
     key: 'stays',
-    has: 'Places you stopped',
+    has: 'places',
     missing: 'No record of where you stopped',
-    get: 'Add Timeline',
+    get: 'your Timeline',
     route: 'timeline',
+    weight: 3,
+    colour: '#C97B95',
   },
   {
     key: 'photographs',
-    has: 'Photographs',
+    has: 'photos',
     missing: 'No photographs yet',
-    get: 'Add photos',
+    get: 'photos',
     route: 'photos',
+    weight: 2,
+    colour: '#A8842C',
   },
   {
     key: 'flights',
-    has: 'Flights',
+    has: 'flights',
     missing: 'No flights on it',
-    get: 'Add a booking',
+    get: 'a booking',
     route: 'booking',
+    weight: 1,
+    colour: '#3B7EA1',
   },
   {
     key: 'runs',
-    has: 'Runs',
+    has: 'runs',
     missing: 'No runs',
-    get: 'Add runs',
+    get: 'runs',
     route: 'runs',
     optional: true,
+    weight: 1,
+    colour: '#3E7D54',
   },
 ]
 
@@ -93,28 +103,58 @@ export function worthAsking(facts = {}) {
 }
 
 /**
- * The one line at the top.
+ * How much there is to write from, as a bar.
  *
- * Says what it has before what it lacks, because the point is to make
- * somebody feel like adding one more thing rather than like they have failed
- * an inspection.
+ * Deliberately not weighted by count. Two hundred and thirty-eight
+ * photographs against six flights would draw a bar that is almost entirely
+ * photographs, which is true about the pile and false about the story: the
+ * six flights fix the shape of the whole trip and the two hundredth
+ * photograph of a beach adds nothing the hundredth did not.
+ *
+ * So each kind is worth what it is worth to the reconstruction — somebody's
+ * own words and a recorded stay above photographs, photographs above the
+ * rest — and having any of a kind fills its share. It is a picture of how
+ * many *sorts* of evidence there are, which is the thing that actually makes
+ * a story better and the thing somebody can do something about.
+ */
+export function richness(facts = {}, kinds = HAVES) {
+  const rows = checklist(facts, kinds)
+  const all = rows.reduce((n, r) => n + (r.weight ?? 1), 0)
+  const have = rows.filter((r) => r.got).reduce((n, r) => n + (r.weight ?? 1), 0)
+  return {
+    rows,
+    filled: all ? have / all : 0,
+    // What it has first, then what it hasn't, each group still in value
+    // order. Left to right the bar then reads "this much you have, this much
+    // more is available" — with the value order alone, a trip missing the two
+    // heaviest kinds opened with two empty blocks and looked like a failure
+    // before the eye reached anything it had.
+    segments: [...rows]
+      .sort((a, b) => (a.got === b.got ? 0 : a.got ? -1 : 1))
+      .map((r) => ({
+        key: r.key,
+        colour: r.colour,
+        got: r.got,
+        share: all ? (r.weight ?? 1) / all : 0,
+      })),
+  }
+}
+
+/**
+ * The one line under the bar: what it has, in the fewest words that are
+ * still true. "238 photos · 6 flights · 2 runs".
  */
 export function summarise(facts = {}) {
-  const rows = checklist(facts)
-  const got = rows.filter((r) => r.got)
-  if (!got.length) return 'Nothing on this trip yet.'
-  const bits = got.map((r) => `${r.n.toLocaleString('en-GB')} ${plural(r, r.n)}`)
-  return `${sentence(bits)} — that is plenty to write from.`
+  const got = checklist(facts).filter((r) => r.got)
+  if (!got.length) return 'Nothing on this trip yet'
+  return got.map((r) => `${r.n.toLocaleString('en-GB')} ${r.has}`).join(' · ')
 }
 
-function plural(row, n) {
-  const word = row.has.toLowerCase()
-  if (row.key === 'said') return n === 1 ? 'day in your own words' : 'days in your own words'
-  if (n === 1) return word.replace(/s$/, '')
-  return word
-}
-
-function sentence(bits) {
-  if (bits.length === 1) return bits[0]
-  return `${bits.slice(0, -1).join(', ')} and ${bits[bits.length - 1]}`
+/** The chips for what would make it better, best first, and never more than
+ *  three — a list of everything you have not done is a chore. */
+export function couldAdd(facts = {}, most = 3) {
+  return checklist(facts)
+    .filter((r) => !r.got)
+    .sort((a, b) => (b.weight ?? 1) - (a.weight ?? 1))
+    .slice(0, most)
 }

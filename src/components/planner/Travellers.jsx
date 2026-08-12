@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase.js'
 import { oops, track } from '../../lib/analytics.js'
-import { asNewMember, canRemove, nameOf, rowsOf, tidy } from '../../lib/travellers.js'
+import { asNewMember, canRemove, nameOf, rowsOf, tenseFor, tidy } from '../../lib/travellers.js'
 import Icon from '../Icon.jsx'
 
 // Who was on this trip.
@@ -92,12 +92,19 @@ export default function Travellers({ trip }) {
   if (!rows) return null
 
   const went = rows.filter((r) => r.is_traveller).length
+  // Asked in the tense of the trip. "Who was there" on a holiday two months
+  // off is wrong, and "0 of you" under it is worse — a planned trip with
+  // nobody marked read as a failure rather than as a trip nobody has been on
+  // yet, because nobody has.
+  const said = tenseFor(trip)
 
   return (
     <div className="tv">
       <div className="tv-head">
-        <span className="tv-title">Who was there</span>
-        <span className="tv-count">{went === 1 ? 'just you' : `${went} of you`}</span>
+        <span className="tv-title">{said.title}</span>
+        <span className="tv-count">
+          {went === 0 ? said.none : went === 1 ? 'just you' : `${went} of you`}
+        </span>
       </div>
 
       <ul className="tv-list">
@@ -108,14 +115,14 @@ export default function Travellers({ trip }) {
               className="tv-was"
               aria-pressed={m.is_traveller}
               onClick={() => wasHere(m, !m.is_traveller)}
-              title={m.is_traveller ? 'Came on this trip' : 'Did not come'}
+              title={m.is_traveller ? said.came : said.didnt}
             >
               {m.is_traveller ? <Icon name="check" size={12} /> : <span className="tv-dot" />}
             </button>
             <span className="tv-who">
               <span className="tv-name">{nameOf(m)}</span>
               <span className="tv-role">
-                {m.role === 'owner' ? 'owner' : m.is_traveller ? 'came along' : 'planning only'}
+                {m.role === 'owner' ? 'owner' : m.is_traveller ? said.came : said.didnt}
               </span>
             </span>
             {canRemove(m) && (
@@ -168,7 +175,7 @@ export default function Travellers({ trip }) {
         </form>
       ) : (
         <button type="button" className="tv-open" onClick={() => setAdding(true)}>
-          + Someone else was there
+          + {said.add}
         </button>
       )}
     </div>

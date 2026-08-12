@@ -54,8 +54,12 @@ function PhotosToTrip() {
       <circle className="gti-sun" cx="38" cy="37" r="4" />
       <path className="gti-hill" d="M29 53 Q39 44 47 51 T64 50" />
 
-      <path className="gti-arrow" d="M80 43 H100" />
-      <path className="gti-arrow-head" d="M96 39 L101 43 L96 47" />
+      {/* The shaft stops short of the head rather than running under it: a
+          dashed line whose last dash lands wherever the pattern happens to
+          finish left a gap of a random size in front of the point, and the
+          head read as a separate mark floating beside the dashes. */}
+      <path className="gti-arrow" d="M80 43 H94" />
+      <path className="gti-arrow-head" d="M94.5 39.5 L99 43 L94.5 46.5" />
 
       <path
         className="gti-route"

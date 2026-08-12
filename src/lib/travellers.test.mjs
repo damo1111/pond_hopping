@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { tidy, nameOf, canRemove, rowsOf, asNewMember } from './travellers.js'
+import { tidy, nameOf, canRemove, rowsOf, asNewMember, tenseFor } from './travellers.js'
 
 const m = (id, email, extra = {}) => ({ id, email, role: 'viewer', is_traveller: false, ...extra })
 
@@ -79,4 +79,50 @@ test('a name is optional and an address is not', () => {
   assert.equal(asNewMember('t', 'a@b.com', '').display_name, null)
   assert.equal(asNewMember('t', 'not an address', 'X'), null)
   assert.equal(asNewMember('t', '', 'X'), null)
+})
+
+// "Who was there" on a trip that has not happened yet is wrong, and "0 of
+// you" underneath it is worse.
+test('a trip in the future is asked about in the future', () => {
+  const t = tenseFor({ start_date: '2026-10-09', end_date: '2026-10-15' }, '2026-08-12')
+  assert.equal(t.when, 'future')
+  assert.equal(t.title, "Who's coming")
+  assert.equal(t.came, 'coming')
+})
+
+test('a trip that has been is asked about in the past', () => {
+  const t = tenseFor({ start_date: '2026-04-03', end_date: '2026-04-10' }, '2026-08-12')
+  assert.equal(t.when, 'past')
+  assert.equal(t.title, 'Who was there')
+})
+
+test('a trip happening right now is neither', () => {
+  const t = tenseFor({ start_date: '2026-08-10', end_date: '2026-08-14' }, '2026-08-12')
+  assert.equal(t.when, 'now')
+  assert.match(t.title, /on this trip/)
+})
+
+test('the last day of a trip is still the trip', () => {
+  assert.equal(tenseFor({ start_date: '2026-08-01', end_date: '2026-08-12' }, '2026-08-12').when, 'now')
+  assert.equal(tenseFor({ start_date: '2026-08-01', end_date: '2026-08-11' }, '2026-08-12').when, 'past')
+})
+
+// A trip started with no end date — "I'm off now" — is happening, not over.
+test('a trip with a start and no end is not in the past', () => {
+  assert.equal(tenseFor({ start_date: '2026-08-10', end_date: null }, '2026-08-12').when, 'now')
+})
+
+test('no dates at all reads as ahead rather than behind', () => {
+  assert.equal(tenseFor({}, '2026-08-12').when, 'future')
+  assert.equal(tenseFor(null, '2026-08-12').when, 'future')
+})
+
+test('every tense has all its words', () => {
+  for (const t of [
+    tenseFor({ start_date: '2020-01-01', end_date: '2020-01-02' }, '2026-08-12'),
+    tenseFor({ start_date: '2026-08-10', end_date: '2026-08-14' }, '2026-08-12'),
+    tenseFor({ start_date: '2030-01-01', end_date: '2030-01-02' }, '2026-08-12'),
+  ]) {
+    assert.ok(t.title && t.came && t.didnt && t.add && t.none, t.when)
+  }
 })

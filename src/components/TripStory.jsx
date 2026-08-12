@@ -4,6 +4,8 @@ import { daysAdded, confirmed, howFar, whatItCosts, worthAsking } from '../lib/s
 import { running, whatThereIs } from '../lib/storyBuild.js'
 import { callApi } from '../lib/apiBase.js'
 import { oops } from '../lib/analytics.js'
+import { useAuth } from '../lib/AuthContext.jsx'
+import { isDemo } from '../lib/demoTour.js'
 
 /** One question, answered in words.
  *
@@ -57,6 +59,7 @@ function Ask({ q, onAnswer, onSkip }) {
 // used to kill the run silently, and the only way to find out was to come
 // back later and see the story unchanged.
 export default function TripStory({ trip, photos = [], runKey = 0 }) {
+  const { user } = useAuth()
   const [step, setStep] = useState('idle')
   // Whether the prose is unfolded. Closed on arrival: this is the photographs
   // screen, and the story is several thousand words of it.
@@ -154,8 +157,23 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   // that version would nag, and charge, every time the app was opened.
   const freshDays = daysAdded(mine, story)
 
+  // Whether this viewer could write this trip even if they wanted to.
+  //
+  // A signed-out visitor reading the example trip was shown "Sign in first."
+  // in red, on somebody else's holiday, having asked for nothing. The story
+  // starts itself — which is right for your own trips and is the whole point
+  // of the app — and the start attempted a build the server would have
+  // refused anyway, because build-story checks is_trip_editor.
+  //
+  // So the client checks the same thing before trying. Signed out, or on an
+  // example that belongs to somebody else, the story is read and never
+  // written. There is nothing to fix and nothing to sign in for: the story
+  // is already there.
+  const mayWrite = !!user && !isDemo(trip)
+
   const began = useRef('')
   useEffect(() => {
+    if (!mayWrite) return
     // `story` is null while the fetch is in flight as well as when there
     // is none, and starting a run on the first was how a finished story got
     // hidden behind a progress line the moment somebody came back to it.
@@ -176,7 +194,7 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     if (story) make({ only: freshDays })
     else itself()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip?.id, mine.length, story, freshDays.length, step, entries, looked, have.enough, run])
+  }, [trip?.id, mine.length, story, freshDays.length, step, entries, looked, have.enough, run, mayWrite])
 
   // What the server is doing, while it is doing it.
   //
@@ -209,6 +227,7 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   useEffect(() => {
     if (runKey === ranAt.current) return
     ranAt.current = runKey
+    if (!mayWrite) return
     if (step === 'idle') {
       setOpen(true)
       make()

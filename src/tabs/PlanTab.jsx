@@ -274,9 +274,13 @@ export default function PlanTab() {
           two lines of preamble is a paragraph nobody reads before tapping. */}
       {!user && (
         <div className="plan-signin">
-          <div className="plan-signin-body">Sign in to start your own.</div>
+          <div className="plan-signin-body">Sign in to start your own</div>
+          {/* "Sign in or create an account" is the heading on the sheet this
+              opens, where it is doing real work — telling somebody there is
+              one box for both. On a button it is a sentence, and it took the
+              full width of the screen to say it. */}
           <button className="plan-signin-btn" onClick={openAuth}>
-            Sign in or create an account
+            Sign in
           </button>
         </div>
       )}
