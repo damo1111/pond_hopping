@@ -165,14 +165,20 @@ export default function AuthSheet({ onClose }) {
           <form onSubmit={verify}>
             <div className="ios-sheet-title">Check your email</div>
             <div className="ios-sheet-sub">
-              Sent a code to <b>{email}</b>. Type it in below — don&apos;t tap the link in the email, it
-              opens the browser instead of the app.
+              Sent to <b>{email}</b>. <b>The code is in the subject line</b> — you don&apos;t have to
+              open the email.
             </div>
-            {/* Said because it is true, and because somebody who does not
-                know it assumes the app has failed after fifteen seconds and
-                starts pressing things. */}
+            {/* Three true things, in the order they save time.
+
+                The subject line first, because it is the one nobody knows and
+                it changes what waiting feels like: a notification preview
+                carries the whole code, so the mail never has to be opened —
+                or, on a slow inbox, even delivered to the app you are looking
+                at. Then where else to look. Then the warning about the link,
+                which only matters once the email is open, so it goes last. */}
             <div className="auth-patience">
-              It can take a minute to turn up, and it sometimes lands in spam.
+              Can take a minute, and sometimes lands in spam. Don&apos;t tap the link in it — that
+              opens the browser instead of the app.
             </div>
             <input
               className="account-input"

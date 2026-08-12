@@ -90,8 +90,9 @@ function SignInForm() {
       <form className="account-card" onSubmit={verify}>
         <div className="account-card-title">Check your email</div>
         <div className="account-card-body">
-          Sent a code to <b>{email}</b> — enter it below (don't tap the link in the email, it'll open in
-          the browser instead of here). It can take a minute, and sometimes lands in spam.
+          Sent to <b>{email}</b>. The code is in the subject line — you don't have to open the email.
+          Can take a minute, and sometimes lands in spam. Don't tap the link in it, that opens the
+          browser instead of here.
         </div>
         <input
           className="account-input"
