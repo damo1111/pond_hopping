@@ -103,3 +103,56 @@ opportunity to onboard them too.
 Note when it is rebuilt: it wrote both `profiles.partner_email` **and** a
 `connections` row with `role: 'travel_companion'`. The second is the one the
 sharing machinery actually reads.
+
+---
+
+# Copy that is being tested rather than chosen
+
+Live variants are in `src/lib/variants.js` as data; this is the reasoning
+behind them, and the ones not currently being served.
+
+## The Home tile — `add_tile`
+
+The only thing a new hopper can actually do, so what it says is the
+highest-leverage sentence in the app. Five were drawn; two are being served.
+
+| | title | strap | |
+|---|---|---|---|
+| — | Add a trip | One you've taken, or one you're on | *what it said before* |
+| A | Where have you been? | Chuck in some photos and I'll work it out | parked |
+| **B** | **Get your trips back** | Years of them, out of photos you already have — or start the next one | **serving** |
+| **C** | **Tip it in** | Photos, a booking, whatever you've got | **serving** |
+| D | Yours goes here | Photos in, trip out | parked |
+
+**Why B and C.** B makes the strongest promise — *"back"* is the word doing
+the work, because it says these trips already exist and you are missing
+them. C is already the best line in the product and makes the tile and the
+sheet it opens one thought instead of two. They are also the two furthest
+apart in kind, which is what a two-arm test wants: a promise against a
+phrase, not two rewordings of the same idea.
+
+**Why B's strap grew a tail.** Every one of the five leans retrospective,
+and **planning is a USP**. "Get your trips back" quietly tells somebody with
+a holiday booked next month that this is not for them. "— or start the next
+one" costs six words and keeps the door open. A test asserts at least one
+arm speaks to a trip that has not happened yet, so a future edit cannot
+quietly close it again.
+
+**Parked, and why.**
+
+- **A — Where have you been?** The most human of the five and the only
+  question, which is hard to walk past. Held back because a question on a
+  tile can read as a prompt rather than a button, and that is a real risk
+  worth testing on its own rather than as a confound.
+- **D — Yours goes here.** Uses the one thing the layout has that no copy can
+  buy: it sits beside a finished example under a rail already labelled
+  YOURS. Weak read on a page, possibly much stronger in place — which is
+  exactly the thing a mockup cannot settle and a phone can.
+
+## What to be careful of when reading the result
+
+`enough()` in variants.js refuses to call anything until **200 shows per
+arm**, and says "not yet" instead. At the current scale that is a long way
+off. The mechanism is in early because assignment has to be decided before
+events are written and an event with no variant on it can never be
+re-analysed — not because an answer is close.
