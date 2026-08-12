@@ -18,7 +18,6 @@ import TripPicker from './components/TripPicker.jsx'
 import Icon from './components/Icon.jsx'
 import AuthSheet from './components/AuthSheet.jsx'
 import BootScreen from './components/BootScreen.jsx'
-import IntroCards from './components/IntroCards.jsx'
 import { ONCE, bringOldFlagsOver, markSeen, nextUp } from './lib/firstRun.js'
 import { readPreference, visibleTrips, writePreference } from './lib/demoVisibility.js'
 import { tripColor } from './lib/tripColors.js'
@@ -142,8 +141,15 @@ export default function App() {
     bringOldFlagsOver()
     return nextUp()
   })
-  const showIntro = owed === ONCE.pitch
-  const meetsColdOpen = owed === ONCE.cold_open
+  // Fixed for the life of this launch rather than read live.
+  //
+  // The timer that ends the opening marks it seen and moves `owed` on, and
+  // that happens in the same tick as the fade begins. Read live, act two —
+  // the photographs, the route and the sentence — was pulled out of the DOM
+  // on exactly the frame the screen started fading, so the pitch vanished
+  // and an empty globe faded out after it. Caught by tracing the DOM frame
+  // by frame; invisible in a screenshot at any single moment.
+  const [meetsColdOpen] = useState(() => owed === ONCE.cold_open)
   const [bootLeaving, setBootLeaving] = useState(false)
   const [activeTab, setActiveTab] = useState('world')
   const [usefulTab, setUsefulTab] = useState('costs')
@@ -201,7 +207,18 @@ export default function App() {
     // August: "on first open but not every time. it is overkill. and
     // annoying perhaps every time." Afterwards it holds just long enough to
     // cover the first paint, so there is still no flash of half-built app.
-    const minBoot = meetsColdOpen ? 2050 : 500
+    //
+    // Five seconds because the opening now carries the pitch as well: act two
+    // runs photographs onto the globe, folds them into a route and finishes a
+    // sentence at 4.85s. That used to be a card afterwards, which is a screen
+    // this no longer needs — so the first run is shorter than it was, not
+    // longer.
+    //
+    // The 250ms on top of 4.85s is not slack. This timer starts at mount and
+    // the animation starts at first paint, so the CSS clock runs a frame or
+    // two behind this one — measured at ~120ms in Chromium. Cutting at 4850
+    // began the fade while the last word was still arriving.
+    const minBoot = meetsColdOpen ? 5100 : 500
     const leave = setTimeout(() => {
       if (cancelled) return
       if (meetsColdOpen) {
@@ -534,7 +551,7 @@ export default function App() {
         }
       },
     }),
-    [tripMeta, shownTrips, demoPref, showIntro, tripsLoaded, selectedTrip, journalJump, plannerJump, user?.id, photosChanged]
+    [tripMeta, shownTrips, demoPref, tripsLoaded, selectedTrip, journalJump, plannerJump, user?.id, photosChanged]
   )
 
   // Public read-only share page — no nav, no forms.
@@ -546,25 +563,12 @@ export default function App() {
 
   return (
     <TripContext.Provider value={ctx}>
-      {/* Before anything is asked of anybody, including signing in: "what is
-          this?" comes before "who are you?", and a signed-out visitor is
-          exactly who most needs the answer. Above onboarding, so a brand new
-          account meets the pitch before the form.
-
-          Mounted during the boot animation rather than after it, and painted
-          underneath — waiting for boot to finish meant the globe, the trip
-          strip and the tour all got a frame of their own on the way past. */}
-      {showIntro && (
-        <IntroCards
-          beneath={booting}
-          onDone={() => {
-            markSeen(ONCE.pitch)
-            setOwed(nextUp())
-          }}
-        />
-      )}
-
-      {booting && <BootScreen leaving={bootLeaving} />}
+      {/* "What is this?" comes before "who are you?", and a signed-out
+          visitor is exactly who most needs the answer. It used to be a card
+          that came up after the opening and had to be dismissed; it is now
+          the second half of the opening itself, so nobody has to agree to
+          be told. */}
+      {booting && <BootScreen leaving={bootLeaving} cold={meetsColdOpen} />}
 
       <div className="app">
         <header className={`app-header${activeTab === 'world' ? ' app-header--world' : ''}`}>
