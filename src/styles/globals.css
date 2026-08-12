@@ -10979,3 +10979,31 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 }
 
 .paste-item-sub { font-size: 11px; color: var(--text-muted); }
+
+/* ── The planned flight card ──────────────────────────────────────────
+   It knew the terminal, the gate, the baggage belt and what the aeroplane
+   looked like, and never said where the flight was going. The map goes
+   above the aircraft section, so the card reads route-first. */
+.pf-map {
+  height: 150px;
+  margin-bottom: 14px;
+}
+
+/* And the aeroplane comes down a size.
+
+   On the Flights tab the spotter photo is letterboxed to 2:1, which is
+   right there: that card is *about* the flight, and the photograph is the
+   thing an av-geek opened it for. Here it is one field among eight on a card
+   that is mostly a form, and at 2:1 it was taller than everything above it
+   put together — David, 12 August: "as an avgeek i love this but maybe the
+   aircraft is too big here".
+
+   3:1 rather than a scaled-down 2:1, for the same reason as before: the
+   interesting band of one of these is horizontal — fuselage, tail, engines —
+   so cropping takes sky and tarmac and leaves the aeroplane the size it was.
+   Scaling would shrink the aeroplane, which is the opposite of the ask. */
+.photo-link--band {
+  aspect-ratio: 3 / 1;
+  border-radius: 8px;
+  margin-top: 10px;
+}
