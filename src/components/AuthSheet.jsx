@@ -71,7 +71,19 @@ export default function AuthSheet({ onClose }) {
     rememberWayIn(provider)
     const { error: no } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: window.location.origin },
+      // The trailing slash is load-bearing. Supabase matches redirectTo
+      // against the allow-list with globs in which `.` and `/` are both
+      // separators, so the pattern its own docs recommend — `https://host/**`
+      // — needs a `/` after the host, and `location.origin` has none. Sent
+      // bare, the match fails, and rather than refusing, Supabase quietly
+      // returns the person to the project's Site URL instead.
+      //
+      // Which is the worst shape a failure can have: sign-in genuinely
+      // succeeded, the token comes back in the fragment, and the browser
+      // lands somewhere the reader may not be able to reach at all — a
+      // preview deployment, or a network where the production domain is
+      // blocked. It reads as the app being broken.
+      options: { redirectTo: `${window.location.origin}/` },
     })
     // On success the page has already gone. Only a refusal gets this far.
     if (no) {
