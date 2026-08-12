@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { thumb } from '../lib/imgTransform.js'
 import { readingToCost, summarise } from '../lib/receipt.js'
+import { callApi } from '../lib/apiBase.js'
 
 // "Find the receipts in this trip's photographs."
 //
@@ -51,7 +52,7 @@ export default function ReceiptScan({ trip, photos = [], onDone, autoStart = fal
       const slice = unread.slice(i, i + BATCH)
       let readings = []
       try {
-        const r = await fetch('/api/read-receipts', {
+        const r = await callApi('/api/read-receipts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ ids: slice.map((p) => p.id) }),

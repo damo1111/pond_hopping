@@ -10512,3 +10512,92 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   color: var(--text-muted);
   word-break: break-word;
 }
+
+/* What is broken — the owner-only fault list in Account.
+   Quiet by default and loud only for the build that is running now, because
+   a fault from three deploys ago is history and one from this deploy is a
+   thing to go and fix. */
+.broken-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.broken {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.broken--now {
+  border-color: var(--danger, #b3261e);
+}
+
+.broken-head {
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 8px 10px;
+  text-align: left;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  align-items: baseline;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.broken-kind {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.broken--now .broken-kind {
+  color: var(--danger, #b3261e);
+}
+
+.broken-what {
+  font-size: 12px;
+  /* A minified stack message runs to hundreds of characters and would push
+     the count off the card. */
+  overflow-wrap: anywhere;
+}
+
+.broken-count {
+  grid-column: 2;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.broken-more {
+  padding: 0 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.broken-when {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.broken-where,
+.broken-stack {
+  margin: 0;
+  padding: 8px;
+  background: var(--surface-sunken, rgba(0, 0, 0, 0.04));
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 1.5;
+  /* Stacks are wide and must scroll on their own rather than making the
+     whole page scroll sideways. */
+  overflow-x: auto;
+  white-space: pre;
+  max-height: 220px;
+}

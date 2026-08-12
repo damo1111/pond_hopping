@@ -15,6 +15,7 @@ import {
   summarise,
 } from '../lib/tripFromPhotos.js'
 import SheetGrip from './SheetGrip.jsx'
+import { track } from '../lib/analytics.js'
 
 // "I've already been somewhere."
 //
@@ -108,6 +109,7 @@ export default function StartFromPhotos({ onDone, onClose }) {
   // `into` is an existing trip to add to; without one, a trip is made.
   async function create(into = null) {
     if (!into && !start) return setError('Give it a start date and I can make the trip.')
+    track('trip_from_photos', { into: Boolean(into) })
     setPhase('saving')
     setError(null)
     // Same reason as ingest(): making a trip and uploading forty photographs

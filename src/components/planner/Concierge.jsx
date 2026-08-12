@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../../lib/supabase.js'
 import { computeCoverage, fmtGapRange } from '../../lib/tripGaps.js'
 import { CITY_COORDS } from '../../lib/cityCoords.js'
-import { API_BASE } from '../../lib/apiBase.js'
+import { callApi } from '../../lib/apiBase.js'
 
 // The Concierge: reads the itinerary like a human assistant would.
 // It knows where every night of the trip is spent — booked stay, overnight
@@ -49,7 +49,7 @@ function GapCard({ gap, trip, onAskAI, onAdded }) {
     setError(false)
     try {
       const q = ll ? `ll=${encodeURIComponent(ll)}` : `near=${encodeURIComponent(searchNear)}`
-      const r = await fetch(`${API_BASE}/api/hotel-search?${q}`)
+      const r = await callApi(`/api/hotel-search?${q}`)
       if (!r.ok) throw new Error()
       const d = await r.json()
       setHotels(d.hotels || [])

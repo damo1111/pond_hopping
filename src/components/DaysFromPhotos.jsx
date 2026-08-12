@@ -8,6 +8,7 @@ import { factsFor, voiceFrom } from '../lib/dayFacts.js'
 import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, nearForDay, placesToName, priceIt, sift, stopKey, tellDay, titleDay, zoneOf } from '../lib/tripStory.js'
 import DayThumb from './DayThumb.jsx'
 import { TRUST_PHOTO } from '../lib/tripStory.js'
+import { callApi } from '../lib/apiBase.js'
 
 // Piecing a trip together from photographs taken two years ago.
 //
@@ -171,7 +172,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
     for (let i = 0; i < misses.length; i += LOOKUP_BATCH) {
       const slice = misses.slice(i, i + LOOKUP_BATCH)
       try {
-        const r = await fetch('/api/name-places', {
+        const r = await callApi('/api/name-places', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
           body: JSON.stringify({ stops: slice }),
@@ -209,7 +210,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
       for (let i = 0; i < ask.length; i++) {
         const a = ask[i]
         try {
-          const r = await fetch('/api/which-place', {
+          const r = await callApi('/api/which-place', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
             body: JSON.stringify({
@@ -247,7 +248,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
         const around = nearForDay(day, near)
         const theirs = (entries ?? []).find((e) => e.entry_date === day.date && !e.built_from)?.note
         try {
-          const r = await fetch('/api/write-day', {
+          const r = await callApi('/api/write-day', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
             body: JSON.stringify({ facts: factsFor(day, mine, zone, {}, around), voice, theirs: theirs ?? null }),

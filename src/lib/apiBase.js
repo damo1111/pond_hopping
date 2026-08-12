@@ -1,7 +1,50 @@
 import { Capacitor } from '@capacitor/core'
+import { apiFailed, tookMs } from './analytics.js'
 
 // The web build serves /api/* same-origin, so a relative path just works.
 // Wrapped in Capacitor, the app runs from capacitor://localhost (iOS) or
 // http://localhost (Android) instead — relative paths would hit the
 // device itself, not Vercel — so native builds need the real origin.
 export const API_BASE = Capacitor.isNativePlatform() ? 'https://pond.eend.app' : ''
+
+/**
+ * Calling one of our own endpoints, and noticing when it does not answer.
+ *
+ * Every caller used to `fetch` directly and handle its own failure, which
+ * meant the failure was handled on screen and recorded nowhere. An endpoint
+ * that has been 500ing for a week is invisible: the person sees "that
+ * didn't work", shrugs, and tries something else.
+ *
+ * Deliberately thin. It does not retry, does not parse, does not change the
+ * response — the caller gets back exactly what `fetch` would have returned,
+ * including the throw on a dead network. The only thing it adds is that
+ * somebody finds out.
+ *
+ * Not done by patching `window.fetch`, which would have caught these and
+ * everything else for nothing. Eight call sites are not worth reaching
+ * under the whole app and hoping nothing depended on the original — least
+ * of all this week.
+ *
+ * @param path  "/api/plan-chat" — leading slash, no origin
+ */
+export async function callApi(path, options) {
+  const at = performance.now()
+  try {
+    const res = await fetch(`${API_BASE}${path}`, options)
+    if (!res.ok) {
+      // Read the body from a clone, so the caller still gets an unread one.
+      const said = await res.clone().text().catch(() => '')
+      apiFailed(path, res.status, said)
+    } else {
+      // How long the model-backed endpoints take is the difference between
+      // "thinking" and "broken", and nothing has ever measured it.
+      tookMs('api_ok', at, { path })
+    }
+    return res
+  } catch (e) {
+    // No network, DNS gone, the request blocked. A real failure, and the
+    // one most likely to be silent because there is no status to inspect.
+    apiFailed(path, 0, e?.message)
+    throw e
+  }
+}

@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import { oops, track } from '../lib/analytics.js'
 
 // The app had no error boundary at all. Any exception thrown while rendering
 // unmounted the entire tree, leaving a blank page with no message, no reload
@@ -22,14 +23,23 @@ export default class Boundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    // Kept where it can be read off a device: console only, no reporting
-    // service, and the message is shown on screen anyway.
+    // Still the console, because that is what you read with the device in
+    // your hand.
     console.error('Pond Hopping crashed:', error, info?.componentStack)
+    // And now somewhere else as well. This screen showed on every load of
+    // the app for hours on 11 August and nothing anywhere recorded that it
+    // had happened: the reason went to a console on somebody else's phone.
+    // The component stack travels with it, because for a render crash
+    // "which component" is most of the answer.
+    oops('crash', error, info?.componentStack)
   }
 
   // Everything a reload alone would not shift: the stored session, the
   // service worker holding an old bundle, and its caches.
   async reset() {
+    // Somebody reaching for this was stuck enough to throw their session
+    // away, which is a stronger signal than the crash on its own.
+    track('crash_reset', { why: String(this.state.error?.message ?? '').slice(0, 200) })
     try {
       for (const k of Object.keys(localStorage)) {
         if (k.startsWith('sb-') || k.startsWith('pond:')) localStorage.removeItem(k)

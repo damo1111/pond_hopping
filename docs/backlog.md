@@ -54,6 +54,202 @@ is not wired into the worker at all; the low pass covers every trip today.
 
 ---
 
+## 1b. Deducing the leg from the trace
+
+**The library exists and is proven against the real archive. Nothing in the
+app calls it yet.** `src/lib/legs.js` and `src/lib/deduce.js`.
+
+A leg is a journey between two places on somebody else's timetable, and the
+shape is the same for a Eurostar and a 787 — only the mode differs. So a
+node is somewhere a service leaves from, a part is the bit of it you stood
+in, and an airport and a station are one object with a different `kind`.
+Built that way from the first line rather than retrofitted, which is the
+only reason trains work at all.
+
+**What it does.** A hole in the trace nobody crossed on the ground is a
+leg. It merges consecutive fast segments so two window photographs are one
+flight rather than three. It names Heathrow Terminal 5 from a geotag. It
+returns a ranked list with reasons, and — the part that matters — the
+question to put to a timetable: mode, both ends as *lists*, and a window.
+
+**What it will not do.** Never returns `confirmed`. A photograph is
+inference, and inference does not get to sit on the same rung as testimony.
+
+### What the sweep over the real archive settled
+
+Run over China & Japan and both NZ status runs, against the recorded
+flights. Not two hand-picked days — the whole trips.
+
+- **NZ: 7 of 7 crossings found**, all four recorded flights matched, and
+  all four narrowed to exactly one service — including two identical
+  SYD–WLG and two identical WLG–BNE a week apart. That is the hopper case.
+- **China: 4 of 6** correctly identified, including the train.
+- **Four flights found that are not in the database at all** — MEL–BNE on
+  21 May, MEL–SYD twice on the status runs, BNE–MEL on 24 June. Positioning
+  legs, the same gap the Rome BA1433/BA1446 pair turned out to be.
+
+**The two things it got wrong, and both were the same mistake.** A bound
+correct in principle that threw away real flights:
+
+- **A recorded stay at an airport outlasts the aeroplane**, because it ends
+  when the *phone* leaves the airport's footprint and the phone is on the
+  aeroplane. Wellington on 17 June has them inside the airport twenty-five
+  minutes after QF282 pushed back. Rejecting on that bound discarded the
+  right flight for being real. Now `GRACE_MINUTES`, and only for stays — a
+  *photograph* in a terminal at 12:40 does rule out the 12:10.
+- **A scheduled arrival is not an arrival.** QF163 lands at 23:55 and the
+  Timeline has them at the hotel at 00:05.
+
+**What it cannot do, and should not pretend to.** Hong Kong to Guangzhou is
+107 km in two hours — 52 km/h. That is a real CX982, and from position
+alone it is indistinguishable from a coach or the ferry. Anything under the
+road ceiling is invisible to this, permanently.
+
+**A trace that contradicts itself is named, not smoothed.** Guangzhou to
+Shanghai comes out at 1,399 km/h because a Timeline visit is recorded as
+ending four hours after the aeroplane landed. Above `IMPOSSIBLE_KMH` the
+route is still reported and the certainty drops to `unknown`.
+
+**Still to do.** Nothing calls it. It wants: a screen that offers what it
+found, the timetable lookup behind `ask` (AeroDataBox by route and date
+already exists; rail has no equivalent yet), and writing accepted legs
+back. Trains have no `flights` table to go in — see item 3 below.
+
+---
+
+## 1c. `actual_dep_time` and `actual_arr_time` are wrong on 272 flights
+
+**A live data bug, found while building the deduction.** The Flighty import
+wrote naive local clock times into `timestamptz` columns, so every leg that
+crosses a timezone has actual times out by the offset.
+
+The evidence is the shape of it. Comparing actual block time against
+scheduled, the differences cluster on **whole hours** — 42 legs at 0, then
+piles at −8, −5, −1, +1, +2, +5, +8. Delays do not do that. Zone offsets do.
+
+*This item first claimed, as its illustration, that BA546 "landed at 19:41
+UTC and the next photograph is in the middle of Rome five minutes later".
+That was not a sound argument and the correction is item 1e: photograph
+times are not reliably UTC either, so the two sides of it were never
+comparable. The whole-hour clustering above is the actual evidence and it
+stands on its own.*
+
+- 208 of 245 `flighty`, 44 of 52 `aerodatabox+flighty`, 10 of 15
+  `byair+flighty`, 1 of 1 — 263 legs, plus 9 of 35 pure `aerodatabox`
+  which are a separate question and may be genuine delays.
+- **It is recoverable.** `flights_unfiled` kept the naive local values in
+  purpose-built columns and the raw row beside them, and `AIRPORT_TZ` turns
+  a local clock and an airport into an instant.
+
+This matters beyond tidiness: narrowing a leg to one service compares
+instants. Until it is fixed, every disagreement it finds on a
+zone-crossing flight is the import's fault rather than the airline's.
+
+---
+
+## 1d. Knowing what people do, and when it breaks
+
+**Half built. The capture layer is done; the coverage is not.**
+
+The app white-screened on every load for hours on 11 August and the way
+anybody found out was a screenshot. The error boundary did its job and then
+wrote the reason to a console on somebody else's phone. There was no record
+that it had happened, to how many people, on which build, or since when.
+
+And the usage log was three events — the app opening, a tab, a trip — which
+answers "is anybody using it" and nothing else. It could not say where
+somebody gave up in onboarding, whether an upload finished, or how long a
+story took.
+
+**What exists now.**
+
+- `app_events` gains `user_id` and `build`. Every event carries which shell
+  it came from and which tab it happened on.
+- `app_errors`, written only through `note_error()` and read only through
+  `what_is_broken()`. **No RLS policies at all** — no direct insert, no
+  direct select, from any key. Deduplicated on
+  `(session, kind, build, message)` with a count, so a render loop is one
+  row saying 400 rather than 400 rows. A new build is a new row on purpose.
+- `oops()` goes out as a **bare fetch to PostgREST**, no client library
+  underneath it, because a crash report is produced at the moment the app is
+  least able to do anything — supabase-js may be what broke.
+- `window.onerror`, `unhandledrejection`, failed asset loads, and
+  `Boundary.componentDidCatch` with the component stack.
+- `callApi()` — every one of our own endpoints, with failures recorded and
+  timings on the ones that call a model.
+- A **What is broken** card in Account, admin-only, loud for the running
+  build and quiet for history.
+- Events queue in `sessionStorage` when offline and flush on reconnect,
+  carrying their real time. This is an app for people on aeroplanes.
+
+**What is instrumented.** Boot (with time-to-first-render and shell), sign
+in as three separate steps, onboarding through to done, trip creation from
+photographs and from a Timeline, uploads start-to-finish with counts and
+duration, story failures, API failures, crashes.
+
+**What is not, and should be.** Journal writing, the planner, sharing, the
+demo tour, flight triage, the photo grid, the install prompt, asking for
+push permission, and the moment a signed-out visitor hits the "this trip
+isn't yours" wall — which is the single most interesting event in the app
+and is currently invisible.
+
+**The next real step is a notification, not a screen.** A card in Account
+only helps somebody who thinks to open it. `pg_cron` already ticks and the
+push endpoint already exists: a job that fires once when a *new* fault
+appears on the *current* build would have turned six hours of downtime into
+six minutes. Once per fault per build, or it becomes noise and gets muted.
+
+---
+
+## 1e. `photos.taken_at` is sometimes an instant and sometimes a clock
+
+**The same trap, a third time, and this one is worse because it is mixed.**
+
+`exif.js` reads `DateTimeOriginal`, which is a bare local clock, and
+`OffsetTimeOriginal`, which is the zone the camera believed it was in. Then:
+
+```js
+takenAt: takenLocal ? `${takenLocal}${tzOffset ?? 'Z'}` : null
+```
+
+With the offset tag, `taken_at` is a true instant. Without it, the local
+clock is stamped `Z` — a naive clock pretending to be UTC. **And the offset
+is parsed and then thrown away**: `photos` has `taken_at` and `taken_on` and
+nowhere to put it, so nothing records which kind any given row is.
+
+**Proven, not suspected.** DL2521 landed at New Orleans at 04:16 UTC on 5
+March 2024. The first photograph in the French Quarter is stored at 23:04 on
+4 March — five hours before the aeroplane landed, if that were an instant.
+As a local clock it is forty-eight minutes after landing, which is exactly
+right.
+
+**Why it is not simply "add the offset back".** The offset tag is the
+*phone's* belief about where it is; the coordinate is where the person
+actually was. Those disagree exactly when a phone has not yet picked up the
+local network — which is the arrival photograph, every time, which is the
+one the deduction most wants. On 22 January 2024 the Rome arrival reads
+19:46 against an aeroplane on stand at 19:41 Rome time; on London time it is
+20:46, an hour after landing, which is the only reading that is physically
+possible.
+
+So there are three sources and they must not be silently merged:
+
+  the offset tag       what the camera thought — best when present
+  the coordinate       where they really were, via `zoneAt()` in legs.js
+  the sequence         a phone changing zone mid-trip leaves a visible jump
+
+**What to do.** Add `tz_offset` and `tz_from` to `photos`; keep the offset
+when EXIF has it; derive from the coordinate when it does not; and where the
+two disagree, **keep the disagreement** rather than settling it — the same
+rule `enrichment()` already follows for flights. Originals are still held
+for photographs uploaded with `keepOriginals`, so some of this is
+recoverable by re-reading rather than guessing.
+
+Until then, every instant the deduction reads from a photograph may be an
+hour or nine hours out, and it has no way to know.
+
+---
+
 ## 2. Re-ordering photographs
 
 **For marketing. There is no way to do this today.**

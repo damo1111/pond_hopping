@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import SheetGrip from './SheetGrip.jsx'
+import { track } from '../lib/analytics.js'
 
 // The front door to the app's account, opened by tapping the duck.
 // Same passwordless OTP flow the Account tab has always used (email →
@@ -33,6 +34,7 @@ export default function AuthSheet({ onClose }) {
   const [name, setName] = useState('')
 
   async function send(e) {
+    track('sign_in_code_asked')
     e.preventDefault()
     setBusy(true)
     setError(null)
@@ -43,6 +45,7 @@ export default function AuthSheet({ onClose }) {
   }
 
   async function verify(e) {
+    track('sign_in_code_entered')
     e.preventDefault()
     setBusy(true)
     setError(null)
@@ -67,6 +70,7 @@ export default function AuthSheet({ onClose }) {
   }
 
   async function saveName(e) {
+    track('sign_in_named')
     e.preventDefault()
     setBusy(true)
     const { data: u } = await supabase.auth.getUser()

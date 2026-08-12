@@ -23,7 +23,8 @@ import IntroCards, { introSeen } from './components/IntroCards.jsx'
 import { readPreference, visibleTrips, writePreference } from './lib/demoVisibility.js'
 import { tripColor } from './lib/tripColors.js'
 import { busy, whenIdle } from './lib/busy.js'
-import { track } from './lib/analytics.js'
+import { Capacitor } from '@capacitor/core'
+import { nowLooking, track } from './lib/analytics.js'
 import { AuthProvider, useAuth } from './lib/AuthContext.jsx'
 import { disableVisits, enableVisits, hasConsented, installVisitSync, visitStatus, visitsSupported } from './lib/visits.js'
 import { nextAction } from './lib/visitWindow.js'
@@ -283,7 +284,16 @@ export default function App() {
   }, [selectedTrip])
 
   useEffect(() => {
-    track('app_open')
+    track('app_open', {
+      // Which shell it is, because a fault that only happens inside the iOS
+      // wrapper is a different fault, and until now every session looked
+      // identical from here.
+      shell: Capacitor.isNativePlatform() ? Capacitor.getPlatform() : 'web',
+      standalone: window.matchMedia?.('(display-mode: standalone)').matches ?? false,
+      // How long the browser took to get this far. The first number anybody
+      // asks about a phone app, and it has never been recorded.
+      ms: Math.round(performance.now()),
+    })
   }, [])
 
   // A new deploy's service worker can take control at any moment. Only
@@ -359,6 +369,9 @@ export default function App() {
   }, [booting])
 
   useEffect(() => {
+    // Told to the log first, so everything logged from here on — including
+    // a crash — says which tab it happened on.
+    nowLooking({ tab: activeTab })
     track('tab_view', { tab: activeTab })
   }, [activeTab])
 
@@ -419,6 +432,7 @@ export default function App() {
   // actively wrong.
   useEffect(() => {
     if (activeTab !== 'world' || !selectedTrip) return
+    nowLooking({ trip: selectedTrip })
     track('trip_select', { trip: selectedTrip })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTrip, activeTab])

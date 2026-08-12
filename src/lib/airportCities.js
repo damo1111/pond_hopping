@@ -27,6 +27,7 @@ export const AIRPORT_CITY = {
   BVC: 'Boa Vista',
   CAN: 'Guangzhou',
   CDG: 'Paris',
+  CIA: 'Rome',
   CFU: 'Corfu',
   CHC: 'Christchurch',
   CMB: 'Colombo',
