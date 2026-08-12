@@ -17,9 +17,9 @@ import InstallChip from './components/InstallChip.jsx'
 import TripPicker from './components/TripPicker.jsx'
 import Icon from './components/Icon.jsx'
 import AuthSheet from './components/AuthSheet.jsx'
-import Onboarding from './components/Onboarding.jsx'
 import BootScreen from './components/BootScreen.jsx'
-import IntroCards, { introSeen } from './components/IntroCards.jsx'
+import IntroCards from './components/IntroCards.jsx'
+import { ONCE, bringOldFlagsOver, markSeen, nextUp } from './lib/firstRun.js'
 import { readPreference, visibleTrips, writePreference } from './lib/demoVisibility.js'
 import { tripColor } from './lib/tripColors.js'
 import { busy, whenIdle } from './lib/busy.js'
@@ -130,8 +130,19 @@ export default function App() {
   const { user, authLoading, profile } = useAuth()
   const [authOpen, setAuthOpen] = useState(false)
   const [booting, setBooting] = useState(true)
-  // Read once, at mount, so dismissing it doesn't fight a re-render.
-  const [showIntro, setShowIntro] = useState(() => !introSeen())
+  // What this launch still owes them, decided once at mount so dismissing
+  // something does not fight a re-render.
+  //
+  // firstRun.js hands back *one* thing, never a queue. A hopper who has seen
+  // nothing meets the cold open today, the pitch next launch and the line
+  // about whose trip that is the launch after — rather than all three inside
+  // eight seconds, which is what four uncoordinated flags used to do.
+  const [owed, setOwed] = useState(() => {
+    bringOldFlagsOver()
+    return nextUp()
+  })
+  const showIntro = owed === ONCE.pitch
+  const meetsColdOpen = owed === ONCE.cold_open
   const [bootLeaving, setBootLeaving] = useState(false)
   const [activeTab, setActiveTab] = useState('world')
   const [usefulTab, setUsefulTab] = useState('costs')
@@ -183,9 +194,19 @@ export default function App() {
     // the route crosses it, the duck lands, and the name resolves at ~2.0s.
     // Cutting it at 1.2s was why the old screen read as a still image with a
     // twitch rather than as an opening.
-    const minBoot = 2050
+    //
+    // Only the first time, though. Two and a half seconds of it is an
+    // opening on launch one and a toll booth on launch forty — David, 12
+    // August: "on first open but not every time. it is overkill. and
+    // annoying perhaps every time." Afterwards it holds just long enough to
+    // cover the first paint, so there is still no flash of half-built app.
+    const minBoot = meetsColdOpen ? 2050 : 500
     const leave = setTimeout(() => {
       if (cancelled) return
+      if (meetsColdOpen) {
+        markSeen(ONCE.cold_open)
+        setOwed(nextUp())
+      }
       setBootLeaving(true)
       setTimeout(() => !cancelled && setBooting(false), 550)
     }, minBoot)
@@ -515,10 +536,6 @@ export default function App() {
     return <ShareView slug={SHARE_PARAMS.slug} show={SHARE_PARAMS.show} />
   }
 
-  // First run, once. Signed-out visitors deliberately don't see this —
-  // they get the public globe, which is a far better pitch than a form.
-  const needsOnboarding = !!user && !!profile && !profile.onboarded_at && !booting
-
   return (
     <TripContext.Provider value={ctx}>
       {/* Before anything is asked of anybody, including signing in: "what is
@@ -529,9 +546,14 @@ export default function App() {
           Mounted during the boot animation rather than after it, and painted
           underneath — waiting for boot to finish meant the globe, the trip
           strip and the tour all got a frame of their own on the way past. */}
-      {showIntro && <IntroCards onDone={() => setShowIntro(false)} />}
-
-      {needsOnboarding && !showIntro && <Onboarding onDone={() => setActiveTab('world')} />}
+      {showIntro && (
+        <IntroCards
+          onDone={() => {
+            markSeen(ONCE.pitch)
+            setOwed(nextUp())
+          }}
+        />
+      )}
 
       {booting && <BootScreen leaving={bootLeaving} />}
 

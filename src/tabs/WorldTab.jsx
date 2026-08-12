@@ -16,8 +16,7 @@ import { tripPhase } from '../lib/tripPhase.js'
 import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
 import { sectionTrips } from '../lib/tripPhase.js'
 import { overviewOf, homeCoords } from '../lib/homePov.js'
-import { shouldBadge, shouldTour, TOUR_SEEN_KEY } from '../lib/demoTour.js'
-import DemoTour from '../components/DemoTour.jsx'
+import { shouldBadge } from '../lib/demoTour.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
 
 // Default framing for the "all trips" overview — centred on the
@@ -168,10 +167,6 @@ export default function WorldTab() {
   // instead of idling behind six trips.
   const isEmpty = tripsLoaded && !tripMeta.length
 
-  // The walkthrough of the example trip. Decided once when the trips land
-  // rather than on every render: it should not blink back on the instant
-  // someone deletes their last real trip, and it must never re-run after
-  // being dismissed. shouldTour holds the actual rules — see demoTour.js.
   // The way in. Reachable whether or not the globe is empty — someone with
   // the demo trip and nothing else needs this just as much as someone with
   // nothing at all.
@@ -181,23 +176,6 @@ export default function WorldTab() {
     if (!routesOpen || apiToken) return
     supabase.rpc('my_api_token').then(({ data }) => setApiToken(data ?? null))
   }, [routesOpen, apiToken])
-
-  const [tourOn, setTourOn] = useState(false)
-  useEffect(() => {
-    let dismissed = false
-    try {
-      dismissed = localStorage.getItem(TOUR_SEEN_KEY) === '1'
-    } catch {
-      // A browser that won't read localStorage gets the tour every launch,
-      // which is the harmless direction to fail in.
-    }
-    // Not while the intro is up: the tour points at things, and pointing at
-    // something behind a full-screen card is both invisible and, once the
-    // card goes, already half over.
-    if (introOpen) return
-    if (shouldTour({ trips: tripMeta, tripsLoaded, dismissed })) setTourOn(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripsLoaded, introOpen])
 
   const home = useMemo(() => homeCoords(), [])
   const idleSpin = isEmpty ? 0.9 : 0.35
@@ -800,10 +778,6 @@ export default function WorldTab() {
           onClose={() => setSelectedTrip(null)}
         />
       )}
-
-      {/* Only while the example is the only trip here, and never once the
-          recap is open over the top of it. */}
-      {tourOn && !selectedTrip && <DemoTour onDone={() => setTourOn(false)} />}
 
       {routesOpen && (
         <GetTripsIn
