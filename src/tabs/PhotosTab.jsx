@@ -114,7 +114,7 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
 }
 
 export default function PhotosTab({ openPhotoId = null }) {
-  const { tripMeta, selectedTrip, setSelectedTrip, userId, notePhotosChanged } = useContext(TripContext)
+  const { tripMeta, selectedTrip, setSelectedTrip, userId, notePhotosChanged, openPlanner } = useContext(TripContext)
   const [photos, setPhotos] = useState(null)
   const [covers, setCovers] = useState({})
   const [reload, setReload] = useState(0)
@@ -298,7 +298,26 @@ export default function PhotosTab({ openPhotoId = null }) {
       {/* Only inside a trip. "Find the receipts across everything you have
           ever photographed" is a bill, not a feature. */}
       {heroTrip && (
-        <TripTools trip={heroTrip} photos={visible} onDone={() => setReload((r) => r + 1)} />
+        <TripTools
+          trip={heroTrip}
+          photos={visible}
+          onDone={() => {
+            setReload((r) => r + 1)
+            notePhotosChanged?.()
+          }}
+          onGet={(route) => {
+            // The checklist's "go and get it" buttons. Every one of these
+            // already has a door somewhere in the app; this only walks you
+            // to it rather than describing where it is.
+            if (route === 'photos') {
+              document.querySelector('.pu-pick')?.click()
+              return
+            }
+            // Timeline exports, bookings and runs all live in the trip's own
+            // planner, which is one screen away and knows how to do each.
+            openPlanner?.(heroTrip.id)
+          }}
+        />
       )}
 
 

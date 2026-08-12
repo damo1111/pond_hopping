@@ -11519,3 +11519,90 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   height: 1px;
   background: var(--border);
 }
+
+/* ── Before I write this up ───────────────────────────────────────────
+   Asked at the only moment anybody is willing to answer it: they have just
+   watched the thing work and they want it to be good. */
+.bww { max-height: 86vh; overflow-y: auto; }
+
+.bww-list {
+  list-style: none;
+  margin: 4px 0 18px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.bww-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+}
+
+.bww-row + .bww-row { border-top: 1px solid var(--border); }
+
+.bww-tick {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.bww-box {
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.bww-what {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bww-label { font-size: 14px; }
+
+/* What is missing is quieter than what is there, because the point is to
+   make somebody want to add one more thing rather than to feel they have
+   failed an inspection. */
+.bww-row:not(.bww-row--got) .bww-label { color: var(--text-muted); }
+
+.bww-n {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* A chip, not a sentence: a long label here pushed the row it sits beside
+   onto three lines. */
+.bww-get {
+  flex: none;
+  max-width: 42%;
+  padding: 6px 11px;
+  white-space: nowrap;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* The whole reason a checklist is bearable is knowing it is not a gate. */
+.bww-note {
+  margin: 12px 0 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-align: center;
+  text-wrap: pretty;
+}
