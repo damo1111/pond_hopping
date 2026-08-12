@@ -17,6 +17,9 @@ import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
 import { sectionTrips } from '../lib/tripPhase.js'
 import { overviewOf, homeCoords } from '../lib/homePov.js'
 import { shouldBadge } from '../lib/demoTour.js'
+import { pickVariant } from '../lib/variants.js'
+import { track, whoAmI } from '../lib/analytics.js'
+import { ONCE, markSeen, seen } from '../lib/firstRun.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
 
 // Default framing for the "all trips" overview — centred on the
@@ -160,6 +163,34 @@ export default function WorldTab() {
   const wrapRef = useCallback((node) => setWrapEl(node), [])
 
   const sections = useMemo(() => sectionTrips(tripMeta), [tripMeta])
+
+  // Which words the tile wears. Decided once per mount from the session id,
+  // so it cannot change under somebody mid-scroll, and falls back to the
+  // words that were there before if the test is ever switched off.
+  const tile = useMemo(() => pickVariant('add_tile', whoAmI()), [])
+
+  // Counted once a launch, not once a render. Without the ref this fires on
+  // every re-render of Home — a scroll, a trip landing, the globe resizing —
+  // and the denominator of the whole experiment quietly becomes "renders",
+  // which is not a number about people at all.
+  const counted = useRef(false)
+  useEffect(() => {
+    if (counted.current || !tile) return
+    counted.current = true
+    track('tile_shown', { test: 'add_tile', variant: tile.id })
+  }, [tile])
+
+  // The one line worth keeping out of the tour that has gone: the only thing
+  // in the app that explains why a stranger's holiday is on your globe.
+  // Said on the trip itself rather than in an overlay pointing at it, and
+  // once — firstRun.js decides when, so it queues behind the cold open and
+  // the pitch instead of arriving on top of them.
+  const [sayWhose, setSayWhose] = useState(false)
+  useEffect(() => {
+    if (!tripsLoaded) return
+    const borrowed = tripMeta.some((t) => shouldBadge(t))
+    if (borrowed && !seen(ONCE.whose_trip)) setSayWhose(true)
+  }, [tripsLoaded, tripMeta])
 
   // Nothing to look at yet, so the globe stops being a record and becomes an
   // invitation: pointed at wherever they are rather than at where this
@@ -826,7 +857,13 @@ export default function WorldTab() {
               only thing there is somebody else's example. */}
           <div className="wt-section wt-section--add">
             <div className="wt-section-label">Yours</div>
-            <button className="wt-card wt-card--add" onClick={() => setRoutesOpen(true)}>
+            <button
+              className="wt-card wt-card--add"
+              onClick={() => {
+                track('tile_tapped', { test: 'add_tile', variant: tile?.id })
+                setRoutesOpen(true)
+              }}
+            >
               {/* A real tile opens with a photograph 78px tall. This one
                   opened with a small mark and then 78px of nothing, which is
                   why it read as broken rather than empty. So it gets a cover
@@ -854,11 +891,34 @@ export default function WorldTab() {
                 </svg>
                 <img className="wt-add-duck" src="/duck.png" alt="" />
               </span>
-              <span className="wt-title">Add a trip</span>
-              <span className="wt-subtitle">One you've taken, or one you're on</span>
+              <span className="wt-title">{tile?.title ?? 'Add a trip'}</span>
+              <span className="wt-subtitle">{tile?.strap ?? "One you've taken, or one you're on"}</span>
               <span className="wt-dates">photos · email · ai</span>
             </button>
           </div>
+
+          {/* The one line saved out of the tour, said where it is about.
+              Without it a stranger's holiday on your globe is confusing
+              rather than generous — and the tour said it from behind an
+              overlay pointing at the wrong card entirely. */}
+          {sayWhose && (
+            <div className="wt-whose">
+              <p>
+                One of these is somebody else's, parked here so the place isn't empty when you turn
+                up. Have a paddle round — it's properly finished, photos and all. Then it clears off.
+              </p>
+              <button
+                className="wt-whose-ok"
+                onClick={() => {
+                  markSeen(ONCE.whose_trip)
+                  setSayWhose(false)
+                  track('whose_trip_dismissed')
+                }}
+              >
+                Right you are
+              </button>
+            </div>
+          )}
 
           {/* Past and future used to sit in one undifferentiated row, in
               hand-curated order, distinguishable only by reading the dates

@@ -10619,3 +10619,37 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   white-space: pre;
   max-height: 220px;
 }
+
+/* The line that explains why a stranger's holiday is on your globe.
+   Said once, beside the trips it is about, rather than from an overlay
+   pointing at them — which is where it used to live, and which spent its
+   whole life drawing a ring round the wrong card. */
+.wt-whose {
+  margin: 0 16px 14px;
+  padding: 12px 14px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.wt-whose p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.wt-whose-ok {
+  border: 1px solid var(--accent);
+  background: none;
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}

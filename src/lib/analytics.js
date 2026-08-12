@@ -53,6 +53,13 @@ function sessionId() {
   }
 }
 
+/** The session id, for anything that needs a stable per-device key —
+ *  variant assignment, chiefly. Exposed rather than duplicated, so a hopper
+ *  cannot end up in one bucket for the test and another for the events. */
+export function whoAmI() {
+  return sessionId()
+}
+
 /**
  * Where they were when it happened.
  *
