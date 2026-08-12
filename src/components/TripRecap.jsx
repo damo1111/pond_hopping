@@ -825,7 +825,12 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
             between two pictures — because the planner is the only other
             place it lived and a finished trip never opens the planner. Here
             it is one of the things you can do to a trip, next to the others. */}
-        {trip?.start_date && (
+        {/* Not on somebody else's example, and not to a signed-out visitor.
+            The recap is the demo's shop window — it is the screen a stranger
+            reaches first — and this is the one control on it that asks them
+            to put something in. `owned !== false` is the test already used
+            two blocks down for the same "is this yours" question. */}
+        {trip?.start_date && trip.owned !== false && !trip.is_demo && (
           <button className="recap-share ghost" onClick={() => setFindingBookings(true)}>
             Find this trip&apos;s bookings in your email
           </button>
@@ -859,7 +864,7 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
           changes who can see somebody's holiday, so it says what it does in
           the plainest words available and offers a way out that is as easy
           to hit as the way through. */}
-      {findingBookings && (
+      {findingBookings && trip.owned !== false && !trip.is_demo && (
         <GmailImport trip={trip} onClose={() => setFindingBookings(false)} onImported={() => {}} />
       )}
 

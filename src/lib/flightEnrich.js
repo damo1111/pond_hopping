@@ -132,6 +132,23 @@ export function enrichment(flight = {}, found = {}, from = 'unknown') {
     if (!same(ours, theirs)) disagreed.push({ field: key, ours, theirs })
   }
 
+  // An answer describing a different day is not this flight.
+  //
+  // askAbout() stops the wrong question being asked; this refuses the answer
+  // if it comes back describing a different day anyway. Both are needed: the
+  // wrong-day reply was a well-formed, plausible, entirely real flight, so
+  // nothing about validating its *shape* would have caught it, and a future
+  // source with its own idea of what a date means walks straight back into
+  // it otherwise.
+  //
+  // Dropped rather than recorded as a disagreement. A disagreement means
+  // "you and the airline remember this differently", which is worth showing
+  // somebody. This means "we fetched the wrong aeroplane", which is not.
+  for (const key of ['actual_dep_time', 'actual_arr_time']) {
+    const scheduled = key === 'actual_dep_time' ? flight.dep_time : flight.arr_time
+    if (patch[key] && !believable(scheduled, patch[key])) delete patch[key]
+  }
+
   const anything = Object.keys(patch).length > 0 || disagreed.length > 0
   if (!anything) return { patch: {}, disagreed: [] }
 
@@ -172,4 +189,78 @@ export function worthAsking(flights = [], { now = new Date(), reach = null } = {
     if (!(when < now.valueOf())) return false
     return floor == null || when >= floor
   })
+}
+
+// ── Which day to ask about ───────────────────────────────────────────────
+//
+// This is the one that got seventeen flights wrong.
+//
+// The call site did `String(f.dep_time).slice(0, 10)` — the first ten
+// characters of a `timestamptz`, which is the date **in UTC**. Every flight
+// source keys its schedules on the date **local to the departure airport**,
+// because that is the date on the boarding pass and the date the airline
+// calls it. Those two agree for most of the world most of the time, and
+// disagree for exactly the flights this app is full of: long-haul, at the
+// edges of the day, out of the eastern hemisphere.
+//
+// MH146 leaves Melbourne at 08:45 on 3 April, which is 21:45Z on the 2nd.
+// We asked for the 2nd, and were correctly given the aircraft that left
+// Melbourne on the 2nd — a real flight, a day early. Nothing errored. It
+// was written down as the actual departure of a flight taken on the 3rd,
+// and the app showed a trip beginning a day before it began.
+//
+// The tell in the data is a 24-hour "delay". A departure genuinely 24 hours
+// late is not a delay, it is a cancellation and a rebooking.
+
+/**
+ * The date to ask a flight source about: the local calendar date at the
+ * departure airport, as YYYY-MM-DD.
+ *
+ * @param depTime  the scheduled departure, as an instant
+ * @param zone     an IANA zone, or an offset in hours, for the origin
+ *
+ * Falls back to the UTC date when the zone is unknown, which is what it
+ * always did — but now that is the exception rather than the rule.
+ */
+export function askAbout(depTime, zone) {
+  if (!depTime) return null
+  const at = new Date(depTime)
+  if (Number.isNaN(at.getTime())) return null
+  if (typeof zone === 'string' && zone) {
+    try {
+      // en-CA renders as YYYY-MM-DD, which is the format being asked for.
+      return at.toLocaleDateString('en-CA', { timeZone: zone })
+    } catch {
+      /* an unknown zone name falls through to the offset path */
+    }
+  }
+  const hours = Number.isFinite(zone) ? zone : 0
+  return new Date(at.getTime() + hours * 3600000).toISOString().slice(0, 10)
+}
+
+/**
+ * How far an "actual" may sit from its schedule before it is not a delay.
+ *
+ * Six hours is generous — it is beyond nearly every real delay — and the
+ * thing being caught is a whole day, so the exact figure does not have to
+ * be argued about. What matters is that the guard exists: the wrong-day
+ * answer was a well-formed, plausible, entirely real flight, and no amount
+ * of validating its *shape* would ever have caught it.
+ */
+export const NOT_A_DELAY_MS = 6 * 3600 * 1000
+
+/**
+ * Is this "actual" time believable as the same flight?
+ *
+ * Belt and braces with askAbout(): that fixes the question being asked, and
+ * this refuses the answer if it comes back describing a different day. A
+ * future source with its own idea of what a date means cannot reintroduce
+ * the same bug quietly.
+ */
+export function believable(scheduled, actual, gap = NOT_A_DELAY_MS) {
+  if (!scheduled || !actual) return true
+  const a = Date.parse(scheduled)
+  const b = Date.parse(actual)
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return true
+  return Math.abs(b - a) <= gap
 }

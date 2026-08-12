@@ -4,7 +4,8 @@ import { callApi } from '../../lib/apiBase.js'
 import { getGoogleToken } from '../../lib/google.js'
 import { KIND_META } from '../../lib/planItems.js'
 import SheetGrip from '../SheetGrip.jsx'
-import ForwardBookings from './ForwardBookings.jsx'
+import ForwardBookings, { canForward } from './ForwardBookings.jsx'
+import { useAuth } from '../../lib/AuthContext.jsx'
 
 // Turn a booking into trip items with zero setup: paste (or forward →
 // copy) the confirmation email and the same AI extraction pulls out the
@@ -18,6 +19,7 @@ function fmtDate(iso) {
 }
 
 export default function GmailImport({ trip, onClose, onImported }) {
+  const { user } = useAuth()
   const [state, setState] = useState('entry') // entry | working | review | saving | done | error
   const [text, setText] = useState('')
   const [items, setItems] = useState([])
@@ -99,18 +101,28 @@ export default function GmailImport({ trip, onClose, onImported }) {
         {state === 'entry' && (
           <>
             <div className="ios-sheet-title">Add a booking</div>
-            <div className="ios-sheet-sub">
-              A confirmation — flight, hotel, restaurant, tickets — and I'll pull out what belongs to
-              this trip. Nothing is added until you have looked at it.
-            </div>
+            {/* Three lines cut to one. The sheet said what a confirmation is
+                — "flight, hotel, restaurant, tickets" — to somebody who is
+                holding one, and promised nothing would be added without them
+                looking, before they had done anything to be worried about.
+                The reassurance is true and it belongs on the review step,
+                which is where the deciding happens. */}
+            <div className="ios-sheet-sub">Paste a confirmation and I'll pull out what's yours.</div>
             {/* Forwarding first: it is one tap from the mail app the
                 confirmation is already sitting in, where pasting means
-                select-all in an email and a text field on a phone. */}
-            <ForwardBookings />
-            <div className="gm-or">or paste it in</div>
+                select-all in an email and a text field on a phone.
+                Both halves or neither — the divider used to render even when
+                ForwardBookings had returned null, which left "or paste it in"
+                introducing the alternative to nothing at all. */}
+            {canForward(user) && (
+              <>
+                <ForwardBookings />
+                <div className="gm-or">or paste it in</div>
+              </>
+            )}
             <textarea
               className="account-input gm-paste"
-              rows={6}
+              rows={3}
               placeholder="Paste the booking email here…"
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -123,7 +135,9 @@ export default function GmailImport({ trip, onClose, onImported }) {
                 or scan my whole inbox
               </button>
             )}
-            <button className="account-btn ghost" onClick={onClose}>Cancel</button>
+            {/* No Cancel button. The grip closes it and so does the backdrop,
+                and a third way out was the largest thing on the screen after
+                the one action worth taking. */}
           </>
         )}
 

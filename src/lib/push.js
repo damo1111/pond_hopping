@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core'
 import { supabase } from './supabase.js'
+import { whereToFromTap } from './pushRoute.js'
 
 // Push notifications, native only. The web build deliberately does nothing:
 // browser push needs a service-worker subscription and VAPID keys, which is
@@ -27,6 +28,64 @@ export async function pushDiagnostics() {
     out.note = String(err)
   }
   return out
+}
+
+// ── The tap ────────────────────────────────────────────────────────────
+//
+// Held here rather than handed straight to a callback, because of the case
+// that matters most: the app is not running, the notification is tapped,
+// and the tap is what launches it. The event fires during startup — before
+// the session has been restored, before the trip list exists, and before
+// anything that could act on it has mounted. A listener attached later
+// never hears it, which is exactly what used to happen, and the symptom is
+// the app opening on the wrong screen with nothing in the logs.
+//
+// So: listen as early as possible, keep the destination, and hand it over
+// when somebody asks for it. A tap is worth remembering for the length of
+// a launch; it is never worth acting on twice.
+let pending = null
+let handler = null
+let listening = false
+
+/**
+ * Start listening. Safe to call repeatedly and deliberately not gated on
+ * being signed in — the tap that launches the app arrives long before the
+ * session does.
+ */
+export async function listenForPushTaps() {
+  if (listening || !Capacitor.isNativePlatform()) return
+  listening = true
+  try {
+    const { PushNotifications } = await import('@capacitor/push-notifications')
+    await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      const go = whereToFromTap(action)
+      // No destination is a real answer: an admin ping has no screen behind
+      // it, and opening the app is the whole of what it wanted.
+      if (!go) return
+      if (handler) handler(go)
+      else pending = go
+    })
+  } catch {
+    // No plugin, or the platform refused. Nothing to do, and nothing that
+    // should stop the app starting.
+    listening = false
+  }
+}
+
+/**
+ * Ask to be told where to go, and be told immediately if a tap is already
+ * waiting. Returns the usual unsubscribe.
+ */
+export function onPushTap(fn) {
+  handler = fn ?? null
+  if (fn && pending) {
+    const go = pending
+    pending = null
+    fn(go)
+  }
+  return () => {
+    if (handler === fn) handler = null
+  }
 }
 
 export async function registerPush(email) {

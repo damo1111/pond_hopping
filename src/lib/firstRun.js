@@ -34,11 +34,15 @@ const KEY = 'pond:seen'
  * comment.
  */
 export const ONCE = {
-  /** The globe flying in. First launch only: it is genuinely good and it is
-   *  also a thing between the person and the app, every single time. */
+  /** The globe flying in, and — behind it — the photographs turning into a
+   *  trip. First launch only: it is genuinely good and it is also a thing
+   *  between the person and the app, every single time.
+   *
+   *  `pitch` used to sit between this and `whose_trip`: one card, shown
+   *  after the opening, saying what the app was for. The opening says it
+   *  itself now, so there is nothing left to gate. Anybody carrying a
+   *  `pitch` in their record keeps it — it is simply never asked about. */
   cold_open: 'cold_open',
-  /** The one remaining intro card. */
-  pitch: 'pitch',
   /** The line explaining why a stranger's trip is on their globe. */
   whose_trip: 'whose_trip',
 }
@@ -87,7 +91,7 @@ export function markSeen(what, store = globalThis.localStorage, now = () => new 
  * which is the rule the four old flags had no way of expressing, and the
  * whole reason a new hopper could meet three things in eight seconds.
  */
-export const IN_ORDER = [ONCE.cold_open, ONCE.pitch, ONCE.whose_trip]
+export const IN_ORDER = [ONCE.cold_open, ONCE.whose_trip]
 
 export function nextUp(store = globalThis.localStorage, order = IN_ORDER) {
   return order.find((what) => !seen(what, store)) ?? null
@@ -105,9 +109,8 @@ export function bringOldFlagsOver(store = globalThis.localStorage) {
   const already = read(store)
   const carried = { ...already }
   try {
-    // Anybody who dismissed the cards has met the pitch and the cold open.
+    // Anybody who dismissed the cards has met the cold open.
     if (store?.getItem('pond:intro') === '1') {
-      carried[ONCE.pitch] ??= 'carried-over'
       carried[ONCE.cold_open] ??= 'carried-over'
     }
     // Anybody who finished the tour has been told whose trip that is.

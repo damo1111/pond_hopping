@@ -211,7 +211,10 @@ push permission, and the moment a signed-out visitor hits the "this trip
 isn't yours" wall — which is the single most interesting event in the app
 and is currently invisible.
 
-**The next real step is a notification, not a screen.** A card in Account
+**The next real step is a notification, not a screen.** *(The plumbing this
+needs now exists — see the evening look-back: an hourly `pg_cron` tick, a
+secret-gated worker and `sendPush`. A fault alert is the same shape with a
+different query.)* A card in Account
 only helps somebody who thinks to open it. `pg_cron` already ticks and the
 push endpoint already exists: a job that fires once when a *new* fault
 appears on the *current* build would have turned six hours of downtime into

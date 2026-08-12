@@ -972,6 +972,100 @@ button {
   to   { opacity: 1; letter-spacing: 0.01em; }
 }
 
+/* ── Act two: the pile becomes the trip ────────────────────────
+   Everything here is on the same budget as act one — opacity, transform
+   and stroke-dashoffset only — and it starts after the name has resolved
+   at ~2.08s, so the two acts never overlap.
+
+   Timings, since they are the design and not an implementation detail:
+
+     2.15s  three photographs drop onto the globe
+     3.05s  each folds down onto the place it was taken
+     3.62s  a pin appears where each one landed
+     3.80s  a line joins them
+     4.15s  one sentence, and then the app
+
+   Which settles at 4.85s — see minBoot in App.jsx, which holds the screen
+   until then and not a frame longer. */
+
+.boot-frame {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 1.4;
+}
+
+.boot-frame-in {
+  fill: var(--accent);
+  opacity: 0.35;
+}
+
+/* Hidden until dropped, then held by the fill of `boot-drop` until `boot-tuck`
+   takes over and folds it away. Two animations rather than one keyframe list
+   because the delay between arriving and being filed is the beat that makes
+   it read as filing rather than as a glitch. */
+.boot-snap {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation:
+    boot-drop 600ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards,
+    boot-tuck 700ms cubic-bezier(0.5, 0, 0.2, 1) forwards;
+}
+
+.boot-snap-1 { animation-delay: 2150ms, 3050ms; }
+.boot-snap-2 { animation-delay: 2270ms, 3170ms; }
+.boot-snap-3 { animation-delay: 2390ms, 3290ms; }
+
+@keyframes boot-drop {
+  from { opacity: 0; transform: translateY(-40px) rotate(-8deg); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Each photograph shrinks to nothing on the spot its pin appears, so the pin
+   reads as the photograph rather than as something new arriving. */
+@keyframes boot-tuck {
+  from { opacity: 1; }
+  to   { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.12); }
+}
+
+.boot-made {
+  fill: var(--accent);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: boot-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.boot-made-1 { animation-delay: 3620ms; }
+.boot-made-2 { animation-delay: 3740ms; }
+.boot-made-3 { animation-delay: 3860ms; }
+
+.boot-track {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 160;
+  stroke-dashoffset: 160;
+  animation: boot-draw 700ms cubic-bezier(0.22, 1, 0.36, 1) 3800ms forwards;
+}
+
+.boot-say {
+  max-width: 15em;
+  margin-top: 10px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 17px;
+  line-height: 1.45;
+  text-wrap: balance;
+  opacity: 0;
+  animation: boot-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) 4150ms forwards;
+}
+
+@keyframes boot-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
 /* Nothing above is load-bearing — the app is already mounted underneath. */
 @media (prefers-reduced-motion: reduce) {
   .bg-line { stroke-dashoffset: 0; animation: none; }
@@ -981,6 +1075,13 @@ button {
   .boot-duck-fly { opacity: 1; transform: translate(141px, 57px); animation: none; }
   .boot-duck { animation: none; }
   .boot-title { opacity: 1; animation: none; }
+
+  /* The end of the sequence rather than a blank frame: the photographs have
+     already been filed, so they are the one thing here that rests hidden. */
+  .boot-snap { opacity: 0; animation: none; }
+  .boot-made { opacity: 1; animation: none; }
+  .boot-track { stroke-dashoffset: 0; animation: none; }
+  .boot-say { opacity: 1; animation: none; }
 }
 
 /* ── Placeholder panels (pre-build tabs) ───────────────────── */
@@ -1092,10 +1193,17 @@ button {
   gap: 8px;
 }
 
+/* Dot and title together on the left, the count away on the right.
+ *
+ * This was `justify-content: space-between` with three children, which does
+ * not mean "first left, last right" — it means space the three of them out
+ * evenly, and the middle one is the title. On a phone the gaps are small
+ * enough that it reads as left-aligned; give it a laptop's width and
+ * "Lisbon & Porto" walks into the middle of the row, detached from the dot
+ * that is colour-coding it. */
 .flight-section-head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
   gap: 10px;
   padding: 0 4px 4px;
   border-bottom: 1px solid var(--border);
@@ -1105,6 +1213,9 @@ button {
 .fsh-title {
   font-weight: 300;
   font-size: 15px;
+  /* The whole of the alignment. Everything before this sits at the left in
+     its natural order; everything after is pushed to the right edge. */
+  margin-inline-end: auto;
 }
 
 .fsh-meta {
@@ -8677,161 +8788,6 @@ button {
   color: var(--text-muted);
 }
 
-/* ---------------------------------------------------------------- intro
-   Three cards answering what goes in, what it becomes, and who sees it.
-   Full-bleed rather than a sheet: this is the first thing anybody sees and
-   it should not look like a dialog interrupting something. */
-/* Three cards of different copy lengths would otherwise put the title,
-   the dots and the button in three different places, and flipping between
-   them looks like the page is twitching. So the rows are fixed: the art
-   block is a constant height, the body reserves four lines whether it uses
-   them or not, and the actions are pinned to the bottom. Only the words
-   move. */
-.intro-layer {
-  position: fixed;
-  inset: 0;
-  /* Above the sheets and the nav — this is the first screen, not an
-     overlay on top of a working app. The boot screen alone outranks it. */
-  z-index: 100003;
-  display: grid;
-  grid-template-rows: 1fr auto auto;
-  justify-items: center;
-  align-items: center;
-  padding: calc(var(--safe-area-inset-top, env(safe-area-inset-top)) + 24px) 24px
-           calc(var(--safe-area-inset-bottom, env(safe-area-inset-bottom)) + 28px);
-  background: var(--bg);
-  animation: intro-in 320ms ease both;
-}
-
-@keyframes intro-in {
-  from { opacity: 0 }
-  to   { opacity: 1 }
-}
-
-/* Already here, because something else is still on top. Fading in under a
-   layer that is itself fading out makes both translucent at once, and the
-   app shows straight through the pair of them. */
-.intro-layer--already { animation: none; }
-
-/* A rail of three, moved as one. Cross-fading a single card in place made
-   each step feel like a page reload; sliding says they are three sides of
-   one thing, and gives the thumb something to push. */
-.intro-viewport {
-  width: 100%;
-  max-width: 360px;
-  overflow: hidden;
-  /* The gesture is horizontal; vertical stays with the browser. */
-  touch-action: pan-y;
-}
-
-.intro-track {
-  display: flex;
-  align-items: flex-start;
-  will-change: transform;
-}
-
-/* Only while nothing is being dragged — a transition during a drag lags the
-   finger by exactly its own duration. */
-.intro-track.settling {
-  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.intro-card {
-  flex: 0 0 100%;
-  min-width: 0;
-  padding: 0 10px;
-  text-align: center;
-}
-
-/* The circle behind the drawing, doing the same job as the flat colour
-   discs in the reference — a shape to sit the illustration inside. */
-.intro-art {
-  width: 208px;
-  height: 208px;
-  margin: 0 auto 26px;
-  border-radius: 50%;
-  background: var(--accent-bg);
-  display: grid;
-  place-items: center;
-}
-
-.intro-art svg { width: 152px; height: 152px; overflow: visible; }
-
-.intro-sphere { stroke: var(--accent); stroke-width: 1.4; opacity: 0.75; }
-.intro-arc { stroke: var(--text); stroke-width: 2; stroke-dasharray: 5 6; opacity: 0.8; }
-.intro-pin { fill: var(--accent); }
-.intro-rings circle { stroke: var(--accent); stroke-width: 1.3; opacity: 0.42; }
-.intro-rings circle:first-child { opacity: 0.8; }
-.intro-stack rect { fill: var(--surface); stroke: var(--accent); stroke-width: 1.6; }
-.intro-lens { fill: none; stroke: var(--accent); stroke-width: 1.6; }
-.intro-arrow { stroke: var(--accent); stroke-width: 2; }
-.intro-lock { stroke: var(--accent); stroke-width: 2.4; }
-.intro-lock-body { fill: var(--accent); opacity: 0.9; }
-/* The header's duck, not a second drawing of one. Positioned against the
-   disc so it reads as standing in the scene rather than beside it. */
-.intro-art { position: relative; }
-
-.intro-duck {
-  position: absolute;
-  transform-origin: center;
-  animation: intro-bob 2.6s ease-in-out infinite;
-  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.16));
-}
-
-@keyframes intro-bob {
-  0%, 100% { translate: 0 0 }
-  50%      { translate: 0 -5px }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .intro-duck { animation: none }
-}
-
-.intro-title {
-  font-size: 26px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  margin: 0 0 10px;
-  text-wrap: balance;
-}
-
-.intro-body {
-  font-size: 15px;
-  line-height: 1.6;
-  color: var(--text-muted);
-  margin: 0;
-  text-wrap: balance;
-  /* Four lines, always — the longest of the three. A card with three lines
-     leaves the fourth empty rather than dragging everything above it down. */
-  min-height: calc(15px * 1.6 * 4);
-}
-
-.intro-dots { display: flex; gap: 7px; margin: 0 0 18px; }
-
-.intro-dot {
-  width: 7px;
-  height: 7px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: var(--border);
-  transition: background 200ms ease, width 200ms ease;
-}
-
-.intro-dot.on { background: var(--accent); width: 20px; border-radius: 999px; }
-
-.intro-actions { width: 100%; max-width: 340px; }
-
-.intro-skip {
-  display: block;
-  width: 100%;
-  margin-top: 10px;
-  padding: 10px;
-  border: none;
-  background: none;
-  font-size: 14px;
-  color: var(--text-muted);
-}
 
 /* Centred prose with a last line of two short words looks like a mistake,
    and on a phone it happens constantly — one word too many and "of it."
@@ -8843,8 +8799,6 @@ button {
 
    Applied to display copy, not to body content people have written — a
    journal entry should wrap like text, not like a poster. */
-.intro-title,
-.intro-body,
 .tour-title,
 .tour-body,
 .ios-sheet-title,
@@ -10627,13 +10581,36 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 /* The line that explains why a stranger's holiday is on your globe.
    Said once, beside the trips it is about, rather than from an overlay
    pointing at them — which is where it used to live, and which spent its
-   whole life drawing a ring round the wrong card. */
+   whole life drawing a ring round the wrong card.
+
+   It was written as a full-width banner, and it lives in `.world-trips` —
+   a horizontal flex rail pinned over the globe. Three things then went
+   wrong at once, which is why it read as one large bug:
+
+     - no width, so as a flex item it squeezed to 134px and the sentence
+       became a thirteen-line chimney;
+     - `--accent-bg` is gold at 10% alpha, which is a tinted panel against
+       the app's paper and *nothing at all* against a photographic globe.
+       The text was legible over Iceland and invisible over the sea;
+     - the rail stretches its children, so a 275px notice took every card
+       beside it from 166px to 289px. That is the "everything is vertically
+       stretched" half of the report — the same cause, not a second one.
+
+   So it is a card in the rail now, because a card is what the rail holds.
+   Same white, same blur, same radius as `.wt-card`; wide enough that the
+   sentence is a paragraph. It keeps the accent border, so it still reads as
+   a note about the trip beside it rather than as another trip. */
 .wt-whose {
-  margin: 0 16px 14px;
+  flex: 0 0 250px;
+  /* Sized by its own content and — the half that fixes the neighbours — not
+     stretched to whatever the tallest thing in the rail happens to be. */
+  align-self: center;
   padding: 12px 14px;
-  background: var(--accent-bg);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--accent-dim);
-  border-radius: 12px;
+  border-radius: 13px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -11659,3 +11636,103 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   border-radius: 50%;
   background: var(--seg);
 }
+
+/* ── The evening look-back ─────────────────────────────────────────────
+   What the nine o'clock notification opens. A record of one day, so it is
+   laid out as a page rather than as a dashboard: the sentence they already
+   read, the two or three numbers behind it, then the day itself in the
+   order it happened. */
+
+.look-sheet { max-height: 88vh; overflow-y: auto; }
+
+/* The same sentence that was on the lock screen. Set larger than the body
+   because it is the thing they tapped, and finding it in small print under
+   a heading reads as having opened the wrong screen. */
+.look-line {
+  font-size: 17px;
+  font-weight: 300;
+  line-height: 1.45;
+  margin: 4px 0 18px;
+  text-wrap: balance;
+}
+
+.look-quiet {
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 18px 0 8px;
+}
+
+.look-numbers {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.look-number { display: flex; flex-direction: column; gap: 2px; }
+.look-number b { font-size: 22px; font-weight: 300; font-variant-numeric: tabular-nums; }
+.look-number span { font-size: 12px; color: var(--text-muted); }
+
+.look-new {
+  font-size: 14px;
+  color: var(--accent);
+  margin: 14px 0 0;
+}
+
+.look-list {
+  list-style: none;
+  margin: 14px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+/* The tally. Deliberately not a bar chart: these are counts of photographs
+   with a subject, not measurements of a day, and drawing them to scale
+   claims a precision the numbers do not have. */
+.look-tally {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.look-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  font-size: 13px;
+}
+
+.look-chip-n { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+.look-chip-word { color: var(--text-muted); }
+
+/* The day as it happened. An ordered list because the order is the point —
+   this is the one part of the screen a count cannot replace. */
+.look-day {
+  list-style: none;
+  margin: 18px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.look-day li { display: flex; gap: 10px; font-size: 13px; line-height: 1.45; }
+
+.look-at {
+  flex: none;
+  width: 40px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  padding-top: 2px;
+}
+
+.look-what { color: var(--text-muted); }

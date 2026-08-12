@@ -1,0 +1,14 @@
+Store builds are on.
+
+Asked for by David on 12 August: "end of day merge and push to apps".
+
+What is in this one: the cold open now acts out what the app is for and the
+intro card is gone; a tapped notification opens the thing it is about, which
+no push in the app has ever done; the evening look-back is sent; and the
+flight enrichment stops fetching the wrong day's aeroplane, with the
+twenty-four bad rows already cleaned in production.
+
+Delete this file once the build is away. It is a file rather than a setting
+so that asking for a build appears in a diff, and leaving it behind means
+the next unrelated push spends an upload slot a real release then cannot
+have.

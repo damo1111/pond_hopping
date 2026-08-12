@@ -11,12 +11,33 @@ Every entry says where it was, why it left, and where it might go.
 
 ---
 
-## The intro cards, two of three
+## The intro cards, all three
 
 Three cards on first launch, `src/components/IntroCards.jsx`, gated on
-`pond:intro`. Card one — **Tip it in** — stays. These two came out because
-first launch is the one moment nobody has a question yet, and both of these
-are answers.
+`pond:intro` and later on `ONCE.pitch`. Two came out early because first
+launch is the one moment nobody has a question yet, and both of these are
+answers. The third — **Tip it in** — held on alone for a while, and then
+the cold open learned to say it, so the component and its flag are gone.
+
+### Card one — "Tip it in"
+
+> Photos from a trip you took. A Google Timeline export going back years. A
+> booking you forward without reading. Whatever you already have — it works
+> the trip out from there.
+
+**Why it left.** Not because it was wrong. It was the only thing in the app
+that said what the app was *for*, and it said it well. It left because a
+card asks to be read and then dismissed, and nobody arrives wanting to read
+— so the first thing a new hopper did was dismiss the only explanation they
+were ever offered. Act two of the cold open now shows the same claim
+happening: three photographs drop onto the globe, fold down onto the places
+they were taken, and a line joins them into a trip. Then one sentence —
+*Your photos already know where you went* — and the app.
+
+**Where it might go.** The four examples are the valuable part and they are
+too specific to waste. "A booking you forward without reading" belongs on
+the forwarding screen; "a Google Timeline export going back years" belongs
+beside the Timeline import, where somebody is already holding the file.
 
 ### Card two — "Watch it fill"
 

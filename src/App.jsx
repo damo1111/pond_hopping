@@ -18,7 +18,7 @@ import TripPicker from './components/TripPicker.jsx'
 import Icon from './components/Icon.jsx'
 import AuthSheet from './components/AuthSheet.jsx'
 import BootScreen from './components/BootScreen.jsx'
-import IntroCards from './components/IntroCards.jsx'
+import DayLookBack from './components/DayLookBack.jsx'
 import { ONCE, bringOldFlagsOver, markSeen, nextUp } from './lib/firstRun.js'
 import { readPreference, visibleTrips, writePreference } from './lib/demoVisibility.js'
 import { tripColor } from './lib/tripColors.js'
@@ -28,6 +28,7 @@ import { nowLooking, track } from './lib/analytics.js'
 import { AuthProvider, useAuth } from './lib/AuthContext.jsx'
 import { disableVisits, enableVisits, hasConsented, installVisitSync, visitStatus, visitsSupported } from './lib/visits.js'
 import { nextAction } from './lib/visitWindow.js'
+import { listenForPushTaps, onPushTap } from './lib/push.js'
 
 // The 3D globe pulls in three.js — only the Home tab needs it, so it's
 // code-split into its own chunk instead of bloating everyone's first load.
@@ -47,6 +48,8 @@ export const TripContext = createContext({
   openAuth: () => {},
   clearPlannerJump: () => {},
   goToTab: () => {},
+  lookBackJump: null,
+  clearLookBackJump: () => {},
 })
 
 // Every screen here is either about *all* your travel or about *one* trip,
@@ -142,8 +145,15 @@ export default function App() {
     bringOldFlagsOver()
     return nextUp()
   })
-  const showIntro = owed === ONCE.pitch
-  const meetsColdOpen = owed === ONCE.cold_open
+  // Fixed for the life of this launch rather than read live.
+  //
+  // The timer that ends the opening marks it seen and moves `owed` on, and
+  // that happens in the same tick as the fade begins. Read live, act two —
+  // the photographs, the route and the sentence — was pulled out of the DOM
+  // on exactly the frame the screen started fading, so the pitch vanished
+  // and an empty globe faded out after it. Caught by tracing the DOM frame
+  // by frame; invisible in a screenshot at any single moment.
+  const [meetsColdOpen] = useState(() => owed === ONCE.cold_open)
   const [bootLeaving, setBootLeaving] = useState(false)
   const [activeTab, setActiveTab] = useState('world')
   const [usefulTab, setUsefulTab] = useState('costs')
@@ -178,6 +188,25 @@ export default function App() {
   // setter from inside another's updater is the kind of thing StrictMode
   // runs twice.
   const plannerReturn = useRef(null)
+  // Where a tapped notification wants to go, and where the evening
+  // look-back it opened should land. Two pieces of state because they have
+  // different lifetimes: the first is consumed the moment it can be, the
+  // second is read by a screen that may not have mounted yet.
+  const [pushJump, setPushJump] = useState(null)
+  const [lookBackJump, setLookBackJump] = useState(null)
+
+  // Listen for taps before anything else happens.
+  //
+  // The case this is shaped around is the app not running: the tap is what
+  // launches it, and the event fires during startup, before the session is
+  // restored and before the trip list exists. push.js holds the
+  // destination until this asks for it, so arriving late is fine — but
+  // attaching late is not, which is why this is its own effect at mount
+  // rather than something registerPush does once somebody is signed in.
+  useEffect(() => {
+    listenForPushTaps()
+    return onPushTap(setPushJump)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -201,7 +230,27 @@ export default function App() {
     // August: "on first open but not every time. it is overkill. and
     // annoying perhaps every time." Afterwards it holds just long enough to
     // cover the first paint, so there is still no flash of half-built app.
-    const minBoot = meetsColdOpen ? 2050 : 500
+    //
+    // Six seconds because the opening now carries the pitch as well: act two
+    // runs photographs onto the globe, folds them into a route and finishes a
+    // sentence at 4.85s. That used to be a card afterwards, which is a screen
+    // this no longer needs — so the first run is shorter than it was, not
+    // longer.
+    //
+    // Two things are in the number and only one of them is arithmetic.
+    //
+    // The arithmetic: this timer starts at mount and the animation starts at
+    // first paint, so the CSS clock runs a frame or two behind it — measured
+    // at ~120ms in Chromium. Cutting at 4850 began the fade while the last
+    // word was still arriving.
+    //
+    // The judgement: the sentence has to be *held*, not merely reached. At
+    // 5100 it stood finished for about a third of a second, which is long
+    // enough to notice and not long enough to read — David, 12 August: "the
+    // third part of the loading animation was too quick. Needs to hold
+    // longer." It now holds for a second and a half, which is about what
+    // seven words take.
+    const minBoot = meetsColdOpen ? 6300 : 500
     const leave = setTimeout(() => {
       if (cancelled) return
       if (meetsColdOpen) {
@@ -470,6 +519,37 @@ export default function App() {
   // globe and is still in the trip picker.
   const shownTrips = useMemo(() => visibleTrips(tripMeta, demoPref), [tripMeta, demoPref])
 
+  // Carry out the tap, once there is enough of the app to carry it out with.
+  //
+  // A push names a trip by id; the screens here are keyed on slug, and the
+  // list that maps one to the other arrives over the network. So a tap that
+  // launched the app cannot be acted on at the moment it is heard. It waits
+  // here — deliberately without a timeout, because the alternative to
+  // waiting is opening the wrong screen, and the trip list either arrives
+  // or the app has bigger problems than a notification.
+  useEffect(() => {
+    if (!pushJump) return
+    if (pushJump.go === 'tab') {
+      setActiveTab(pushJump.tab)
+      setPushJump(null)
+      return
+    }
+    if (!tripsLoaded) return
+    const trip = tripMeta.find((t) => t.id === pushJump.tripId)
+    // Signed in as somebody else, or the trip has been deleted since. Drop
+    // it rather than land them on an error.
+    if (trip) {
+      setSelectedTrip(trip.slug)
+      // The look-back is its own sheet over whatever is showing, so it does
+      // not need a tab underneath it — and forcing one would mean coming
+      // back from the evening to a screen nobody chose.
+      if (pushJump.go === 'lookBack') setLookBackJump({ tripId: trip.id, date: pushJump.date, title: trip.title })
+      else setActiveTab('photos')
+      track('push_opened', { go: pushJump.go })
+    }
+    setPushJump(null)
+  }, [pushJump, tripsLoaded, tripMeta])
+
   const ctx = useMemo(
     () => ({
       tripMeta: shownTrips,
@@ -514,6 +594,11 @@ export default function App() {
         setActiveTab('plan')
       },
       clearPlannerJump: () => setPlannerJump(null),
+      // The evening a notification opened, for the look-back to show. Held
+      // on the context rather than passed down because the screen that
+      // reads it is three levels below the tab that mounts it.
+      lookBackJump,
+      clearLookBackJump: () => setLookBackJump(null),
       // Called by PlanTab when the planner shuts. Puts you back where the
       // trip was tapped, so "back" means back.
       closePlanner: () => {
@@ -534,7 +619,7 @@ export default function App() {
         }
       },
     }),
-    [tripMeta, shownTrips, demoPref, showIntro, tripsLoaded, selectedTrip, journalJump, plannerJump, user?.id, photosChanged]
+    [tripMeta, shownTrips, demoPref, tripsLoaded, selectedTrip, journalJump, plannerJump, lookBackJump, user?.id, photosChanged]
   )
 
   // Public read-only share page — no nav, no forms.
@@ -546,25 +631,23 @@ export default function App() {
 
   return (
     <TripContext.Provider value={ctx}>
-      {/* Before anything is asked of anybody, including signing in: "what is
-          this?" comes before "who are you?", and a signed-out visitor is
-          exactly who most needs the answer. Above onboarding, so a brand new
-          account meets the pitch before the form.
+      {/* "What is this?" comes before "who are you?", and a signed-out
+          visitor is exactly who most needs the answer. It used to be a card
+          that came up after the opening and had to be dismissed; it is now
+          the second half of the opening itself, so nobody has to agree to
+          be told. */}
+      {booting && <BootScreen leaving={bootLeaving} cold={meetsColdOpen} />}
 
-          Mounted during the boot animation rather than after it, and painted
-          underneath — waiting for boot to finish meant the globe, the trip
-          strip and the tour all got a frame of their own on the way past. */}
-      {showIntro && (
-        <IntroCards
-          beneath={booting}
-          onDone={() => {
-            markSeen(ONCE.pitch)
-            setOwed(nextUp())
-          }}
+      {/* What the nine o'clock notification opens. Over everything, because
+          it was arrived at from outside the app and belongs to no tab. */}
+      {lookBackJump && (
+        <DayLookBack
+          tripId={lookBackJump.tripId}
+          date={lookBackJump.date}
+          title={lookBackJump.title}
+          onClose={() => setLookBackJump(null)}
         />
       )}
-
-      {booting && <BootScreen leaving={bootLeaving} />}
 
       <div className="app">
         <header className={`app-header${activeTab === 'world' ? ' app-header--world' : ''}`}>

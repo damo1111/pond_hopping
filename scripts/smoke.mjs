@@ -85,10 +85,43 @@ try {
   page.on('pageerror', (e) => problems.push(`threw: ${e.message}`))
 
   await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: 'domcontentloaded', timeout: 45000 })
+
+  // Watch the cold open all the way out.
+  //
+  // Act two — the photographs folding into a route, and the one sentence
+  // that says what the app is for — is the whole of what a new arrival is
+  // told, and it is rendered conditionally. Tying that condition to state
+  // that the ending timer also changes pulled it out of the DOM on exactly
+  // the frame the screen began to fade: the pitch vanished and an empty
+  // globe faded out after it. Every screenshot of that looks fine. Only the
+  // frames in between are wrong, which is why this samples rather than
+  // looks.
+  //
+  // The rule is the narrow one that cannot misfire on a slow machine: if
+  // the opening was ever seen leaving, its sentence was still there when it
+  // went. Nothing is asserted about a load too slow to have got that far.
+  await page.evaluate(() => {
+    window.__coldOpen = { everLeft: false, leftWithout: false }
+    const tick = () => {
+      const boot = document.querySelector('.boot')
+      if (boot?.classList.contains('leaving')) {
+        window.__coldOpen.everLeft = true
+        if (!document.querySelector('.boot-say')) window.__coldOpen.leftWithout = true
+      }
+      if (boot) requestAnimationFrame(tick)
+    }
+    tick()
+  })
+
   // Long enough for the lazy chunks to arrive and the first render to
   // happen. Not waiting on the network: a signed-out load talks to Supabase
   // and this must not depend on that answering.
   await page.waitForTimeout(6000)
+
+  const opening = await page.evaluate(() => window.__coldOpen)
+  if (opening?.everLeft && opening.leftWithout) {
+    problems.push('the cold open faded out with its own sentence already gone')
+  }
 
   // Boundary.jsx, by class rather than by its words. The first version of
   // this looked for "That didn't work" and would never once have fired: the

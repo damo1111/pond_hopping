@@ -1,6 +1,16 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { ENOUGH, SUBJECTS, clockFace, lookBackAt, oneLine, whenToSend, worthSending } from './dayLookBack.js'
+import {
+  ENOUGH,
+  STILL_WORTH_IT_MS,
+  SUBJECTS,
+  clockFace,
+  dueNow,
+  lookBackAt,
+  oneLine,
+  whenToSend,
+  worthSending,
+} from './dayLookBack.js'
 
 // Rome, 23 January 2024, from the database: 117 photographs between 06:06
 // and 20:14, and the seeing pass's own tally — 53 architecture, 18 street,
@@ -106,4 +116,91 @@ test('nine in the evening is nine where they are', () => {
   assert.equal(whenToSend('2026-04-10', 'Australia/Melbourne'), '2026-04-10T11:00:00.000Z')
   // A bare offset works too, for a coordinate with no named zone.
   assert.equal(whenToSend('2024-01-23', 0), '2024-01-23T21:00:00.000Z')
+})
+
+// ── Is it nine o'clock where they are ────────────────────────────────────
+
+test('nine in Rome is due at nine in Rome and not before', () => {
+  const nine = Date.parse('2024-01-23T20:00:00Z')
+  assert.equal(dueNow('2024-01-23', 'Europe/Rome', nine - 60_000).due, false, 'a minute early')
+  assert.equal(dueNow('2024-01-23', 'Europe/Rome', nine).due, true)
+  assert.equal(dueNow('2024-01-23', 'Europe/Rome', nine - 60_000).why, 'early')
+})
+
+// The tick is hourly, so being up to an hour late is the ordinary case.
+test('an hour late is still tonight', () => {
+  const nine = Date.parse('2024-01-23T20:00:00Z')
+  assert.equal(dueNow('2024-01-23', 'Europe/Rome', nine + 59 * 60_000).due, true)
+})
+
+// A summary of your evening arriving at three in the morning is not late,
+// it is wrong, and it wakes somebody up to tell them about yesterday.
+test('the middle of the night is a missed evening, not a late one', () => {
+  const nine = Date.parse('2024-01-23T20:00:00Z')
+  const out = dueNow('2024-01-23', 'Europe/Rome', nine + STILL_WORTH_IT_MS + 1)
+  assert.equal(out.due, false)
+  assert.equal(out.why, 'late')
+})
+
+test('the two ends of the world do not collide', () => {
+  // 21:00 in Auckland is the same UTC day; 21:00 in Los Angeles is the next.
+  const nz = dueNow('2026-04-10', 'Pacific/Auckland', Date.parse('2026-04-10T09:00:00Z'))
+  const la = dueNow('2026-04-10', 'America/Los_Angeles', Date.parse('2026-04-11T04:00:00Z'))
+  assert.equal(nz.due, true, nz.at)
+  assert.equal(la.due, true, la.at)
+  // And neither is due at the other's moment.
+  assert.equal(dueNow('2026-04-10', 'Pacific/Auckland', Date.parse('2026-04-11T04:00:00Z')).why, 'late')
+  assert.equal(dueNow('2026-04-10', 'America/Los_Angeles', Date.parse('2026-04-10T09:00:00Z')).why, 'early')
+})
+
+// Every photograph taken with location off. There is no honest answer to
+// "is it nine o'clock where they are", so it says so rather than guessing UTC.
+test('a day with no fix anywhere in it is never due', () => {
+  const out = dueNow('2024-01-23', null, Date.parse('2024-01-23T21:00:00Z'))
+  assert.equal(out.due, false)
+  assert.equal(out.why, 'nowhere')
+  assert.equal(out.at, null)
+})
+
+test('a bare offset works as well as a named zone', () => {
+  assert.equal(dueNow('2024-01-23', 0, Date.parse('2024-01-23T21:00:00Z')).due, true)
+  assert.equal(dueNow('2024-01-23', 9, Date.parse('2024-01-23T12:00:00Z')).due, true)
+})
+
+test('no date is nowhere rather than a crash', () => {
+  assert.doesNotThrow(() => dueNow(null, 'Europe/Rome', Date.now()))
+  assert.equal(dueNow(null, 'Europe/Rome', Date.now()).due, false)
+})
+
+// ── Which end of a travel day it thinks you are in ───────────────────────
+//
+// This decides what time the evening arrives. Getting it from the wrong end
+// of a flight is not a rounding error — Melbourne to Bangkok is four hours,
+// so "nine in the evening" becomes five in the afternoon.
+const flightDay = [
+  { taken_at: '2026-04-03T07:10:00Z', lat: -37.66, lon: 144.84 }, // Melbourne
+  { taken_at: '2026-04-03T21:40:00Z', lat: 13.69, lon: 100.75 },  // Bangkok
+  { taken_at: '2026-04-03T14:20:00Z', lat: 2.75, lon: 101.71 },   // Kuala Lumpur
+]
+
+test('the zone is where the day ended, not where it started', () => {
+  assert.equal(lookBackAt('2026-04-03', flightDay).zone, 'Asia/Bangkok')
+})
+
+// The rows come back from Postgres in no particular order, and the first
+// version of this read whichever one happened to be first.
+test('and does not depend on what order the rows arrived in', () => {
+  const zones = new Set()
+  for (const order of [flightDay, [...flightDay].reverse(), [flightDay[1], flightDay[0], flightDay[2]]]) {
+    zones.add(lookBackAt('2026-04-03', order).zone)
+  }
+  assert.equal(zones.size, 1, [...zones].join(' / '))
+})
+
+test('a fix with no time is better than no fix at all', () => {
+  assert.ok(lookBackAt('2026-04-03', [{ taken_on: '2026-04-03', lat: 13.69, lon: 100.75 }]).zone)
+})
+
+test('a day with no fix anywhere has no zone rather than a wrong one', () => {
+  assert.equal(lookBackAt('2026-04-03', [{ taken_at: '2026-04-03T09:00:00Z' }]).zone, null)
 })

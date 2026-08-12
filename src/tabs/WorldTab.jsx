@@ -19,7 +19,7 @@ import { overviewOf, homeCoords } from '../lib/homePov.js'
 import { shouldBadge } from '../lib/demoTour.js'
 import { pickVariant } from '../lib/variants.js'
 import { track, whoAmI } from '../lib/analytics.js'
-import { ONCE, markSeen, seen } from '../lib/firstRun.js'
+import { ONCE, markSeen, nextUp } from '../lib/firstRun.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
 
 // Default framing for the "all trips" overview — centred on the
@@ -182,13 +182,21 @@ export default function WorldTab() {
   // The one line worth keeping out of the tour that has gone: the only thing
   // in the app that explains why a stranger's holiday is on your globe.
   // Said on the trip itself rather than in an overlay pointing at it, and
-  // once — firstRun.js decides when, so it queues behind the cold open and
-  // the pitch instead of arriving on top of them.
+  // once — firstRun.js decides when, so it queues behind the cold open
+  // instead of arriving on top of it.
+  //
+  // That last sentence was not true. The test was `!seen(whose_trip)`, which
+  // is "has this ever been dismissed" and not "is this the thing owed now" —
+  // so it never queued behind anything, and a brand new hopper met the
+  // opening and this in the same eight seconds, which is the exact failure
+  // firstRun.js exists to prevent. nextUp() is the question that was meant
+  // to be asked: during the opening it answers `cold_open`, so this waits,
+  // and the effect does not run again afterwards. It arrives next launch.
   const [sayWhose, setSayWhose] = useState(false)
   useEffect(() => {
     if (!tripsLoaded) return
     const borrowed = tripMeta.some((t) => shouldBadge(t))
-    if (borrowed && !seen(ONCE.whose_trip)) setSayWhose(true)
+    if (borrowed && nextUp() === ONCE.whose_trip) setSayWhose(true)
   }, [tripsLoaded, tripMeta])
 
   // Nothing to look at yet, so the globe stops being a record and becomes an
