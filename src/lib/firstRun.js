@@ -43,9 +43,18 @@ export const ONCE = {
    *  itself now, so there is nothing left to gate. Anybody carrying a
    *  `pitch` in their record keeps it — it is simply never asked about. */
   cold_open: 'cold_open',
-  /** The line explaining why a stranger's trip is on their globe. */
-  whose_trip: 'whose_trip',
 }
+
+// `pitch` and `whose_trip` were both here and both gone now, for the same
+// reason each time: a thing that has to be dismissed is worse than a thing
+// that simply describes where you are. The pitch became act two of the cold
+// open; the note about whose trip that is became a line above the trip rail
+// that is shown exactly while nothing on the globe is yours. Neither needs
+// remembering, so neither is gated here.
+//
+// One entry left, and the machinery stays for it: the queue is what stops
+// the next addition arriving on top of the opening, which is the failure it
+// was built after.
 
 function read(store) {
   try {
@@ -91,7 +100,7 @@ export function markSeen(what, store = globalThis.localStorage, now = () => new 
  * which is the rule the four old flags had no way of expressing, and the
  * whole reason a new hopper could meet three things in eight seconds.
  */
-export const IN_ORDER = [ONCE.cold_open, ONCE.whose_trip]
+export const IN_ORDER = [ONCE.cold_open]
 
 export function nextUp(store = globalThis.localStorage, order = IN_ORDER) {
   return order.find((what) => !seen(what, store)) ?? null
@@ -113,9 +122,8 @@ export function bringOldFlagsOver(store = globalThis.localStorage) {
     if (store?.getItem('pond:intro') === '1') {
       carried[ONCE.cold_open] ??= 'carried-over'
     }
-    // Anybody who finished the tour has been told whose trip that is.
+    // Anybody who finished the tour has met the opening on the way to it.
     if (store?.getItem('pond:tourdone') === '1') {
-      carried[ONCE.whose_trip] ??= 'carried-over'
       carried[ONCE.cold_open] ??= 'carried-over'
     }
   } catch {

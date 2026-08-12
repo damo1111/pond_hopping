@@ -19,7 +19,6 @@ import { overviewOf, homeCoords } from '../lib/homePov.js'
 import { shouldBadge } from '../lib/demoTour.js'
 import { pickVariant } from '../lib/variants.js'
 import { track, whoAmI } from '../lib/analytics.js'
-import { ONCE, markSeen, nextUp } from '../lib/firstRun.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
 
 // Default framing for the "all trips" overview — centred on the
@@ -179,25 +178,23 @@ export default function WorldTab() {
     track('tile_shown', { test: 'add_tile', variant: tile.id })
   }, [tile])
 
-  // The one line worth keeping out of the tour that has gone: the only thing
-  // in the app that explains why a stranger's holiday is on your globe.
-  // Said on the trip itself rather than in an overlay pointing at it, and
-  // once — firstRun.js decides when, so it queues behind the cold open
-  // instead of arriving on top of it.
+  // Whether everything on the globe belongs to somebody else.
   //
-  // That last sentence was not true. The test was `!seen(whose_trip)`, which
-  // is "has this ever been dismissed" and not "is this the thing owed now" —
-  // so it never queued behind anything, and a brand new hopper met the
-  // opening and this in the same eight seconds, which is the exact failure
-  // firstRun.js exists to prevent. nextUp() is the question that was meant
-  // to be asked: during the opening it answers `cold_open`, so this waits,
-  // and the effect does not run again afterwards. It arrives next launch.
-  const [sayWhose, setSayWhose] = useState(false)
-  useEffect(() => {
-    if (!tripsLoaded) return
-    const borrowed = tripMeta.some((t) => shouldBadge(t))
-    if (borrowed && nextUp() === ONCE.whose_trip) setSayWhose(true)
-  }, [tripsLoaded, tripMeta])
+  // This replaced a card. The card was the last line of the retired tour —
+  // forty words and a "Right you are" button explaining why a stranger's
+  // holiday was on your globe — and three things were wrong with it. The
+  // example trip already wears an EXAMPLE stamp, so it said in forty words
+  // what one word on the card next to it already said. It was the widest
+  // thing in a rail of 172px cards. And being gated on firstRun.js meant it
+  // appeared on the launch *after* the one it was about, which reads as the
+  // app being broken rather than as the app being considerate.
+  //
+  // A state rather than an interruption. It is true exactly while somebody
+  // has nothing of their own, so it needs no flag, no queue and no
+  // dismissing — it goes when the first trip arrives, which is the moment
+  // it stops being true.
+  const nothingIsTheirs =
+    tripsLoaded && tripMeta.length > 0 && tripMeta.every((t) => shouldBadge(t))
 
   // Nothing to look at yet, so the globe stops being a record and becomes an
   // invitation: pointed at wherever they are rather than at where this
@@ -856,6 +853,34 @@ export default function WorldTab() {
         />
       )}
 
+      {/* Where to go, once the opening has finished and there is nothing
+          here that belongs to them.
+
+          One line doing the two jobs the retired card did badly: it says
+          what the stamped trip is, and — the half the card never did at all
+          — it says what to do next. The doing half is a button rather than
+          a description, because "tip some in" that you cannot tap is an
+          instruction, and an instruction is a worse thing to hand somebody
+          than a door.
+
+          Outside the ternary below because it is absolutely positioned, so
+          where it sits in the DOM does not matter; `nothingIsTheirs` needs
+          trips to exist, so it can never appear over the empty home. */}
+      {nothingIsTheirs && (
+        <div className="wt-signpost">
+          None of this is yours yet.{' '}
+          <button
+            onClick={() => {
+              track('signpost_tapped')
+              setRoutesOpen(true)
+            }}
+          >
+            Tip some in
+          </button>
+          , or have a paddle round the example first.
+        </div>
+      )}
+
       {tripsLoaded && !tripMeta.length ? (
         <EmptyHome onPlan={() => goToTab('plan')} onGetIn={() => setRoutesOpen(true)} />
       ) : (
@@ -908,28 +933,6 @@ export default function WorldTab() {
             </button>
           </div>
 
-          {/* The one line saved out of the tour, said where it is about.
-              Without it a stranger's holiday on your globe is confusing
-              rather than generous — and the tour said it from behind an
-              overlay pointing at the wrong card entirely. */}
-          {sayWhose && (
-            <div className="wt-whose">
-              <p>
-                One of these is somebody else's, parked here so the place isn't empty when you turn
-                up. Have a paddle round — it's properly finished, photos and all. Then it clears off.
-              </p>
-              <button
-                className="wt-whose-ok"
-                onClick={() => {
-                  markSeen(ONCE.whose_trip)
-                  setSayWhose(false)
-                  track('whose_trip_dismissed')
-                }}
-              >
-                Right you are
-              </button>
-            </div>
-          )}
 
           {/* Past and future used to sit in one undifferentiated row, in
               hand-curated order, distinguishable only by reading the dates

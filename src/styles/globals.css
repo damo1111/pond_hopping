@@ -10578,61 +10578,55 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   max-height: 220px;
 }
 
-/* The line that explains why a stranger's holiday is on your globe.
-   Said once, beside the trips it is about, rather than from an overlay
-   pointing at them — which is where it used to live, and which spent its
-   whole life drawing a ring round the wrong card.
-
-   It was written as a full-width banner, and it lives in `.world-trips` —
-   a horizontal flex rail pinned over the globe. Three things then went
-   wrong at once, which is why it read as one large bug:
-
-     - no width, so as a flex item it squeezed to 134px and the sentence
-       became a thirteen-line chimney;
-     - `--accent-bg` is gold at 10% alpha, which is a tinted panel against
-       the app's paper and *nothing at all* against a photographic globe.
-       The text was legible over Iceland and invisible over the sea;
-     - the rail stretches its children, so a 275px notice took every card
-       beside it from 166px to 289px. That is the "everything is vertically
-       stretched" half of the report — the same cause, not a second one.
-
-   So it is a card in the rail now, because a card is what the rail holds.
-   Same white, same blur, same radius as `.wt-card`; wide enough that the
-   sentence is a paragraph. It keeps the accent border, so it still reads as
-   a note about the trip beside it rather than as another trip. */
-.wt-whose {
-  flex: 0 0 250px;
-  /* Sized by its own content and — the half that fixes the neighbours — not
-     stretched to whatever the tallest thing in the rail happens to be. */
-  align-self: center;
-  padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--accent-dim);
-  border-radius: 13px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.wt-whose p {
-  margin: 0;
+/* Where to go, before there is anything of your own here.
+ *
+ * Replaces `.wt-whose`, which was a full-width banner squeezed into a
+ * horizontal rail: 134px wide, 275px tall, gold at 10% alpha over a
+ * photographic globe, dragging every card beside it from 166px to 289px.
+ * That got fixed and it was still the widest thing in the row, still forty
+ * words, and still needed dismissing.
+ *
+ * A line rather than a card, above the rail rather than in it — so it is
+ * read before the thing it is about, and it cannot distort the row it is
+ * pointing at. */
+.wt-signpost {
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* Directly above `.world-trips`, which is pinned the same distance from
+     the bottom. Moving the rail moves this with it. */
+  bottom: calc(90px + 196px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
+  z-index: 500;
+  padding: 0 16px;
   font-size: 13px;
   line-height: 1.5;
   color: var(--text);
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.9);
+  text-wrap: balance;
 }
 
-.wt-whose-ok {
-  border: 1px solid var(--accent);
+/* The half that is a door. Underlined rather than boxed: a button here
+   would be a third thing competing with the rail and the nav, and this
+   only has to look like the one word in the sentence you can press. */
+.wt-signpost button {
+  border: 0;
   background: none;
-  color: var(--accent);
-  border-radius: 999px;
-  padding: 5px 14px;
+  padding: 0;
   font: inherit;
-  font-size: 12px;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .wt-signpost {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  }
+}
+
+:root[data-theme='dark'] .wt-signpost {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 
 /* ── Get your trips in ────────────────────────────────────────────────
