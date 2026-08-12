@@ -117,11 +117,29 @@ back. Trains have no `flights` table to go in — see item 3 below.
 
 ---
 
-## 1c. `actual_dep_time` and `actual_arr_time` are wrong on 272 flights
+## 1c. ~~`actual_dep_time` and `actual_arr_time` are wrong~~ — done
 
-**A live data bug, found while building the deduction.** The Flighty import
-wrote naive local clock times into `timestamptz` columns, so every leg that
-crosses a timezone has actual times out by the offset.
+**Fixed. 307 rows repaired on 12 August**, backed up in
+`flights_actual_backup`, and reversible with one update. See
+`migrations_2026_08_a_clock_is_not_an_instant_for_flights_either.sql`.
+
+The Flighty import wrote naive local clock times into `timestamptz` columns,
+so every leg crossing a timezone had actual times out by the offset. BA546
+into Fiumicino claimed to have landed at 19:41 UTC; it landed at 18:41,
+nine minutes after schedule. DL2521 into New Orleans now reads two minutes
+late instead of six hours early.
+
+**What decided which rows to touch** was provenance, and what proved the
+line was right was the control group. Average disagreement with the
+scheduled block time, before → after: `flighty` 192 → 13, `aerodatabox+
+flighty` 174 → 10, `byair+flighty` 213 → 18. And `aerodatabox` alone, left
+untouched, would have gone 40 → 166 — it gets worse for exactly the rows
+that should not be touched, which is a stronger argument than either half
+on its own.
+
+Twenty rows still differ from schedule by more than 45 minutes, nine of them
+pure aerodatabox. Those look like real delays rather than a systematic
+fault, which was the point.
 
 The evidence is the shape of it. Comparing actual block time against
 scheduled, the differences cluster on **whole hours** — 42 legs at 0, then
