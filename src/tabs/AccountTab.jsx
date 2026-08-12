@@ -2,7 +2,8 @@ import { useContext, useEffect, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from '../lib/supabase.js'
 import { backfill } from '../lib/flightBackfill.js'
-import { REACH } from '../lib/flightEnrich.js'
+import { REACH, askAbout } from '../lib/flightEnrich.js'
+import { AIRPORT_TZ } from '../lib/airportTz.js'
 import { queued, sendOriginal } from '../lib/photoIngest.js'
 import { summarise } from '../lib/originals.js'
 import { callApi } from '../lib/apiBase.js'
@@ -884,6 +885,11 @@ function FlightSourceCard() {
         .is('enriched_at', null)
         .order('dep_time', { ascending: false })
 
+      // The date a flight source wants is the local one at the departure
+      // airport, never the UTC one — see askAbout(). Seventeen flights were
+      // enriched from the wrong day before this.
+      const dayFor = (f) => askAbout(f.dep_time, AIRPORT_TZ[f.dep_airport])
+
       const tally = await backfill(flights ?? [], {
         ask: async (f) => {
           const r = await callApi('/api/enrich-flight', {
@@ -891,7 +897,7 @@ function FlightSourceCard() {
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({
               number: f.flight_number,
-              on: String(f.dep_time).slice(0, 10),
+              on: dayFor(f),
               from: f.dep_airport,
             }),
           })
@@ -970,7 +976,7 @@ function FlightSourceCard() {
       for (const f of pick) {
         if (!first) await breathe()
         first = false
-        const on = String(f.dep_time).slice(0, 10)
+        const on = askAbout(f.dep_time, AIRPORT_TZ[f.dep_airport])
         const where = who === 'cirium' ? '/api/enrich-flight-cirium' : '/api/enrich-flight'
         const r = await fetch(`${where}?peek=1`, {
           method: 'POST',
