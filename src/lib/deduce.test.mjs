@@ -10,6 +10,7 @@ import {
   narrow,
   samePart,
   stayFixes,
+  clockSlipMs,
 } from './deduce.js'
 import { partAt, nodesNear, zoneAt } from './legs.js'
 
@@ -324,4 +325,57 @@ test('each stay is dated by the clocks where it happened, not the trip', () => {
   // 00:18Z to 03:21Z — the recorded NH964 is 00:20Z to 03:55Z.
   assert.equal(leg.crossing.from.at, '2026-05-31T00:18:00.000Z')
   assert.ok(leg.crossing.kmh > 600 && leg.crossing.kmh < 800, `${leg.crossing.kmh} km/h`)
+})
+
+// ── A phone that has not changed zone yet ──────────────────────────────
+//
+// Every hopper has this on every trip that crosses a zone, so it is not a
+// quirk of one archive. Both cases below are real.
+
+test('a photograph is the phone clock, and the phone is behind on arrival', () => {
+  // New Orleans, 4 March 2024. DL2521 was on stand at 04:16 UTC on the 5th,
+  // and the first photograph in the French Quarter is stored at 23:04 on the
+  // 4th — five hours before the aeroplane landed, read as an instant.
+  const landed = Date.parse('2024-03-05T04:16:00Z')
+  const stored = Date.parse('2024-03-04T23:04:42Z')
+  assert.ok(stored < landed, 'stored looks impossible, which is the point')
+  // The phone was six hours behind UTC, so the true instant is six hours on
+  // from what was stored: forty-eight minutes after landing, which is a taxi.
+  const real = stored + 6 * 3600000
+  const mins = Math.round((real - landed) / 60000)
+  assert.ok(mins > 30 && mins < 60, `${mins} minutes after landing`)
+})
+
+test('the arrival bound is widened for a photograph, never for a recorded stay', () => {
+  const rome = { lat: 41.89843, lon: 12.49713, at: '2024-01-22T19:46:39.000Z' }
+  const heathrow = { lat: 51.47375, lon: -0.48048, at: '2024-01-22T15:55:50.000Z' }
+
+  // A photograph could have been taken on either end's clock. London is the
+  // smaller offset, so it gives the latest possible true time — and the
+  // generous direction is the only safe one, because this bound throws
+  // candidates away.
+  assert.equal(clockSlipMs({ from: heathrow, to: { ...rome, how: 'photograph' } }), 0)
+  // London to Tokyo in June. The phone was on one of +1 or +9, and the
+  // smaller gives the latest possible truth — so even the generous reading
+  // is an hour earlier than the stored value, because a clock stamped Z
+  // while set to British Summer Time is already an hour fast.
+  const tokyo = { lat: 35.5483, lon: 139.778, at: '2026-06-01T04:00:00.000Z', how: 'photograph' }
+  const london = { lat: 51.47, lon: -0.4543, at: '2026-05-31T18:00:00.000Z' }
+  assert.equal(clockSlipMs({ from: london, to: tokyo }) / 3600000, -1)
+  // And the same coming home, for the same reason: the pair is the same pair.
+  assert.equal(clockSlipMs({ from: tokyo, to: { ...london, how: 'photograph' } }) / 3600000, -1)
+
+  // A recorded stay already carries a real instant — stayFixes() resolves it
+  // against the zone at its own coordinate — so it is left alone.
+  assert.equal(clockSlipMs({ from: heathrow, to: { ...rome, how: 'left' } }), 0)
+})
+
+test('a phone six hours behind moves the bound by six hours', () => {
+  // New Orleans again, as the deducer sees it: both fixes in a zone behind
+  // UTC, so the true times are later than stored and the window must move.
+  const slip = clockSlipMs({
+    from: { lat: 33.6407, lon: -84.4277, at: '2024-03-05T02:44:00.000Z' }, // Atlanta, -5
+    to: { lat: 29.95, lon: -90.069, at: '2024-03-04T23:04:42.000Z', how: 'photograph' }, // -6
+  })
+  assert.equal(slip / 3600000, 6, 'the smaller offset is -6, so six hours forward')
 })

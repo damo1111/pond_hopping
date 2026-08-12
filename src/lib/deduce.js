@@ -395,6 +395,62 @@ export const MARGIN_MINUTES = 60
  */
 export const GRACE_MINUTES = 45
 
+/**
+ * A photograph's time is the phone's clock, and the phone is often wrong.
+ *
+ * `exif.js` writes `${localClock}${offset ?? 'Z'}`. Where the camera recorded
+ * no offset — which is most of this archive, and most Android photographs
+ * anywhere — a bare local clock is stamped Z. So what is stored is not the
+ * instant; it is
+ *
+ *     stored = true + whatever offset the phone's clock was set to
+ *
+ * New Orleans proves it: the first photograph in the French Quarter is
+ * stored at 23:04 and the aeroplane landed at 04:16 UTC. Read as an instant
+ * that is five hours before landing. Add the six hours the phone was behind
+ * by and it is forty-eight minutes after, which is the taxi.
+ *
+ * **This does not affect finding crossings.** Both ends of a crossing carry
+ * the same error, so it cancels in the duration and the speed. It affects
+ * exactly one thing: comparing a photograph against a timetable.
+ *
+ * And there it bites hardest at the worst moment. A phone that has just
+ * landed has not picked up the local network yet, so the arrival photograph
+ * — the one that bounds when the aeroplane was down — is the one most likely
+ * to still be on the departure city's time. Every hopper has this on every
+ * trip that crosses a zone; it is not a quirk of one archive.
+ *
+ * So the offset is unknown but bracketed: the phone was on one of the two
+ * ends' zones. The **smaller** offset gives the latest possible true time,
+ * and that is the one to use, because `landed_by` throws candidates away and
+ * nothing should be thrown away on a guess. Wrong in the generous direction
+ * keeps a second flight on the list; wrong in the tight direction loses the
+ * right one, which is what happened to BA546 into Rome.
+ */
+export function clockSlipMs(crossing) {
+  // A stay carries a real instant — stayFixes() resolves each visit against
+  // the zone at its own coordinate — so there is nothing to correct.
+  if (crossing?.to?.how !== 'photograph') return 0
+  const here = offsetHoursAt(crossing.to, crossing.to.at)
+  const there = offsetHoursAt(crossing.from, crossing.from.at)
+  if (here == null && there == null) return 0
+  const smaller = Math.min(here ?? there, there ?? here)
+  // true = stored − offset, so a smaller offset means a later true time.
+  const shift = -smaller * 3600000
+  // Negating an offset of zero gives -0, which is a different value from 0
+  // to anything comparing strictly, and there is no such thing as a negative
+  // nought of milliseconds.
+  return shift === 0 ? 0 : shift
+}
+
+function offsetHoursAt(fix, when) {
+  if (!fix || fix.lat == null) return null
+  const zone = zoneAt([fix.lat, fix.lon])
+  if (typeof zone === 'number') return zone
+  const hours = offsetOfZone(zone, when)
+  return Number.isFinite(hours) ? hours : null
+}
+
 /** How long it takes to get from a node to a point `km` away, in ms. */
 export function reachMs(km) {
   const hours = Math.max(0, Number(km) || 0) / HABITS.ground_kmh
@@ -415,7 +471,10 @@ export function askFor(leg, crossing) {
   // nought if they photographed the baggage hall, twenty-four kilometres if
   // the first picture is in the middle of Rome.
   const away = leg.to.node ? (leg.to.km ?? 0) : (leg.to.near[0]?.km ?? 0)
-  const landedBy = new Date(ms(crossing.to.at) - reachMs(away)).toISOString()
+  // The arrival fix, corrected for a phone that may not have changed zone
+  // yet — see clockSlipMs(). Nought for a recorded stay.
+  const slip = clockSlipMs(crossing)
+  const landedBy = new Date(ms(crossing.to.at) + slip - reachMs(away)).toISOString()
 
   return {
     mode: leg.mode,
@@ -423,7 +482,7 @@ export function askFor(leg, crossing) {
     to: codes(leg.to),
     from_part: leg.from.part?.name ?? null,
     // Weak, and known to be weak: they were in the lounge.
-    left_after: crossing.from.at,
+    left_after: new Date(ms(crossing.from.at) + slip).toISOString(),
     // How that last sighting was come by, because it changes what it
     // proves. A recorded stay at an airport can outlast the aeroplane —
     // the phone is on it. A photograph cannot: somebody standing in a
