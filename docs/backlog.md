@@ -126,8 +126,13 @@ crosses a timezone has actual times out by the offset.
 The evidence is the shape of it. Comparing actual block time against
 scheduled, the differences cluster on **whole hours** — 42 legs at 0, then
 piles at −8, −5, −1, +1, +2, +5, +8. Delays do not do that. Zone offsets do.
-BA546 Heathrow–Fiumicino claims to have landed at 19:41 UTC and the next
-photograph is in the middle of Rome five minutes later.
+
+*This item first claimed, as its illustration, that BA546 "landed at 19:41
+UTC and the next photograph is in the middle of Rome five minutes later".
+That was not a sound argument and the correction is item 1e: photograph
+times are not reliably UTC either, so the two sides of it were never
+comparable. The whole-hour clustering above is the actual evidence and it
+stands on its own.*
 
 - 208 of 245 `flighty`, 44 of 52 `aerodatabox+flighty`, 10 of 15
   `byair+flighty`, 1 of 1 — 263 legs, plus 9 of 35 pure `aerodatabox`
@@ -193,6 +198,55 @@ only helps somebody who thinks to open it. `pg_cron` already ticks and the
 push endpoint already exists: a job that fires once when a *new* fault
 appears on the *current* build would have turned six hours of downtime into
 six minutes. Once per fault per build, or it becomes noise and gets muted.
+
+---
+
+## 1e. `photos.taken_at` is sometimes an instant and sometimes a clock
+
+**The same trap, a third time, and this one is worse because it is mixed.**
+
+`exif.js` reads `DateTimeOriginal`, which is a bare local clock, and
+`OffsetTimeOriginal`, which is the zone the camera believed it was in. Then:
+
+```js
+takenAt: takenLocal ? `${takenLocal}${tzOffset ?? 'Z'}` : null
+```
+
+With the offset tag, `taken_at` is a true instant. Without it, the local
+clock is stamped `Z` — a naive clock pretending to be UTC. **And the offset
+is parsed and then thrown away**: `photos` has `taken_at` and `taken_on` and
+nowhere to put it, so nothing records which kind any given row is.
+
+**Proven, not suspected.** DL2521 landed at New Orleans at 04:16 UTC on 5
+March 2024. The first photograph in the French Quarter is stored at 23:04 on
+4 March — five hours before the aeroplane landed, if that were an instant.
+As a local clock it is forty-eight minutes after landing, which is exactly
+right.
+
+**Why it is not simply "add the offset back".** The offset tag is the
+*phone's* belief about where it is; the coordinate is where the person
+actually was. Those disagree exactly when a phone has not yet picked up the
+local network — which is the arrival photograph, every time, which is the
+one the deduction most wants. On 22 January 2024 the Rome arrival reads
+19:46 against an aeroplane on stand at 19:41 Rome time; on London time it is
+20:46, an hour after landing, which is the only reading that is physically
+possible.
+
+So there are three sources and they must not be silently merged:
+
+  the offset tag       what the camera thought — best when present
+  the coordinate       where they really were, via `zoneAt()` in legs.js
+  the sequence         a phone changing zone mid-trip leaves a visible jump
+
+**What to do.** Add `tz_offset` and `tz_from` to `photos`; keep the offset
+when EXIF has it; derive from the coordinate when it does not; and where the
+two disagree, **keep the disagreement** rather than settling it — the same
+rule `enrichment()` already follows for flights. Originals are still held
+for photographs uploaded with `keepOriginals`, so some of this is
+recoverable by re-reading rather than guessing.
+
+Until then, every instant the deduction reads from a photograph may be an
+hour or nine hours out, and it has no way to know.
 
 ---
 
