@@ -9,6 +9,7 @@ import { RECONSTRUCTED, daysFrom, entryFor, namesForDay, nearForDay, placesToNam
 import DayThumb from './DayThumb.jsx'
 import { TRUST_PHOTO } from '../lib/tripStory.js'
 import { callApi } from '../lib/apiBase.js'
+import { plainly } from '../lib/apiTrouble.js'
 
 // Piecing a trip together from photographs taken two years ago.
 //
@@ -177,13 +178,19 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth}` },
           body: JSON.stringify({ stops: slice }),
         })
-        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `server said ${r.status}`)
+        if (!r.ok) {
+          const said = await r.clone().text().catch(() => '')
+          const stop = new Error(said || `server said ${r.status}`)
+          stop.status = r.status
+          stop.said = said
+          throw stop
+        }
         for (const s of (await r.json()).stops ?? []) {
           candidates[s.key] = s.candidates
           asked[s.key] = s.candidates
         }
       } catch (e) {
-        setTrouble(`Couldn't look the places up: ${e.message}`)
+        setTrouble(`Couldn't look the places up. ${plainly(e.status ?? 0, e.said ?? e.message)}`)
         setPhase('idle')
         return
       }

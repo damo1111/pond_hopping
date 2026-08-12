@@ -29,6 +29,32 @@ function publicUrl(path) {
 }
 
 /**
+ * A picture for the top of a trip, straight off the phone.
+ *
+ * The cover used to be a URL you pasted in, which is a thing nobody has ever
+ * had to hand — David, 12 August: "on a new trip why are we asking hoppers
+ * to paste an image — isn't it all upload now?" It is, everywhere else.
+ *
+ * Deliberately not a `photos` row: a cover is decoration, not a record of
+ * having been somewhere, and putting it in the gallery would drop an
+ * undated, unplaced picture into the map, the day strip and the trip's own
+ * photo count. It goes in the same bucket under its own name and its URL is
+ * kept where the guessed covers already live.
+ */
+export async function uploadCover(file, tripId) {
+  const [display] = await renderSizes(file, [DISPLAY])
+  const ext = extFor(display.type)
+  const path = `${tripId}/cover-${crypto.randomUUID()}.${ext}`
+  const up = await supabase.storage.from(BUCKET).upload(path, display.blob, {
+    contentType: display.type,
+    cacheControl: '31536000',
+    upsert: false,
+  })
+  if (up.error) throw up.error
+  return publicUrl(up.data.path)
+}
+
+/**
  * Upload both sizes and write the row. The EXIF goes into columns rather than
  * staying in the file — the file we upload has been through a canvas and
  * carries no metadata at all, which is how a shared album stops being a map
