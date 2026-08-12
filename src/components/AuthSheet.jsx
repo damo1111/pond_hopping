@@ -4,6 +4,7 @@ import { useAuth } from '../lib/AuthContext.jsx'
 import SheetGrip from './SheetGrip.jsx'
 import { track } from '../lib/analytics.js'
 import { remember, waiting, forget, resendIn } from '../lib/pendingCode.js'
+import { offerIn, rememberWayIn } from '../lib/waysIn.js'
 
 // The front door to the app's account, opened by tapping the duck.
 // Same passwordless OTP flow the Account tab has always used (email →
@@ -47,8 +48,37 @@ export default function AuthSheet({ onClose }) {
     const t = setInterval(() => setWaitLeft(resendIn(sentAt)), 1000)
     return () => clearInterval(t)
   }, [sentAt])
+  // Apple and Google, when this build has been told they exist. Empty by
+  // default, so a project that has not had the providers set up shows the
+  // sheet exactly as it always was rather than a button that answers
+  // "Unsupported provider".
+  const { ways, last } = useState(() => offerIn(import.meta.env.VITE_WAYS_IN))[0]
   const [naming, setNaming] = useState(false)
   const [name, setName] = useState('')
+
+  /**
+   * Off to Apple or Google and back.
+   *
+   * Deliberately no scopes. connectGoogle() asks for Gmail and Calendar
+   * because it is connecting an inbox; asking for either at the front door
+   * puts a consent screen the size of a legal notice in front of somebody
+   * who only wanted to sign in.
+   */
+  async function goVia(provider) {
+    track('sign_in_provider', { provider })
+    setBusy(true)
+    setError(null)
+    rememberWayIn(provider)
+    const { error: no } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: window.location.origin },
+    })
+    // On success the page has already gone. Only a refusal gets this far.
+    if (no) {
+      setBusy(false)
+      setError(no.message)
+    }
+  }
 
   async function send(e) {
     track('sign_in_code_asked')
@@ -63,6 +93,7 @@ export default function AuthSheet({ onClose }) {
       // very next frame — which is what going to fetch the code amounts to —
       // still comes back here.
       remember(email.trim())
+      rememberWayIn('code')
       setSentAt(Date.now())
       setSent(true)
     }
@@ -238,10 +269,34 @@ export default function AuthSheet({ onClose }) {
           <form onSubmit={send}>
             <div className="ios-sheet-title">Sign in or create an account</div>
             <div className="ios-sheet-sub">
-              Same box for both — if we haven't seen your email before, this makes your account.
-              No password: we email you a code. Your trips are private to you unless you
-              choose to share them.
+              {ways.length
+                ? 'Whichever is easiest. Your trips are private to you unless you choose to share them.'
+                : "Same box for both — if we haven't seen your email before, this makes your account. No password: we email you a code. Your trips are private to you unless you choose to share them."}
             </div>
+
+            {ways.length > 0 && (
+              <>
+                <div className="ways">
+                  {ways.map((w) => (
+                    <button
+                      key={w.id}
+                      type="button"
+                      className={`way way--${w.id}${w.id === last ? ' way--last' : ''}`}
+                      disabled={busy}
+                      onClick={() => goVia(w.id)}
+                    >
+                      <span className="way-mark" aria-hidden="true">{w.id === 'apple' ? '' : 'G'}</span>
+                      <span>{w.label}</span>
+                      {w.id === last && <span className="way-again">last time</span>}
+                    </button>
+                  ))}
+                </div>
+                {/* The code is not hidden behind "other options". It is the
+                    only way in that works for somebody with neither account,
+                    and it is what every existing hopper already has. */}
+                <div className="ways-or">or a code by email</div>
+              </>
+            )}
             <input
               className="account-input"
               type="email"

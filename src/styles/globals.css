@@ -11439,3 +11439,83 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   color: var(--text-muted);
   text-wrap: pretty;
 }
+
+/* ── Apple and Google, above the code ─────────────────────────────────
+   A code by email is the slowest way in and the only one that needs a
+   working inbox at the moment somebody is trying to get in — on a trip, on
+   hotel wifi, behind a mail server that greylists for four minutes. Which
+   is exactly when this app is used. */
+.ways {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.way {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  position: relative;
+}
+
+.way--apple {
+  background: #1A1611;
+  border-color: #1A1611;
+  color: #fff;
+}
+
+.way-mark {
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.way--google .way-mark { color: var(--accent); font-family: var(--font-mono); }
+
+/* Which one they used last. Not because it is better — because "which of
+   these did I use?" is the single most common way somebody ends up with two
+   accounts, and the answer belongs on the button. */
+.way--last { border-color: var(--accent); }
+
+.way-again {
+  position: absolute;
+  right: 12px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.way--apple .way-again { color: rgba(255, 255, 255, 0.7); }
+
+/* The code is not hidden behind "other options". It is the only way in that
+   works for somebody with neither account, and it is what every hopper who
+   already has an account uses. */
+.ways-or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ways-or::before,
+.ways-or::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--border);
+}
