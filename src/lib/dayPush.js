@@ -40,55 +40,114 @@ export const REMEMBER = 6
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 
 /**
+ * The voice.
+ *
+ * Pond Hopping's is dry rather than cute — "That didn't work", "Tip it in",
+ * "this is the screen, not the data". So the duck is dry too. "8 km.
+ * Waddled." lands; "Quack! You waddled 8km today! 🦆" is a different app and
+ * a worse one, and it is the version everybody writes first.
+ *
+ * The line to hold: **the facts are untouched, only the framing is dressed.**
+ * "53 buildings and 1 piece of art. A balanced diet." embellishes the
+ * judgement and not one number. "Rome has opinions about cats" invents a
+ * fact, and the night this says one of those is the night nobody believes
+ * the counts either.
+ *
+ * Each angle carries several phrasings, and which one is used depends on how
+ * recently that angle has been used — so the second time you get told about
+ * your feet in a fortnight, it is not the same sentence about your feet.
+ */
+const nth = (list, n) => list[n % list.length]
+
+/** A sentence starts with a capital, and `top.word` is "buildings". */
+const Cap = (w) => (w ? w[0].toUpperCase() + w.slice(1) : w)
+
+/**
  * Every true thing about today, as a line, most surprising first.
  *
  * `weight` is roughly "how rarely does an evening look like this" — it
  * decides the order when nothing has been said recently, and it is the
  * reason a first visit beats a long walk beats a tally of buildings.
  */
-export function anglesFor(facts) {
+export function anglesFor(facts, seen = 0) {
   if (!facts) return []
   const out = []
-  const add = (shape, weight, text) => text && out.push({ shape, weight, text })
+  const add = (shape, weight, says) => {
+    const said = Array.isArray(says) ? nth(says.filter(Boolean), seen) : says
+    if (said) out.push({ shape, weight, text: said })
+  }
 
   const [top, second] = facts.ranked ?? []
   const rarest = [...(facts.ranked ?? [])].reverse().find((r) => r.n >= 1)
+  const where = facts.first_time?.[0]
 
-  add('first_time', 100, facts.first_time.length ? `${facts.first_time[0]}, for the first time.` : null)
+  add('first_time', 100, where && [
+    `A new pond. ${where}, for the first time.`,
+    `${where}. Never been. Now been.`,
+    `First time on this pond: ${where}.`,
+  ])
 
   if (facts.legs.length) {
     const l = facts.legs[0]
     const route = l.from && l.to ? `${l.from} to ${l.to}` : 'a flight'
-    add('flew', 90, `${route}${facts.photographs ? `, and ${plural(facts.photographs, 'photograph', 'photographs')} after it` : ''}.`)
+    const after = facts.photographs ? ` ${plural(facts.photographs, 'photograph', 'photographs')} on the other side.` : ''
+    add('flew', 90, [
+      `${route}. That is the hop done.${after}`,
+      `One hop, ${route}.${after}`,
+      `${route}, and then you did not sit down.`,
+    ])
   }
 
   for (const a of facts.activities ?? []) {
-    add('activity', 80, a.km ? `${a.km} km ${a.kind ?? 'run'}, on holiday. Steady.` : null)
+    add('activity', 80, a.km && [
+      `${a.km} km ${a.kind ?? 'run'}. On holiday. Show-off.`,
+      `${a.km} km, voluntarily, abroad.`,
+    ])
   }
 
   // The long day. Only worth saying when it really was one.
   const hours = spanHours(facts.from, facts.to)
-  add('long_day', 70, hours >= 12 ? `${facts.from} to ${facts.to}. ${Math.round(hours)} hours of it.` : null)
+  add('long_day', 70, hours >= 12 && [
+    `${facts.from} to ${facts.to}. Up with the ducks and down with them too.`,
+    `${Math.round(hours)} hours between the first photograph and the last.`,
+    `${facts.from}. You were up at ${facts.from}.`,
+  ])
 
-  add('feet', 55, facts.km_on_foot >= 8 ? `${facts.km_on_foot} km, and every one of them walked.` : null)
+  add('feet', 55, facts.km_on_foot >= 8 && [
+    `${facts.km_on_foot} km. Waddled.`,
+    `${facts.km_on_foot} km, and not one of them sitting down.`,
+    `${facts.km_on_foot} km on those little legs.`,
+  ])
 
   // The juxtaposition. Only when the gap is genuinely comic.
-  add(
-    'lopsided',
-    60,
-    top && rarest && top.subject !== rarest.subject && top.n >= 10 * rarest.n
-      ? `${plural(top.n, top.word, top.word)}. And ${plural(rarest.n, rarest.word, rarest.word)}.`
-      : null
-  )
+  add('lopsided', 60, top && rarest && top.subject !== rarest.subject && top.n >= 10 * rarest.n && [
+    `${plural(top.n, top.word, top.word)}. And ${plural(rarest.n, rarest.word, rarest.word)}. A balanced diet.`,
+    `${plural(top.n, top.word, top.word)}, ${plural(rarest.n, rarest.word, rarest.word)}. No notes.`,
+    `${plural(rarest.n, rarest.word, rarest.word)}. And ${plural(top.n, top.word, top.word)}. Priorities.`,
+  ])
 
   // The obsession, stated flatly, which is the joke.
-  add('fixation', 45, top && top.n >= 25 ? `${plural(top.n, top.word, top.word)} in one day.` : null)
+  add('fixation', 45, top && top.n >= 25 && [
+    `${plural(top.n, top.word, top.word)} in one day. You have a type.`,
+    `${top.n} ${top.word}. That is a lot of ${top.word}.`,
+    `Somebody liked the ${top.word} today.`,
+  ])
 
-  add('runner_up', 35, second && second.n >= 5 ? `Mostly ${top.word} today. Some ${second.word}.` : null)
+  add('runner_up', 35, second && second.n >= 5 && [
+    `Mostly ${top.word}. Some ${second.word}. Classic.`,
+    `${Cap(top.word)} and ${second.word}, in that order, all day.`,
+  ])
 
-  add('feet_modest', 30, facts.km_on_foot >= 2 ? `${facts.km_on_foot} km on your feet.` : null)
+  add('feet_modest', 30, facts.km_on_foot >= 2 && [
+    `${facts.km_on_foot} km on your feet.`,
+    `${facts.km_on_foot} km of pottering.`,
+  ])
 
-  add('tally', 20, facts.photographs >= 5 ? `${plural(facts.photographs, 'photograph', 'photographs')} today.` : null)
+  add('tally', 20, facts.photographs >= 5 && [
+    `${plural(facts.photographs, 'photograph', 'photographs')}. The pond is filling up.`,
+    `${facts.photographs} kept.`,
+    `${plural(facts.photographs, 'photograph', 'photographs')} today. Steady.`,
+  ])
 
   return out.sort((a, b) => b.weight - a.weight)
 }
@@ -110,7 +169,10 @@ function spanHours(from, to) {
  * @param recent  shapes used on the previous evenings, newest first
  */
 export function pushLine(facts, { recent = [] } = {}) {
-  const angles = anglesFor(facts)
+  // Built once to choose the shape, then rebuilt asking for the phrasing
+  // that shape has not had yet. Told about your feet twice in a fortnight,
+  // you get two different sentences about your feet.
+  const angles = anglesFor(facts, 0)
   if (!angles.length) return null
 
   const lately = recent.slice(0, REMEMBER)
@@ -128,7 +190,9 @@ export function pushLine(facts, { recent = [] } = {}) {
   }
   const chosen = fresh ?? [...angles].sort((a, b) => agoOf(b.shape) - agoOf(a.shape))[0]
 
-  return { shape: chosen.shape, text: chosen.text }
+  const usedBefore = recent.filter((s) => s === chosen.shape).length
+  const dressed = anglesFor(facts, usedBefore).find((a) => a.shape === chosen.shape)
+  return { shape: chosen.shape, text: (dressed ?? chosen).text }
 }
 
 /** For a run of days: each evening's line, avoiding what came before. */
