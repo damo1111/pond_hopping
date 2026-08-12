@@ -1,4 +1,4 @@
-import { useContext, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import { candidates } from '../lib/photoRouting.js'
@@ -63,6 +63,11 @@ export default function StartFromPhotos({ onDone, onClose }) {
   const [missed, setMissed] = useState(0)
   // Photographs the trip already had, so nothing is sent twice.
   const [already, setAlready] = useState(0)
+  // Set when the sheet goes away mid-upload. The loop checks it between
+  // photographs and stops, so nothing carries on writing into a trip
+  // somebody has walked away from.
+  const abandoned = useRef(false)
+  useEffect(() => () => { abandoned.current = true }, [])
 
   async function choose(e) {
     const picked = [...(e.target.files || [])]
@@ -190,6 +195,7 @@ export default function StartFromPhotos({ onDone, onClose }) {
       // time: this screen is showing a running count, and a truthful count is
       // worth more on a first run than a few seconds.
       for (const p of sending) {
+        if (abandoned.current) break
         try {
           // Each photograph gets a deadline, because the way this loop failed
           // was not an exception. Somebody watched it stop at "198 of 262":
@@ -213,6 +219,19 @@ export default function StartFromPhotos({ onDone, onClose }) {
           oops('photos', e, 'StartFromPhotos/upload')
         }
         setProgress({ done: ++done, total: sending.length, bytes, original, already: alreadyThere })
+      }
+
+      // A trip made a moment ago that never received a single photograph is
+      // not a trip. Closing the sheet part-way used to leave one behind, and
+      // it then turned up in the picker on the next attempt sitting next to
+      // the real one — "Trip from 12 Aug", "April 2026", "Test".
+      //
+      // Only when nothing landed, and only for a trip this run created. The
+      // loop has already stopped by here, so nothing is racing to write into
+      // what is about to be deleted.
+      if (abandoned.current && !into && done === 0) {
+        await supabase.from('trips').delete().eq('id', trip.id)
+        return
       }
 
       // Said rather than silently absorbed. A run that quietly drops eleven

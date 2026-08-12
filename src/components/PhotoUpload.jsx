@@ -4,7 +4,7 @@ import { HEAD_BYTES, ingest, runTotals } from '../lib/photoIngest.js'
 import { readExif } from '../lib/exif.js'
 import { savingsLabel } from '../lib/photoResize.js'
 import { clusterPhotos, looksOngoing, slugify, suggestTitle } from '../lib/tripFromPhotos.js'
-import { UNDATED, describeRow, newTripCount, planUpload, readyToUpload } from '../lib/photoPlan.js'
+import { UNDATED, describeRow, newTripCount, pickerFor, planUpload, readyToUpload } from '../lib/photoPlan.js'
 import Icon from './Icon.jsx'
 import { oops, tookMs, track } from '../lib/analytics.js'
 
@@ -40,6 +40,43 @@ async function readDates(files) {
     }
   }
   return meta
+}
+
+/**
+ * Where these photographs should go.
+ *
+ * Every trip is offered — nothing is hidden — but in the order they are worth
+ * offering: the ones whose days these photographs actually fall in first,
+ * best fit at the top, then everything else by how recent it is. Nineteen
+ * names in arrival order, several of them empty trips left behind by
+ * abandoned uploads, is not a choice anybody can make.
+ */
+function TripChoice({ row, trips, onPick }) {
+  const { fits, rest } = pickerFor(row, trips)
+  const name = (t) => (t.is_demo ? `${t.title} — example` : t.title)
+  return (
+    <select value={row.tripId ?? ''} onChange={(e) => onPick(e.target.value)}>
+      {row.kind === UNDATED ? (
+        <option value="">pick a trip…</option>
+      ) : (
+        <option value="">a new trip</option>
+      )}
+      {fits.length > 0 && (
+        <optgroup label="These days">
+          {fits.map((t) => (
+            <option key={t.id} value={t.id}>{name(t)}</option>
+          ))}
+        </optgroup>
+      )}
+      {rest.length > 0 && (
+        <optgroup label={fits.length ? 'Other trips' : 'Your trips'}>
+          {rest.map((t) => (
+            <option key={t.id} value={t.id}>{name(t)}</option>
+          ))}
+        </optgroup>
+      )}
+    </select>
+  )
 }
 
 export default function PhotoUpload({ trip, trips = [], traveler = null, onDone }) {
@@ -170,18 +207,7 @@ export default function PhotoUpload({ trip, trips = [], traveler = null, onDone 
               {/* Shown for every row, not only the ones in doubt — the
                   cheapest moment to move two hundred photographs is before
                   they have gone anywhere. */}
-              <select value={row.tripId ?? ''} onChange={(e) => setRowTrip(row.key, e.target.value)}>
-                {row.kind === UNDATED ? (
-                  <option value="">pick a trip…</option>
-                ) : (
-                  <option value="">a new trip</option>
-                )}
-                {trips.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.is_demo ? `${t.title} — example` : t.title}
-                  </option>
-                ))}
-              </select>
+              <TripChoice row={row} trips={trips} onPick={(id) => setRowTrip(row.key, id)} />
             </div>
           ))}
 

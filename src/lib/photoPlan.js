@@ -9,7 +9,7 @@
 // arithmetic, and because "what would this upload do" is a question worth
 // being able to ask without a phone, a camera and a holiday.
 
-import { describeRoute, routeClusters } from './photoRouting.js'
+import { candidates, describeRoute, routeClusters } from './photoRouting.js'
 
 /**
  * Photos routed through WhatsApp, Slack or Google Photos routinely arrive
@@ -86,4 +86,35 @@ export function readyToUpload(rows = []) {
  */
 export function newTripCount(rows = []) {
   return rows.filter((r) => r.kind === 'run' && !r.tripId && !r.unresolved).length
+}
+
+/**
+ * The trips to offer for one row, in the order they are worth offering.
+ *
+ * The picker listed every trip in whatever order they arrived — nineteen of
+ * them, including the empty ones left behind by abandoned uploads — so
+ * choosing where two hundred photographs should go meant reading a list of
+ * names with no relation to the dates in front of you. David, 12 August:
+ * "why am i seeing the full list?"
+ *
+ * Nothing is hidden. The trips whose days these photographs actually fall in
+ * come first, best fit at the top, and everything else follows by how recent
+ * it is — because if the dates do not help, the thing you were looking at
+ * lately probably does. Examples go last: they belong to somebody else, and
+ * picking one publishes your photographs into their trip.
+ */
+export function pickerFor(row, trips = []) {
+  const all = (trips ?? []).filter(Boolean)
+  const cluster = row?.route?.cluster ?? null
+  const fits = cluster ? candidates(cluster, all).map((c) => c.trip) : []
+  const taken = new Set(fits.map((t) => t.id))
+
+  const rest = all
+    .filter((t) => !taken.has(t.id))
+    .sort((a, b) => {
+      if (!!a.is_demo !== !!b.is_demo) return a.is_demo ? 1 : -1
+      return String(b.start_date ?? '').localeCompare(String(a.start_date ?? ''))
+    })
+
+  return { fits, rest }
 }
