@@ -70,7 +70,13 @@ export const shouldBadge = (trip) => isDemo(trip)
 export const STEPS = [
   {
     id: 'welcome',
-    anchor: '.wt-card',
+    // NOT '.wt-card'. That is the class on every card in the rail, and
+    // querySelector returns the first one in the document — which is the
+    // "Add a trip" tile, because it comes first. So the tour spent its whole
+    // life drawing a ring around "Add a trip" while reading out "a real trip,
+    // parked here so the place isn't empty". The one selector in the file
+    // that had to be specific was the one that was not.
+    anchor: '.wt-card--demo',
     title: 'Someone else’s pond',
     body: 'A real trip, parked here so the place isn’t empty when you turn up. Have a paddle round — it’s properly finished, photos and all. Then it clears off.',
   },

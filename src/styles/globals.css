@@ -1776,15 +1776,33 @@ button {
   text-align: center;
 }
 
+/* A spotter photograph arrives at about 3:2, and at the width of a flight
+   card that is a very tall block — the aeroplane ends up bigger than the
+   route, the map and the registration put together, which is the wrong way
+   round on a card that is mostly about a journey.
+
+   Letterboxed to 2:1 rather than scaled down, because the interesting part
+   of one of these is a horizontal band across the middle: fuselage, tail,
+   engines. Cropping takes sky off the top and tarmac or cloud off the
+   bottom and leaves the aeroplane the same size it was. Scaling would have
+   shrunk the thing an av-geek opened the card for.
+
+   2:1 and not tighter: spotters shoot aircraft banking, climbing and high
+   in the frame, and a 2.4:1 crop starts clipping wingtips on the ones taken
+   from below. */
 .photo-link {
   display: block;
   position: relative;
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
 }
 
 .photo-link img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 .photo-credit {

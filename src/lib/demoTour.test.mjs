@@ -53,7 +53,13 @@ test('ownTrips is the negative of the demo flag, not a count of content', () => 
 })
 
 test('steps with no anchor on screen are skipped rather than pointing at nothing', () => {
-  const doc = { querySelector: (sel) => (sel === '.wt-card' ? {} : null) }
+  // Read the selector off the step rather than writing it out here. The
+  // hard-coded '.wt-card' in the first version of this test went on passing
+  // after the welcome step was re-anchored to '.wt-card--demo', which is the
+  // same class of mistake the re-anchoring fixed: a string that has to match
+  // something elsewhere and nothing checks that it still does.
+  const welcome = STEPS.find((s) => s.id === 'welcome')
+  const doc = { querySelector: (sel) => (sel === welcome.anchor ? {} : null) }
   const shown = visibleSteps(doc)
   assert.equal(shown.length, 1)
   assert.equal(shown[0].id, 'welcome')
