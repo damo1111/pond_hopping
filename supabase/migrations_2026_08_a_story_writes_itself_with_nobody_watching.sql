@@ -59,12 +59,31 @@ begin
     select r.trip_id, r.stage, r.seen, r.to_see, r.started_at
       from public.story_runs r
      where r.finished_at is null
-       and r.stage <> 'done'
+       -- `is distinct from` and not `<>`: a freshly claimed run has no stage
+       -- yet, and `null <> 'done'` is null, which excludes the row. A run
+       -- that has only just started is exactly the one most needing work.
+       and r.stage is distinct from 'done'
        and (r.tick_at is null or r.tick_at < now() - interval '2 minutes')
-       -- A run nothing has touched for a quarter of an hour is abandoned, and
-       -- claim_story_run() will let somebody take it over. Not this worker's
-       -- to keep flogging.
-       and r.started_at > now() - interval '15 minutes'
+       -- The comment that used to sit here said "a run nothing has touched
+       -- for a quarter of an hour is abandoned" — which is the right rule,
+       -- and it was written against the wrong column. It tested started_at,
+       -- so the bound was on how long a run had been going rather than on
+       -- how long it had been silent.
+       --
+       -- The reading is ten photographs a tick and one tick a minute, so
+       -- fifteen minutes buys a hundred and fifty photographs. Thailand has
+       -- two hundred and thirty-nine: at 05:27 it began, at 05:42 it had read
+       -- fifty, and the ticker stopped offering it work. It sat in `seeing`
+       -- for ever with no error and no note. Every trip larger than about a
+       -- hundred and fifty photographs was unwritable, and the small ones
+       -- finished, which is why it looked like one trip misbehaving.
+       --
+       -- Silence is already bounded by the tick_at condition above and by
+       -- claim_story_run(), which lets a quiet claim be taken over. This is
+       -- only an outer ceiling so a genuinely wedged run is not poked until
+       -- the end of time — three hours is about eighteen hundred
+       -- photographs, more than any holiday and far less than for ever.
+       and r.started_at > now() - interval '3 hours'
      order by r.started_at
      limit 20;
 end $$;
