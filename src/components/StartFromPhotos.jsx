@@ -15,7 +15,7 @@ import {
   summarise,
 } from '../lib/tripFromPhotos.js'
 import SheetGrip from './SheetGrip.jsx'
-import { track } from '../lib/analytics.js'
+import { oops, track } from '../lib/analytics.js'
 
 // "I've already been somewhere."
 //
@@ -118,21 +118,35 @@ export default function StartFromPhotos({ onDone, onClose }) {
     try {
       let trip = into
       if (!trip) {
-        const { data, error: tripErr } = await supabase
-          .from('trips')
-          .insert({
-            slug: slugify(title, start),
-            title: title.trim() || suggestTitle(cluster),
-            start_date: start,
-            end_date: end || null,
-            countries: [],
-            status: 'confirmed',
-            sort_order: 0,
-          })
-          .select('id,slug')
-          .single()
-        if (tripErr || !data) throw tripErr || new Error('The trip could not be created.')
-        trip = data
+        const row = {
+          title: title.trim() || suggestTitle(cluster),
+          start_date: start,
+          end_date: end || null,
+          countries: [],
+          status: 'confirmed',
+          sort_order: 0,
+        }
+        // Slugs are deterministic, so the same photographs picked twice ask
+        // for the same one — which is exactly what happens when an upload is
+        // closed part-way and started again, because the first attempt has
+        // already made the trip. That surfaced as the raw Postgres text
+        // `duplicate key value violates unique constraint "trips_slug_key"`
+        // sitting under the button, which tells a hopper nothing and looks
+        // like the app is broken.
+        //
+        // One retry with a tail on the slug. Not a random slug every time:
+        // the trip should be allowed to be the same trip on a second go.
+        let made = await supabase.from('trips').insert({ ...row, slug: slugify(title, start) })
+          .select('id,slug').single()
+        if (made.error?.code === '23505') {
+          made = await supabase.from('trips').insert({ ...row, slug: slugify(title, start, Date.now()) })
+            .select('id,slug').single()
+        }
+        if (made.error || !made.data) {
+          oops('photos', made.error ?? new Error('no trip row'), 'StartFromPhotos/trip')
+          throw new Error('That trip would not save. Worth trying again.')
+        }
+        trip = made.data
       }
 
       let done = 0

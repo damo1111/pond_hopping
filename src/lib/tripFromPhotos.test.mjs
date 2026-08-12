@@ -162,3 +162,20 @@ test('a single-day trip reads as one date, not a range', () => {
   assert.equal(clusters[0].start, clusters[0].end)
   assert.doesNotMatch(summarise(clusters[0]), /–/)
 })
+
+// An upload closed part-way has already made the trip, so starting again
+// produced the identical slug and the insert failed on trips_slug_key.
+test('the same photos twice describe the same trip', () => {
+  assert.equal(slugify('April 2026', '2026-04-02'), slugify('April 2026', '2026-04-02'))
+})
+
+test('and a tie can be broken without changing what it is called', () => {
+  const first = slugify('April 2026', '2026-04-02')
+  const second = slugify('April 2026', '2026-04-02', 1786510000000)
+  assert.notEqual(first, second)
+  assert.ok(second.startsWith(first), second)
+})
+
+test('two tie-breaks in the same run are still different', () => {
+  assert.notEqual(slugify('X', '2026-04-02', 1), slugify('X', '2026-04-02', 2))
+})

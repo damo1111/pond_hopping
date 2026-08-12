@@ -6,6 +6,7 @@ import StartFromPhotos from './StartFromPhotos.jsx'
 import StartNow from './StartNow.jsx'
 import StartFromTimeline from './StartFromTimeline.jsx'
 import StartFromPaste from './StartFromPaste.jsx'
+import ConnectAI from './ConnectAI.jsx'
 import SheetGrip from './SheetGrip.jsx'
 
 // Every road into this app already existed. Every one of them was behind a
@@ -129,6 +130,10 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
     return <StartFromPaste onDone={(t) => setMade(t ?? true)} onClose={close} />
   }
 
+  if (route === 'ai') {
+    return <ConnectAI url={mcpUrl} onClose={close} />
+  }
+
   return (
     <div className="ios-sheet-overlay" onClick={onClose}>
       <div className="ios-sheet gti" onClick={(e) => e.stopPropagation()}>
@@ -192,11 +197,9 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
           </button>
 
           {mcpUrl && (
-            <button className="gti-quiet" onClick={() => copy('mcp', mcpUrl)}>
+            <button className="gti-quiet" onClick={gate('ai', () => setRoute('ai'))}>
               <span className="gti-quiet-name">Let your AI do it</span>
-              <span className="gti-quiet-hint">
-                {copied === 'mcp' ? 'Copied' : 'Copy connector URL'}
-              </span>
+              <span className="gti-quiet-hint">Claude, ChatGPT or Gemini</span>
             </button>
           )}
         </div>

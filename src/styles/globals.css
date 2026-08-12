@@ -11016,3 +11016,151 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   color: var(--text-muted);
   margin: -8px 0 14px;
 }
+
+/* ── Let your AI do it ────────────────────────────────────────────────
+   Four steps, because a connector URL on its own needs four pieces of
+   knowledge the app never supplied. */
+.ai-sheet {
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+.ai-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.ai-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--surface-2);
+}
+
+.ai-dot.done { background: var(--accent); opacity: 0.4; }
+.ai-dot.on { background: var(--accent); width: 18px; border-radius: 3px; }
+
+.ai-can {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.ai-can li {
+  position: relative;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.ai-can li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* The URL. Shown in full rather than behind a "copy" button alone: somebody
+   who cannot use the clipboard needs to be able to select it, and somebody
+   who can still wants to see what they are handing over. */
+.ai-url {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: inherit;
+  cursor: pointer;
+}
+
+.ai-url-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  word-break: break-all;
+  color: var(--text-muted);
+}
+
+.ai-url-do {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.ai-wheres {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.ai-where {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 14px;
+}
+
+.ai-where + .ai-where { border-top: 1px solid var(--border); }
+.ai-where-name { font-size: 14px; }
+
+.ai-where-path {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.ai-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  text-wrap: pretty;
+}
+
+/* The step people stop at, with the words ready to take. */
+.ai-asks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ai-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ai-ask-say { font-size: 13px; line-height: 1.45; text-wrap: pretty; }
+.ai-ask-why { font-size: 11px; color: var(--text-muted); }
