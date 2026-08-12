@@ -11164,3 +11164,25 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 
 .ai-ask-say { font-size: 13px; line-height: 1.45; text-wrap: pretty; }
 .ai-ask-why { font-size: 11px; color: var(--text-muted); }
+
+/* The remove button, at the top where the count it belongs to is.
+   Sixty-six groups is a very long way to scroll to find out what it says —
+   and the number at the bottom was a different number from the one at the
+   top, which is the other half of that bug. */
+.fd-actions--top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 12px;
+  padding: 10px 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+/* A run already under way is not a fault. It was being drawn in the same red
+   as a crash, directly above a line saying the photographs were on number
+   thirty of ninety — the most reassuring fact on the screen, presented as
+   the least. */
+.story-trouble--calm {
+  color: var(--text-muted);
+}

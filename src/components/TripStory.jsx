@@ -62,6 +62,9 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   // screen, and the story is several thousand words of it.
   const [open, setOpen] = useState(false)
   const [trouble, setTrouble] = useState(null)
+  // Whether the last thing that went wrong was actually a fault. A run
+  // already in progress is news, not a breakage, and should not be red.
+  const [calm, setCalm] = useState(false)
   const [story, setStory] = useState(null)
   const [questions, setQuestions] = useState([])
   const [entries, setEntries] = useState([])
@@ -225,12 +228,14 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   // is the case this used to have no answer for at all.
   async function itself() {
     setTrouble(null)
+    setCalm(false)
     try {
       const auth = await token()
       if (!auth) return
       await build(auth)
     } catch (e) {
       setTrouble(e.message)
+      setCalm(!!e.calm)
       setStep('idle')
     }
   }
@@ -257,14 +262,37 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     if (r.ok) return r.json()
 
     const said = await r.text().catch(() => '')
-    oops('story', { message: `${where} answered ${r.status}` }, said.slice(0, 300))
     let why = ''
+    let answer = null
     try {
-      why = JSON.parse(said)?.error ?? ''
+      answer = JSON.parse(said)
+      why = answer?.error ?? ''
     } catch {
       // Not JSON. A gateway timeout looks exactly like this.
       why = ''
     }
+
+    // A run already going is not a fault, and it was being reported as one:
+    // a red line reading "this trip is already being written", raised at the
+    // moment somebody could see, above it, that their photographs were on
+    // number thirty of ninety. It is the most reassuring fact on the screen
+    // being presented as the least.
+    //
+    // Not logged either — an app_errors row per impatient tap buries the
+    // faults that are real.
+    if (r.status === 409) {
+      const started = answer?.since ? Date.parse(answer.since) : NaN
+      const mins = Number.isFinite(started) ? Math.round((Date.now() - started) / 60000) : null
+      const busy = new Error(
+        mins != null && mins >= 1
+          ? `Already writing this one — ${mins} minute${mins === 1 ? '' : 's'} in. You can close the app.`
+          : 'Already writing this one. You can close the app.',
+      )
+      busy.calm = true
+      throw busy
+    }
+
+    oops('story', { message: `${where} answered ${r.status}` }, said.slice(0, 300))
     if (r.status === 504 || /timed? ?out|FUNCTION_INVOCATION_TIMEOUT/i.test(said)) {
       throw new Error(`${where} ran out of time — it is taking longer than a minute a batch`)
     }
@@ -311,12 +339,14 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   // So this asks, and stops. Closing the app now costs nothing at all.
   async function make() {
     setTrouble(null)
+    setCalm(false)
     try {
       const auth = await token()
       if (!auth) throw new Error('Sign in first.')
       await build(auth)
     } catch (e) {
       setTrouble(e.message)
+      setCalm(!!e.calm)
       setStep('idle')
     }
   }
@@ -355,12 +385,14 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
    *  answer reaches the stage that decides what the evening was. */
   async function carryOn() {
     setTrouble(null)
+    setCalm(false)
     try {
       const auth = await token()
       if (!auth) throw new Error('Sign in first.')
       await build(auth)
     } catch (e) {
       setTrouble(e.message)
+      setCalm(!!e.calm)
       setStep('idle')
     }
   }
@@ -436,7 +468,7 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       <div className="story">
         <div className="story-doing">{howFar(doing, read, all)}</div>
         {asks}
-        {trouble && <div className="story-trouble">{trouble}</div>}
+        {trouble && <div className={`story-trouble${calm ? ' story-trouble--calm' : ''}`}>{trouble}</div>}
         {written && <div className="story-sofar">{written}</div>}
       </div>
     )
@@ -468,7 +500,7 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
             <span className="story-open-mark">−</span>
           </button>
         )}
-        {trouble && <div className="story-trouble">{trouble}</div>}
+        {trouble && <div className={`story-trouble${calm ? ' story-trouble--calm' : ''}`}>{trouble}</div>}
       </div>
     )
   }
@@ -482,7 +514,7 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       </div>
       {trouble && (
         <>
-          <div className="story-trouble">{trouble}</div>
+          <div className={`story-trouble${calm ? ' story-trouble--calm' : ''}`}>{trouble}</div>
           <button className="story-go" onClick={itself}>
             try again
           </button>
