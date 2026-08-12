@@ -11186,3 +11186,86 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .story-trouble--calm {
   color: var(--text-muted);
 }
+
+/* ── How are we doing ─────────────────────────────────────────────────
+   Admin only. Built to make a thin number look thin: the count is always
+   there, the rate only when there is enough underneath it. */
+.kpi-span {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.kpi-span-chip {
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.kpi-span-chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.kpi-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.kpi {
+  display: grid;
+  grid-template-columns: 1fr auto 46px;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 0;
+}
+
+.kpi + .kpi { border-top: 1px solid var(--border); }
+
+.kpi-what {
+  font-size: 13px;
+  min-width: 0;
+}
+
+.kpi-num {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.kpi-num b {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* The denominator, always. A rate without one is unreadable — 40% means
+   very different things at five sessions and at five hundred. */
+.kpi-of {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.kpi-moved {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-align: right;
+  color: var(--text-muted);
+}
+
+/* Green for better and red for worse — which is not the same as up and down.
+   Bounce and breakage get worse as they get bigger, and kpis.js has already
+   worked out which way is which. */
+.kpi-moved.up { color: #3E7D54; }
+.kpi-moved.down { color: #B4472F; }
+
+.kpi-note { font-size: 11px; }

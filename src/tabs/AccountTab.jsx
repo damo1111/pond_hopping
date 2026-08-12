@@ -24,6 +24,7 @@ import { TripContext } from '../App.jsx'
 import { demoSwitchNote, hiddenByArrival } from '../lib/demoVisibility.js'
 import { ownTrips } from '../lib/demoTour.js'
 import { remember, waiting, forget, resendIn } from '../lib/pendingCode.js'
+import { readAll, ENOUGH } from '../lib/kpis.js'
 
 const ROLES = [
   { id: 'family', label: 'Family' },
@@ -478,6 +479,86 @@ function whenish(iso) {
   const hours = Math.round(mins / 60)
   if (hours < 24) return `${hours}h ago`
   return `${Math.round(hours / 24)}d ago`
+}
+
+// The product numbers, out of the events that were already being written.
+//
+// app_events had been collecting for months and nothing had ever read it —
+// so the app could say what had broken and could not say whether anybody was
+// using it, whether they got anywhere, or whether the thing they came for
+// worked. David, 12 August: bounce as an experiment metric can wait, "but
+// measuring bounce and product KPIs is" essential.
+//
+// Admin only, like BrokenCard: how_are_we_doing() refuses anybody else and
+// returns no rows, which is indistinguishable from a quiet week — so the
+// card checks separately before deciding to exist at all.
+function NumbersCard() {
+  const [admin, setAdmin] = useState(false)
+  const [days, setDays] = useState(28)
+  const [rows, setRows] = useState(null)
+
+  useEffect(() => {
+    supabase.rpc('is_admin').then(({ data }) => setAdmin(data === true))
+  }, [])
+
+  useEffect(() => {
+    if (!admin) return
+    setRows(null)
+    supabase.rpc('how_are_we_doing', { p_days: days }).then(({ data }) => setRows(data ?? []))
+  }, [admin, days])
+
+  if (!admin) return null
+
+  const read = readAll(rows ?? [])
+
+  return (
+    <section className="account-card">
+      <div className="account-card-title">How are we doing</div>
+      <div className="kpi-span">
+        {[7, 28, 90].map((n) => (
+          <button
+            key={n}
+            className={`kpi-span-chip${days === n ? ' active' : ''}`}
+            onClick={() => setDays(n)}
+          >
+            {n} days
+          </button>
+        ))}
+      </div>
+
+      {rows === null ? (
+        <div className="account-card-body">Counting…</div>
+      ) : (
+        <ul className="kpi-list">
+          {read.map((m) => (
+            <li key={m.key} className="kpi">
+              <span className="kpi-what">{m.label}</span>
+              <span className="kpi-num">
+                {/* The count is always shown. The rate is shown only when
+                    there is enough underneath it to mean anything — see
+                    kpis.js. "1 of 1" is not a 100% activation rate, and it
+                    is exactly the number a dashboard would shout about. */}
+                <b>{m.enough && m.percent ? m.percent : m.n.toLocaleString('en-GB')}</b>
+                {m.of ? (
+                  <span className="kpi-of">
+                    {m.enough ? `${m.n} of ${m.d}` : `${m.n} of ${m.d} — too few to call`}
+                  </span>
+                ) : null}
+              </span>
+              <span className={`kpi-moved${m.better === true ? ' up' : m.better === false ? ' down' : ''}`}>
+                {m.moved == null ? '' : `${m.moved > 0 ? '+' : ''}${m.moved}${m.of ? 'pp' : '%'}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="account-card-body kpi-note">
+        Against the {days} days before. A rate is only stated once there are at
+        least {ENOUGH} behind it.
+      </div>
+    </section>
+  )
 }
 
 // Which trips the whole app offers as its example. Only whoever runs the
@@ -1185,6 +1266,7 @@ function SignedIn() {
 
       <DemoCard />
       <BrokenCard />
+      <NumbersCard />
       <ExamplesCard />
       <OriginalsCard />
       <PushCard />
