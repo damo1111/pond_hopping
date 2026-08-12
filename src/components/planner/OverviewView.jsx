@@ -9,6 +9,7 @@ import { coverUrl } from '../../lib/imgTransform.js'
 import { TimelineItem, SpanRow } from './ItineraryView.jsx'
 import Concierge from './Concierge.jsx'
 import GmailImport from './GmailImport.jsx'
+import Travellers from './Travellers.jsx'
 import Icon from '../Icon.jsx'
 import { uploadCover } from '../../lib/photoIngest.js'
 import { oops } from '../../lib/analytics.js'
@@ -252,6 +253,9 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
         ))}
         {events.length === 0 && <div className="ov-empty">Nothing planned yet — head to Itinerary or ask the AI planner.</div>}
       </div>
+
+      {/* Who came. Not the sharing screen — see Travellers.jsx. */}
+      <Travellers trip={trip} />
 
       {trip.start_date && trip.end_date && (
         <button className="ov-import" onClick={() => setImporting(true)}>
