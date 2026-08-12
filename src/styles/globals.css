@@ -11459,13 +11459,27 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   color: #fff;
 }
 
+/* Both marks are matched on *height* rather than boxed into a square. The
+   Apple mark is a tall silhouette and Google's is a round G that fills its
+   own box; sized to the same width, Apple's would read as the smaller of the
+   two. Same cap height is what the eye actually compares. */
 .way-mark {
-  font-size: 15px;
-  line-height: 1;
-  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 19px;
+  height: 18px;
+  /* Deliberately sets no colour of its own. The Apple path is currentColor,
+     so it inherits the button's — white on `.way--apple`, which is black —
+     and setting it here to the page's ink painted a black mark on a black
+     button, which measures perfectly and is invisible. */
 }
 
-.way--google .way-mark { color: var(--accent); font-family: var(--font-mono); }
+.way-mark svg {
+  display: block;
+  height: 18px;
+  width: auto;
+}
 
 /* Which one they used last. Not because it is better — because "which of
    these did I use?" is the single most common way somebody ends up with two
