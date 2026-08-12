@@ -40,19 +40,44 @@ export default function FindDuplicates({ photos = [], onDone, autoStart = false 
   const [groups, setGroups] = useState([])
   const [drop, setDrop] = useState(() => new Set())
   const [trouble, setTrouble] = useState(null)
+  // How many actually went, for the sentence afterwards — groups is cleared.
+  const [removed, setRemoved] = useState(0)
 
-  const unhashed = photos.filter((p) => !p.phash)
+  // What the run is actually comparing. Starts as whatever was handed in and
+  // is replaced by a fresh read the moment a run begins — see look().
+  const [pool, setPool] = useState(photos)
+  const unhashed = pool.filter((p) => !p.phash)
 
   async function look() {
     setPhase('hashing')
     setTrouble(null)
     setDone(0)
 
-    const hashed = new Map(photos.filter((p) => p.phash).map((p) => [p.id, p.phash]))
+    // Read again rather than trusting the list this was handed.
+    //
+    // That list was fetched when the tab mounted. Uploading two hundred and
+    // sixty photographs and then looking for duplicates compares the ones
+    // that were there *before* the upload — so a first run found some, a
+    // reload found sixty-six more, and it looked like the comparison was
+    // unreliable. It was not; it was answering a question about a list that
+    // had moved on.
+    let looking = photos
+    if (photos[0]?.trip_id) {
+      const { data } = await supabase
+        .from('photos')
+        .select('id,trip_id,url,thumb_url,phash,lat,lon,taken_at')
+        .eq('trip_id', photos[0].trip_id)
+        .neq('kind', 'receipt')
+      if (data?.length) looking = data
+    }
+    setPool(looking)
+
+    const hashed = new Map(looking.filter((p) => p.phash).map((p) => [p.id, p.phash]))
+    const toHash = looking.filter((p) => !p.phash)
     let seen = 0
 
-    for (let i = 0; i < unhashed.length; i += AT_ONCE) {
-      const slice = unhashed.slice(i, i + AT_ONCE)
+    for (let i = 0; i < toHash.length; i += AT_ONCE) {
+      const slice = toHash.slice(i, i + AT_ONCE)
       const results = await Promise.all(
         slice.map(async (p) => {
           try {
@@ -73,7 +98,7 @@ export default function FindDuplicates({ photos = [], onDone, autoStart = false 
       setDone(seen)
     }
 
-    const withHash = photos.map((p) => ({ ...p, phash: hashed.get(p.id) ?? p.phash ?? null }))
+    const withHash = looking.map((p) => ({ ...p, phash: hashed.get(p.id) ?? p.phash ?? null }))
     const found = groupSame(withHash)
     // Everything except the keeper, ticked — that is the common case, and
     // the keeper is shown beside them so the proposal can be seen rather
@@ -99,6 +124,14 @@ export default function FindDuplicates({ photos = [], onDone, autoStart = false 
         return
       }
     }
+    // Taken out of what this run is holding as well as out of the table, so
+    // running it again immediately compares what is actually there rather
+    // than proposing the same removals a second time.
+    const gone = new Set(ids)
+    setPool((list) => list.filter((p) => !gone.has(p.id)))
+    setGroups([])
+    setDrop(new Set())
+    setRemoved(ids.length)
     setPhase('done')
     onDone?.(ids.length)
   }
@@ -128,6 +161,9 @@ export default function FindDuplicates({ photos = [], onDone, autoStart = false 
     )
   }
 
+  // How many photographs would go, as opposed to how many sets there are.
+  const copies = groups.reduce((n, g) => n + g.length - 1, 0)
+
   if (phase === 'hashing') {
     return (
       <div className="fd">
@@ -145,7 +181,9 @@ export default function FindDuplicates({ photos = [], onDone, autoStart = false 
     return (
       <div className="fd">
         <div className="fd-note">
-          {groups.length ? 'Done — the copies are gone.' : 'No duplicates. Every picture in here is its own.'}
+          {removed
+            ? `Done — ${removed} ${removed === 1 ? 'copy is' : 'copies are'} gone.`
+            : 'No duplicates. Every picture in here is its own.'}
         </div>
         {trouble && <div className="fd-trouble">{trouble}</div>}
       </div>
@@ -154,9 +192,29 @@ export default function FindDuplicates({ photos = [], onDone, autoStart = false 
 
   return (
     <div className="fd fd--review">
+      {/* Two numbers, said as two numbers.
+          The heading used to read "66 pictures in here more than once" and
+          the button at the bottom said "Remove 77" — one was counting sets
+          and the other was counting photographs, and both were labelled
+          pictures. Somebody scrolling sixty-six groups to reach the button
+          watched the number change under them. */}
       <div className="fd-head">
-        {groups.length} picture{groups.length === 1 ? '' : 's'} in here more than once.
+        {groups.length} picture{groups.length === 1 ? '' : 's'}{groups.length === 1 ? ' has' : ' have'}{' '}
+        {copies === 1 ? 'a copy' : 'copies'}.
       </div>
+
+      {/* And the action sits at the top, where the count it belongs to is.
+          Sixty-six groups is a long way to scroll to find out what the
+          button says. */}
+      <div className="fd-actions fd-actions--top">
+        <button className="fd-cancel" onClick={() => setPhase('done')}>
+          leave them
+        </button>
+        <button className="fd-save" disabled={!drop.size || phase === 'removing'} onClick={remove}>
+          {phase === 'removing' ? 'removing…' : `Remove ${drop.size}`}
+        </button>
+      </div>
+
       <div className="fd-note fd-note--left">
         The one kept is the one that still knows when and where it was taken — a stylised export has
         had that thrown away on the way out. Tap any to change your mind.

@@ -9,7 +9,10 @@ import { coverUrl } from '../../lib/imgTransform.js'
 import { TimelineItem, SpanRow } from './ItineraryView.jsx'
 import Concierge from './Concierge.jsx'
 import GmailImport from './GmailImport.jsx'
+import Travellers from './Travellers.jsx'
 import Icon from '../Icon.jsx'
+import { uploadCover } from '../../lib/photoIngest.js'
+import { oops } from '../../lib/analytics.js'
 
 function nights(a, b) {
   if (!a || !b) return null
@@ -54,12 +57,33 @@ async function fetchDestinationPhoto(trip, events) {
 export default function OverviewView({ trip, events, onEditEvent, onEventsChange, onAskAI, onAdded, onCover }) {
   const [cover, setCover] = useState(null)
   const [importing, setImporting] = useState(false)
-  const [coverDraft, setCoverDraft] = useState(null)
+  // Uploading, or the reason it didn't. The URL box this replaced needed a
+  // draft string; a file picker needs neither — the file is chosen in one
+  // gesture and there is nothing to hold on to between.
+  const [adding, setAdding] = useState(false)
+  const [coverTrouble, setCoverTrouble] = useState(null)
+  const coverInput = useRef(null)
+
+  async function pickCover(file) {
+    if (!file) return
+    setCoverTrouble(null)
+    setAdding(true)
+    try {
+      // Shrunk on the phone first, like every other photograph the app
+      // takes — a 12MP cover is four seconds of upload for a picture that
+      // is about to be drawn 390px wide behind a gradient.
+      await saveCover(await uploadCover(file, trip.id))
+    } catch (e) {
+      setCoverTrouble(e?.message ? 'That picture would not go up. Try another.' : 'That did not work.')
+      oops('cover', e, 'OverviewView')
+    } finally {
+      setAdding(false)
+    }
+  }
 
   async function saveCover(url) {
     const next = url.trim() || null
     setCover(next)
-    setCoverDraft(null)
     await supabase.from('photo_cache').upsert({
       trip_id: trip.id,
       urls: next ? [next] : [],
@@ -170,9 +194,10 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
         <div className="ov-hero-shade" />
         <button
           className="ov-hero-pick"
-          onClick={() => setCoverDraft(cover || '')}
-          aria-label="Change trip photo"
-          title="Change trip photo"
+          onClick={() => coverInput.current?.click()}
+          disabled={adding}
+          aria-label="Choose a photo for this trip"
+          title="Choose a photo for this trip"
         >
           {/* Was the emoji ⛰ (U+26F0), which has *text* presentation by
               default — no variation selector, so Android draws a bare
@@ -194,26 +219,26 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
         </div>
       </div>
 
-      {coverDraft !== null && (
-        <form
-          className="ov-cover-edit"
-          onSubmit={(e) => {
-            e.preventDefault()
-            saveCover(coverDraft)
-          }}
-        >
-          <input
-            className="plan-input"
-            autoFocus
-            value={coverDraft}
-            placeholder="Paste an image URL — anything you have the right to use"
-            onChange={(e) => setCoverDraft(e.target.value)}
-          />
-          <button type="submit" className="ov-cover-save">Use it</button>
-          <button type="button" className="ov-cover-cancel" onClick={() => setCoverDraft(null)}>
-            Cancel
-          </button>
-        </form>
+      {/* The picker itself. Kept out of the hero button so the button stays a
+          button and the input stays invisible on every platform. */}
+      <input
+        ref={coverInput}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          // Cleared before the upload, so choosing the same file twice in a
+          // row still fires a change event the second time.
+          e.target.value = ''
+          pickCover(file)
+        }}
+      />
+
+      {(adding || coverTrouble) && (
+        <div className="ov-cover-note">
+          {adding ? 'Adding your picture…' : coverTrouble}
+        </div>
       )}
 
       <div className="ov-stats">
@@ -228,6 +253,9 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
         ))}
         {events.length === 0 && <div className="ov-empty">Nothing planned yet — head to Itinerary or ask the AI planner.</div>}
       </div>
+
+      {/* Who came. Not the sharing screen — see Travellers.jsx. */}
+      <Travellers trip={trip} />
 
       {trip.start_date && trip.end_date && (
         <button className="ov-import" onClick={() => setImporting(true)}>

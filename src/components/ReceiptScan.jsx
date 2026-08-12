@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import { thumb } from '../lib/imgTransform.js'
 import { readingToCost, summarise } from '../lib/receipt.js'
 import { callApi } from '../lib/apiBase.js'
+import { stoppedAfter } from '../lib/apiTrouble.js'
 
 // "Find the receipts in this trip's photographs."
 //
@@ -57,13 +58,24 @@ export default function ReceiptScan({ trip, photos = [], onDone, autoStart = fal
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ ids: slice.map((p) => p.id) }),
         })
-        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `server said ${r.status}`)
+        if (!r.ok) {
+          const said = await r.clone().text().catch(() => '')
+          const stop = new Error(said || `server said ${r.status}`)
+          stop.status = r.status
+          stop.said = said
+          throw stop
+        }
         readings = (await r.json()).readings ?? []
       } catch (e) {
         // A batch that fails is a batch not looked at, which is recoverable
         // by running it again — losing the eleven batches that worked is
         // not. So it stops, keeps what it has, and says why.
-        setTrouble(`Stopped after ${i} of ${unread.length}: ${e.message}`)
+        //
+        // Says why *to them*. callApi has already put the real reason in
+        // app_errors; what went on screen was the same string, which meant
+        // somebody scanning their holiday photographs was shown the name of
+        // an environment variable on a server they have never heard of.
+        setTrouble(stoppedAfter(i, unread.length, e.status ?? 0, e.said ?? e.message))
         break
       }
 

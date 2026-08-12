@@ -23,6 +23,8 @@ import { pushDiagnostics, registerPush } from '../lib/push.js'
 import { TripContext } from '../App.jsx'
 import { demoSwitchNote, hiddenByArrival } from '../lib/demoVisibility.js'
 import { ownTrips } from '../lib/demoTour.js'
+import { remember, waiting, forget, resendIn } from '../lib/pendingCode.js'
+import { readAll, ENOUGH } from '../lib/kpis.js'
 
 const ROLES = [
   { id: 'family', label: 'Family' },
@@ -35,9 +37,16 @@ const ROLES = [
 // back, the session it creates there isn't reliably visible to the
 // already-installed home-screen app (separate storage context). A typed
 // code, verified in-place via verifyOtp, never leaves the PWA at all.
+// The same two-step flow as AuthSheet, and it forgets its second step the
+// same way — so it remembers it the same way too, out of the same file. Two
+// front doors that disagree about whether a code is outstanding is the
+// original bug with an extra place to hit it.
 function SignInForm() {
-  const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
+  const outstanding = useState(() => waiting())[0]
+  const [email, setEmail] = useState(outstanding?.email ?? '')
+  const [sent, setSent] = useState(!!outstanding)
+  const [sentAt, setSentAt] = useState(outstanding?.at ?? null)
+  const [waitLeft, setWaitLeft] = useState(() => resendIn(outstanding?.at))
   const [code, setCode] = useState('')
   const [sending, setSending] = useState(false)
   const [verifying, setVerifying] = useState(false)
@@ -50,8 +59,21 @@ function SignInForm() {
     const { error } = await supabase.auth.signInWithOtp({ email })
     setSending(false)
     if (error) setError(error.message)
-    else setSent(true)
+    else {
+      remember(email)
+      setSentAt(Date.now())
+      setSent(true)
+    }
   }
+
+  // Ticks only while a code is outstanding; see pendingCode.js for why the
+  // offer of another one has to wait.
+  useEffect(() => {
+    if (!sentAt) return setWaitLeft(0)
+    setWaitLeft(resendIn(sentAt))
+    const t = setInterval(() => setWaitLeft(resendIn(sentAt)), 1000)
+    return () => clearInterval(t)
+  }, [sentAt])
 
   async function verify(e) {
     e.preventDefault()
@@ -60,6 +82,7 @@ function SignInForm() {
     const { error } = await supabase.auth.verifyOtp({ email, token: code.trim(), type: 'email' })
     setVerifying(false)
     if (error) setError(error.message)
+    else forget()
     // on success, AuthContext's onAuthStateChange picks up the new session automatically
   }
 
@@ -68,8 +91,9 @@ function SignInForm() {
       <form className="account-card" onSubmit={verify}>
         <div className="account-card-title">Check your email</div>
         <div className="account-card-body">
-          Sent a code to <b>{email}</b> — enter it below (don't tap the link in the email, it'll open in
-          the browser instead of here).
+          Sent to <b>{email}</b>. The code is in the subject line — you don't have to open the email.
+          Can take a minute, and sometimes lands in spam. Don't tap the link in it, that opens the
+          browser instead of here.
         </div>
         <input
           className="account-input"
@@ -86,8 +110,28 @@ function SignInForm() {
         <button
           className="account-btn ghost"
           type="button"
+          disabled={sending || waitLeft > 0}
+          onClick={async () => {
+            setSending(true)
+            setError(null)
+            const { error: again } = await supabase.auth.signInWithOtp({ email })
+            setSending(false)
+            if (again) setError(again.message)
+            else {
+              remember(email)
+              setSentAt(Date.now())
+            }
+          }}
+        >
+          {sending ? 'Sending…' : waitLeft > 0 ? `Send it again in ${Math.ceil(waitLeft / 1000)}s` : 'Send it again'}
+        </button>
+        <button
+          className="account-btn ghost"
+          type="button"
           onClick={() => {
+            forget()
             setSent(false)
+            setSentAt(null)
             setCode('')
             setError(null)
           }}
@@ -435,6 +479,86 @@ function whenish(iso) {
   const hours = Math.round(mins / 60)
   if (hours < 24) return `${hours}h ago`
   return `${Math.round(hours / 24)}d ago`
+}
+
+// The product numbers, out of the events that were already being written.
+//
+// app_events had been collecting for months and nothing had ever read it —
+// so the app could say what had broken and could not say whether anybody was
+// using it, whether they got anywhere, or whether the thing they came for
+// worked. David, 12 August: bounce as an experiment metric can wait, "but
+// measuring bounce and product KPIs is" essential.
+//
+// Admin only, like BrokenCard: how_are_we_doing() refuses anybody else and
+// returns no rows, which is indistinguishable from a quiet week — so the
+// card checks separately before deciding to exist at all.
+function NumbersCard() {
+  const [admin, setAdmin] = useState(false)
+  const [days, setDays] = useState(28)
+  const [rows, setRows] = useState(null)
+
+  useEffect(() => {
+    supabase.rpc('is_admin').then(({ data }) => setAdmin(data === true))
+  }, [])
+
+  useEffect(() => {
+    if (!admin) return
+    setRows(null)
+    supabase.rpc('how_are_we_doing', { p_days: days }).then(({ data }) => setRows(data ?? []))
+  }, [admin, days])
+
+  if (!admin) return null
+
+  const read = readAll(rows ?? [])
+
+  return (
+    <section className="account-card">
+      <div className="account-card-title">How are we doing</div>
+      <div className="kpi-span">
+        {[7, 28, 90].map((n) => (
+          <button
+            key={n}
+            className={`kpi-span-chip${days === n ? ' active' : ''}`}
+            onClick={() => setDays(n)}
+          >
+            {n} days
+          </button>
+        ))}
+      </div>
+
+      {rows === null ? (
+        <div className="account-card-body">Counting…</div>
+      ) : (
+        <ul className="kpi-list">
+          {read.map((m) => (
+            <li key={m.key} className="kpi">
+              <span className="kpi-what">{m.label}</span>
+              <span className="kpi-num">
+                {/* The count is always shown. The rate is shown only when
+                    there is enough underneath it to mean anything — see
+                    kpis.js. "1 of 1" is not a 100% activation rate, and it
+                    is exactly the number a dashboard would shout about. */}
+                <b>{m.enough && m.percent ? m.percent : m.n.toLocaleString('en-GB')}</b>
+                {m.of ? (
+                  <span className="kpi-of">
+                    {m.enough ? `${m.n} of ${m.d}` : `${m.n} of ${m.d} — too few to call`}
+                  </span>
+                ) : null}
+              </span>
+              <span className={`kpi-moved${m.better === true ? ' up' : m.better === false ? ' down' : ''}`}>
+                {m.moved == null ? '' : `${m.moved > 0 ? '+' : ''}${m.moved}${m.of ? 'pp' : '%'}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="account-card-body kpi-note">
+        Against the {days} days before. A rate is only stated once there are at
+        least {ENOUGH} behind it.
+      </div>
+    </section>
+  )
 }
 
 // Which trips the whole app offers as its example. Only whoever runs the
@@ -1142,6 +1266,7 @@ function SignedIn() {
 
       <DemoCard />
       <BrokenCard />
+      <NumbersCard />
       <ExamplesCard />
       <OriginalsCard />
       <PushCard />

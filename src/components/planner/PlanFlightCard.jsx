@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase.js'
 import { fetchAircraftPhoto } from '../../lib/planespotters.js'
 import TailFin from '../TailFin.jsx'
+import RouteMap from '../RouteMap.jsx'
 import FlapText from '../FlapText.jsx'
 import { AIRPORT_COORDS } from '../../lib/airportCoords.js'
 import { distanceKm } from '../../lib/geo.js'
@@ -203,6 +204,11 @@ export default function PlanFlightCard({ event, onEditEvent, onSaveDetail }) {
             {!d.delay_risk && <div className="pf-risk-hint">No live delay tracking connected — set your own estimate.</div>}
           </div>
 
+          {/* Where it actually goes. The card knew the terminal, the gate,
+              the baggage belt and what the aeroplane looks like, and never
+              once said where it was flying to. */}
+          <RouteMap dep={dep} arr={arr} className="flight-map pf-map" />
+
           <div className="pf-detail-section">
             <div className="pf-detail-title">Aircraft</div>
             <div className="pf-detail-grid">
@@ -211,7 +217,7 @@ export default function PlanFlightCard({ event, onEditEvent, onSaveDetail }) {
             {d.aircraft_reg && photo === undefined && <div className="photo-skel">loading aircraft…</div>}
             {d.aircraft_reg && photo === null && <div className="photo-none">No spotter photo for {d.aircraft_reg} yet</div>}
             {photo && (
-              <a href={photo.link} target="_blank" rel="noreferrer" className="photo-link">
+              <a href={photo.link} target="_blank" rel="noreferrer" className="photo-link photo-link--band">
                 <img src={photo.thumb} alt={d.aircraft_reg} loading="lazy" />
                 <span className="photo-credit">
                   {d.aircraft_reg} · © {photo.photographer} / Planespotters

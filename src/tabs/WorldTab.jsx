@@ -16,8 +16,10 @@ import { tripPhase } from '../lib/tripPhase.js'
 import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
 import { sectionTrips } from '../lib/tripPhase.js'
 import { overviewOf, homeCoords } from '../lib/homePov.js'
-import { shouldBadge, shouldTour, TOUR_SEEN_KEY } from '../lib/demoTour.js'
-import DemoTour from '../components/DemoTour.jsx'
+import { shouldBadge } from '../lib/demoTour.js'
+import { pickVariant } from '../lib/variants.js'
+import { track, whoAmI } from '../lib/analytics.js'
+import { ONCE, markSeen, seen } from '../lib/firstRun.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
 
 // Default framing for the "all trips" overview — centred on the
@@ -128,7 +130,6 @@ export default function WorldTab() {
     refreshTrips,
     jumpToJournal,
     openPlanner,
-    introOpen,
   } = useContext(TripContext)
   // The one thing worth opening the app for when nothing is planned.
   const [memory, setMemory] = useState(null)
@@ -162,16 +163,40 @@ export default function WorldTab() {
 
   const sections = useMemo(() => sectionTrips(tripMeta), [tripMeta])
 
+  // Which words the tile wears. Decided once per mount from the session id,
+  // so it cannot change under somebody mid-scroll, and falls back to the
+  // words that were there before if the test is ever switched off.
+  const tile = useMemo(() => pickVariant('add_tile', whoAmI()), [])
+
+  // Counted once a launch, not once a render. Without the ref this fires on
+  // every re-render of Home — a scroll, a trip landing, the globe resizing —
+  // and the denominator of the whole experiment quietly becomes "renders",
+  // which is not a number about people at all.
+  const counted = useRef(false)
+  useEffect(() => {
+    if (counted.current || !tile) return
+    counted.current = true
+    track('tile_shown', { test: 'add_tile', variant: tile.id })
+  }, [tile])
+
+  // The one line worth keeping out of the tour that has gone: the only thing
+  // in the app that explains why a stranger's holiday is on your globe.
+  // Said on the trip itself rather than in an overlay pointing at it, and
+  // once — firstRun.js decides when, so it queues behind the cold open and
+  // the pitch instead of arriving on top of them.
+  const [sayWhose, setSayWhose] = useState(false)
+  useEffect(() => {
+    if (!tripsLoaded) return
+    const borrowed = tripMeta.some((t) => shouldBadge(t))
+    if (borrowed && !seen(ONCE.whose_trip)) setSayWhose(true)
+  }, [tripsLoaded, tripMeta])
+
   // Nothing to look at yet, so the globe stops being a record and becomes an
   // invitation: pointed at wherever they are rather than at where this
   // account happens to have been, and spinning like it wants to be touched
   // instead of idling behind six trips.
   const isEmpty = tripsLoaded && !tripMeta.length
 
-  // The walkthrough of the example trip. Decided once when the trips land
-  // rather than on every render: it should not blink back on the instant
-  // someone deletes their last real trip, and it must never re-run after
-  // being dismissed. shouldTour holds the actual rules — see demoTour.js.
   // The way in. Reachable whether or not the globe is empty — someone with
   // the demo trip and nothing else needs this just as much as someone with
   // nothing at all.
@@ -181,23 +206,6 @@ export default function WorldTab() {
     if (!routesOpen || apiToken) return
     supabase.rpc('my_api_token').then(({ data }) => setApiToken(data ?? null))
   }, [routesOpen, apiToken])
-
-  const [tourOn, setTourOn] = useState(false)
-  useEffect(() => {
-    let dismissed = false
-    try {
-      dismissed = localStorage.getItem(TOUR_SEEN_KEY) === '1'
-    } catch {
-      // A browser that won't read localStorage gets the tour every launch,
-      // which is the harmless direction to fail in.
-    }
-    // Not while the intro is up: the tour points at things, and pointing at
-    // something behind a full-screen card is both invisible and, once the
-    // card goes, already half over.
-    if (introOpen) return
-    if (shouldTour({ trips: tripMeta, tripsLoaded, dismissed })) setTourOn(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripsLoaded, introOpen])
 
   const home = useMemo(() => homeCoords(), [])
   const idleSpin = isEmpty ? 0.9 : 0.35
@@ -801,10 +809,6 @@ export default function WorldTab() {
         />
       )}
 
-      {/* Only while the example is the only trip here, and never once the
-          recap is open over the top of it. */}
-      {tourOn && !selectedTrip && <DemoTour onDone={() => setTourOn(false)} />}
-
       {routesOpen && (
         <GetTripsIn
           mcpUrl={apiToken ? `https://pond.eend.app/api/mcp?key=${apiToken}` : null}
@@ -832,6 +836,10 @@ export default function WorldTab() {
               setSelectedTrip(trip.slug)
               goToTab('photos')
             }
+            // A pasted confirmation is an itinerary, and the itinerary is
+            // the thing they just watched being read. Landing back on the
+            // globe with a new card on it makes them go and find it.
+            if (route === 'paste' && trip?.id) openPlanner(trip.id)
           }}
           onClose={(go) => {
             setRoutesOpen(false)
@@ -852,7 +860,13 @@ export default function WorldTab() {
               only thing there is somebody else's example. */}
           <div className="wt-section wt-section--add">
             <div className="wt-section-label">Yours</div>
-            <button className="wt-card wt-card--add" onClick={() => setRoutesOpen(true)}>
+            <button
+              className="wt-card wt-card--add"
+              onClick={() => {
+                track('tile_tapped', { test: 'add_tile', variant: tile?.id })
+                setRoutesOpen(true)
+              }}
+            >
               {/* A real tile opens with a photograph 78px tall. This one
                   opened with a small mark and then 78px of nothing, which is
                   why it read as broken rather than empty. So it gets a cover
@@ -880,11 +894,34 @@ export default function WorldTab() {
                 </svg>
                 <img className="wt-add-duck" src="/duck.png" alt="" />
               </span>
-              <span className="wt-title">Add a trip</span>
-              <span className="wt-subtitle">One you've taken, or one you're on</span>
+              <span className="wt-title">{tile?.title ?? 'Add a trip'}</span>
+              <span className="wt-subtitle">{tile?.strap ?? "One you've taken, or one you're on"}</span>
               <span className="wt-dates">photos · email · ai</span>
             </button>
           </div>
+
+          {/* The one line saved out of the tour, said where it is about.
+              Without it a stranger's holiday on your globe is confusing
+              rather than generous — and the tour said it from behind an
+              overlay pointing at the wrong card entirely. */}
+          {sayWhose && (
+            <div className="wt-whose">
+              <p>
+                One of these is somebody else's, parked here so the place isn't empty when you turn
+                up. Have a paddle round — it's properly finished, photos and all. Then it clears off.
+              </p>
+              <button
+                className="wt-whose-ok"
+                onClick={() => {
+                  markSeen(ONCE.whose_trip)
+                  setSayWhose(false)
+                  track('whose_trip_dismissed')
+                }}
+              >
+                Right you are
+              </button>
+            </div>
+          )}
 
           {/* Past and future used to sit in one undifferentiated row, in
               hand-curated order, distinguishable only by reading the dates

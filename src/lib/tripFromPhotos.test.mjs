@@ -43,6 +43,29 @@ test('a gap one day past the threshold splits', () => {
   assert.equal(clusters.length, 2)
 })
 
+// The sheet now says "Chuck in everything. I'll sort it into trips." — which
+// is a promise about a whole camera roll, not about two holidays. Pinned
+// here so the sentence cannot outlive the behaviour: a year of travel, tipped
+// in at once, comes back as separate trips with their own dates.
+test('a whole camera roll comes back as one trip per holiday', () => {
+  const { clusters } = clusterPhotos([
+    at('2024-02-09', 41.9, 12.5), at('2024-02-10', 41.9, 12.5), at('2024-02-12', 41.9, 12.5),
+    at('2024-05-30', 35.7, 139.7), at('2024-06-01', 35.0, 135.8), at('2024-06-03', 34.7, 135.5),
+    at('2024-09-14', -36.8, 174.8), at('2024-09-15', -41.3, 174.8),
+    at('2024-12-27', 40.4, -3.7),
+  ])
+  assert.equal(clusters.length, 4)
+  assert.deepEqual(
+    clusters.map((c) => [c.start, c.end]),
+    [
+      ['2024-02-09', '2024-02-12'],
+      ['2024-05-30', '2024-06-03'],
+      ['2024-09-14', '2024-09-15'],
+      ['2024-12-27', '2024-12-27'],
+    ],
+  )
+})
+
 test('photos arrive in any order and still cluster by time', () => {
   // Sorted these are 12th, 15th, 19th — gaps of 3 and 4 days, both within
   // the threshold, so it is one trip however they arrive.
@@ -138,4 +161,21 @@ test('a single-day trip reads as one date, not a range', () => {
   const { clusters } = clusterPhotos([at('2024-03-12'), at('2024-03-12')])
   assert.equal(clusters[0].start, clusters[0].end)
   assert.doesNotMatch(summarise(clusters[0]), /–/)
+})
+
+// An upload closed part-way has already made the trip, so starting again
+// produced the identical slug and the insert failed on trips_slug_key.
+test('the same photos twice describe the same trip', () => {
+  assert.equal(slugify('April 2026', '2026-04-02'), slugify('April 2026', '2026-04-02'))
+})
+
+test('and a tie can be broken without changing what it is called', () => {
+  const first = slugify('April 2026', '2026-04-02')
+  const second = slugify('April 2026', '2026-04-02', 1786510000000)
+  assert.notEqual(first, second)
+  assert.ok(second.startsWith(first), second)
+})
+
+test('two tie-breaks in the same run are still different', () => {
+  assert.notEqual(slugify('X', '2026-04-02', 1), slugify('X', '2026-04-02', 2))
 })

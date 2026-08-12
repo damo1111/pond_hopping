@@ -5,6 +5,7 @@ import FlightCard from '../components/FlightCard.jsx'
 import FlightTriage from '../components/FlightTriage.jsx'
 import PlanFlightCard from '../components/planner/PlanFlightCard.jsx'
 import RouteStrip from '../components/RouteStrip.jsx'
+import { stripOf } from '../lib/routeStrip.js'
 import { tripColor } from '../lib/tripColors.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import { AIRPORT_COORDS } from '../lib/airportCoords.js'
@@ -29,6 +30,8 @@ export default function FlightsTab() {
   const [reviewing, setReviewing] = useState(false)
   // Bumped when the review screen saves, to re-pull the list underneath it.
   const [reloads, setReloads] = useState(0)
+  // Which flight is open, per trip — the strip above each section draws it.
+  const [showing, setShowing] = useState({})
 
   useEffect(() => {
     let alive = true
@@ -224,9 +227,24 @@ export default function FlightsTab() {
                 {upcoming.length ? ` · ${upcoming.length} upcoming` : ''}
               </span>
             </div>
-            <RouteStrip flights={strip} color={color} />
+            <RouteStrip
+              flights={strip}
+              color={color}
+              showing={showing[tripId] ?? null}
+              onPick={(i) => {
+                // Tapping a dot opens the flight that leaves from it, which
+                // is the same gesture in the other direction.
+                const found = [...stripOf(strip).legs].find(([, [from]]) => from === i)
+                if (found) setShowing((m) => ({ ...m, [tripId]: found[0] }))
+              }}
+            />
             {list.map((f) => (
-              <FlightCard key={f.id} flight={f} aircraftType={f.aircraft_types} />
+              <FlightCard
+                key={f.id}
+                flight={f}
+                aircraftType={f.aircraft_types}
+                onOpen={(id) => setShowing((m) => ({ ...m, [tripId]: id }))}
+              />
             ))}
             {/* Planner's own card, reused verbatim — it already renders a
                 planned_event as the same departures-board strip, and it

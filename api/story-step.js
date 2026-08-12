@@ -168,10 +168,20 @@ async function seeThese(secret, tripId, waiting) {
   }
 
   // How much is left, so a screen can say so honestly rather than spinning.
+  //
+  // This asked for at most sixty, and then reported the length of what came
+  // back as the number remaining. So a trip with a hundred and eighty-nine
+  // photographs still to read said "sixty left" — and the screen, which
+  // shows seen out of seen-plus-left, read "10 of 70", then "20 of 80", then
+  // "30 of 90". A total that grows by exactly as much as the progress does
+  // is a bar that never moves, and it looks precisely like starting over.
+  //
+  // Counted properly now. The ceiling is a guard against a runaway query,
+  // not a limit anybody's holiday will reach.
   const left = await rpc('story_photos_to_see', {
     p_secret: secret,
     p_trip: tripId,
-    p_limit: 60,
+    p_limit: 5000,
     p_detail: 'low',
   }).catch(() => [])
 

@@ -67,7 +67,13 @@ begin
         finished_at = null,
         ok          = null,
         note        = null,
-        step        = excluded.step
+        step        = excluded.step,
+        -- A new run counts from nothing. Without these it inherited the last
+        -- run's progress, so a second build began at "47 photographs read"
+        -- and the bar on screen was a mixture of two different runs.
+        stage       = null,
+        seen        = 0,
+        to_see      = 0
     where story_runs.finished_at is not null
        or story_runs.started_at < now() - p_stale
   returning trip_id into got;

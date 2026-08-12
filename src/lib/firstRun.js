@@ -1,0 +1,129 @@
+// What this person has already been shown, in one place.
+//
+// There were four of these and none of them knew about each other:
+// `pond:intro` for the cards, `pond:tourdone` for the tour,
+// `ph_recap_hint_seen` for a hint, and `profiles.onboarded_at` in the
+// database for the form. Four independent gates, each deciding on its own
+// whether to fire.
+//
+// The failure that causes is not one of them being wrong. It is several
+// being right at once — the cold open finishing into a carousel, which
+// dismisses into a tour, which points at a card, on top of a form. Every
+// one of those did exactly what it was told.
+//
+// So: one key, one shape, one place to ask. Anything that wants to show
+// itself once asks here first and says so afterwards.
+//
+// ── Why localStorage and not the database ─────────────────────────────
+//
+// Because a signed-out visitor is exactly who this is for. `onboarded_at`
+// lived on `profiles`, so it could only ever gate something that happened
+// after sign-in — which is the wrong end of the experience entirely. This
+// works before anybody has an account and survives into having one.
+//
+// The cost is that it is per-device: a new phone sees the cold open again.
+// That is the right way round. Seeing it twice in two years is a much
+// smaller harm than a returning hopper being shown the pitch again because
+// the server had not answered yet.
+
+const KEY = 'pond:seen'
+
+/**
+ * The things that happen once. Adding one is a line here, and that is on
+ * purpose — a new first-run interruption should require going past this
+ * comment.
+ */
+export const ONCE = {
+  /** The globe flying in. First launch only: it is genuinely good and it is
+   *  also a thing between the person and the app, every single time. */
+  cold_open: 'cold_open',
+  /** The one remaining intro card. */
+  pitch: 'pitch',
+  /** The line explaining why a stranger's trip is on their globe. */
+  whose_trip: 'whose_trip',
+}
+
+function read(store) {
+  try {
+    const raw = store?.getItem(KEY)
+    const seen = raw ? JSON.parse(raw) : null
+    return seen && typeof seen === 'object' ? seen : {}
+  } catch {
+    // Private browsing, a webview with storage off, or somebody's hand-edited
+    // rubbish in the key. Showing the cold open again is a far better failure
+    // than throwing during boot.
+    return {}
+  }
+}
+
+/** Has this been shown already? */
+export function seen(what, store = globalThis.localStorage) {
+  return Boolean(read(store)[what])
+}
+
+/**
+ * Write it down, and hand back what the whole record now says.
+ *
+ * Stores when rather than merely that, because "shown at some point" and
+ * "shown eight months ago on a build that no longer exists" are different
+ * facts and only one of them is worth having later.
+ */
+export function markSeen(what, store = globalThis.localStorage, now = () => new Date()) {
+  const next = { ...read(store), [what]: now().toISOString() }
+  try {
+    store?.setItem(KEY, JSON.stringify(next))
+  } catch {
+    // Nothing to do. It shows again next launch, which is the harmless way
+    // round and the same thing the old flags did.
+  }
+  return next
+}
+
+/**
+ * Only one interruption at a time, ever.
+ *
+ * The order is the order somebody should meet them, and this hands back the
+ * first that is still owed. Everything else waits for the next launch —
+ * which is the rule the four old flags had no way of expressing, and the
+ * whole reason a new hopper could meet three things in eight seconds.
+ */
+export const IN_ORDER = [ONCE.cold_open, ONCE.pitch, ONCE.whose_trip]
+
+export function nextUp(store = globalThis.localStorage, order = IN_ORDER) {
+  return order.find((what) => !seen(what, store)) ?? null
+}
+
+/**
+ * Carry the old flags over, so nobody who has already sat through the
+ * carousel and the tour is shown them again by a rewrite.
+ *
+ * Runs once at boot and is safe to run repeatedly. It deliberately does not
+ * delete the old keys: if this has to be reverted, the old code finds them
+ * exactly where it left them.
+ */
+export function bringOldFlagsOver(store = globalThis.localStorage) {
+  const already = read(store)
+  const carried = { ...already }
+  try {
+    // Anybody who dismissed the cards has met the pitch and the cold open.
+    if (store?.getItem('pond:intro') === '1') {
+      carried[ONCE.pitch] ??= 'carried-over'
+      carried[ONCE.cold_open] ??= 'carried-over'
+    }
+    // Anybody who finished the tour has been told whose trip that is.
+    if (store?.getItem('pond:tourdone') === '1') {
+      carried[ONCE.whose_trip] ??= 'carried-over'
+      carried[ONCE.cold_open] ??= 'carried-over'
+    }
+  } catch {
+    return already
+  }
+  if (Object.keys(carried).length !== Object.keys(already).length) {
+    try {
+      store?.setItem(KEY, JSON.stringify(carried))
+    } catch {
+      /* as above */
+    }
+  }
+  return carried
+}

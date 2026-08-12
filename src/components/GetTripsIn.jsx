@@ -1,25 +1,76 @@
 import { useContext, useState } from 'react'
 import { useAuth } from '../lib/AuthContext.jsx'
 import { TripContext } from '../App.jsx'
+import { track } from '../lib/analytics.js'
 import StartFromPhotos from './StartFromPhotos.jsx'
 import StartNow from './StartNow.jsx'
 import StartFromTimeline from './StartFromTimeline.jsx'
+import StartFromPaste from './StartFromPaste.jsx'
+import ConnectAI from './ConnectAI.jsx'
 import SheetGrip from './SheetGrip.jsx'
 
 // Every road into this app already existed. Every one of them was behind a
-// trip you hadn't created yet.
+// trip you hadn't created yet, so this screen was built to gather them: six
+// routes, each with a title and a paragraph, one hundred and fifty words, and
+// two buttons at the bottom whose only job was to let you leave.
 //
-// The Gmail scan is real and good and lives inside an existing trip's planner.
-// The forwarding address was mentioned once, during onboarding, and never
-// again. The MCP connector URL is in Account, under a heading nobody reads
-// when they're new. Photos could only be added to a trip that already had a
-// name and dates — which is exactly backwards for a trip you've already
-// taken, where the photos *are* the trip.
+// Six things all asking to be read is the same as none of them being read.
+// The paragraphs were doing the work of a manual for somebody who has been
+// in the app for ninety seconds, and the one route that matters most —
+// photographs, the only door that fits a trip already taken, which is most of
+// anyone's travel — was the second row of a list.
 //
-// So this is one screen with all of them on it, reachable from the empty
-// globe and from Plan. Nothing here is new capability; it is the door.
+// So: photos becomes *the* thing rather than a row. "I'm on one right now"
+// sits under it, because it is the only route with a deadline. The other four
+// keep their names and lose their paragraphs — nothing has been removed, and
+// the retired words are in docs/copy-parked.md with the reasoning.
+//
+// The ground is paper rather than white. The cards were white on a white
+// sheet, which is why the padding read as broken: with no edge to sit inside,
+// space around a thing looks like space *between* things.
 
 const INBOX = import.meta.env.VITE_BOOKINGS_INBOX || 'bookings@eend.app'
+
+/**
+ * The whole argument for the app, drawn once.
+ *
+ * A pile of snapshots on the left, a line of travel on the right, and the
+ * thing in the middle is the app. Said in a picture because the sentence
+ * version of it — "we read the dates out of your photographs and reconstruct
+ * the journey" — is the paragraph this screen just deleted.
+ */
+function PhotosToTrip() {
+  // The viewBox is cropped tight to the drawing: the 240×84 grid the shapes
+  // were laid out on left a band of empty tint above and below them.
+  return (
+    <svg className="gti-draw" viewBox="4 15 232 52" aria-hidden="true" focusable="false">
+      <g className="gti-pile">
+        <rect x="12" y="28" width="42" height="34" rx="5" transform="rotate(-10 33 45)" />
+        <rect x="20" y="24" width="42" height="34" rx="5" transform="rotate(5 41 41)" />
+        <rect className="gti-pile-top" x="26" y="26" width="42" height="34" rx="5" />
+      </g>
+      {/* Inside the top snapshot: a sun and a horizon, entirely within the
+          rectangle's own bounds so it needs no clip path to stay put. */}
+      <circle className="gti-sun" cx="38" cy="37" r="4" />
+      <path className="gti-hill" d="M29 53 Q39 44 47 51 T64 50" />
+
+      {/* The shaft stops short of the head rather than running under it: a
+          dashed line whose last dash lands wherever the pattern happens to
+          finish left a gap of a random size in front of the point, and the
+          head read as a separate mark floating beside the dashes. */}
+      <path className="gti-arrow" d="M80 43 H94" />
+      <path className="gti-arrow-head" d="M94.5 39.5 L99 43 L94.5 46.5" />
+
+      <path
+        className="gti-route"
+        d="M116 58 C132 38 146 30 160 34 S198 55 214 42"
+      />
+      <circle className="gti-pin" cx="116" cy="58" r="3.5" />
+      <circle className="gti-pin" cx="160" cy="34" r="3.5" />
+      <circle className="gti-pin gti-pin--last" cx="214" cy="42" r="4.5" />
+    </svg>
+  )
+}
 
 export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
   const { user } = useAuth()
@@ -45,10 +96,17 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
   // sheet is dismissed. Otherwise the screen that says what happened, and
   // offers to record the rest of the trip, is destroyed the instant it
   // renders and nobody ever sees either.
+  //
   // Signed out, every one of these ends at the same wall — the insert fails
   // because there is nobody to own the trip. Better to ask at the door than
   // to let somebody pick forty photos and read the dates out of them first.
-  const gate = (go) => () => (user ? go() : openAuth?.())
+  // This is also why the sheet no longer carries a "Create an account" block:
+  // the ask arrives when it has a reason, attached to the thing they chose.
+  const gate = (what, go) => () => {
+    track('route_taken', { route: what, signed_in: !!user })
+    if (user) go()
+    else openAuth?.()
+  }
 
   // Which door this came through, along with the trip. "Have a look" after
   // uploading three hundred photographs and "I'm off now" want different
@@ -72,127 +130,83 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
     return <StartFromTimeline onDone={(t) => setMade(t ?? true)} onClose={close} />
   }
 
+  if (route === 'paste') {
+    return <StartFromPaste onDone={(t) => setMade(t ?? true)} onClose={close} />
+  }
+
+  if (route === 'ai') {
+    return <ConnectAI url={mcpUrl} onClose={close} />
+  }
+
   return (
     <div className="ios-sheet-overlay" onClick={onClose}>
-      <div className="ios-sheet routes-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="ios-sheet gti" onClick={(e) => e.stopPropagation()}>
         <SheetGrip onClose={onClose} />
-        <div className="ios-sheet-title">Get your trips in</div>
-        <div className="ios-sheet-sub">
-          However you'd rather do it. Any one of these is enough to start — the rest can come
-          later.
-        </div>
 
-        {/* First because it is the only one with a deadline. Every other
+        {/* Photos, at the size of its importance.
+            The second line is the one thing people don't believe until told:
+            they can empty a whole camera roll in here — several holidays at
+            once — and get trips back rather than one enormous smear. It is
+            true, and it has been true for a while; tripFromPhotos splits on a
+            four-day gap. It had simply never been said out loud. */}
+        <button
+          className="gti-hero gti-in"
+          style={{ '--in': 1 }}
+          onClick={gate('photos', () => setRoute('photos'))}
+        >
+          <span className="gti-hero-art">
+            <PhotosToTrip />
+          </span>
+          <span className="gti-hero-title">Start from photos</span>
+          <span className="gti-hero-body">
+            Chuck in everything. I&apos;ll sort it into trips.
+          </span>
+        </button>
+
+        {/* Second, because it is the only one with a deadline. Every other
             route here can be taken next month and lose nothing; this one is
             for somebody leaving today, and the days they don't record are
             simply gone. */}
-        <button className="route" onClick={gate(() => setRoute('now'))}>
-          <span className="route-icon">🧳</span>
-          <span className="route-text">
-            <span className="route-title">I&apos;m off now</span>
-            <span className="route-body">
-              Nothing booked, nothing planned, leaving today. Starts a trip on the spot and lets
-              the days fill themselves in — the one thing that can&apos;t be added afterwards.
-            </span>
+        <button
+          className="gti-now gti-in"
+          style={{ '--in': 2 }}
+          onClick={gate('now', () => setRoute('now'))}
+        >
+          <span className="gti-now-live" aria-hidden="true" />
+          <span className="gti-now-text">
+            <span className="gti-now-title">I&apos;m on one right now</span>
+            <span className="gti-now-body">Starts today, fills itself in</span>
           </span>
         </button>
 
-        {/* Then photos, because they are the only route that works for a trip
-            you have already taken, which is most of anyone's travel. */}
-        <button className="route" onClick={gate(() => setRoute('photos'))}>
-          <span className="route-icon">🖼</span>
-          <span className="route-text">
-            <span className="route-title">Start from photos</span>
-            <span className="route-body">
-              A trip you've taken, or one you're on. I read the dates out of the photos and build
-              the trip around them. Shrunk on your phone first, so it's quick.
-            </span>
-          </span>
-        </button>
-
-        {/* Second because it is the only one that does the whole back
-            catalogue at once — and the only one that needs no permission,
-            no photos still on the phone, and works the same on Android. */}
-        <button className="route" onClick={gate(() => setRoute('timeline'))}>
-          <span className="route-icon">🗺</span>
-          <span className="route-text">
-            <span className="route-title">Bring your Google Timeline in</span>
-            <span className="route-body">
-              If Google has been keeping your timeline, every trip you've taken is already in it.
-              Export it, drop the file here, and pick the ones worth keeping. It's read on your
-              phone — nothing is sent until you've ticked them.
-            </span>
-          </span>
-        </button>
-
-        <a className="route" href="mailto:?to=&subject=Fwd:%20booking" onClick={(e) => e.preventDefault()}>
-          <span className="route-icon">📧</span>
-          <span className="route-text">
-            <span className="route-title">Forward a booking</span>
-            <span className="route-body">
-              Send any confirmation — flight, hotel, restaurant — to this address and it turns
-              into an itinerary. Forward a few old ones and your history builds itself.
-            </span>
-            <span
-              className="route-copy"
-              role="button"
-              tabIndex={0}
-              onClick={() => copy('inbox', INBOX)}
-              onKeyDown={(e) => e.key === 'Enter' && copy('inbox', INBOX)}
-            >
-              {copied === 'inbox' ? 'Copied' : INBOX}
-            </span>
-          </span>
-        </a>
-
-        <button className="route" onClick={gate(() => onClose?.('plan'))}>
-          <span className="route-icon">📋</span>
-          <span className="route-text">
-            <span className="route-title">Paste a confirmation</span>
-            <span className="route-body">
-              Copy a booking email into Plan and it pulls out the flights, stays and bookings.
-              Nothing to set up.
-            </span>
-          </span>
-        </button>
-
-        {mcpUrl && (
-          <button className="route" onClick={() => copy('mcp', mcpUrl)}>
-            <span className="route-icon">✨</span>
-            <span className="route-text">
-              <span className="route-title">Let your AI do it</span>
-              <span className="route-body">
-                Add Pond Hopping to Claude, ChatGPT or Gemini, then ask it to go through your
-                inbox and add your trips. It already has your email — we never need it.
-              </span>
-              <span className="route-copy">{copied === 'mcp' ? 'Copied' : 'Copy connector URL'}</span>
-            </span>
+        {/* And the rest, by name. A route somebody is looking for is found by
+            its name; a route they aren't looking for is not sold by a
+            paragraph. Timeline keeps its explanation because it is the only
+            one whose name doesn't say what it does — and it is the one that
+            can bring back years in a single go. */}
+        <div className="gti-rest gti-in" style={{ '--in': 3 }}>
+          <button className="gti-quiet" onClick={() => copy('inbox', INBOX)}>
+            <span className="gti-quiet-name">Forward a booking</span>
+            <span className="gti-quiet-hint">{copied === 'inbox' ? 'Copied' : INBOX}</span>
           </button>
-        )}
 
-        {/* The ask, rather than a note about the ask. This was a grey
-            sentence at the bottom and a "Not now" button — which is to say,
-            the only call to action on the screen was to leave. */}
-        {!user ? (
-          <>
-            <div className="route-cta">
-              <div className="route-cta-line">Any of these need somewhere to put it.</div>
-              <div className="route-cta-sub">
-                An email address and a six-digit code. No password, nothing to remember.
-              </div>
-              <button className="ios-sheet-done" onClick={() => openAuth?.()}>
-                Create an account
-              </button>
-            </div>
-            <button className="account-btn ghost" onClick={onClose}>
-              Have a look round first
+          <button className="gti-quiet" onClick={gate('timeline', () => setRoute('timeline'))}>
+            <span className="gti-quiet-name">Google Timeline</span>
+            <span className="gti-quiet-hint">Years of trips, in one file</span>
+          </button>
+
+          <button className="gti-quiet" onClick={gate('paste', () => setRoute('paste'))}>
+            <span className="gti-quiet-name">Paste a confirmation</span>
+            <span className="gti-quiet-hint">Flight, hotel, train</span>
+          </button>
+
+          {mcpUrl && (
+            <button className="gti-quiet" onClick={gate('ai', () => setRoute('ai'))}>
+              <span className="gti-quiet-name">Let your AI do it</span>
+              <span className="gti-quiet-hint">Claude, ChatGPT or Gemini</span>
             </button>
-          </>
-        ) : (
-          <button className="account-btn ghost" onClick={onClose}>
-            Not now
-          </button>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )

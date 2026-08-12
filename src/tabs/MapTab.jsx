@@ -22,12 +22,21 @@ const TILE_STYLES = {
   satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
 }
 
-// A numbered badge for a cluster of overlapping points — tap to zoom in
-// and split it back into individual pins/photos.
+// A badge for a cluster of overlapping points — tap to zoom in and split it
+// back into individual pins/photos.
+//
+// It reads "×4", not "4". A bare numeral in a circle on a map of a trip is
+// read as the fourth stop — David, 12 August: "missing 1 & 2 on the map" —
+// and the two unnumbered dots nearby make that reading look confirmed rather
+// than wrong. There is no first or second: these are counts of things
+// sitting on top of each other, and the multiplication sign is the shortest
+// way to say so.
 function clusterIcon(count, color) {
   return L.divIcon({
     className: 'map-cluster-icon',
-    html: `<div class="map-cluster-badge" style="--cluster-color:${color}">${count}</div>`,
+    html: `<div class="map-cluster-badge" style="--cluster-color:${color}" aria-label="${count} here">
+             <span class="map-cluster-x">\u00d7</span>${count}
+           </div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 15],
   })
@@ -185,7 +194,13 @@ export default function MapTab() {
   // zoom — a dense trip (or the "all trips" view) otherwise stacks dozens
   // of dots illegibly on top of each other.
   const pinClusters = clusterPoints(visPins, zoom)
-  const photoClusters = clusterPoints(visPhotosDrawn, zoom)
+  // Clustered from every photo, not from the slice the trail is currently
+  // drawing. The draw-on exists to animate the *line*; feeding it to the
+  // markers too meant each cluster gained members frame by frame, so its
+  // count ticked up and its centroid crawled sixty times a second for the
+  // length of the animation. The markers are where the photos are from the
+  // first frame; the line catches up.
+  const photoClusters = clusterPoints(visPhotos, zoom)
 
   return (
     <div className="world-wrap">
@@ -232,7 +247,7 @@ export default function MapTab() {
             if (c.type === 'cluster') {
               return (
                 <Marker
-                  key={`phc-${c.lat}-${c.lon}`}
+                  key={`phc-${c.key}`}
                   position={[c.lat, c.lon]}
                   icon={clusterIcon(c.points.length, accent)}
                   eventHandlers={{ click: () => expandCluster(c.lat, c.lon) }}
@@ -300,7 +315,7 @@ export default function MapTab() {
             const badgeColor = kinds.size === 1 ? (KIND_STYLE[c.points[0].kind] || KIND_STYLE.place).fill : '#1A1611'
             return (
               <Marker
-                key={`pc-${c.lat}-${c.lon}`}
+                key={`pc-${c.key}`}
                 position={[c.lat, c.lon]}
                 icon={clusterIcon(c.points.length, badgeColor)}
                 eventHandlers={{ click: () => expandCluster(c.lat, c.lon) }}

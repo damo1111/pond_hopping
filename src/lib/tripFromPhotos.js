@@ -112,14 +112,32 @@ export function suggestTitle(cluster) {
 }
 
 /** URL-safe, collision-resistant enough, and readable in a share link. */
-export function slugify(title, when = '') {
+/**
+ * @param title  what the trip is called
+ * @param when   its start date, so two "April 2026"s a year apart differ
+ * @param unique something to break a tie with, passed only when a slug has
+ *               actually collided
+ *
+ * The first two are deterministic on purpose: the same photographs picked
+ * twice should describe the same trip, and a slug that changed on every
+ * attempt would make a retry look like a different journey.
+ *
+ * Which is also how somebody hit `duplicate key value violates unique
+ * constraint "trips_slug_key"`: an upload that was closed part-way had
+ * already created the trip, and starting again produced the identical slug.
+ * The answer is not to make every slug random — it is to add a tail only
+ * when the shelf is genuinely occupied. See StartFromPhotos, which retries
+ * once with one.
+ */
+export function slugify(title, when = '', unique = null) {
   const base = String(title || 'trip')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 40)
   const stamp = String(when).replace(/-/g, '').slice(2, 8)
-  return [base || 'trip', stamp].filter(Boolean).join('-')
+  const tail = unique == null ? '' : Number(unique).toString(36)
+  return [base || 'trip', stamp, tail].filter(Boolean).join('-')
 }
 
 /**

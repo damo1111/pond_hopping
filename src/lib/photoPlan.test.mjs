@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { UNDATED, describeRow, newTripCount, planUpload, readyToUpload } from './photoPlan.js'
+import { UNDATED, describeRow, newTripCount, pickerFor, planUpload, readyToUpload } from './photoPlan.js'
 
 const trip = (id, title, start_date, end_date, extra = {}) => ({ id, title, start_date, end_date, ...extra })
 const cluster = (start, end, count) => ({ start, end, count, photos: Array.from({ length: count }, (_, i) => i) })
@@ -81,4 +81,59 @@ test('nothing to upload is not ready to upload', () => {
   assert.equal(readyToUpload([]), false)
   assert.deepEqual(planUpload(), [])
   assert.equal(describeRow(null), '')
+})
+
+// The picker listed nineteen trips in whatever order they arrived, including
+// the empty ones left behind by abandoned uploads.
+const tripAt = (id, start, end, extra = {}) =>
+  ({ id, title: id, start_date: start, end_date: end, ...extra })
+
+const runRow = (photos) => ({
+  key: 'run-0',
+  kind: 'run',
+  route: { cluster: { start: photos[0], end: photos[photos.length - 1], photos: [] } },
+})
+
+test('trips covering these days come first', () => {
+  const trips = [
+    tripAt('elsewhere', '2025-01-01', '2025-01-10'),
+    tripAt('thailand', '2026-04-03', '2026-04-10'),
+    tripAt('empty', '2026-08-12', '2026-08-12'),
+  ]
+  const { fits, rest } = pickerFor(runRow(['2026-04-04', '2026-04-08']), trips)
+  assert.deepEqual(fits.map((t) => t.id), ['thailand'])
+  assert.ok(!rest.some((t) => t.id === 'thailand'))
+  assert.equal(fits.length + rest.length, trips.length, 'nothing is hidden')
+})
+
+test('the rest are most recent first', () => {
+  const trips = [
+    tripAt('older', '2024-01-01', '2024-01-10'),
+    tripAt('newer', '2026-08-01', '2026-08-05'),
+  ]
+  const { rest } = pickerFor({ key: 'undated', kind: 'undated', route: null }, trips)
+  assert.deepEqual(rest.map((t) => t.id), ['newer', 'older'])
+})
+
+// An example belongs to somebody else, and picking one publishes your
+// photographs into their trip.
+test('examples go last, whatever their dates', () => {
+  const trips = [
+    tripAt('rome', '2026-08-09', '2026-08-11', { is_demo: true }),
+    tripAt('mine', '2020-01-01', '2020-01-02'),
+  ]
+  const { rest } = pickerFor({ key: 'undated', kind: 'undated', route: null }, trips)
+  assert.deepEqual(rest.map((t) => t.id), ['mine', 'rome'])
+})
+
+test('a row with no dates offers everything, ranked by recency alone', () => {
+  const trips = [tripAt('a', '2026-01-01', '2026-01-02')]
+  const { fits, rest } = pickerFor({ key: 'undated', kind: 'undated', route: null }, trips)
+  assert.deepEqual(fits, [])
+  assert.equal(rest.length, 1)
+})
+
+test('no trips at all is not a crash', () => {
+  assert.deepEqual(pickerFor(runRow(['2026-04-04']), []), { fits: [], rest: [] })
+  assert.deepEqual(pickerFor(null, []), { fits: [], rest: [] })
 })

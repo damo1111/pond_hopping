@@ -44,6 +44,19 @@ const Sphere = () => (
 )
 
 
+// One card, not three.
+//
+// The other two are in docs/copy-parked.md with the reasoning and the words,
+// because the writing was good and the moment was wrong. "Watch it fill"
+// describes an animation the app already performs, which is better shown at
+// the moment the first flight draws itself than promised before there is one;
+// "Or don't" is the best sentence in the app about privacy and it answers a
+// question nobody has forty seconds after installing.
+//
+// This one stays because it is the only one that says what the app is *for*,
+// and because somebody who opens the app, looks, and leaves without tapping
+// anything otherwise learns nothing at all. That person is the whole argument
+// for having a card, and one card is the whole of what they need.
 const CARDS = [
   {
     id: 'in',
@@ -64,45 +77,9 @@ const CARDS = [
       </svg>
     ),
   },
-  {
-    id: 'globe',
-    duck: { left: '66%', top: '17%', size: 44, flip: false },
-    title: 'Watch it fill',
-    body: 'Every flight becomes a line on the globe, and every day a map of where you actually went. Seventeen years of it, if you’ve got them.',
-    art: (
-      <svg viewBox="0 0 120 120" aria-hidden="true">
-        <Sphere />
-        <path className="intro-arc" d="M22 78C42 30 82 24 98 42" fill="none" strokeLinecap="round" />
-        <circle className="intro-pin" cx="22" cy="78" r="4" />
-        <circle className="intro-pin" cx="98" cy="42" r="4" />
-      </svg>
-    ),
-  },
-  {
-    id: 'share',
-    duck: { left: '66%', top: '63%', size: 44, flip: true },
-    title: 'Or don’t',
-    body: 'Everything is private until you decide otherwise. Then it’s one link — to a trip, or to the lot — that you can take back whenever you like.',
-    art: (
-      <svg viewBox="0 0 120 120" aria-hidden="true">
-        <g className="intro-rings" fill="none">
-          <circle cx="60" cy="60" r="21" />
-          <circle cx="60" cy="60" r="31" />
-          <circle cx="60" cy="60" r="40" />
-        </g>
-        <path
-          className="intro-lock"
-          d="M50 54v-8a10 10 0 0 1 20 0v8"
-          fill="none"
-          strokeLinecap="round"
-        />
-        <rect className="intro-lock-body" x="45" y="54" width="30" height="24" rx="6" />
-      </svg>
-    ),
-  },
 ]
 
-export default function IntroCards({ onDone }) {
+export default function IntroCards({ onDone, beneath = false }) {
   const [i, setI] = useState(0)
   // Live finger offset in pixels, on top of the settled position. Null when
   // no finger is down, which is also how the transition knows to come back.
@@ -163,7 +140,23 @@ export default function IntroCards({ onDone }) {
   }
 
   return (
-    <div className="intro-layer" role="dialog" aria-modal="true" aria-label="What this is">
+    <div
+      // While the boot screen is still up this is mounted *underneath* it,
+      // so that when boot lifts there is a finished screen behind rather
+      // than a frame of the working app. That only holds if this is already
+      // opaque — and it wasn't: its own 320ms fade-in ran at the same moment
+      // as boot's 500ms fade-out, so for half a second there were two
+      // half-transparent full-screen layers with the app showing through
+      // both. Card text over wordmark over globe over nav, all unreadable,
+      // and the two overlapping centred layouts read as one stretched one.
+      //
+      // So it arrives instantly when it is arriving behind something, and
+      // fades only when it is the thing appearing.
+      className={`intro-layer${beneath ? ' intro-layer--already' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="What this is"
+    >
       <div
         className="intro-viewport"
         onTouchStart={onStart}

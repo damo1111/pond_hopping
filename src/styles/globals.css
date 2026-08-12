@@ -1776,15 +1776,33 @@ button {
   text-align: center;
 }
 
+/* A spotter photograph arrives at about 3:2, and at the width of a flight
+   card that is a very tall block — the aeroplane ends up bigger than the
+   route, the map and the registration put together, which is the wrong way
+   round on a card that is mostly about a journey.
+
+   Letterboxed to 2:1 rather than scaled down, because the interesting part
+   of one of these is a horizontal band across the middle: fuselage, tail,
+   engines. Cropping takes sky off the top and tarmac or cloud off the
+   bottom and leaves the aeroplane the same size it was. Scaling would have
+   shrunk the thing an av-geek opened the card for.
+
+   2:1 and not tighter: spotters shoot aircraft banking, climbing and high
+   in the frame, and a 2.4:1 crop starts clipping wingtips on the ones taken
+   from below. */
 .photo-link {
   display: block;
   position: relative;
+  aspect-ratio: 2 / 1;
+  overflow: hidden;
 }
 
 .photo-link img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
 }
 
 .photo-credit {
@@ -2672,6 +2690,14 @@ button {
   border: 2px solid #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
   cursor: pointer;
+}
+
+/* Smaller and lighter than the numeral it qualifies: it needs to be read,
+   not counted. */
+.map-cluster-x {
+  font-size: 8px;
+  opacity: 0.75;
+  margin-right: 0.5px;
 }
 
 .map-day-scrub {
@@ -6238,32 +6264,13 @@ button {
   backdrop-filter: blur(4px);
 }
 
-.ov-cover-edit {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 16px 0;
-}
-
-.ov-cover-edit .plan-input {
-  flex: 1 1 200px;
-}
-
-.ov-cover-save,
-.ov-cover-cancel {
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: none;
-  color: inherit;
-  font: inherit;
+/* What replaced the paste-a-URL row: one line, only while something is
+   happening or has gone wrong. Choosing a picture is a single gesture now,
+   so there is nothing to lay out in between. */
+.ov-cover-note {
+  padding: 10px 16px 0;
   font-size: 12px;
-  cursor: pointer;
-}
-
-.ov-cover-save {
-  border-color: var(--gold);
-  color: var(--gold);
+  color: var(--text-muted);
 }
 
 /* ── Trip recap: a trip, in one page ──────────────────────────── */
@@ -7941,30 +7948,40 @@ button {
 
 /* ── Sign-in, asked for where the need arises ─────────────────── */
 
+/* One row, not a stack. The reason on the left and the button on the right,
+   because a full-width black pill under a single line of grey is a wall
+   where a nudge was wanted. */
 .plan-signin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 14px;
   margin: 4px 16px 14px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--accent-bg);
 }
 
 .plan-signin-body {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.4;
   color: var(--text-muted);
 }
 
 .plan-signin-btn {
-  margin-top: 10px;
-  width: 100%;
-  padding: 11px 16px;
+  flex: none;
+  padding: 9px 20px;
   border: 0;
   border-radius: 999px;
   background: var(--text);
   color: var(--bg);
   font-family: var(--font-display);
   font-size: 14px;
+  cursor: pointer;
 }
 
 /* The recap's own grab handle. The sheets have had one for weeks; the page
@@ -8690,6 +8707,11 @@ button {
   from { opacity: 0 }
   to   { opacity: 1 }
 }
+
+/* Already here, because something else is still on top. Fading in under a
+   layer that is itself fading out makes both translucent at once, and the
+   app shows straight through the pair of them. */
+.intro-layer--already { animation: none; }
 
 /* A rail of three, moved as one. Cross-fading a single card in place made
    each step feel like a page reload; sliding says they are three sides of
@@ -10600,4 +10622,1040 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   overflow-x: auto;
   white-space: pre;
   max-height: 220px;
+}
+
+/* The line that explains why a stranger's holiday is on your globe.
+   Said once, beside the trips it is about, rather than from an overlay
+   pointing at them — which is where it used to live, and which spent its
+   whole life drawing a ring round the wrong card. */
+.wt-whose {
+  margin: 0 16px 14px;
+  padding: 12px 14px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.wt-whose p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.wt-whose-ok {
+  border: 1px solid var(--accent);
+  background: none;
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ── Get your trips in ────────────────────────────────────────────────
+   The sheet whose padding read as broken. It wasn't the padding: the sheet
+   is --surface and every card on it was --surface too, so the space around a
+   card looked like space between paragraphs and the edges disappeared. Put
+   the sheet on paper and the white cards become objects with room around
+   them, which is the thing the spacing was trying to say all along. */
+.gti {
+  background: var(--bg);
+  padding: 18px 16px calc(22px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
+  /* Was inherited from .routes-sheet, which this no longer wears. A phone in
+     landscape is 375px tall and this sheet is taller than that. */
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+/* The hero. A button the size of a decision, not the size of a list row. */
+.gti-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  text-align: left;
+  padding: 0 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  color: inherit;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+/* The drawing sits in its own tinted band rather than floating on the card,
+   so the picture reads as the subject and the words read as the caption. */
+.gti-hero-art {
+  display: block;
+  padding: 16px 16px 14px;
+  background: var(--accent-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.gti-draw { display: block; width: 100%; height: auto; }
+
+.gti-pile rect {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.gti-pile-top { fill: var(--surface); }
+.gti-sun { fill: var(--accent); opacity: 0.55; }
+
+.gti-hill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+.gti-arrow,
+.gti-arrow-head {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Sized so the pattern divides the shaft's 14 units exactly — 2+4 twice
+   plus a final 2 — so the last dash always lands on the same spot rather
+   than wherever the repeat runs out. */
+.gti-arrow { stroke-dasharray: 2 4; }
+
+.gti-route {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.gti-pin { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.gti-pin--last { fill: var(--accent); }
+
+.gti-hero-title {
+  font-size: 17px;
+  font-weight: 400;
+  padding: 14px 16px 0;
+}
+
+.gti-hero-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  padding: 4px 16px 0;
+  text-wrap: pretty;
+}
+
+/* The one with a deadline. */
+.gti-now {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  margin-top: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+}
+
+.gti-now-live {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-bg);
+}
+
+.gti-now-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gti-now-title { font-size: 15px; }
+.gti-now-body { font-size: 13px; color: var(--text-muted); }
+
+/* The rest: one card, hairlines between, names doing the work. */
+.gti-rest {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.gti-quiet {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 13px 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.gti-quiet + .gti-quiet { border-top: 1px solid var(--border); }
+
+.gti-quiet-name { font-size: 14px; }
+
+.gti-quiet-hint {
+  flex: none;
+  max-width: 55%;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  word-break: break-word;
+}
+
+/* Arriving one at a time.
+   Safe by construction: the resting state of every block is visible, and the
+   only rule that hides one is the `from` frame of an animation that ends
+   visible. A browser that ignores the animation, a reduced-motion setting, a
+   stylesheet that fails to load — each of those leaves the sheet fully
+   readable, because being seen is the default and the fade is the exception. */
+@media (prefers-reduced-motion: no-preference) {
+  .gti-in {
+    animation: gti-rise 400ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+    animation-delay: calc(var(--in, 0) * 80ms);
+  }
+
+  @keyframes gti-rise {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* The route draws itself, once, just after the card it lives on has
+     landed. `both` so it is hidden during its delay rather than drawn,
+     jumped away and redrawn. */
+  .gti-route {
+    stroke-dasharray: 190;
+    animation: gti-trace 900ms 420ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+
+  @keyframes gti-trace {
+    from { stroke-dashoffset: 190; }
+    to   { stroke-dashoffset: 0; }
+  }
+}
+
+/* ── A trip that has just started ─────────────────────────────────────
+   Four sentences of prose about browser geolocation, replaced by a drawing
+   of the state being announced: a track behind, a pin now, and the line
+   carrying on past the edge because there is no end date. */
+.started {
+  text-align: center;
+  padding-bottom: calc(22px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
+}
+
+.started-art {
+  padding: 4px 0 2px;
+}
+
+.started-art svg {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  margin: 0 auto;
+}
+
+.started-been,
+.started-ahead {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* Where it is going is not known, so it is drawn as not known. */
+.started-ahead {
+  stroke-dasharray: 2 7;
+  opacity: 0.5;
+}
+
+.started-was { fill: var(--accent); opacity: 0.45; }
+.started-now { fill: var(--accent); opacity: 0.18; }
+.started-now-dot { fill: var(--accent); }
+
+.started-title {
+  font-size: 19px;
+  font-weight: 300;
+  margin-top: 8px;
+}
+
+.started-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 16px;
+}
+
+.started-note {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  text-wrap: pretty;
+}
+
+/* The one thing to press sits in the middle like everything else here. */
+.started .track-card,
+.started .track-note { text-align: left; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Recording. Slow enough to read as a pulse rather than a spinner —
+     nothing here is loading. */
+  .started-now { animation: started-breathe 2.4s ease-in-out infinite; }
+
+  @keyframes started-breathe {
+    0%, 100% { opacity: 0.18; transform: scale(1); transform-origin: 128px 34px; }
+    50%      { opacity: 0.34; transform: scale(1.22); transform-origin: 128px 34px; }
+  }
+}
+
+/* ── Paste a confirmation, from the front door ────────────────────────
+   The review step: what was found, and the trip it adds up to. */
+.paste-sheet {
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+.paste-shape {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+/* Placeholder rather than value, so the name it worked out is visible but
+   typing over it does not mean clearing it first. */
+.paste-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.paste-when {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.paste-items {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.paste-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  cursor: pointer;
+}
+
+.paste-item + .paste-item { border-top: 1px solid var(--border); }
+
+.paste-item input { flex: none; accent-color: var(--accent); }
+.paste-item-i { flex: none; font-size: 15px; }
+
+.paste-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.paste-item-title {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paste-item-sub { font-size: 11px; color: var(--text-muted); }
+
+/* ── The planned flight card ──────────────────────────────────────────
+   It knew the terminal, the gate, the baggage belt and what the aeroplane
+   looked like, and never said where the flight was going. The map goes
+   above the aircraft section, so the card reads route-first. */
+.pf-map {
+  height: 150px;
+  margin-bottom: 14px;
+}
+
+/* And the aeroplane comes down a size.
+
+   On the Flights tab the spotter photo is letterboxed to 2:1, which is
+   right there: that card is *about* the flight, and the photograph is the
+   thing an av-geek opened it for. Here it is one field among eight on a card
+   that is mostly a form, and at 2:1 it was taller than everything above it
+   put together — David, 12 August: "as an avgeek i love this but maybe the
+   aircraft is too big here".
+
+   3:1 rather than a scaled-down 2:1, for the same reason as before: the
+   interesting band of one of these is horizontal — fuselage, tail, engines —
+   so cropping takes sky and tarmac and leaves the aeroplane the size it was.
+   Scaling would shrink the aeroplane, which is the opposite of the ask. */
+.photo-link--band {
+  aspect-ratio: 3 / 1;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+/* Said on the code screen because it is true, and because somebody who does
+   not know it decides the app has failed after fifteen seconds. */
+.auth-patience {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: -8px 0 14px;
+}
+
+/* ── Let your AI do it ────────────────────────────────────────────────
+   Four steps, because a connector URL on its own needs four pieces of
+   knowledge the app never supplied. */
+.ai-sheet {
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+.ai-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.ai-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--surface-2);
+}
+
+.ai-dot.done { background: var(--accent); opacity: 0.4; }
+.ai-dot.on { background: var(--accent); width: 18px; border-radius: 3px; }
+
+.ai-can {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.ai-can li {
+  position: relative;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.ai-can li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+/* The URL. Shown in full rather than behind a "copy" button alone: somebody
+   who cannot use the clipboard needs to be able to select it, and somebody
+   who can still wants to see what they are handing over. */
+.ai-url {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: inherit;
+  cursor: pointer;
+}
+
+.ai-url-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.5;
+  word-break: break-all;
+  color: var(--text-muted);
+}
+
+.ai-url-do {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.ai-wheres {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.ai-where {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 14px;
+}
+
+.ai-where + .ai-where { border-top: 1px solid var(--border); }
+.ai-where-name { font-size: 14px; }
+
+.ai-where-path {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.ai-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  text-wrap: pretty;
+}
+
+/* The step people stop at, with the words ready to take. */
+.ai-asks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ai-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ai-ask-say { font-size: 13px; line-height: 1.45; text-wrap: pretty; }
+.ai-ask-why { font-size: 11px; color: var(--text-muted); }
+
+/* The remove button, at the top where the count it belongs to is.
+   Sixty-six groups is a very long way to scroll to find out what it says —
+   and the number at the bottom was a different number from the one at the
+   top, which is the other half of that bug. */
+.fd-actions--top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0 0 12px;
+  padding: 10px 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+/* A run already under way is not a fault. It was being drawn in the same red
+   as a crash, directly above a line saying the photographs were on number
+   thirty of ninety — the most reassuring fact on the screen, presented as
+   the least. */
+.story-trouble--calm {
+  color: var(--text-muted);
+}
+
+/* ── How are we doing ─────────────────────────────────────────────────
+   Admin only. Built to make a thin number look thin: the count is always
+   there, the rate only when there is enough underneath it. */
+.kpi-span {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.kpi-span-chip {
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.kpi-span-chip.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.kpi-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.kpi {
+  display: grid;
+  grid-template-columns: 1fr auto 46px;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 0;
+}
+
+.kpi + .kpi { border-top: 1px solid var(--border); }
+
+.kpi-what {
+  font-size: 13px;
+  min-width: 0;
+}
+
+.kpi-num {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.kpi-num b {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+/* The denominator, always. A rate without one is unreadable — 40% means
+   very different things at five sessions and at five hundred. */
+.kpi-of {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.kpi-moved {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-align: right;
+  color: var(--text-muted);
+}
+
+/* Green for better and red for worse — which is not the same as up and down.
+   Bounce and breakage get worse as they get bigger, and kpis.js has already
+   worked out which way is which. */
+.kpi-moved.up { color: #3E7D54; }
+.kpi-moved.down { color: #B4472F; }
+
+.kpi-note { font-size: 11px; }
+
+/* The upload grid inside a sheet. On the Photos tab it sits on a full page;
+   here it is in a sheet that must not grow past the screen, so the tiles
+   scroll and the count above them stays put. */
+.route-sheet .pu-grid {
+  max-height: 46vh;
+  overflow-y: auto;
+  margin-top: 12px;
+}
+
+/* The open flight, drawn on the strip above it. The strip has always shown
+   the ordered airports and had no relation to the card you tapped. */
+.route-strip-leg {
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--rs-color, var(--accent));
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.route-strip-stop {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.route-strip-stop.on .rs-dot {
+  background: var(--rs-color, var(--accent));
+  transform: scale(1.5);
+}
+
+.route-strip-stop.on .rs-code {
+  color: var(--text);
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .route-strip-leg { transition: left 220ms ease, width 220ms ease; }
+  .rs-dot { transition: transform 160ms ease, background 160ms ease; }
+}
+
+/* ── Who was there ────────────────────────────────────────────────────
+   trip_members has carried this since sharing was built and nothing has
+   ever shown it. Deliberately not the sharing screen: being on a trip and
+   being allowed to edit it are different facts. */
+.tv {
+  margin: 18px 16px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.tv-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.tv-title { font-size: 15px; }
+
+.tv-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.tv-list { list-style: none; margin: 0; padding: 0; }
+
+.tv-one {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+}
+
+/* Somebody who planned the trip but did not go is still on the list, just
+   quieter — they are why half the itinerary exists. */
+.tv-one--away { opacity: 0.55; }
+
+.tv-was {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.tv-one:not(.tv-one--away) .tv-was {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.tv-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.tv-who { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.tv-name { font-size: 14px; }
+
+.tv-role {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.tv-drop {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tv-open {
+  margin-top: 8px;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tv-add { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.tv-add-do { display: flex; gap: 8px; }
+
+.tv-save,
+.tv-cancel {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tv-save { border-color: var(--accent); color: var(--accent); }
+
+.tv-note {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+/* ── Apple and Google, above the code ─────────────────────────────────
+   A code by email is the slowest way in and the only one that needs a
+   working inbox at the moment somebody is trying to get in — on a trip, on
+   hotel wifi, behind a mail server that greylists for four minutes. Which
+   is exactly when this app is used. */
+.ways {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.way {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  position: relative;
+}
+
+.way--apple {
+  background: #1A1611;
+  border-color: #1A1611;
+  color: #fff;
+}
+
+.way-mark {
+  font-size: 15px;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.way--google .way-mark { color: var(--accent); font-family: var(--font-mono); }
+
+/* Which one they used last. Not because it is better — because "which of
+   these did I use?" is the single most common way somebody ends up with two
+   accounts, and the answer belongs on the button. */
+.way--last { border-color: var(--accent); }
+
+.way-again {
+  position: absolute;
+  right: 12px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.way--apple .way-again { color: rgba(255, 255, 255, 0.7); }
+
+/* The code is not hidden behind "other options". It is the only way in that
+   works for somebody with neither account, and it is what every hopper who
+   already has an account uses. */
+.ways-or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ways-or::before,
+.ways-or::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Off I go ─────────────────────────────────────────────────────────
+   A prompt for more, not a form to complete. Five ticked rows and a
+   checklist read as five things to do before you are allowed to press the
+   button; the writing is the headline and the extras are chips under it. */
+.bww { text-align: center; }
+
+.bww-top {
+  font-size: 20px;
+  font-weight: 300;
+  margin-bottom: 14px;
+}
+
+/* The whole explanation, without a word of it. Colour by colour it says what
+   the story is made of; the empty part says there is more available. */
+.bww-bar {
+  display: flex;
+  gap: 3px;
+  height: 12px;
+  margin-bottom: 10px;
+}
+
+.bww-seg {
+  border-radius: 3px;
+  background: var(--surface-2);
+}
+
+.bww-seg--got { background: var(--seg); }
+
+.bww-seg:first-child { border-radius: 6px 3px 3px 6px; }
+.bww-seg:last-child { border-radius: 3px 6px 6px 3px; }
+
+.bww-said {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.bww-go { margin-bottom: 18px; }
+
+.bww-more-said {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 9px;
+}
+
+.bww-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+
+.bww-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* The chip carries the colour of the segment it would fill in, so choosing
+   one is visibly the same act as lengthening the bar. */
+.bww-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--seg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bww-seg { transition: background 260ms ease; }
+}
+
+
+/* The waiting line, while the ducks are working.
+   Not a count: "Reading your photographs — 30 of 90" was precise and wrong,
+   because the total moves whenever somebody adds more, and it invited
+   standing over it. */
+.story-doing-sub {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+
+/* The prompt for more, inline and while it works rather than as a card in
+   the way beforehand. Nothing here is a gate — the writing has already
+   started, and anything added lands in the next pass. */
+.story-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.story-more-said {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.story-more-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.story-more-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--seg);
 }

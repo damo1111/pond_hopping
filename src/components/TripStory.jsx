@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
-import { daysAdded, confirmed, howFar, whatItCosts, worthAsking } from '../lib/storyRun.js'
+import { daysAdded, confirmed, whatItCosts, worthAsking } from '../lib/storyRun.js'
+import { standBy, alsoSay } from '../lib/standBy.js'
+import { couldAdd } from '../lib/whatWeHave.js'
 import { running, whatThereIs } from '../lib/storyBuild.js'
 import { callApi } from '../lib/apiBase.js'
 import { oops } from '../lib/analytics.js'
+import { useAuth } from '../lib/AuthContext.jsx'
+import { isDemo } from '../lib/demoTour.js'
 
 /** One question, answered in words.
  *
@@ -56,12 +60,16 @@ function Ask({ q, onAnswer, onSkip }) {
 // whether or not this tab is still open. Locking the phone halfway through
 // used to kill the run silently, and the only way to find out was to come
 // back later and see the story unchanged.
-export default function TripStory({ trip, photos = [], runKey = 0 }) {
+export default function TripStory({ trip, photos = [] }) {
+  const { user } = useAuth()
   const [step, setStep] = useState('idle')
   // Whether the prose is unfolded. Closed on arrival: this is the photographs
   // screen, and the story is several thousand words of it.
   const [open, setOpen] = useState(false)
   const [trouble, setTrouble] = useState(null)
+  // Whether the last thing that went wrong was actually a fault. A run
+  // already in progress is news, not a breakage, and should not be red.
+  const [calm, setCalm] = useState(false)
   const [story, setStory] = useState(null)
   const [questions, setQuestions] = useState([])
   const [entries, setEntries] = useState([])
@@ -151,8 +159,23 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   // that version would nag, and charge, every time the app was opened.
   const freshDays = daysAdded(mine, story)
 
+  // Whether this viewer could write this trip even if they wanted to.
+  //
+  // A signed-out visitor reading the example trip was shown "Sign in first."
+  // in red, on somebody else's holiday, having asked for nothing. The story
+  // starts itself — which is right for your own trips and is the whole point
+  // of the app — and the start attempted a build the server would have
+  // refused anyway, because build-story checks is_trip_editor.
+  //
+  // So the client checks the same thing before trying. Signed out, or on an
+  // example that belongs to somebody else, the story is read and never
+  // written. There is nothing to fix and nothing to sign in for: the story
+  // is already there.
+  const mayWrite = !!user && !isDemo(trip)
+
   const began = useRef('')
   useEffect(() => {
+    if (!mayWrite) return
     // `story` is null while the fetch is in flight as well as when there
     // is none, and starting a run on the first was how a finished story got
     // hidden behind a progress line the moment somebody came back to it.
@@ -173,7 +196,7 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     if (story) make({ only: freshDays })
     else itself()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip?.id, mine.length, story, freshDays.length, step, entries, looked, have.enough, run])
+  }, [trip?.id, mine.length, story, freshDays.length, step, entries, looked, have.enough, run, mayWrite])
 
   // What the server is doing, while it is doing it.
   //
@@ -198,21 +221,6 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     }
   }, [trip?.id, watching])
 
-  // "Write again" lives in the row of buttons above, with receipts and
-  // duplicates, so that three actions on the same photographs read as three
-  // actions rather than three cards. The row bumps this; nothing happens on
-  // the first render, only on a change.
-  const ranAt = useRef(runKey)
-  useEffect(() => {
-    if (runKey === ranAt.current) return
-    ranAt.current = runKey
-    if (step === 'idle') {
-      setOpen(true)
-      make()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runKey])
-
   // It starts itself, in two passes.
   //
   // The story is worth having the moment there is anything to go on, and the
@@ -225,12 +233,14 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   // is the case this used to have no answer for at all.
   async function itself() {
     setTrouble(null)
+    setCalm(false)
     try {
       const auth = await token()
       if (!auth) return
       await build(auth)
     } catch (e) {
       setTrouble(e.message)
+      setCalm(!!e.calm)
       setStep('idle')
     }
   }
@@ -257,14 +267,37 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
     if (r.ok) return r.json()
 
     const said = await r.text().catch(() => '')
-    oops('story', { message: `${where} answered ${r.status}` }, said.slice(0, 300))
     let why = ''
+    let answer = null
     try {
-      why = JSON.parse(said)?.error ?? ''
+      answer = JSON.parse(said)
+      why = answer?.error ?? ''
     } catch {
       // Not JSON. A gateway timeout looks exactly like this.
       why = ''
     }
+
+    // A run already going is not a fault, and it was being reported as one:
+    // a red line reading "this trip is already being written", raised at the
+    // moment somebody could see, above it, that their photographs were on
+    // number thirty of ninety. It is the most reassuring fact on the screen
+    // being presented as the least.
+    //
+    // Not logged either — an app_errors row per impatient tap buries the
+    // faults that are real.
+    if (r.status === 409) {
+      const started = answer?.since ? Date.parse(answer.since) : NaN
+      const mins = Number.isFinite(started) ? Math.round((Date.now() - started) / 60000) : null
+      const busy = new Error(
+        mins != null && mins >= 1
+          ? `Already writing this one — ${mins} minute${mins === 1 ? '' : 's'} in. You can close the app.`
+          : 'Already writing this one. You can close the app.',
+      )
+      busy.calm = true
+      throw busy
+    }
+
+    oops('story', { message: `${where} answered ${r.status}` }, said.slice(0, 300))
     if (r.status === 504 || /timed? ?out|FUNCTION_INVOCATION_TIMEOUT/i.test(said)) {
       throw new Error(`${where} ran out of time — it is taking longer than a minute a batch`)
     }
@@ -311,12 +344,14 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   // So this asks, and stops. Closing the app now costs nothing at all.
   async function make() {
     setTrouble(null)
+    setCalm(false)
     try {
       const auth = await token()
       if (!auth) throw new Error('Sign in first.')
       await build(auth)
     } catch (e) {
       setTrouble(e.message)
+      setCalm(!!e.calm)
       setStep('idle')
     }
   }
@@ -355,12 +390,14 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
    *  answer reaches the stage that decides what the evening was. */
   async function carryOn() {
     setTrouble(null)
+    setCalm(false)
     try {
       const auth = await token()
       if (!auth) throw new Error('Sign in first.')
       await build(auth)
     } catch (e) {
       setTrouble(e.message)
+      setCalm(!!e.calm)
       setStep('idle')
     }
   }
@@ -422,21 +459,59 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   // than an idle screen that quietly starts a second one.
   const elsewhere = step === 'idle' && running(run)
 
+  // Photographs added while it was already reading. The obvious fear is that
+  // you have broken it, or that it will have to start over; neither is true,
+  // and the line says so rather than leaving somebody to guess.
+  const arrivedLate = run?.started_at
+    ? mine.filter((p) => p.created_at && p.created_at > run.started_at).length
+    : 0
+
+  // Only promise a nudge to a device that can receive one. Promising it to a
+  // browser tab is the worst possible version of that sentence.
+  const pushable = typeof Notification !== 'undefined' && Notification.permission === 'granted'
+
+  // What would make the next pass better. Said while it works rather than in
+  // a card beforehand — the point is that they do not have to do any of it.
+  const chips = couldAdd({
+    photographs: mine.length,
+    stays: have.stays,
+    said: have.said,
+    flights: have.flights,
+    runs: have.runs,
+  })
+
   if (step !== 'idle' || elsewhere) {
-    // The server knows which stage it is on; the browser only knows it is
-    // waiting. Reading the photographs is the exception — that is still here,
-    // and it is the one with a count worth showing.
-    // Read off the run rather than counted here. This tab is a spectator
-    // now — the numbers are the same whichever device is looking, and they
-    // survive the app being closed and reopened.
+    // One line, and its whole job is to manage an expectation: this takes
+    // minutes, you can put the phone down, and we will tell you.
+    //
+    // Not a count. "Reading your photographs — 30 of 90" was precise and
+    // wrong, because the total moves whenever somebody adds more, and it
+    // invited standing over it. The stage is honest and the tone does the
+    // rest — see standBy.js.
     const doing = run?.step || (step === 'idle' ? 'working it out' : step)
-    const read = run?.seen ?? 0
-    const all = read + (run?.to_see ?? 0)
+    const since = run?.started_at ? Date.now() - Date.parse(run.started_at) : 0
     return (
       <div className="story">
-        <div className="story-doing">{howFar(doing, read, all)}</div>
+        <div className="story-doing">{standBy(doing, since, arrivedLate)}</div>
+        <div className="story-doing-sub">{alsoSay({ canPush: pushable })}</div>
+
+        {/* The prompt for more, inline and while it works, rather than as a
+            card in the way beforehand. Nothing here is a gate: the writing is
+            already under way, and anything added lands in the next pass. */}
+        {chips.length > 0 && (
+          <div className="story-more">
+            <span className="story-more-said">Even better with</span>
+            {chips.map((c) => (
+              <span key={c.key} className="story-more-chip" style={{ '--seg': c.colour }}>
+                <span className="story-more-dot" aria-hidden="true" />
+                {c.get}
+              </span>
+            ))}
+          </div>
+        )}
+
         {asks}
-        {trouble && <div className="story-trouble">{trouble}</div>}
+        {trouble && <div className={`story-trouble${calm ? ' story-trouble--calm' : ''}`}>{trouble}</div>}
         {written && <div className="story-sofar">{written}</div>}
       </div>
     )
@@ -468,7 +543,7 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
             <span className="story-open-mark">−</span>
           </button>
         )}
-        {trouble && <div className="story-trouble">{trouble}</div>}
+        {trouble && <div className={`story-trouble${calm ? ' story-trouble--calm' : ''}`}>{trouble}</div>}
       </div>
     )
   }
@@ -482,7 +557,7 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       </div>
       {trouble && (
         <>
-          <div className="story-trouble">{trouble}</div>
+          <div className={`story-trouble${calm ? ' story-trouble--calm' : ''}`}>{trouble}</div>
           <button className="story-go" onClick={itself}>
             try again
           </button>

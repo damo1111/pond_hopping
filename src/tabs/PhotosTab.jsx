@@ -114,7 +114,7 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
 }
 
 export default function PhotosTab({ openPhotoId = null }) {
-  const { tripMeta, selectedTrip, setSelectedTrip, userId } = useContext(TripContext)
+  const { tripMeta, selectedTrip, userId, notePhotosChanged, openPlanner } = useContext(TripContext)
   const [photos, setPhotos] = useState(null)
   const [covers, setCovers] = useState({})
   const [reload, setReload] = useState(0)
@@ -133,7 +133,15 @@ export default function PhotosTab({ openPhotoId = null }) {
       // still photographs and still in this table; they are just not part
       // of anybody's holiday.
       .neq('kind', 'receipt')
+      // Day, then the instant inside it. Ordering on taken_on alone sorts to
+      // day granularity and leaves everything within a day in whatever order
+      // Postgres felt like — so a day's photographs came back shuffled, and
+      // differently on each load. id last so the order is total: photos with
+      // no EXIF time at all still land somewhere stable rather than moving
+      // about between renders.
       .order('taken_on', { ascending: true })
+      .order('taken_at', { ascending: true, nullsFirst: true })
+      .order('id', { ascending: true })
       .then(({ data }) => alive && setPhotos(data ?? []))
     // A cover somebody chose wins over one scraped from an album.
     Promise.all([
@@ -278,12 +286,38 @@ export default function PhotosTab({ openPhotoId = null }) {
           </div>
         </div>
       )}
-      <AddPhoto tripMeta={tripMeta} selectedTrip={selectedTrip} onSaved={() => setReload((r) => r + 1)} />
+      <AddPhoto
+        tripMeta={tripMeta}
+        selectedTrip={selectedTrip}
+        onSaved={() => {
+          setReload((r) => r + 1)
+          notePhotosChanged?.()
+        }}
+      />
 
       {/* Only inside a trip. "Find the receipts across everything you have
           ever photographed" is a bill, not a feature. */}
       {heroTrip && (
-        <TripTools trip={heroTrip} photos={visible} onDone={() => setReload((r) => r + 1)} />
+        <TripTools
+          trip={heroTrip}
+          photos={visible}
+          onDone={() => {
+            setReload((r) => r + 1)
+            notePhotosChanged?.()
+          }}
+          onGet={(route) => {
+            // The checklist's "go and get it" buttons. Every one of these
+            // already has a door somewhere in the app; this only walks you
+            // to it rather than describing where it is.
+            if (route === 'photos') {
+              document.querySelector('.pu-pick')?.click()
+              return
+            }
+            // Timeline exports, bookings and runs all live in the trip's own
+            // planner, which is one screen away and knows how to do each.
+            openPlanner?.(heroTrip.id)
+          }}
+        />
       )}
 
 
@@ -294,31 +328,15 @@ export default function PhotosTab({ openPhotoId = null }) {
             <img src={coverUrl(covers[t.id], { width: 800, height: 450 })} alt="" loading="lazy" />
           </span>
         )
-        // Once the real photos are registered in-app, the card should open
-        // the in-app grid, not send you out to Google Photos — the album
-        // link is only a stand-in until then.
-        if (count > 0) {
-          return (
-            <button
-              key={t.slug}
-              type="button"
-              className="album-card"
-              onClick={() => {
-                setSelectedTrip(t.slug)
-                gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              }}
-            >
-              {cover}
-              <span className="album-flags">
-                <CountryFlags countries={t.countries} size={18} />
-              </span>
-              <span className="album-title">{t.title}</span>
-              <span className="album-open">
-                View {count} photo{count === 1 ? '' : 's'} ↓
-              </span>
-            </button>
-          )
-        }
+        // The album link was always a stand-in for photographs that were not
+        // in the app yet. Once they are, this was a very large box whose
+        // whole offer — "View 205 photos ↓" — was the grid immediately
+        // underneath it, and it pushed that grid a screen down to say so.
+        // David, 12 August: remove.
+        //
+        // The card survives only for a trip whose photographs are still
+        // outside, in Google Photos, where it is the only way to reach them.
+        if (count > 0) return null
         return (
           <a key={t.slug} className="album-card" href={t.photos_url} target="_blank" rel="noreferrer">
             {cover}

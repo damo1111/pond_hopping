@@ -3,7 +3,7 @@ import ReceiptScan from './ReceiptScan.jsx'
 import FindDuplicates from './FindDuplicates.jsx'
 import TripStory from './TripStory.jsx'
 
-// Three things you can do to a trip's photographs, on one line.
+// Two things you can do to a trip's photographs, on one line.
 //
 // They were three full-width cards stacked down the page, each with its own
 // button and its own paragraph explaining itself — "Reads each one and offers
@@ -12,30 +12,28 @@ import TripStory from './TripStory.jsx'
 // of it you could not see a single photograph. On a phone that was most of a
 // screen spent on things nobody taps twice.
 //
-// So: one row, three short labels, and the explanation appears when you
-// choose the thing rather than before. Receipts and duplicates start on the
-// tap — the row's button is the trigger, which is why both take `autoStart`
-// — and the story, which is the one that costs money, only ever runs from
-// its own explicit tap.
+// So: one row, two short labels, and the explanation appears when you choose
+// the thing rather than before. Both start on the tap — the row's button is
+// the trigger, which is why both take `autoStart`.
 const TOOLS = [
   { id: 'receipts', label: 'Receipts', why: 'Reads each photograph and offers what it finds as a cost. Nothing is saved until you say.' },
   { id: 'duplicates', label: 'Duplicates', why: 'Compares the pictures themselves, here in this browser. Nothing is sent anywhere, and nothing is removed until you say.' },
-  { id: 'story', label: 'Write again', why: 'Reads anything new and writes the trip up from scratch. A few minutes — stay on the app while it runs.' },
 ]
+
+// "Write again" used to be the third button here. It has gone, and so has the
+// asking: a trip that has just been handed two hundred photographs does not
+// need to be asked whether it would like them read. David, 12 August: "We
+// don't need buttons or a fanfare for writing or updating the OpenAI enriched
+// story. It just happens."
+//
+// TripStory has always started itself when there is something new — the
+// button only ever duplicated that, badly, by rewriting the whole trip when
+// one picture had changed.
 
 export default function TripTools({ trip, photos = [], onDone }) {
   const [open, setOpen] = useState(null)
-  // Bumped rather than set, so tapping "Write again" twice runs it twice.
-  const [runKey, setRunKey] = useState(0)
 
-  function tap(id) {
-    if (id === 'story') {
-      setOpen('story')
-      setRunKey((n) => n + 1)
-      return
-    }
-    setOpen((now) => (now === id ? null : id))
-  }
+  const tap = (id) => setOpen((now) => (now === id ? null : id))
 
   const chosen = TOOLS.find((t) => t.id === open)
 
@@ -53,7 +51,7 @@ export default function TripTools({ trip, photos = [], onDone }) {
         ))}
       </div>
 
-      {chosen && open !== 'story' && <div className="tools-why">{chosen.why}</div>}
+      {chosen && <div className="tools-why">{chosen.why}</div>}
 
       {open === 'receipts' && (
         <ReceiptScan trip={trip} photos={photos} onDone={onDone} autoStart />
@@ -64,7 +62,7 @@ export default function TripTools({ trip, photos = [], onDone }) {
           itself when photographs arrive, it holds the questions, and it
           carries the story somebody came back to read. Hiding it behind a
           tab would mean none of that happens unless you go looking. */}
-      <TripStory trip={trip} photos={photos} runKey={runKey} />
+      <TripStory trip={trip} photos={photos} />
     </div>
   )
 }

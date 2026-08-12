@@ -4,8 +4,9 @@ import { HEAD_BYTES, ingest, runTotals } from '../lib/photoIngest.js'
 import { readExif } from '../lib/exif.js'
 import { savingsLabel } from '../lib/photoResize.js'
 import { clusterPhotos, looksOngoing, slugify, suggestTitle } from '../lib/tripFromPhotos.js'
-import { UNDATED, describeRow, newTripCount, planUpload, readyToUpload } from '../lib/photoPlan.js'
+import { UNDATED, describeRow, newTripCount, pickerFor, planUpload, readyToUpload } from '../lib/photoPlan.js'
 import Icon from './Icon.jsx'
+import UploadGrid from './UploadGrid.jsx'
 import { oops, tookMs, track } from '../lib/analytics.js'
 
 // Adding photos used to mean pasting a URL, which assumes you had already
@@ -40,6 +41,43 @@ async function readDates(files) {
     }
   }
   return meta
+}
+
+/**
+ * Where these photographs should go.
+ *
+ * Every trip is offered — nothing is hidden — but in the order they are worth
+ * offering: the ones whose days these photographs actually fall in first,
+ * best fit at the top, then everything else by how recent it is. Nineteen
+ * names in arrival order, several of them empty trips left behind by
+ * abandoned uploads, is not a choice anybody can make.
+ */
+function TripChoice({ row, trips, onPick }) {
+  const { fits, rest } = pickerFor(row, trips)
+  const name = (t) => (t.is_demo ? `${t.title} — example` : t.title)
+  return (
+    <select value={row.tripId ?? ''} onChange={(e) => onPick(e.target.value)}>
+      {row.kind === UNDATED ? (
+        <option value="">pick a trip…</option>
+      ) : (
+        <option value="">a new trip</option>
+      )}
+      {fits.length > 0 && (
+        <optgroup label="These days">
+          {fits.map((t) => (
+            <option key={t.id} value={t.id}>{name(t)}</option>
+          ))}
+        </optgroup>
+      )}
+      {rest.length > 0 && (
+        <optgroup label={fits.length ? 'Other trips' : 'Your trips'}>
+          {rest.map((t) => (
+            <option key={t.id} value={t.id}>{name(t)}</option>
+          ))}
+        </optgroup>
+      )}
+    </select>
+  )
 }
 
 export default function PhotoUpload({ trip, trips = [], traveler = null, onDone }) {
@@ -170,18 +208,7 @@ export default function PhotoUpload({ trip, trips = [], traveler = null, onDone 
               {/* Shown for every row, not only the ones in doubt — the
                   cheapest moment to move two hundred photographs is before
                   they have gone anywhere. */}
-              <select value={row.tripId ?? ''} onChange={(e) => setRowTrip(row.key, e.target.value)}>
-                {row.kind === UNDATED ? (
-                  <option value="">pick a trip…</option>
-                ) : (
-                  <option value="">a new trip</option>
-                )}
-                {trips.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.is_demo ? `${t.title} — example` : t.title}
-                  </option>
-                ))}
-              </select>
+              <TripChoice row={row} trips={trips} onPick={(id) => setRowTrip(row.key, id)} />
             </div>
           ))}
 
@@ -226,34 +253,12 @@ export default function PhotoUpload({ trip, trips = [], traveler = null, onDone 
           becoming eighteen. So the pictures arrive, in a grid, each one
           appearing the moment it has been shrunk and filling in as it
           lands. The filenames are gone; nobody ever wanted them. */}
-      {rows?.length > 0 && (
-        <>
-          {phase === 'running' && (
-            <div className="pu-progress">
-              <div className="pu-progress-said">
-                {totals.done} of {rows.length}
-                {totals.located > 0 && <span className="pu-progress-where"> · {totals.located} know where they were</span>}
-              </div>
-              <div className="pu-bar">
-                <span style={{ width: `${rows.length ? (totals.done / rows.length) * 100 : 0}%` }} />
-              </div>
-            </div>
-          )}
-          <ul className="pu-grid">
-            {rows.map((r, i) => (
-              <li className={`pu-tile pu-${r.state}`} key={`${r.name}-${i}`} title={r.state === 'failed' ? r.error : r.name}>
-                {r.preview ? (
-                  <img src={r.preview} alt="" />
-                ) : (
-                  <span className="pu-tile-empty" aria-hidden="true" />
-                )}
-                {r.located && <span className="pu-pin" aria-hidden="true">◦</span>}
-                {r.state === 'failed' && <span className="pu-tile-bad" aria-hidden="true">!</span>}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+      <UploadGrid
+        rows={rows ?? []}
+        done={totals?.done ?? 0}
+        located={totals?.located ?? 0}
+        busy={phase === 'running'}
+      />
 
       {error && <div className="pu-bad">{error}</div>}
 

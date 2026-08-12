@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
-import { MapContainer, TileLayer, Polyline, CircleMarker, useMap } from 'react-leaflet'
-import { greatCircle } from '../lib/geo.js'
+import { useEffect, useState } from 'react'
 import { fetchAircraftPhoto } from '../lib/planespotters.js'
 import { supabase } from '../lib/supabase.js'
 import TailFin from './TailFin.jsx'
 import FlapText from './FlapText.jsx'
 import Icon from './Icon.jsx'
+import RouteMap from './RouteMap.jsx'
 import { localTime, localDate } from '../lib/airportTz.js'
 import { nameFor, usePeopleNames } from '../lib/people.js'
 
@@ -16,41 +15,7 @@ function fmtDuration(min) {
   return `${h}h ${String(m).padStart(2, '0')}m`
 }
 
-// Animates the great-circle arc drawing in when the card expands.
-function AnimatedRoute({ from, to }) {
-  const map = useMap()
-  const full = useRef(greatCircle(from, to, 96))
-  const [n, setN] = useState(2)
-
-  useEffect(() => {
-    map.invalidateSize()
-    map.fitBounds(full.current, { padding: [26, 26], animate: false })
-    let raf
-    const total = full.current.length
-    const start = performance.now()
-    const dur = 900
-    const tick = (t) => {
-      const p = Math.min(1, (t - start) / dur)
-      setN(Math.max(2, Math.round(p * total)))
-      if (p < 1) raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [map])
-
-  const shown = full.current.slice(0, n)
-  const head = shown[shown.length - 1]
-  return (
-    <>
-      <Polyline positions={shown} pathOptions={{ color: '#A8842C', weight: 2, dashArray: '5 7', opacity: 0.95 }} />
-      <CircleMarker center={from} radius={4} pathOptions={{ color: '#A8842C', fillColor: '#A8842C', fillOpacity: 1, weight: 0 }} />
-      <CircleMarker center={to} radius={4} pathOptions={{ color: '#A8842C', fillColor: '#F5F2EB', fillOpacity: 1, weight: 2 }} />
-      {head && <CircleMarker center={head} radius={3} pathOptions={{ color: '#1A1611', fillColor: '#1A1611', fillOpacity: 1, weight: 0 }} />}
-    </>
-  )
-}
-
-export default function FlightCard({ flight, aircraftType }) {
+export default function FlightCard({ flight, aircraftType, onOpen }) {
   const names = usePeopleNames()
   const [open, setOpen] = useState(false)
   const [photo, setPhoto] = useState(undefined) // undefined = not loaded, null = none
@@ -91,7 +56,18 @@ export default function FlightCard({ flight, aircraftType }) {
 
   return (
     <div className={`flight-card${open ? ' open' : ''}`}>
-      <button className="flight-head board" onClick={() => setOpen((o) => !o)}>
+      <button
+        className="flight-head board"
+        onClick={() =>
+          setOpen((o) => {
+            // Told to the strip above, which draws this leg on the line.
+            // Reported on the way open only: closing a card does not mean
+            // some other flight is now the one being looked at.
+            if (!o) onOpen?.(flight.id)
+            return !o
+          })
+        }
+      >
         <span className="fh-thumb">
           <TailFin airline={f.airline || f.flight_number} size={22} />
         </span>
@@ -162,26 +138,7 @@ export default function FlightCard({ flight, aircraftType }) {
             )}
           </div>
 
-          {hasRoute && (
-            <div className="flight-map">
-              <MapContainer
-                center={[(from[0] + to[0]) / 2, (from[1] + to[1]) / 2]}
-                zoom={3}
-                zoomControl={false}
-                attributionControl={false}
-                dragging={false}
-                scrollWheelZoom={false}
-                doubleClickZoom={false}
-                style={{ height: '100%', width: '100%', background: '#EDE9DF' }}
-              >
-                <TileLayer
-                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-                  subdomains="abcd"
-                />
-                <AnimatedRoute from={from} to={to} />
-              </MapContainer>
-            </div>
-          )}
+          {hasRoute && <RouteMap from={from} to={to} />}
 
           <div className="flight-meta">
             <Meta label="Airline" value={f.airline} onSave={(v) => saveField('airline', v)} />

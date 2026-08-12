@@ -1,43 +1,19 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { shouldTour, shouldBadge, ownTrips, isDemo, STEPS, visibleSteps } from './demoTour.js'
+import {shouldBadge, ownTrips, isDemo} from './demoTour.js'
 
 const demo = { slug: 'south-korea', is_demo: true }
 const mine = { slug: 'japan-2027', is_demo: false }
 
-test('the tour waits for the trips to actually arrive', () => {
-  assert.equal(shouldTour({ trips: [demo], tripsLoaded: false, dismissed: false }), false)
-  assert.equal(shouldTour({ trips: [demo], tripsLoaded: true, dismissed: false }), true)
-})
+// The tour itself is gone — three tooltip steps, the rule for when to run
+// them, and the flag that remembered. Its tests went with it. What is left
+// here covers the parts four other files still use: whose trips are whose,
+// and whether a trip is the example.
+//
+// The badge outlives the tour on purpose. As long as somebody else's holiday
+// is sitting on a Home among your own it should keep saying so, or the first
+// time you scroll past it in six months you will think you went there.
 
-test('the tour runs for someone who only has the demo', () => {
-  assert.equal(shouldTour({ trips: [demo], tripsLoaded: true, dismissed: false }), true)
-})
-
-test('the tour stops the moment there is one real trip', () => {
-  assert.equal(shouldTour({ trips: [demo, mine], tripsLoaded: true, dismissed: false }), false)
-})
-
-test('a dismissed tour stays dismissed', () => {
-  assert.equal(shouldTour({ trips: [demo], tripsLoaded: true, dismissed: true }), false)
-})
-
-test('no demo trip, no tour — there would be nothing to point at', () => {
-  assert.equal(shouldTour({ trips: [mine], tripsLoaded: true, dismissed: false }), false)
-  assert.equal(shouldTour({ trips: [], tripsLoaded: true, dismissed: false }), false)
-})
-
-test('missing and undefined trip lists do not throw', () => {
-  assert.equal(shouldTour({ trips: undefined, tripsLoaded: true, dismissed: false }), false)
-  assert.deepEqual(ownTrips(undefined), [])
-})
-
-test('the badge outlives the tour — a demo among your own still says so', () => {
-  // The tour is off here (a real trip exists) but the label must remain.
-  assert.equal(shouldTour({ trips: [demo, mine], tripsLoaded: true, dismissed: false }), false)
-  assert.equal(shouldBadge(demo), true)
-  assert.equal(shouldBadge(mine), false)
-})
 
 test('isDemo reads either the database column or a camelCase mapping', () => {
   assert.equal(isDemo({ is_demo: true }), true)
@@ -52,15 +28,4 @@ test('ownTrips is the negative of the demo flag, not a count of content', () => 
   assert.deepEqual(ownTrips([demo, empty]), [empty])
 })
 
-test('steps with no anchor on screen are skipped rather than pointing at nothing', () => {
-  const doc = { querySelector: (sel) => (sel === '.wt-card' ? {} : null) }
-  const shown = visibleSteps(doc)
-  assert.equal(shown.length, 1)
-  assert.equal(shown[0].id, 'welcome')
-})
 
-test('every step has an anchor, a title and a body', () => {
-  for (const s of STEPS) {
-    assert.ok(s.id && s.anchor && s.title && s.body, `step ${s.id} is incomplete`)
-  }
-})

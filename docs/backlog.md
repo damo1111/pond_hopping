@@ -393,7 +393,61 @@ Two things to get right when it is written, both learned the hard way:
   hundreds of rows needs a `maxDuration`, or it dies on the default and cron
   retries it for ever.
 
-## 7. Flight data: three sources, and which reaches what
+## 7. Flight data: decided — AeroDataBox live, retro is a purchase not a dependency
+
+**The job is two jobs and they were being shopped for as one.**
+
+| | live / upcoming | retro |
+|---|---|---|
+| shape | runs for ever, low volume | one burst, then never again |
+| needs | webhooks, reliability | reach |
+| cost | per notification, monthly | **one bill, once** |
+
+### Live: AeroDataBox, and no migration
+
+It is already built (`api/enrich-flight.js`), already proven — 105 flights
+enriched through it — and `REACH.aerodatabox = 365` is encoded where the
+backfill can see it.
+
+And the thing that was thought missing turns out to be there: the **Flight
+Alert PUSH API is on the free Basic tier** (600 API units, 2,400 requests a
+month). Webhooks on status change, one credit per flight per notification,
+credits non-expiring and refilled by converting units. Paid starts at **$5 a
+month via RapidAPI**, not the $100 on the direct pricing page.
+
+Two things to know before wiring it: **charging is on send, not delivery**,
+so a webhook endpoint that is down still costs; and alert latency is
+unmeasured, which is worth checking on one real flight before trusting it.
+
+**SkyLink was considered and buys nothing.** Free for 1,000 calls and a 30%
+voucher, but its history also stops at 365 days — the identical reach — so
+it is a second live source, not an answer to retro, and adopting it means a
+new adapter for no new capability.
+
+**Cirium is dead.** The peek established the account has no historical
+entitlement at all: every historical path 404s and status v2 answers
+"Earliest allowed date" seven days back. Do not renew.
+
+### Retro: 128 flights, and it can wait indefinitely
+
+Of 144 flights with no registration:
+
+    12   within 365 days — free, now, through what already exists
+    128  2011 onwards — needs a source that reaches back
+    4    before 2011 — unreachable by anything sensible
+
+So the whole retro question is **128 rows**. FlightAware AeroAPI reaches
+January 2011, which covers all 128, at $200 for a month of Standard — run
+the backfill, cancel. About £1.20 a flight, once, for ever.
+
+The point worth holding on to: **this is a purchase, not a dependency.** It
+never goes in the app, it does not get worse by waiting, and the archive is
+already 70% complete on tails without it. The 12 free ones are worth taking
+today; the 128 are worth taking whenever it feels worth £150.
+
+---
+
+## 7b. The older survey, kept for the reasoning
 
 **AeroDataBox** — live, free, and the only one working today. 365 days on
 every tier it sells, which is 113 of 482 flights here. `REACH.aerodatabox`

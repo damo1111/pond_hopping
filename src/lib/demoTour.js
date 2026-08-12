@@ -10,7 +10,6 @@
 // because a half-built trip with no flights yet is still yours and still
 // means the app is no longer empty.
 
-export const TOUR_SEEN_KEY = 'pond:tourdone'
 
 export const isDemo = (trip) => !!(trip?.is_demo ?? trip?.isDemo)
 
@@ -30,64 +29,13 @@ export const isDemo = (trip) => !!(trip?.is_demo ?? trip?.isDemo)
 export const ownTrips = (trips) =>
   (trips ?? []).filter((t) => !isDemo(t) && (t?.mine === undefined || t.mine))
 
-/**
- * Whether the walkthrough should run.
- *
- * dismissed is passed in rather than read here so the caller owns storage —
- * it makes this testable without a DOM, and localStorage throws in enough
- * embedded browsers that reading it deep inside a predicate is a bad place
- * to discover that.
- */
-export function shouldTour({ trips, tripsLoaded, dismissed }) {
-  if (!tripsLoaded) return false
-  if (dismissed) return false
-  // Nothing to point at.
-  if (!(trips ?? []).some(isDemo)) return false
-  // They have their own. The demo is no longer the story.
-  if (ownTrips(trips).length > 0) return false
-  return true
-}
 
-/**
- * Whether to badge a trip as an example.
- *
- * Note this outlives the tour deliberately: the tour is a one-off you can
- * dismiss, but as long as a demo trip is sitting on someone's Home among
- * their own, it should keep saying what it is. Otherwise the first time
- * someone scrolls past "HK & South Korea" in six months they will think they
- * went there.
- */
 export const shouldBadge = (trip) => isDemo(trip)
 
-/**
- * The steps, in order. Kept as data so the tour component is a renderer and
- * the content is reviewable in one place.
- *
- * `anchor` is a CSS selector resolved at display time; a step whose anchor
- * isn't on screen is skipped rather than pointing at nothing, which is what
- * happens on a narrow phone where the globe controls collapse.
- */
-export const STEPS = [
-  {
-    id: 'welcome',
-    anchor: '.wt-card',
-    title: 'Someone else’s pond',
-    body: 'A real trip, parked here so the place isn’t empty when you turn up. Have a paddle round — it’s properly finished, photos and all. Then it clears off.',
-  },
-  {
-    id: 'globe',
-    anchor: '.globe-shift',
-    title: 'Every hop, drawn',
-    body: 'One line per flight you’ve taken. Four so far, and all of them borrowed. Yours will look better.',
-  },
-  {
-    id: 'plan',
-    anchor: '.navitem-plan',
-    title: 'Where to next?',
-    body: 'Plan is where a trip starts — a date, a rough idea, a flight if you’ve booked one. Add one and the borrowed trip paddles off.',
-  },
-]
-
-/** Steps whose anchor actually exists right now. */
-export const visibleSteps = (doc = document) =>
-  STEPS.filter((s) => doc.querySelector(s.anchor))
+// The tour that used to live here is gone: three tooltip steps, the rule for
+// when to run them, and the flag that remembered. Its copy is in
+// docs/copy-parked.md, and its one irreplaceable line — "someone else's pond",
+// the only thing that explained why a stranger's holiday was on your globe —
+// moves onto the example trip itself rather than into an overlay pointing at
+// it. What is left here is what four other files actually use: who owns a
+// trip, and whether one is the example.
