@@ -1,6 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import Globe from 'react-globe.gl'
 import { supabase } from '../lib/supabase.js'
+import { within } from '../lib/within.js'
 import { isInAustralia } from '../lib/geo.js'
 import { AIRPORT_COORDS } from '../lib/airportCoords.js'
 import { TripContext } from '../App.jsx'
@@ -18,7 +19,7 @@ import { sectionTrips } from '../lib/tripPhase.js'
 import { overviewOf, homeCoords } from '../lib/homePov.js'
 import { shouldBadge } from '../lib/demoTour.js'
 import { pickVariant } from '../lib/variants.js'
-import { track, whoAmI } from '../lib/analytics.js'
+import { oops, track, whoAmI } from '../lib/analytics.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
 
 // Default framing for the "all trips" overview — centred on the
@@ -133,6 +134,9 @@ export default function WorldTab() {
   // The one thing worth opening the app for when nothing is planned.
   const [memory, setMemory] = useState(null)
   const [flights, setFlights] = useState(null)
+  /** Told apart from "still loading", because an empty globe and an
+   *  unreachable one look identical and mean opposite things. */
+  const [worldFailed, setWorldFailed] = useState(false)
   // Booked-but-not-yet-flown legs. These live in planned_events (the
   // planner's world), not the flights table (the travel log's world), so
   // an upcoming trip drew nothing on the globe at all — Seeby's whole
@@ -251,13 +255,37 @@ export default function WorldTab() {
 
   useEffect(() => {
     let alive = true
-    supabase
-      .from('flights')
-      .select('flight_number,airline,trip_id,dep_airport,dep_city,dep_lat,dep_lon,arr_airport,arr_city,arr_lat,arr_lon,dep_time,distance_km,travellers,purpose')
-      // A cancelled booking leaves a row behind but no line on the map.
-      .eq('status', 'flown')
-      .order('dep_time', { ascending: true })
-      .then(({ data }) => alive && setFlights(data ?? []))
+    within(
+      supabase
+        .from('flights')
+        .select('flight_number,airline,trip_id,dep_airport,dep_city,dep_lat,dep_lon,arr_airport,arr_city,arr_lat,arr_lon,dep_time,distance_km,travellers,purpose')
+        // A cancelled booking leaves a row behind but no line on the map.
+        .eq('status', 'flown')
+        .order('dep_time', { ascending: true }),
+      undefined,
+      'the pond',
+    )
+      // Two ways to fail, and both have to be caught. `data ?? []` on its own
+      // reads a returned error as "this person has never flown anywhere" and
+      // draws an empty globe to prove it; and before within(), a request that
+      // never answered reached neither branch at all. A blank world is the
+      // most alarming thing this app can show somebody, and it is what a
+      // dropped connection produced.
+      .then(({ data, error }) => {
+        if (!alive) return
+        if (error) {
+          oops('world_flights', error)
+          setWorldFailed(true)
+          return
+        }
+        setWorldFailed(false)
+        setFlights(data ?? [])
+      })
+      .catch((e) => {
+        if (!alive) return
+        oops('world_flights', e)
+        setWorldFailed(true)
+      })
     supabase
       .from('planned_events')
       .select('trip_id,event_date,start_time,title,detail,traveler')
@@ -593,6 +621,21 @@ export default function WorldTab() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTrip, segments, isEmpty, home.lat, home.lng, introRunning])
+
+  // Said plainly, and with a way out. Before the timeout in supabase.js this
+  // state was unreachable — a network that drops rather than refuses left the
+  // request pending forever, so "loading the world…" was the whole experience
+  // and there was nothing to retry and nothing written down.
+  if (worldFailed) {
+    return (
+      <div className="tab-loading">
+        <span>Couldn’t reach the pond.</span>{' '}
+        <button className="load-retry" onClick={() => window.location.reload()}>
+          Try again
+        </button>
+      </div>
+    )
+  }
 
   if (!flights) return <div className="tab-loading">loading the world…</div>
 
