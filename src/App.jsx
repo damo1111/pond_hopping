@@ -231,17 +231,26 @@ export default function App() {
     // annoying perhaps every time." Afterwards it holds just long enough to
     // cover the first paint, so there is still no flash of half-built app.
     //
-    // Five seconds because the opening now carries the pitch as well: act two
+    // Six seconds because the opening now carries the pitch as well: act two
     // runs photographs onto the globe, folds them into a route and finishes a
     // sentence at 4.85s. That used to be a card afterwards, which is a screen
     // this no longer needs — so the first run is shorter than it was, not
     // longer.
     //
-    // The 250ms on top of 4.85s is not slack. This timer starts at mount and
-    // the animation starts at first paint, so the CSS clock runs a frame or
-    // two behind this one — measured at ~120ms in Chromium. Cutting at 4850
-    // began the fade while the last word was still arriving.
-    const minBoot = meetsColdOpen ? 5100 : 500
+    // Two things are in the number and only one of them is arithmetic.
+    //
+    // The arithmetic: this timer starts at mount and the animation starts at
+    // first paint, so the CSS clock runs a frame or two behind it — measured
+    // at ~120ms in Chromium. Cutting at 4850 began the fade while the last
+    // word was still arriving.
+    //
+    // The judgement: the sentence has to be *held*, not merely reached. At
+    // 5100 it stood finished for about a third of a second, which is long
+    // enough to notice and not long enough to read — David, 12 August: "the
+    // third part of the loading animation was too quick. Needs to hold
+    // longer." It now holds for a second and a half, which is about what
+    // seven words take.
+    const minBoot = meetsColdOpen ? 6300 : 500
     const leave = setTimeout(() => {
       if (cancelled) return
       if (meetsColdOpen) {
