@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { remember, waiting, forget, CODE_GOOD_FOR_MS } from './pendingCode.js'
+import { remember, waiting, forget, resendIn, CODE_GOOD_FOR_MS, RESEND_AFTER_MS } from './pendingCode.js'
 
 const store = () => {
   const m = new Map()
@@ -85,4 +85,21 @@ test('a storage that throws on write does not throw at the caller', () => {
   }
   assert.doesNotThrow(() => remember('sam@example.com', angry, 0))
   assert.doesNotThrow(() => forget(angry))
+})
+
+// A resend invalidates the code already in somebody's inbox, so a button that
+// can be pressed straight away turns a slow code into a wrong one.
+test('another code cannot be asked for immediately', () => {
+  assert.equal(resendIn(0, 0), RESEND_AFTER_MS)
+  assert.equal(resendIn(0, RESEND_AFTER_MS / 2), RESEND_AFTER_MS / 2)
+})
+
+test('and can be once the wait is over', () => {
+  assert.equal(resendIn(0, RESEND_AFTER_MS), 0)
+  assert.equal(resendIn(0, RESEND_AFTER_MS * 10), 0)
+})
+
+test('a missing or junk timestamp offers the resend rather than locking it out', () => {
+  assert.equal(resendIn(undefined, 0), 0)
+  assert.equal(resendIn(NaN, 0), 0)
 })

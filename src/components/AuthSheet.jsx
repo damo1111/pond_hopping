@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import SheetGrip from './SheetGrip.jsx'
 import { track } from '../lib/analytics.js'
-import { remember, waiting, forget } from '../lib/pendingCode.js'
+import { remember, waiting, forget, resendIn } from '../lib/pendingCode.js'
 
 // The front door to the app's account, opened by tapping the duck.
 // Same passwordless OTP flow the Account tab has always used (email →
@@ -37,7 +37,16 @@ export default function AuthSheet({ onClose }) {
   const [error, setError] = useState(null)
   // A third step, shown only to someone who has just made an account and has
   // no name on it. Everyone else goes straight through as before.
-  const [resent, setResent] = useState(false)
+  // When the outstanding code went out, so the offer of another one can wait
+  // the minute Supabase insists on — and so it survives leaving the app.
+  const [sentAt, setSentAt] = useState(outstanding?.at ?? null)
+  const [waitLeft, setWaitLeft] = useState(() => resendIn(outstanding?.at))
+  useEffect(() => {
+    if (!sentAt) return setWaitLeft(0)
+    setWaitLeft(resendIn(sentAt))
+    const t = setInterval(() => setWaitLeft(resendIn(sentAt)), 1000)
+    return () => clearInterval(t)
+  }, [sentAt])
   const [naming, setNaming] = useState(false)
   const [name, setName] = useState('')
 
@@ -54,6 +63,7 @@ export default function AuthSheet({ onClose }) {
       // very next frame — which is what going to fetch the code amounts to —
       // still comes back here.
       remember(email.trim())
+      setSentAt(Date.now())
       setSent(true)
     }
   }
@@ -155,8 +165,14 @@ export default function AuthSheet({ onClose }) {
           <form onSubmit={verify}>
             <div className="ios-sheet-title">Check your email</div>
             <div className="ios-sheet-sub">
-              Sent a code to <b>{email}</b>. Type it in below — don't tap the link in the email, it opens the
-              browser instead of the app.
+              Sent a code to <b>{email}</b>. Type it in below — don&apos;t tap the link in the email, it
+              opens the browser instead of the app.
+            </div>
+            {/* Said because it is true, and because somebody who does not
+                know it assumes the app has failed after fifteen seconds and
+                starts pressing things. */}
+            <div className="auth-patience">
+              It can take a minute to turn up, and it sometimes lands in spam.
             </div>
             <input
               className="account-input"
@@ -174,12 +190,16 @@ export default function AuthSheet({ onClose }) {
             <button
               className="account-btn ghost"
               type="button"
-              disabled={busy}
+              disabled={busy || waitLeft > 0}
               onClick={async () => {
                 // Missing until now, and the only thing to do when a code has
                 // genuinely gone astray. Without it the way out of a lost code
                 // was to change your email address, which is not a thing
                 // anybody wants to do to receive a code.
+                //
+                // It waits a minute first. Sending another invalidates the one
+                // already on its way, so an eager tap while the first is in
+                // flight is how a slow code becomes a wrong code.
                 setBusy(true)
                 setError(null)
                 const { error: again } = await supabase.auth.signInWithOtp({ email: email.trim() })
@@ -187,11 +207,11 @@ export default function AuthSheet({ onClose }) {
                 if (again) setError(again.message)
                 else {
                   remember(email.trim())
-                  setResent(true)
+                  setSentAt(Date.now())
                 }
               }}
             >
-              {resent ? 'Another one sent' : 'Send it again'}
+              {waitLeft > 0 ? `Send it again in ${Math.ceil(waitLeft / 1000)}s` : 'Send it again'}
             </button>
             <button
               className="account-btn ghost"
@@ -199,7 +219,7 @@ export default function AuthSheet({ onClose }) {
               onClick={() => {
                 forget()
                 setSent(false)
-                setResent(false)
+                setSentAt(null)
                 setCode('')
                 setError(null)
               }}

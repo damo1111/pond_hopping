@@ -30,6 +30,26 @@ const KEY = 'pond:code_sent'
  */
 export const CODE_GOOD_FOR_MS = 55 * 60 * 1000
 
+/**
+ * How long before offering to send another one.
+ *
+ * Supabase refuses a second OTP inside a minute, so a button that can be
+ * pressed immediately is a button that mostly returns an error. Worse than
+ * that: every code that *is* sent invalidates the one before it. Somebody
+ * who taps resend three times while waiting ends up holding three emails of
+ * which only the last works — and the natural thing to do is type the first
+ * one that arrived. That is a slow code turning into a wrong code.
+ *
+ * So the offer waits, and says how long it is waiting for.
+ */
+export const RESEND_AFTER_MS = 60 * 1000
+
+/** Milliseconds until another code can be asked for; 0 once it can. */
+export function resendIn(at, now = Date.now()) {
+  if (!Number.isFinite(at)) return 0
+  return Math.max(0, RESEND_AFTER_MS - (now - at))
+}
+
 const box = () => {
   try {
     return globalThis.localStorage ?? null

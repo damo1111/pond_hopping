@@ -11007,3 +11007,12 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   border-radius: 8px;
   margin-top: 10px;
 }
+
+/* Said on the code screen because it is true, and because somebody who does
+   not know it decides the app has failed after fifteen seconds. */
+.auth-patience {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: -8px 0 14px;
+}

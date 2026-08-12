@@ -23,7 +23,7 @@ import { pushDiagnostics, registerPush } from '../lib/push.js'
 import { TripContext } from '../App.jsx'
 import { demoSwitchNote, hiddenByArrival } from '../lib/demoVisibility.js'
 import { ownTrips } from '../lib/demoTour.js'
-import { remember, waiting, forget } from '../lib/pendingCode.js'
+import { remember, waiting, forget, resendIn } from '../lib/pendingCode.js'
 
 const ROLES = [
   { id: 'family', label: 'Family' },
@@ -44,6 +44,8 @@ function SignInForm() {
   const outstanding = useState(() => waiting())[0]
   const [email, setEmail] = useState(outstanding?.email ?? '')
   const [sent, setSent] = useState(!!outstanding)
+  const [sentAt, setSentAt] = useState(outstanding?.at ?? null)
+  const [waitLeft, setWaitLeft] = useState(() => resendIn(outstanding?.at))
   const [code, setCode] = useState('')
   const [sending, setSending] = useState(false)
   const [verifying, setVerifying] = useState(false)
@@ -58,9 +60,19 @@ function SignInForm() {
     if (error) setError(error.message)
     else {
       remember(email)
+      setSentAt(Date.now())
       setSent(true)
     }
   }
+
+  // Ticks only while a code is outstanding; see pendingCode.js for why the
+  // offer of another one has to wait.
+  useEffect(() => {
+    if (!sentAt) return setWaitLeft(0)
+    setWaitLeft(resendIn(sentAt))
+    const t = setInterval(() => setWaitLeft(resendIn(sentAt)), 1000)
+    return () => clearInterval(t)
+  }, [sentAt])
 
   async function verify(e) {
     e.preventDefault()
@@ -79,7 +91,7 @@ function SignInForm() {
         <div className="account-card-title">Check your email</div>
         <div className="account-card-body">
           Sent a code to <b>{email}</b> — enter it below (don't tap the link in the email, it'll open in
-          the browser instead of here).
+          the browser instead of here). It can take a minute, and sometimes lands in spam.
         </div>
         <input
           className="account-input"
@@ -96,17 +108,20 @@ function SignInForm() {
         <button
           className="account-btn ghost"
           type="button"
-          disabled={sending}
+          disabled={sending || waitLeft > 0}
           onClick={async () => {
             setSending(true)
             setError(null)
             const { error: again } = await supabase.auth.signInWithOtp({ email })
             setSending(false)
             if (again) setError(again.message)
-            else remember(email)
+            else {
+              remember(email)
+              setSentAt(Date.now())
+            }
           }}
         >
-          {sending ? 'Sending…' : 'Send it again'}
+          {sending ? 'Sending…' : waitLeft > 0 ? `Send it again in ${Math.ceil(waitLeft / 1000)}s` : 'Send it again'}
         </button>
         <button
           className="account-btn ghost"
@@ -114,6 +129,7 @@ function SignInForm() {
           onClick={() => {
             forget()
             setSent(false)
+            setSentAt(null)
             setCode('')
             setError(null)
           }}
