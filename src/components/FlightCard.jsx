@@ -15,7 +15,7 @@ function fmtDuration(min) {
   return `${h}h ${String(m).padStart(2, '0')}m`
 }
 
-export default function FlightCard({ flight, aircraftType }) {
+export default function FlightCard({ flight, aircraftType, onOpen }) {
   const names = usePeopleNames()
   const [open, setOpen] = useState(false)
   const [photo, setPhoto] = useState(undefined) // undefined = not loaded, null = none
@@ -56,7 +56,18 @@ export default function FlightCard({ flight, aircraftType }) {
 
   return (
     <div className={`flight-card${open ? ' open' : ''}`}>
-      <button className="flight-head board" onClick={() => setOpen((o) => !o)}>
+      <button
+        className="flight-head board"
+        onClick={() =>
+          setOpen((o) => {
+            // Told to the strip above, which draws this leg on the line.
+            // Reported on the way open only: closing a card does not mean
+            // some other flight is now the one being looked at.
+            if (!o) onOpen?.(flight.id)
+            return !o
+          })
+        }
+      >
         <span className="fh-thumb">
           <TailFin airline={f.airline || f.flight_number} size={22} />
         </span>

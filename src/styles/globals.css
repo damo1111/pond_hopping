@@ -11269,3 +11269,47 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .kpi-moved.down { color: #B4472F; }
 
 .kpi-note { font-size: 11px; }
+
+/* The upload grid inside a sheet. On the Photos tab it sits on a full page;
+   here it is in a sheet that must not grow past the screen, so the tiles
+   scroll and the count above them stays put. */
+.route-sheet .pu-grid {
+  max-height: 46vh;
+  overflow-y: auto;
+  margin-top: 12px;
+}
+
+/* The open flight, drawn on the strip above it. The strip has always shown
+   the ordered airports and had no relation to the card you tapped. */
+.route-strip-leg {
+  position: absolute;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--rs-color, var(--accent));
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.route-strip-stop {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.route-strip-stop.on .rs-dot {
+  background: var(--rs-color, var(--accent));
+  transform: scale(1.5);
+}
+
+.route-strip-stop.on .rs-code {
+  color: var(--text);
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .route-strip-leg { transition: left 220ms ease, width 220ms ease; }
+  .rs-dot { transition: transform 160ms ease, background 160ms ease; }
+}

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import TailFin from './TailFin.jsx'
+import { stripOf, atFraction } from '../lib/routeStrip.js'
 
 function mostCommon(list) {
   const counts = new Map()
@@ -19,15 +20,12 @@ function mostCommon(list) {
 // ordered airports it actually visited, with a plane (wearing that trip's
 // most-flown airline's real tail livery) flying stop to stop. Replays
 // every time the Flights tab mounts, same as FlapText.
-export default function RouteStrip({ flights, color }) {
-  const stops = useMemo(() => {
-    const seq = []
-    for (const f of flights) {
-      if (seq[seq.length - 1] !== f.dep_airport) seq.push(f.dep_airport)
-      seq.push(f.arr_airport)
-    }
-    return seq.filter((code, i) => code !== seq[i - 1])
-  }, [flights])
+export default function RouteStrip({ flights, color, showing = null, onPick }) {
+  // Built in one pass so each flight knows which two dots it occupies. The
+  // codes repeat — BKK twice on a Thailand trip — so looking one up cannot
+  // say which is meant. See routeStrip.js.
+  const { stops, legs } = useMemo(() => stripOf(flights), [flights])
+  const lit = showing ? legs.get(showing) : null
 
   const mainAirline = useMemo(
     () => mostCommon(flights.map((f) => f.airline).filter(Boolean)),
@@ -40,16 +38,31 @@ export default function RouteStrip({ flights, color }) {
     <div className="route-strip" style={{ '--rs-color': color }}>
       <div className="route-strip-track">
         <div className="route-strip-line" />
-        {stops.map((code, i) => (
+        {/* The open flight, drawn on the line it belongs to. */}
+        {lit && (
           <div
-            key={`${code}-${i}`}
-            className="route-strip-stop"
-            style={{ left: `${(i / (stops.length - 1)) * 100}%` }}
-          >
-            <span className="rs-dot" />
-            <span className="rs-code">{code}</span>
-          </div>
-        ))}
+            className="route-strip-leg"
+            style={{
+              left: `${atFraction(lit[0], stops.length) * 100}%`,
+              width: `${(atFraction(lit[1], stops.length) - atFraction(lit[0], stops.length)) * 100}%`,
+            }}
+          />
+        )}
+        {stops.map((code, i) => {
+          const on = lit ? i >= lit[0] && i <= lit[1] : false
+          return (
+            <button
+              type="button"
+              key={`${code}-${i}`}
+              className={`route-strip-stop${on ? ' on' : ''}`}
+              style={{ left: `${atFraction(i, stops.length) * 100}%` }}
+              onClick={() => onPick?.(i)}
+            >
+              <span className="rs-dot" />
+              <span className="rs-code">{code}</span>
+            </button>
+          )
+        })}
         <div className="route-strip-plane">
           <TailFin airline={mainAirline} size={11} />
           <span className="rs-fuselage" />

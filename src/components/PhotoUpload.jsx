@@ -6,6 +6,7 @@ import { savingsLabel } from '../lib/photoResize.js'
 import { clusterPhotos, looksOngoing, slugify, suggestTitle } from '../lib/tripFromPhotos.js'
 import { UNDATED, describeRow, newTripCount, pickerFor, planUpload, readyToUpload } from '../lib/photoPlan.js'
 import Icon from './Icon.jsx'
+import UploadGrid from './UploadGrid.jsx'
 import { oops, tookMs, track } from '../lib/analytics.js'
 
 // Adding photos used to mean pasting a URL, which assumes you had already
@@ -252,34 +253,12 @@ export default function PhotoUpload({ trip, trips = [], traveler = null, onDone 
           becoming eighteen. So the pictures arrive, in a grid, each one
           appearing the moment it has been shrunk and filling in as it
           lands. The filenames are gone; nobody ever wanted them. */}
-      {rows?.length > 0 && (
-        <>
-          {phase === 'running' && (
-            <div className="pu-progress">
-              <div className="pu-progress-said">
-                {totals.done} of {rows.length}
-                {totals.located > 0 && <span className="pu-progress-where"> · {totals.located} know where they were</span>}
-              </div>
-              <div className="pu-bar">
-                <span style={{ width: `${rows.length ? (totals.done / rows.length) * 100 : 0}%` }} />
-              </div>
-            </div>
-          )}
-          <ul className="pu-grid">
-            {rows.map((r, i) => (
-              <li className={`pu-tile pu-${r.state}`} key={`${r.name}-${i}`} title={r.state === 'failed' ? r.error : r.name}>
-                {r.preview ? (
-                  <img src={r.preview} alt="" />
-                ) : (
-                  <span className="pu-tile-empty" aria-hidden="true" />
-                )}
-                {r.located && <span className="pu-pin" aria-hidden="true">◦</span>}
-                {r.state === 'failed' && <span className="pu-tile-bad" aria-hidden="true">!</span>}
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+      <UploadGrid
+        rows={rows ?? []}
+        done={totals?.done ?? 0}
+        located={totals?.located ?? 0}
+        busy={phase === 'running'}
+      />
 
       {error && <div className="pu-bad">{error}</div>}
 

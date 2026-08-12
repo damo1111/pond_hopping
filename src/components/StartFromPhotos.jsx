@@ -15,6 +15,7 @@ import {
   summarise,
 } from '../lib/tripFromPhotos.js'
 import SheetGrip from './SheetGrip.jsx'
+import UploadGrid from './UploadGrid.jsx'
 import { oops, track } from '../lib/analytics.js'
 import { withDeadline, ONE_PHOTO_MS } from '../lib/deadline.js'
 import { whatIsNew, fingerprintOf } from '../lib/alreadyHere.js'
@@ -66,6 +67,9 @@ export default function StartFromPhotos({ onDone, onClose }) {
   // Set when the sheet goes away mid-upload. The loop checks it between
   // photographs and stops, so nothing carries on writing into a trip
   // somebody has walked away from.
+  // One tile per photograph, filling in as they land. The same view the
+  // in-trip uploader has always had; this door only ever showed a bar.
+  const [tiles, setTiles] = useState([])
   const abandoned = useRef(false)
   useEffect(() => () => { abandoned.current = true }, [])
 
@@ -185,17 +189,23 @@ export default function StartFromPhotos({ onDone, onClose }) {
         setAlready(already)
       }
 
+      setTiles(sending.map((p) => ({ name: p.file?.name ?? 'photo', state: 'waiting' })))
+
       let done = 0
       let bytes = 0
       let original = 0
       let skipped = 0
+      let placed = 0
       setProgress({ done: 0, total: sending.length, bytes: 0, original: 0, already: alreadyThere })
 
       // Sequential on purpose here rather than the ingest helper's three at a
       // time: this screen is showing a running count, and a truthful count is
       // worth more on a first run than a few seconds.
-      for (const p of sending) {
+      for (const [at, p] of sending.entries()) {
         if (abandoned.current) break
+        const tile = (patch) =>
+          setTiles((list) => list.map((t, i) => (i === at ? { ...t, ...patch } : t)))
+        tile({ state: 'shrinking' })
         try {
           // Each photograph gets a deadline, because the way this loop failed
           // was not an exception. Somebody watched it stop at "198 of 262":
@@ -209,16 +219,27 @@ export default function StartFromPhotos({ onDone, onClose }) {
           // smaller problem than the rest never arriving at all.
           await withDeadline(async () => {
             const prepared = await prepare(p.file)
+            // The thumbnail exists before the upload starts, so the picture
+            // can be on screen while the file is still going rather than
+            // after it has arrived.
+            tile({
+              state: 'uploading',
+              preview: URL.createObjectURL(prepared.thumb.blob),
+              located: prepared.exif.lat != null,
+            })
             await store(prepared, { tripId: trip.id, isHighlight: !into && done === 0 })
             bytes += prepared.display.blob.size + prepared.thumb.blob.size
             original += prepared.originalBytes
+            if (prepared.exif.lat != null) placed += 1
+            tile({ state: 'done' })
           }, ONE_PHOTO_MS, p.file?.name || 'a photo')
         } catch (e) {
           // One bad file does not lose the trip or the other two hundred.
           skipped += 1
+          tile({ state: 'failed', error: e?.message })
           oops('photos', e, 'StartFromPhotos/upload')
         }
-        setProgress({ done: ++done, total: sending.length, bytes, original, already: alreadyThere })
+        setProgress({ done: ++done, total: sending.length, bytes, original, already: alreadyThere, placed })
       }
 
       // A trip made a moment ago that never received a single photograph is
@@ -371,15 +392,8 @@ export default function StartFromPhotos({ onDone, onClose }) {
 
         {phase === 'saving' && (
           <>
-            <div className="ios-sheet-title">
-              Uploading {progress.done} of {progress.total}
-            </div>
-            <div className="route-bar">
-              <div
-                className="route-bar-fill"
-                style={{ width: `${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%` }}
-              />
-            </div>
+            <div className="ios-sheet-title">Adding them</div>
+            <UploadGrid rows={tiles} done={progress.done} located={progress.placed ?? 0} />
             <div className="ios-sheet-sub">
               {savingsLabel(progress.original, progress.bytes) || 'Shrinking them as they go…'}
             </div>
