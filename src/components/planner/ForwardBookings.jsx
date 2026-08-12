@@ -15,6 +15,19 @@ import { FORWARD_TO, addressesFor, forwardingOn, mailtoLink, withAddress } from 
 // an address nobody owns and is never seen again — silently, with a push
 // that never comes. Better to name the addresses that work and offer to add
 // another than to let somebody discover that by losing a booking.
+/**
+ * Is there anything for this component to draw?
+ *
+ * Asked from outside because the divider that reads "or paste it in" sits in
+ * GmailImport, and an "or" with nothing before it is worse than no choice at
+ * all. This used to be knowable only by rendering and seeing whether null
+ * came back, so a signed-out visitor met a sheet whose first option had
+ * silently vanished and whose second was introduced as the alternative to it.
+ */
+export function canForward(user) {
+  return forwardingOn() && !!user
+}
+
 export default function ForwardBookings() {
   const { user } = useAuth()
   const [profile, setProfile] = useState(null)

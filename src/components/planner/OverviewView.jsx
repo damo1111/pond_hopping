@@ -12,6 +12,8 @@ import GmailImport from './GmailImport.jsx'
 import Travellers from './Travellers.jsx'
 import Icon from '../Icon.jsx'
 import { uploadCover } from '../../lib/photoIngest.js'
+import { useAuth } from '../../lib/AuthContext.jsx'
+import { isDemo } from '../../lib/demoTour.js'
 import { oops } from '../../lib/analytics.js'
 
 function nights(a, b) {
@@ -55,6 +57,12 @@ async function fetchDestinationPhoto(trip, events) {
 }
 
 export default function OverviewView({ trip, events, onEditEvent, onEventsChange, onAskAI, onAdded, onCover }) {
+  const { user } = useAuth()
+  // Signed in, and not somebody else's example. The same expression
+  // TripStory guards its writing with, for the same reason: the demo is a
+  // finished trip parked on a stranger's globe, and nothing on it is theirs
+  // to change.
+  const mayAdd = !!user && !isDemo(trip)
   const [cover, setCover] = useState(null)
   const [importing, setImporting] = useState(false)
   // Uploading, or the reason it didn't. The URL box this replaced needed a
@@ -257,7 +265,14 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
       {/* Who came. Not the sharing screen — see Travellers.jsx. */}
       <Travellers trip={trip} />
 
-      {trip.start_date && trip.end_date && (
+      {/* Only somebody who can actually add something.
+          A signed-out visitor looking at the example trip was offered "Add
+          a booking", and the sheet behind it had already lost half its
+          contents to the same missing account — so the invitation was to
+          paste a confirmation into somebody else's holiday, which
+          row-level security would then refuse. The demo is for looking at.
+          Same test TripStory uses for the same reason. */}
+      {mayAdd && trip.start_date && trip.end_date && (
         <button className="ov-import" onClick={() => setImporting(true)}>
           <span className="ov-import-i">📬</span>
           <span className="ov-import-body">
@@ -268,7 +283,7 @@ export default function OverviewView({ trip, events, onEditEvent, onEventsChange
         </button>
       )}
 
-      {importing && <GmailImport trip={trip} onClose={() => setImporting(false)} onImported={onAdded} />}
+      {importing && mayAdd && <GmailImport trip={trip} onClose={() => setImporting(false)} onImported={onAdded} />}
 
       <Concierge trip={trip} events={events} onAskAI={onAskAI} onAdded={onAdded} />
 
