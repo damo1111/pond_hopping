@@ -39,27 +39,72 @@ Neither of these can be done from the repository.
 
 ### Google
 
-Google OAuth is **already wired** — `src/lib/google.js` uses
-`signInWithOAuth` to connect Gmail and Calendar, so the client ID and the
-Supabase provider are already configured. Signing in reuses that provider and
-deliberately asks for **no scopes**: connecting an inbox is a different act
-from getting in, and asking for Gmail at the front door puts a consent screen
-the size of a legal notice in front of somebody who only wanted to sign in.
+**This section used to say Google was already wired and there was nothing to
+set up. That was wrong**, and it was the most expensive kind of wrong: it
+would have had somebody flip `VITE_WAYS_IN` and ship a button that answers
+`Unsupported provider`. Asked directly on 12 August:
 
-Nothing to set up. Add `google` to `VITE_WAYS_IN`.
+    GET /auth/v1/authorize?provider=google
+    400 {"error_code":"validation_failed",
+         "msg":"Unsupported provider: provider is not enabled"}
+
+The same for `apple`. And `auth.identities` holds five rows, all `email` —
+nobody has ever completed an OAuth sign-in on this project, which also means
+`connectGoogle()` in `src/lib/google.js` cannot be working either. The code
+existing is not the same as the provider being enabled, and this doc
+confused the two.
+
+What is actually needed, in the Google Cloud console for the project that
+owns the app:
+
+1. **OAuth consent screen** configured. External. While it is in Testing,
+   only addresses on the test-user list can sign in at all.
+2. **Credentials → OAuth client ID → Web application**, with
+   - Authorised JavaScript origin: `https://pond.eend.app`
+   - Authorised redirect URI:
+     `https://qslksdgxoibzrisywvqk.supabase.co/auth/v1/callback`
+3. Its **Client ID and Client Secret** into Supabase → Authentication →
+   Sign In / Providers → Google, and the provider switched **on**.
+
+Signing in asks for **no scopes**, which is the whole reason it is separate
+from connecting an inbox: `gmail.readonly` is a *restricted* scope, and a
+restricted scope means Google verification — a review, a privacy policy, a
+demo video — before anybody outside the test-user list may grant it. Sign-in
+needs none of that. Keeping the two apart means the front door works today
+and the Gmail import waits on a review that has not been started.
 
 ### Apple
 
-Not yet configured. Needs, in the Apple Developer console:
+Not configured either. Four objects in the Apple Developer console, and the
+thing that makes it confusing is that **two of them are called identifiers
+and only one of them is the one Supabase wants.**
 
-1. An **App ID** with *Sign in with Apple* enabled.
-2. A **Services ID** — this is the client ID Supabase wants.
-3. A **key** for Sign in with Apple (a `.p8`), plus its Key ID and your Team ID.
-4. The return URL registered against the Services ID:
-   `https://qslksdgxoibzrisywvqk.supabase.co/auth/v1/callback`
+1. **An App ID** (Identifiers → App IDs). This is the native app,
+   `app.eend.pond`. Tick *Sign in with Apple*. It is the *primary* — it is
+   not what you give Supabase.
+2. **A Services ID** (Identifiers → Services IDs). A second, separate
+   identifier, conventionally something like `app.eend.pond.web`. **This is
+   the client ID Supabase wants.** Configure it:
+   - Primary App ID: the one from step 1
+   - Domains and Subdomains: `qslksdgxoibzrisywvqk.supabase.co`
+   - Return URLs: `https://qslksdgxoibzrisywvqk.supabase.co/auth/v1/callback`
 
-Then Supabase → Authentication → Sign In / Providers → Apple: Services ID as
-the client ID, and the secret built from the key, Key ID and Team ID.
+   Both are the *Supabase* domain, not `pond.eend.app`. The browser comes
+   back to Supabase, which then sends it on to us — putting our own domain
+   here is the single most common way this ends in `invalid_client`.
+3. **A key** (Keys → +), with *Sign in with Apple* enabled and the App ID
+   from step 1 as its primary. Downloads once, as a `.p8`. Note its **Key
+   ID**; the **Team ID** is top right of the portal.
+4. **A client secret**, which is where Apple differs from everybody else:
+   there is no static secret. It is a JWT signed with the `.p8`, and Apple
+   caps its life at **six months**, so it expires and has to be regenerated
+   — put a reminder somewhere.
+
+Then Supabase → Authentication → Sign In / Providers → Apple: the **Services
+ID** as the client ID, and the JWT as the secret.
+
+`scripts/apple-secret.mjs` generates the JWT. It reads the `.p8` from a path
+and never prints it.
 
 **Do not paste the `.p8` into a chat.** It is a real credential and Apple will
 not reissue it.
