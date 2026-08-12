@@ -55,9 +55,44 @@ function sessionId() {
 
 /** The session id, for anything that needs a stable per-device key —
  *  variant assignment, chiefly. Exposed rather than duplicated, so a hopper
- *  cannot end up in one bucket for the test and another for the events. */
+ *  cannot end up in one bucket for the test and another for the events.
+ *
+ *  Note what it actually is: `sessionId()` reads **localStorage**, so this
+ *  survives reloads, closed tabs and days. It is a device id wearing a
+ *  session's name, and the name is kept because these are grouped by string
+ *  and renaming one splits its history in two. */
 export function whoAmI() {
   return sessionId()
+}
+
+/**
+ * Join up what this device did before there was an account.
+ *
+ * Everything before sign-in is written with a device id and no user id, so
+ * the most interesting stretch of somebody's life in this app — the part
+ * where they were deciding whether to have one — was permanently detached
+ * from them. Vivien signed up on 11 August and the honest answer to "what
+ * has she done" was "we cannot see", which is what analytics is for.
+ *
+ * Called once per signed-in launch. claim_my_events() takes only rows that
+ * belong to nobody, and only ever hands them to auth.uid(), so calling it
+ * twice costs one no-op query and calling it with somebody else's device id
+ * requires guessing a v4 UUID.
+ *
+ * Never awaited, never throws — same rule as everything else here.
+ */
+export function joinUpTheJourney() {
+  try {
+    supabase.rpc('claim_my_events', { p_device: sessionId() }).then(
+      ({ data }) => {
+        // Only worth an event when there was actually a before to attach.
+        if (data > 0) track('journey_joined_up', { events: data })
+      },
+      () => {}
+    )
+  } catch {
+    // As everywhere in this file: logging must not break what it logs.
+  }
 }
 
 /**

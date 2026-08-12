@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { supabase } from './supabase.js'
 import { rememberGoogleToken } from './google.js'
 import { registerPush } from './push.js'
+import { joinUpTheJourney } from './analytics.js'
 import { itIs, tokenIs, track } from './analytics.js'
 
 export const AuthContext = createContext({
@@ -76,6 +77,12 @@ export function AuthProvider({ children }) {
     // Re-register the device on every signed-in launch: FCM tokens rotate,
     // and a stale one silently stops delivering. No-ops on the web build.
     registerPush(session.user.email)
+    // And claim whatever this device did before there was an account to
+    // attach it to. Here rather than in the sign-in screen because it has
+    // to happen on every signed-in launch, not only the one where somebody
+    // typed a code: the events worth stitching are often from the visit
+    // before the visit they signed up on.
+    joinUpTheJourney()
     return () => {
       alive = false
     }
