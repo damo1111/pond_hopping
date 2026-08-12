@@ -101,6 +101,29 @@ export function lookBackAt(date, photos = [], extras = {}) {
   const located = today.filter((p) => p.lat != null && p.lon != null)
   const times = today.map((p) => p.taken_at).filter(Boolean).sort()
 
+  // Where the day *ended*, which is the only fix that matters here.
+  //
+  // The zone below decides what time the evening look-back arrives, and on
+  // a travel day the honest answer is the far end: somebody who left
+  // Melbourne and landed in Bangkok is having their evening in Bangkok.
+  //
+  // This used to read `located[0]`, which is not the first fix of the day —
+  // it is whichever row the database happened to return first, and the
+  // rows are not ordered. On the day of the flight out to Thailand it
+  // picked Melbourne, so the notification was due at 21:00 AEST, which is
+  // five in the afternoon where they actually were. The comment on
+  // whenToSend() has said "the last fix of the day" the whole time; the
+  // code never did it.
+  const lastFix =
+    [...located]
+      .filter((p) => p.taken_at)
+      .sort((a, b) => String(a.taken_at).localeCompare(String(b.taken_at)))
+      .at(-1) ??
+    // Nothing on the day carries a time. Order is then meaningless and any
+    // fix is as good as another, which is still better than none.
+    located[0] ??
+    null
+
   const counts = {}
   const observations = []
   for (const p of today) {
@@ -148,7 +171,7 @@ export function lookBackAt(date, photos = [], extras = {}) {
     stays: staysToday.length,
     weather: [...new Set(today.map((p) => p.seen?.weather).filter(Boolean))],
     observations,
-    zone: located.length ? zoneAt([located[0].lat, located[0].lon]) : null,
+    zone: lastFix ? zoneAt([lastFix.lat, lastFix.lon]) : null,
   }
 }
 
@@ -202,6 +225,39 @@ export function whenToSend(date, zone) {
   if (!Number.isFinite(offset)) return null
   const local = Date.parse(`${date}T${String(SEND_AT_HOUR).padStart(2, '0')}:00:00Z`)
   return new Date(local - offset * 3600000).toISOString()
+}
+
+/**
+ * How long after nine it is still worth sending.
+ *
+ * The tick is hourly, so being up to an hour late is the normal case and
+ * needs room. Being six hours late is a different thing: a summary of your
+ * evening that arrives at three in the morning is not late, it is wrong,
+ * and it wakes somebody up to tell them about yesterday. Past this the
+ * evening is simply missed, which is the better failure.
+ */
+export const STILL_WORTH_IT_MS = 3 * 3600000
+
+/**
+ * Is this evening due, right now?
+ *
+ * Separated from whenToSend() because it is the decision with the clock in
+ * it, and a decision about a clock is the one thing worth being able to
+ * test at four in the morning in Auckland without waiting for it.
+ *
+ * @returns `{ due, at, why }` — `why` is 'early', 'late' or 'nowhere' when
+ *          it is not, so a worker log says which rather than just "no".
+ */
+export function dueNow(date, zone, now = Date.now(), grace = STILL_WORTH_IT_MS) {
+  const at = whenToSend(date, zone)
+  // No zone at all: every photograph of the day was taken without a fix, so
+  // there is no honest answer to "is it nine o'clock where they are".
+  if (!at) return { due: false, why: 'nowhere', at: null }
+  const t = Date.parse(at)
+  if (!Number.isFinite(t)) return { due: false, why: 'nowhere', at: null }
+  if (now < t) return { due: false, why: 'early', at }
+  if (now - t > grace) return { due: false, why: 'late', at }
+  return { due: true, why: null, at }
 }
 
 function offsetOf(zone, when) {

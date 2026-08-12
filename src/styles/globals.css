@@ -11603,3 +11603,103 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   border-radius: 50%;
   background: var(--seg);
 }
+
+/* ── The evening look-back ─────────────────────────────────────────────
+   What the nine o'clock notification opens. A record of one day, so it is
+   laid out as a page rather than as a dashboard: the sentence they already
+   read, the two or three numbers behind it, then the day itself in the
+   order it happened. */
+
+.look-sheet { max-height: 88vh; overflow-y: auto; }
+
+/* The same sentence that was on the lock screen. Set larger than the body
+   because it is the thing they tapped, and finding it in small print under
+   a heading reads as having opened the wrong screen. */
+.look-line {
+  font-size: 17px;
+  font-weight: 300;
+  line-height: 1.45;
+  margin: 4px 0 18px;
+  text-wrap: balance;
+}
+
+.look-quiet {
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 18px 0 8px;
+}
+
+.look-numbers {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.look-number { display: flex; flex-direction: column; gap: 2px; }
+.look-number b { font-size: 22px; font-weight: 300; font-variant-numeric: tabular-nums; }
+.look-number span { font-size: 12px; color: var(--text-muted); }
+
+.look-new {
+  font-size: 14px;
+  color: var(--accent);
+  margin: 14px 0 0;
+}
+
+.look-list {
+  list-style: none;
+  margin: 14px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+/* The tally. Deliberately not a bar chart: these are counts of photographs
+   with a subject, not measurements of a day, and drawing them to scale
+   claims a precision the numbers do not have. */
+.look-tally {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 16px;
+}
+
+.look-chip {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  font-size: 13px;
+}
+
+.look-chip-n { font-family: var(--font-mono); font-size: 12px; color: var(--accent); }
+.look-chip-word { color: var(--text-muted); }
+
+/* The day as it happened. An ordered list because the order is the point —
+   this is the one part of the screen a count cannot replace. */
+.look-day {
+  list-style: none;
+  margin: 18px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.look-day li { display: flex; gap: 10px; font-size: 13px; line-height: 1.45; }
+
+.look-at {
+  flex: none;
+  width: 40px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  padding-top: 2px;
+}
+
+.look-what { color: var(--text-muted); }
