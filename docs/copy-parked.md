@@ -106,6 +106,82 @@ sharing machinery actually reads.
 
 ---
 
+## The routes sheet, five paragraphs and two buttons
+
+`src/components/GetTripsIn.jsx`. Six routes, each with a title and a body of
+two to three sentences — about 150 words — then a sign-up block and a way
+out. Every route survives; the paragraphs do not, and neither do the buttons.
+
+**Why they left.** Six things all asking to be read is the same as none of
+them being read, and the paragraphs were writing a manual for somebody who
+has been in the app for ninety seconds. Photographs — the only door that fits
+a trip already taken, which is most of anyone's travel — were the second row
+of a list. The sheet now leads with photos at the size of a decision, puts
+"I'm on one right now" under it because it is the only route with a deadline,
+and lets the other four stand on their names.
+
+**The two buttons.** "Create an account" and "Have a look round first" were
+the only calls to action on the screen, and one of them was *leave*. Signing
+in already happens at the moment a signed-out hopper picks a route, attached
+to the thing they chose, which is a better place to ask than the bottom of a
+menu.
+
+### "I'm off now"
+
+> Nothing booked, nothing planned, leaving today. Starts a trip on the spot
+> and lets the days fill themselves in — the one thing that can't be added
+> afterwards.
+
+**The good half.** *"the one thing that can't be added afterwards"* — the
+whole argument for using the app today rather than next month, in eight
+words. **Where it might go.** A nudge on a trip that has started and has no
+entries yet.
+
+### "Start from photos"
+
+> A trip you've taken, or one you're on. I read the dates out of the photos
+> and build the trip around them. Shrunk on your phone first, so it's quick.
+
+**Why it left.** The middle sentence is now a drawing — a pile of snapshots,
+an arrow, a route with pins — which says it faster and in no language.
+"Shrunk on your phone first" is a reassurance about upload size that belongs
+on the upload screen, where the reassurance is actually needed, and it is
+already said there.
+
+### "Bring your Google Timeline in"
+
+> If Google has been keeping your timeline, every trip you've taken is already
+> in it. Export it, drop the file here, and pick the ones worth keeping. It's
+> read on your phone — nothing is sent until you've ticked them.
+
+**Why it left, mostly.** The name is now plainly *Google Timeline* and keeps a
+five-word hint, because it is the only route whose name does not say what it
+does. **Where the rest goes:** it is on `StartFromTimeline` already, at the
+step where somebody is being asked to export a file and wants to know what
+happens to it.
+
+### "Forward a booking"
+
+> Send any confirmation — flight, hotel, restaurant — to this address and it
+> turns into an itinerary. Forward a few old ones and your history builds
+> itself.
+
+**The good half.** *"Forward a few old ones and your history builds itself"* —
+the only line that turns a one-off action into a habit. **Where it might go.**
+The email that replies to the first forwarded booking.
+
+### "Let your AI do it"
+
+> Add Pond Hopping to Claude, ChatGPT or Gemini, then ask it to go through
+> your inbox and add your trips. It already has your email — we never need it.
+
+**The good half.** *"It already has your email — we never need it."* This is a
+privacy claim most products cannot make and it is buried in row six of a
+menu. **Where it might go.** Account, beside the connector URL, and any time
+we are explaining what we do not hold.
+
+---
+
 # Copy that is being tested rather than chosen
 
 Live variants are in `src/lib/variants.js` as data; this is the reasoning

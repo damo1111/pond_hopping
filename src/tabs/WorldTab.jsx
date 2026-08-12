@@ -130,7 +130,6 @@ export default function WorldTab() {
     refreshTrips,
     jumpToJournal,
     openPlanner,
-    introOpen,
   } = useContext(TripContext)
   // The one thing worth opening the app for when nothing is planned.
   const [memory, setMemory] = useState(null)

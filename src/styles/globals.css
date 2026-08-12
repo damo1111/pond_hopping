@@ -10653,3 +10653,194 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   font-size: 12px;
   cursor: pointer;
 }
+
+/* ── Get your trips in ────────────────────────────────────────────────
+   The sheet whose padding read as broken. It wasn't the padding: the sheet
+   is --surface and every card on it was --surface too, so the space around a
+   card looked like space between paragraphs and the edges disappeared. Put
+   the sheet on paper and the white cards become objects with room around
+   them, which is the thing the spacing was trying to say all along. */
+.gti {
+  background: var(--bg);
+  padding: 18px 16px calc(22px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
+  /* Was inherited from .routes-sheet, which this no longer wears. A phone in
+     landscape is 375px tall and this sheet is taller than that. */
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+/* The hero. A button the size of a decision, not the size of a list row. */
+.gti-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  text-align: left;
+  padding: 0 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  color: inherit;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+/* The drawing sits in its own tinted band rather than floating on the card,
+   so the picture reads as the subject and the words read as the caption. */
+.gti-hero-art {
+  display: block;
+  padding: 16px 16px 14px;
+  background: var(--accent-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.gti-draw { display: block; width: 100%; height: auto; }
+
+.gti-pile rect {
+  fill: var(--surface);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.gti-pile-top { fill: var(--surface); }
+.gti-sun { fill: var(--accent); opacity: 0.55; }
+
+.gti-hill {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  opacity: 0.55;
+}
+
+.gti-arrow,
+.gti-arrow-head {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gti-arrow { stroke-dasharray: 2 4; }
+
+.gti-route {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.gti-pin { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.gti-pin--last { fill: var(--accent); }
+
+.gti-hero-title {
+  font-size: 17px;
+  font-weight: 400;
+  padding: 14px 16px 0;
+}
+
+.gti-hero-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  padding: 4px 16px 0;
+  text-wrap: pretty;
+}
+
+/* The one with a deadline. */
+.gti-now {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  margin-top: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+}
+
+.gti-now-live {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-bg);
+}
+
+.gti-now-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gti-now-title { font-size: 15px; }
+.gti-now-body { font-size: 13px; color: var(--text-muted); }
+
+/* The rest: one card, hairlines between, names doing the work. */
+.gti-rest {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.gti-quiet {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 13px 16px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.gti-quiet + .gti-quiet { border-top: 1px solid var(--border); }
+
+.gti-quiet-name { font-size: 14px; }
+
+.gti-quiet-hint {
+  flex: none;
+  max-width: 55%;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  word-break: break-word;
+}
+
+/* Arriving one at a time.
+   Safe by construction: the resting state of every block is visible, and the
+   only rule that hides one is the `from` frame of an animation that ends
+   visible. A browser that ignores the animation, a reduced-motion setting, a
+   stylesheet that fails to load — each of those leaves the sheet fully
+   readable, because being seen is the default and the fade is the exception. */
+@media (prefers-reduced-motion: no-preference) {
+  .gti-in {
+    animation: gti-rise 400ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+    animation-delay: calc(var(--in, 0) * 80ms);
+  }
+
+  @keyframes gti-rise {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* The route draws itself, once, just after the card it lives on has
+     landed. `both` so it is hidden during its delay rather than drawn,
+     jumped away and redrawn. */
+  .gti-route {
+    stroke-dasharray: 190;
+    animation: gti-trace 900ms 420ms cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+
+  @keyframes gti-trace {
+    from { stroke-dashoffset: 190; }
+    to   { stroke-dashoffset: 0; }
+  }
+}

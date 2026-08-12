@@ -480,7 +480,6 @@ export default function App() {
       // keys on this so signing in refetches. Handed down here rather than
       // through useAuth in each tab so the next one written gets it for free.
       userId: user?.id ?? null,
-      introOpen: showIntro,
       demoPref,
       setDemoPref: (v) => {
         writePreference(v)

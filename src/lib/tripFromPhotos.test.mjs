@@ -43,6 +43,29 @@ test('a gap one day past the threshold splits', () => {
   assert.equal(clusters.length, 2)
 })
 
+// The sheet now says "Chuck in everything. I'll sort it into trips." — which
+// is a promise about a whole camera roll, not about two holidays. Pinned
+// here so the sentence cannot outlive the behaviour: a year of travel, tipped
+// in at once, comes back as separate trips with their own dates.
+test('a whole camera roll comes back as one trip per holiday', () => {
+  const { clusters } = clusterPhotos([
+    at('2024-02-09', 41.9, 12.5), at('2024-02-10', 41.9, 12.5), at('2024-02-12', 41.9, 12.5),
+    at('2024-05-30', 35.7, 139.7), at('2024-06-01', 35.0, 135.8), at('2024-06-03', 34.7, 135.5),
+    at('2024-09-14', -36.8, 174.8), at('2024-09-15', -41.3, 174.8),
+    at('2024-12-27', 40.4, -3.7),
+  ])
+  assert.equal(clusters.length, 4)
+  assert.deepEqual(
+    clusters.map((c) => [c.start, c.end]),
+    [
+      ['2024-02-09', '2024-02-12'],
+      ['2024-05-30', '2024-06-03'],
+      ['2024-09-14', '2024-09-15'],
+      ['2024-12-27', '2024-12-27'],
+    ],
+  )
+})
+
 test('photos arrive in any order and still cluster by time', () => {
   // Sorted these are 12th, 15th, 19th — gaps of 3 and 4 days, both within
   // the threshold, so it is one trip however they arrive.
