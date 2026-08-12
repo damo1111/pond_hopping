@@ -368,26 +368,37 @@ function ConnectCard() {
 // the deploy an hour ago" are different sentences, and only the second one
 // tells you what to do about it.
 function BrokenCard() {
+  const [admin, setAdmin] = useState(false)
   const [rows, setRows] = useState(null)
   const [open, setOpen] = useState(null)
 
   useEffect(() => {
-    // Refused for anybody who is not an admin, by the function rather than
-    // by this component — so a missing check here cannot leak anything.
+    supabase.rpc('is_admin').then(({ data }) => setAdmin(data === true))
+    // what_is_broken() refuses anybody who is not an admin and hands back no
+    // rows, so nothing can leak through here. That is not the same as the
+    // card being invisible, which is what the check below is for.
     supabase.rpc('what_is_broken', { p_since: '14 days' }).then(({ data }) => setRows(data ?? []))
   }, [])
 
-  if (rows === null || (rows.length === 0 && !thisBuild)) return null
+  // Two mistakes were in the first version of this line and the second one
+  // shipped.
+  //
+  // The function refusing a non-admin means they get zero rows, not that
+  // they get no card — so without the `admin` check every Pond Hopper saw a
+  // developer's panel telling them nothing was broken. And the guard meant
+  // to prevent exactly that, `rows.length === 0 && !thisBuild`, could never
+  // fire: `thisBuild` is a build id or the string 'dev', always truthy, so
+  // `!thisBuild` is always false.
+  //
+  // It now also appears only when there is something to say. A card that is
+  // always there becomes furniture and stops being read; one that turns up
+  // only when something has broken is a signal by itself.
+  if (!admin || !rows?.length) return null
 
   return (
     <section className="account-card">
       <div className="account-card-title">What is broken</div>
-      {rows.length === 0 ? (
-        <div className="account-card-body">
-          Nothing reported in the last fortnight. This build is {thisBuild}.
-        </div>
-      ) : (
-        <ul className="broken-list">
+      <ul className="broken-list">
           {rows.map((r, i) => (
             <li key={i} className={`broken${r.build === thisBuild ? ' broken--now' : ''}`}>
               <button className="broken-head" onClick={() => setOpen(open === i ? null : i)}>
@@ -408,9 +419,8 @@ function BrokenCard() {
                 </div>
               )}
             </li>
-          ))}
-        </ul>
-      )}
+        ))}
+      </ul>
     </section>
   )
 }
