@@ -114,7 +114,7 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
 }
 
 export default function PhotosTab({ openPhotoId = null }) {
-  const { tripMeta, selectedTrip, setSelectedTrip, userId } = useContext(TripContext)
+  const { tripMeta, selectedTrip, setSelectedTrip, userId, notePhotosChanged } = useContext(TripContext)
   const [photos, setPhotos] = useState(null)
   const [covers, setCovers] = useState({})
   const [reload, setReload] = useState(0)
@@ -286,7 +286,14 @@ export default function PhotosTab({ openPhotoId = null }) {
           </div>
         </div>
       )}
-      <AddPhoto tripMeta={tripMeta} selectedTrip={selectedTrip} onSaved={() => setReload((r) => r + 1)} />
+      <AddPhoto
+        tripMeta={tripMeta}
+        selectedTrip={selectedTrip}
+        onSaved={() => {
+          setReload((r) => r + 1)
+          notePhotosChanged?.()
+        }}
+      />
 
       {/* Only inside a trip. "Find the receipts across everything you have
           ever photographed" is a bill, not a feature. */}

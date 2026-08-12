@@ -130,6 +130,7 @@ export default function App() {
   const { user, authLoading, profile } = useAuth()
   const [authOpen, setAuthOpen] = useState(false)
   const [booting, setBooting] = useState(true)
+  const [photosChanged, setPhotosChanged] = useState(0)
   // What this launch still owes them, decided once at mount so dismissing
   // something does not fight a re-render.
   //
@@ -489,6 +490,14 @@ export default function App() {
       // Pull the trip list again without reloading the page. What making a
       // trip now does instead of throwing the whole app away.
       refreshTrips: loadTrips,
+      // Bumped whenever photographs are added or removed. Anything showing
+      // a count reads it, because several screens count photographs
+      // independently and none of them could hear about a removal made on
+      // another one — the recap sat on "459 photos" after a de-duplication
+      // took it to 358, and the only way to correct it was to reload the
+      // whole app.
+      photosChanged,
+      notePhotosChanged: () => setPhotosChanged((n) => n + 1),
       selectedTrip,
       setSelectedTrip,
       journalJump,
@@ -525,7 +534,7 @@ export default function App() {
         }
       },
     }),
-    [tripMeta, shownTrips, demoPref, showIntro, tripsLoaded, selectedTrip, journalJump, plannerJump, user?.id]
+    [tripMeta, shownTrips, demoPref, showIntro, tripsLoaded, selectedTrip, journalJump, plannerJump, user?.id, photosChanged]
   )
 
   // Public read-only share page — no nav, no forms.

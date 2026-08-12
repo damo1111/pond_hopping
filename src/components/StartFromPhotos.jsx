@@ -48,7 +48,7 @@ function fmtSpan(t) {
 }
 
 export default function StartFromPhotos({ onDone, onClose }) {
-  const { tripMeta } = useContext(TripContext)
+  const { tripMeta, notePhotosChanged } = useContext(TripContext)
   const input = useRef(null)
   const [files, setFiles] = useState(null)
   const [read, setRead] = useState(null) // { clusters, undated }
@@ -218,6 +218,7 @@ export default function StartFromPhotos({ onDone, onClose }) {
       // Said rather than silently absorbed. A run that quietly drops eleven
       // photographs looks exactly like a run that uploaded everything.
       setMissed(skipped)
+      notePhotosChanged?.()
       setPhase('done')
       onDone?.(trip)
     } catch (e) {

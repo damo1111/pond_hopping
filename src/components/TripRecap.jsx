@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useContext, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
 import { spanOf } from '../lib/dateRange.js'
@@ -10,6 +10,7 @@ import { coverUrl, thumb } from '../lib/imgTransform.js'
 import { recapStats } from '../lib/tripRecap.js'
 import { tripColor } from '../lib/tripColors.js'
 import { siteOrigin } from '../lib/siteOrigin.js'
+import { TripContext } from '../App.jsx'
 import { SheetContext } from '../lib/sheetContext.js'
 import { beginDrag, extendDrag, finishDrag } from '../lib/sheetDrag.js'
 import { gather } from '../lib/gather.js'
@@ -80,6 +81,8 @@ function GestureReadout() {
 }
 
 export default function TripRecap({ trip, cover, reveal = true, origin = null, onLoaded, onClose }) {
+  // See the effect below: this page counts photographs itself.
+  const { photosChanged } = useContext(TripContext)
   const [data, setData] = useState(null)
   const [copied, setCopied] = useState(false)
   // What to say when sharing could not happen. Never nothing.
@@ -485,8 +488,12 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
         onTrouble: (why) => console.warn('[recap]', trip.slug, why),
       }
     )
+    // photosChanged so a de-duplication or an upload made on another screen
+    // corrects the figure here rather than waiting for the app to be
+    // reloaded — this page counts photographs itself and had no way to hear
+    // that three hundred and fifty-eight had become two hundred and five.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip?.id])
+  }, [trip?.id, photosChanged])
 
   // Locked while this is open — it's a full-screen moment, and having the
   // journal scroll along underneath it breaks that completely.
