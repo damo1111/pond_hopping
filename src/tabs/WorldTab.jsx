@@ -836,6 +836,10 @@ export default function WorldTab() {
               setSelectedTrip(trip.slug)
               goToTab('photos')
             }
+            // A pasted confirmation is an itinerary, and the itinerary is
+            // the thing they just watched being read. Landing back on the
+            // globe with a new card on it makes them go and find it.
+            if (route === 'paste' && trip?.id) openPlanner(trip.id)
           }}
           onClose={(go) => {
             setRoutesOpen(false)

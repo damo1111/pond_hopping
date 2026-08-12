@@ -14,13 +14,16 @@ export default async function handler(req, res) {
     res.status(400).json({ error: 'text required' })
     return
   }
-  if (!start || !end) {
-    res.status(400).json({ error: 'trip start and end required' })
-    return
-  }
+  // The window is optional now. It was required because every caller had a
+  // trip already — which is exactly what made "paste a confirmation" a route
+  // you could only take after building the thing the confirmation describes.
+  // extractBookingItems has always handled its absence: with no window it
+  // records every real booking it finds with its actual date, which is what
+  // the front-door paste needs in order to work the trip out afterwards.
+  const window = start && end ? { start, end } : {}
 
   try {
-    const items = await extractBookingItems({ text, start, end })
+    const items = await extractBookingItems({ text, ...window })
     res.status(200).json({ items })
   } catch (err) {
     console.error(err)

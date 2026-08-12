@@ -5,6 +5,7 @@ import { track } from '../lib/analytics.js'
 import StartFromPhotos from './StartFromPhotos.jsx'
 import StartNow from './StartNow.jsx'
 import StartFromTimeline from './StartFromTimeline.jsx'
+import StartFromPaste from './StartFromPaste.jsx'
 import SheetGrip from './SheetGrip.jsx'
 
 // Every road into this app already existed. Every one of them was behind a
@@ -124,6 +125,10 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
     return <StartFromTimeline onDone={(t) => setMade(t ?? true)} onClose={close} />
   }
 
+  if (route === 'paste') {
+    return <StartFromPaste onDone={(t) => setMade(t ?? true)} onClose={close} />
+  }
+
   return (
     <div className="ios-sheet-overlay" onClick={onClose}>
       <div className="ios-sheet gti" onClick={(e) => e.stopPropagation()}>
@@ -181,8 +186,9 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
             <span className="gti-quiet-hint">Years of trips, in one file</span>
           </button>
 
-          <button className="gti-quiet" onClick={gate('paste', () => onClose?.('plan'))}>
+          <button className="gti-quiet" onClick={gate('paste', () => setRoute('paste'))}>
             <span className="gti-quiet-name">Paste a confirmation</span>
+            <span className="gti-quiet-hint">Flight, hotel, train</span>
           </button>
 
           {mcpUrl && (

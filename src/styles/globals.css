@@ -10838,3 +10838,144 @@ button.ios-sheet-grip:active { cursor: grabbing; }
     to   { stroke-dashoffset: 0; }
   }
 }
+
+/* ── A trip that has just started ─────────────────────────────────────
+   Four sentences of prose about browser geolocation, replaced by a drawing
+   of the state being announced: a track behind, a pin now, and the line
+   carrying on past the edge because there is no end date. */
+.started {
+  text-align: center;
+  padding-bottom: calc(22px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
+}
+
+.started-art {
+  padding: 4px 0 2px;
+}
+
+.started-art svg {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  margin: 0 auto;
+}
+
+.started-been,
+.started-ahead {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* Where it is going is not known, so it is drawn as not known. */
+.started-ahead {
+  stroke-dasharray: 2 7;
+  opacity: 0.5;
+}
+
+.started-was { fill: var(--accent); opacity: 0.45; }
+.started-now { fill: var(--accent); opacity: 0.18; }
+.started-now-dot { fill: var(--accent); }
+
+.started-title {
+  font-size: 19px;
+  font-weight: 300;
+  margin-top: 8px;
+}
+
+.started-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 16px;
+}
+
+.started-note {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  text-wrap: pretty;
+}
+
+/* The one thing to press sits in the middle like everything else here. */
+.started .track-card,
+.started .track-note { text-align: left; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Recording. Slow enough to read as a pulse rather than a spinner —
+     nothing here is loading. */
+  .started-now { animation: started-breathe 2.4s ease-in-out infinite; }
+
+  @keyframes started-breathe {
+    0%, 100% { opacity: 0.18; transform: scale(1); transform-origin: 128px 34px; }
+    50%      { opacity: 0.34; transform: scale(1.22); transform-origin: 128px 34px; }
+  }
+}
+
+/* ── Paste a confirmation, from the front door ────────────────────────
+   The review step: what was found, and the trip it adds up to. */
+.paste-sheet {
+  max-height: 86vh;
+  overflow-y: auto;
+}
+
+.paste-shape {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+/* Placeholder rather than value, so the name it worked out is visible but
+   typing over it does not mean clearing it first. */
+.paste-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.paste-when {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.paste-items {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.paste-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  cursor: pointer;
+}
+
+.paste-item + .paste-item { border-top: 1px solid var(--border); }
+
+.paste-item input { flex: none; accent-color: var(--accent); }
+.paste-item-i { flex: none; font-size: 15px; }
+
+.paste-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.paste-item-title {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.paste-item-sub { font-size: 11px; color: var(--text-muted); }
