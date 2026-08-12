@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import SheetGrip from './SheetGrip.jsx'
 import { track } from '../lib/analytics.js'
+import { remember, waiting, forget } from '../lib/pendingCode.js'
 
 // The front door to the app's account, opened by tapping the duck.
 // Same passwordless OTP flow the Account tab has always used (email →
@@ -23,13 +24,20 @@ import { track } from '../lib/analytics.js'
 // them in to an account they had no idea they could make.
 export default function AuthSheet({ onClose }) {
   const { user, profile, refreshProfile } = useAuth()
-  const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
+  // Both of these open on whatever was outstanding when the sheet last
+  // closed. Reading it once at mount rather than watching it: the code step
+  // is a place you are, not a thing that can change under you, and a hopper
+  // typing a code should never have the box move because a stale write
+  // arrived from somewhere else.
+  const outstanding = useState(() => waiting())[0]
+  const [email, setEmail] = useState(outstanding?.email ?? '')
+  const [sent, setSent] = useState(!!outstanding)
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   // A third step, shown only to someone who has just made an account and has
   // no name on it. Everyone else goes straight through as before.
+  const [resent, setResent] = useState(false)
   const [naming, setNaming] = useState(false)
   const [name, setName] = useState('')
 
@@ -41,7 +49,13 @@ export default function AuthSheet({ onClose }) {
     const { error } = await supabase.auth.signInWithOtp({ email: email.trim() })
     setBusy(false)
     if (error) setError(error.message)
-    else setSent(true)
+    else {
+      // Written down before the step is shown, so closing the sheet on the
+      // very next frame — which is what going to fetch the code amounts to —
+      // still comes back here.
+      remember(email.trim())
+      setSent(true)
+    }
   }
 
   async function verify(e) {
@@ -55,6 +69,8 @@ export default function AuthSheet({ onClose }) {
       setError(error.message)
       return
     }
+    // Used. Anything still written down is now a code that cannot work.
+    forget()
 
     // Ask a brand-new account what it is called, rather than deciding for it.
     // Read the row rather than trusting `profile` from context, which is a
@@ -158,8 +174,32 @@ export default function AuthSheet({ onClose }) {
             <button
               className="account-btn ghost"
               type="button"
+              disabled={busy}
+              onClick={async () => {
+                // Missing until now, and the only thing to do when a code has
+                // genuinely gone astray. Without it the way out of a lost code
+                // was to change your email address, which is not a thing
+                // anybody wants to do to receive a code.
+                setBusy(true)
+                setError(null)
+                const { error: again } = await supabase.auth.signInWithOtp({ email: email.trim() })
+                setBusy(false)
+                if (again) setError(again.message)
+                else {
+                  remember(email.trim())
+                  setResent(true)
+                }
+              }}
+            >
+              {resent ? 'Another one sent' : 'Send it again'}
+            </button>
+            <button
+              className="account-btn ghost"
+              type="button"
               onClick={() => {
+                forget()
                 setSent(false)
+                setResent(false)
                 setCode('')
                 setError(null)
               }}

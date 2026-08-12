@@ -547,6 +547,7 @@ export default function App() {
           strip and the tour all got a frame of their own on the way past. */}
       {showIntro && (
         <IntroCards
+          beneath={booting}
           onDone={() => {
             markSeen(ONCE.pitch)
             setOwed(nextUp())

@@ -79,7 +79,7 @@ const CARDS = [
   },
 ]
 
-export default function IntroCards({ onDone }) {
+export default function IntroCards({ onDone, beneath = false }) {
   const [i, setI] = useState(0)
   // Live finger offset in pixels, on top of the settled position. Null when
   // no finger is down, which is also how the transition knows to come back.
@@ -140,7 +140,23 @@ export default function IntroCards({ onDone }) {
   }
 
   return (
-    <div className="intro-layer" role="dialog" aria-modal="true" aria-label="What this is">
+    <div
+      // While the boot screen is still up this is mounted *underneath* it,
+      // so that when boot lifts there is a finished screen behind rather
+      // than a frame of the working app. That only holds if this is already
+      // opaque — and it wasn't: its own 320ms fade-in ran at the same moment
+      // as boot's 500ms fade-out, so for half a second there were two
+      // half-transparent full-screen layers with the app showing through
+      // both. Card text over wordmark over globe over nav, all unreadable,
+      // and the two overlapping centred layouts read as one stretched one.
+      //
+      // So it arrives instantly when it is arriving behind something, and
+      // fades only when it is the thing appearing.
+      className={`intro-layer${beneath ? ' intro-layer--already' : ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label="What this is"
+    >
       <div
         className="intro-viewport"
         onTouchStart={onStart}

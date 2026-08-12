@@ -23,6 +23,7 @@ import { pushDiagnostics, registerPush } from '../lib/push.js'
 import { TripContext } from '../App.jsx'
 import { demoSwitchNote, hiddenByArrival } from '../lib/demoVisibility.js'
 import { ownTrips } from '../lib/demoTour.js'
+import { remember, waiting, forget } from '../lib/pendingCode.js'
 
 const ROLES = [
   { id: 'family', label: 'Family' },
@@ -35,9 +36,14 @@ const ROLES = [
 // back, the session it creates there isn't reliably visible to the
 // already-installed home-screen app (separate storage context). A typed
 // code, verified in-place via verifyOtp, never leaves the PWA at all.
+// The same two-step flow as AuthSheet, and it forgets its second step the
+// same way — so it remembers it the same way too, out of the same file. Two
+// front doors that disagree about whether a code is outstanding is the
+// original bug with an extra place to hit it.
 function SignInForm() {
-  const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
+  const outstanding = useState(() => waiting())[0]
+  const [email, setEmail] = useState(outstanding?.email ?? '')
+  const [sent, setSent] = useState(!!outstanding)
   const [code, setCode] = useState('')
   const [sending, setSending] = useState(false)
   const [verifying, setVerifying] = useState(false)
@@ -50,7 +56,10 @@ function SignInForm() {
     const { error } = await supabase.auth.signInWithOtp({ email })
     setSending(false)
     if (error) setError(error.message)
-    else setSent(true)
+    else {
+      remember(email)
+      setSent(true)
+    }
   }
 
   async function verify(e) {
@@ -60,6 +69,7 @@ function SignInForm() {
     const { error } = await supabase.auth.verifyOtp({ email, token: code.trim(), type: 'email' })
     setVerifying(false)
     if (error) setError(error.message)
+    else forget()
     // on success, AuthContext's onAuthStateChange picks up the new session automatically
   }
 
@@ -86,7 +96,23 @@ function SignInForm() {
         <button
           className="account-btn ghost"
           type="button"
+          disabled={sending}
+          onClick={async () => {
+            setSending(true)
+            setError(null)
+            const { error: again } = await supabase.auth.signInWithOtp({ email })
+            setSending(false)
+            if (again) setError(again.message)
+            else remember(email)
+          }}
+        >
+          {sending ? 'Sending…' : 'Send it again'}
+        </button>
+        <button
+          className="account-btn ghost"
+          type="button"
           onClick={() => {
+            forget()
             setSent(false)
             setCode('')
             setError(null)

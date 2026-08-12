@@ -8709,6 +8709,11 @@ button {
   to   { opacity: 1 }
 }
 
+/* Already here, because something else is still on top. Fading in under a
+   layer that is itself fading out makes both translucent at once, and the
+   app shows straight through the pair of them. */
+.intro-layer--already { animation: none; }
+
 /* A rail of three, moved as one. Cross-fading a single card in place made
    each step feel like a page reload; sliding says they are three sides of
    one thing, and gives the thumb something to push. */
