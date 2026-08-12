@@ -11614,3 +11614,48 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   .bww-seg { transition: background 260ms ease; }
 }
 
+
+/* The waiting line, while the ducks are working.
+   Not a count: "Reading your photographs — 30 of 90" was precise and wrong,
+   because the total moves whenever somebody adds more, and it invited
+   standing over it. */
+.story-doing-sub {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+
+/* The prompt for more, inline and while it works rather than as a card in
+   the way beforehand. Nothing here is a gate — the writing has already
+   started, and anything added lands in the next pass. */
+.story-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.story-more-said {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.story-more-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.story-more-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--seg);
+}

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
-import { daysAdded, confirmed, howFar, whatItCosts, worthAsking } from '../lib/storyRun.js'
+import { daysAdded, confirmed, whatItCosts, worthAsking } from '../lib/storyRun.js'
+import { standBy, alsoSay } from '../lib/standBy.js'
+import { couldAdd } from '../lib/whatWeHave.js'
 import { running, whatThereIs } from '../lib/storyBuild.js'
 import { callApi } from '../lib/apiBase.js'
 import { oops } from '../lib/analytics.js'
@@ -58,7 +60,7 @@ function Ask({ q, onAnswer, onSkip }) {
 // whether or not this tab is still open. Locking the phone halfway through
 // used to kill the run silently, and the only way to find out was to come
 // back later and see the story unchanged.
-export default function TripStory({ trip, photos = [], runKey = 0 }) {
+export default function TripStory({ trip, photos = [] }) {
   const { user } = useAuth()
   const [step, setStep] = useState('idle')
   // Whether the prose is unfolded. Closed on arrival: this is the photographs
@@ -218,22 +220,6 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
       clearInterval(timer)
     }
   }, [trip?.id, watching])
-
-  // "Write again" lives in the row of buttons above, with receipts and
-  // duplicates, so that three actions on the same photographs read as three
-  // actions rather than three cards. The row bumps this; nothing happens on
-  // the first render, only on a change.
-  const ranAt = useRef(runKey)
-  useEffect(() => {
-    if (runKey === ranAt.current) return
-    ranAt.current = runKey
-    if (!mayWrite) return
-    if (step === 'idle') {
-      setOpen(true)
-      make()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runKey])
 
   // It starts itself, in two passes.
   //
@@ -473,19 +459,57 @@ export default function TripStory({ trip, photos = [], runKey = 0 }) {
   // than an idle screen that quietly starts a second one.
   const elsewhere = step === 'idle' && running(run)
 
+  // Photographs added while it was already reading. The obvious fear is that
+  // you have broken it, or that it will have to start over; neither is true,
+  // and the line says so rather than leaving somebody to guess.
+  const arrivedLate = run?.started_at
+    ? mine.filter((p) => p.created_at && p.created_at > run.started_at).length
+    : 0
+
+  // Only promise a nudge to a device that can receive one. Promising it to a
+  // browser tab is the worst possible version of that sentence.
+  const pushable = typeof Notification !== 'undefined' && Notification.permission === 'granted'
+
+  // What would make the next pass better. Said while it works rather than in
+  // a card beforehand — the point is that they do not have to do any of it.
+  const chips = couldAdd({
+    photographs: mine.length,
+    stays: have.stays,
+    said: have.said,
+    flights: have.flights,
+    runs: have.runs,
+  })
+
   if (step !== 'idle' || elsewhere) {
-    // The server knows which stage it is on; the browser only knows it is
-    // waiting. Reading the photographs is the exception — that is still here,
-    // and it is the one with a count worth showing.
-    // Read off the run rather than counted here. This tab is a spectator
-    // now — the numbers are the same whichever device is looking, and they
-    // survive the app being closed and reopened.
+    // One line, and its whole job is to manage an expectation: this takes
+    // minutes, you can put the phone down, and we will tell you.
+    //
+    // Not a count. "Reading your photographs — 30 of 90" was precise and
+    // wrong, because the total moves whenever somebody adds more, and it
+    // invited standing over it. The stage is honest and the tone does the
+    // rest — see standBy.js.
     const doing = run?.step || (step === 'idle' ? 'working it out' : step)
-    const read = run?.seen ?? 0
-    const all = read + (run?.to_see ?? 0)
+    const since = run?.started_at ? Date.now() - Date.parse(run.started_at) : 0
     return (
       <div className="story">
-        <div className="story-doing">{howFar(doing, read, all)}</div>
+        <div className="story-doing">{standBy(doing, since, arrivedLate)}</div>
+        <div className="story-doing-sub">{alsoSay({ canPush: pushable })}</div>
+
+        {/* The prompt for more, inline and while it works, rather than as a
+            card in the way beforehand. Nothing here is a gate: the writing is
+            already under way, and anything added lands in the next pass. */}
+        {chips.length > 0 && (
+          <div className="story-more">
+            <span className="story-more-said">Even better with</span>
+            {chips.map((c) => (
+              <span key={c.key} className="story-more-chip" style={{ '--seg': c.colour }}>
+                <span className="story-more-dot" aria-hidden="true" />
+                {c.get}
+              </span>
+            ))}
+          </div>
+        )}
+
         {asks}
         {trouble && <div className={`story-trouble${calm ? ' story-trouble--calm' : ''}`}>{trouble}</div>}
         {written && <div className="story-sofar">{written}</div>}

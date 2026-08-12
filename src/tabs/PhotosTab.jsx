@@ -114,7 +114,7 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
 }
 
 export default function PhotosTab({ openPhotoId = null }) {
-  const { tripMeta, selectedTrip, setSelectedTrip, userId, notePhotosChanged, openPlanner } = useContext(TripContext)
+  const { tripMeta, selectedTrip, userId, notePhotosChanged, openPlanner } = useContext(TripContext)
   const [photos, setPhotos] = useState(null)
   const [covers, setCovers] = useState({})
   const [reload, setReload] = useState(0)
@@ -328,31 +328,15 @@ export default function PhotosTab({ openPhotoId = null }) {
             <img src={coverUrl(covers[t.id], { width: 800, height: 450 })} alt="" loading="lazy" />
           </span>
         )
-        // Once the real photos are registered in-app, the card should open
-        // the in-app grid, not send you out to Google Photos — the album
-        // link is only a stand-in until then.
-        if (count > 0) {
-          return (
-            <button
-              key={t.slug}
-              type="button"
-              className="album-card"
-              onClick={() => {
-                setSelectedTrip(t.slug)
-                gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-              }}
-            >
-              {cover}
-              <span className="album-flags">
-                <CountryFlags countries={t.countries} size={18} />
-              </span>
-              <span className="album-title">{t.title}</span>
-              <span className="album-open">
-                View {count} photo{count === 1 ? '' : 's'} ↓
-              </span>
-            </button>
-          )
-        }
+        // The album link was always a stand-in for photographs that were not
+        // in the app yet. Once they are, this was a very large box whose
+        // whole offer — "View 205 photos ↓" — was the grid immediately
+        // underneath it, and it pushed that grid a screen down to say so.
+        // David, 12 August: remove.
+        //
+        // The card survives only for a trip whose photographs are still
+        // outside, in Google Photos, where it is the only way to reach them.
+        if (count > 0) return null
         return (
           <a key={t.slug} className="album-card" href={t.photos_url} target="_blank" rel="noreferrer">
             {cover}
