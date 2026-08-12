@@ -1193,10 +1193,17 @@ button {
   gap: 8px;
 }
 
+/* Dot and title together on the left, the count away on the right.
+ *
+ * This was `justify-content: space-between` with three children, which does
+ * not mean "first left, last right" — it means space the three of them out
+ * evenly, and the middle one is the title. On a phone the gaps are small
+ * enough that it reads as left-aligned; give it a laptop's width and
+ * "Lisbon & Porto" walks into the middle of the row, detached from the dot
+ * that is colour-coding it. */
 .flight-section-head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
   gap: 10px;
   padding: 0 4px 4px;
   border-bottom: 1px solid var(--border);
@@ -1206,6 +1213,9 @@ button {
 .fsh-title {
   font-weight: 300;
   font-size: 15px;
+  /* The whole of the alignment. Everything before this sits at the left in
+     its natural order; everything after is pushed to the right edge. */
+  margin-inline-end: auto;
 }
 
 .fsh-meta {
