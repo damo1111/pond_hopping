@@ -96,3 +96,43 @@ test('no digest available yields no fingerprint rather than an exception', async
     if (real) Object.defineProperty(globalThis, 'crypto', real)
   }
 })
+
+// ── Rule 0: Google's own id ───────────────────────────────────────────
+
+test('a photograph already imported from Google is recognised for free', () => {
+  // No fingerprint and no timestamp on the picked side: on the picker route
+  // neither exists until the bytes have been fetched, which is exactly what
+  // this rule saves.
+  const picked = [{ googleId: 'g1' }, { googleId: 'g2' }]
+  const existing = [{ google_id: 'g1' }]
+  const { fresh, already } = whatIsNew(picked, existing)
+  assert.deepEqual(fresh.map((p) => p.googleId), ['g2'])
+  assert.equal(already, 1)
+})
+
+test('an id match does not also spend a second slot at the same instant', () => {
+  // Two photographs in one second, one of them already imported. Without the
+  // id match spending its own instant, the survivor would be swallowed by
+  // the timestamp rule and never uploaded.
+  const at = '2026-05-22T09:14:03.000Z'
+  const picked = [{ googleId: 'g1', takenAt: at }, { googleId: 'g2', takenAt: at }]
+  const existing = [{ google_id: 'g1', taken_at: at }]
+  const { fresh, already } = whatIsNew(picked, existing)
+  assert.deepEqual(fresh.map((p) => p.googleId), ['g2'])
+  assert.equal(already, 1)
+})
+
+test('the same photograph down both routes is only stored once', () => {
+  // Picked off the phone yesterday, picked again from Google today. The
+  // fingerprint is what joins them; Google's id was never on the first one.
+  const picked = [{ googleId: 'g9', fingerprint: 'abc' }]
+  const existing = [{ fingerprint: 'abc' }]
+  const { fresh, already } = whatIsNew(picked, existing)
+  assert.deepEqual(fresh, [])
+  assert.equal(already, 1)
+})
+
+test('an unknown Google id is still new', () => {
+  const { fresh } = whatIsNew([{ googleId: 'g-new' }], [{ google_id: 'g-old' }])
+  assert.deepEqual(fresh.map((p) => p.googleId), ['g-new'])
+})

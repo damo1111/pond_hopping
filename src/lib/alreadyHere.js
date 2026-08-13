@@ -25,18 +25,36 @@
 // against three held sends two; three offered against five held sends none.
 
 /**
- * @param picked   [{ fingerprint?, takenAt? }] — what somebody has chosen
- * @param existing [{ fingerprint?, taken_at? }] — what the trip already holds
+ * @param picked   [{ googleId?, fingerprint?, takenAt? }] — what somebody chose
+ * @param existing [{ google_id?, fingerprint?, taken_at? }] — what it holds
  * @returns { fresh, already } — the ones to send, and how many were skipped
  *
- * Anything undated and unfingerprinted is always fresh. It cannot be
- * recognised, and the cost of asking twice is a duplicate photograph, while
- * the cost of guessing wrong is a photograph that is never uploaded at all.
+ * Anything undated, unfingerprinted and unidentified is always fresh. It
+ * cannot be recognised, and the cost of asking twice is a duplicate
+ * photograph, while the cost of guessing wrong is a photograph that is never
+ * uploaded at all.
+ *
+ * ── Rule 0, and why it earns its place ────────────────────────────────
+ *
+ * Google's own id for a photograph, checked first because it is the only
+ * rule that costs *nothing at all*. The other two need the file: a
+ * fingerprint is a digest of the first quarter-megabyte, and a timestamp
+ * comes off the EXIF inside it. On the picker route neither exists until the
+ * bytes have been fetched from Google — so without this, recognising a
+ * photograph already in the trip would mean downloading it to find out.
+ *
+ * The picker hands over ids and creation times before a single byte moves,
+ * so between rule 0 and rule 2 almost every duplicate is refused before
+ * anything is transferred. Which is the whole point: an import that skips
+ * nine hundred photographs should cost nine hundred *lines of JSON*, not
+ * nine hundred downloads.
  */
 export function whatIsNew(picked = [], existing = []) {
   const seenPrints = new Set()
+  const seenGoogle = new Set()
   for (const e of existing) {
     if (e?.fingerprint) seenPrints.add(e.fingerprint)
+    if (e?.google_id) seenGoogle.add(e.google_id)
   }
 
   // How many photographs the trip holds at each exact instant, minus any
@@ -51,12 +69,21 @@ export function whatIsNew(picked = [], existing = []) {
 
   const fresh = []
   let already = 0
+  // Each rule that matches also spends the instant its row occupied, or a
+  // photograph caught by an earlier rule would be counted again by a later
+  // one and let a genuinely new photograph through in its place.
+  const spend = (at) => {
+    if (at && room.get(at) > 0) room.set(at, room.get(at) - 1)
+  }
   for (const p of picked) {
+    if (p?.googleId && seenGoogle.has(p.googleId)) {
+      already += 1
+      spend(p.takenAt)
+      continue
+    }
     if (p?.fingerprint && seenPrints.has(p.fingerprint)) {
       already += 1
-      // The row it matched can no longer absorb a timestamp match too.
-      const at = p.takenAt
-      if (at && room.get(at) > 0) room.set(at, room.get(at) - 1)
+      spend(p.takenAt)
       continue
     }
     const at = p?.takenAt
