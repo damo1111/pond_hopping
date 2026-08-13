@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 // The cold open.
 //
 // The last attempt at this was the globe: three seconds of WebGL, a hundred
@@ -11,96 +13,220 @@
 // -old WebView can do at sixty frames a second, which is the only kind of
 // motion worth shipping to a phone.
 //
-// What it says: a meridian sphere draws itself, a line crosses it, the duck
-// lands at the far end, the water rings out, and the name resolves. Pond
-// hopping — the thing the app is called, happening.
+// Act one: a meridian sphere draws itself, a line crosses it, the duck lands
+// at the far end, and the name resolves. Pond hopping — the thing the app is
+// called, happening.
 //
-// ── Act two, and the card it replaced ─────────────────────────────────
+// ── Why the payoff comes before the method ────────────────────────────
 //
-// That was the whole of it for a while, and then a card came up afterwards
-// explaining what the app was for: a stack of photographs, an arrow, and
-// four lines of prose. It said the right thing in the wrong medium. Nobody
-// arrives wanting to read, and a card asks to be read and then dismissed —
-// so the first thing a new hopper did was dismiss the only explanation
-// they were ever offered.
+// Act two used to be three photographs folding onto a globe under the line
+// "Your photos already know where you went." One source, stated as the whole
+// story — so anybody whose trips are not photographed heard *this isn't for
+// you* in the first five seconds. The richest trip in this app has no
+// photographs at all. It is made of flights, runs and things somebody wrote.
 //
-// So the sentence is acted out instead. Three photographs drop onto the
-// globe, each folds down onto the place it was taken, a line joins them,
-// and one line of copy says what just happened. Two seconds longer than
-// the old opening, and it replaces a screen entirely — the first run gets
-// shorter, not longer.
+// So the order is inverted. The trip arrives first, finished and specific,
+// with its own numbers counting up — sixteen days, five flights, eighteen
+// thousand kilometres. Then it runs backwards: the route retracts, the pins
+// gather, and all of it collapses into one small photograph. Only then does
+// the line land, and by then it is describing something already watched
+// rather than making a promise.
+//
+// ── The numbers are real ──────────────────────────────────────────────
+//
+// Every figure below is China & Japan as the database holds it, checked
+// rather than chosen: 16 days, 5 flights, 18,169 km, 9 runs, 16 written,
+// 2 countries. Baked in rather than queried because this plays before
+// anything has loaded — but baked in *true*, because an opening that shows
+// a number the app cannot produce is a promise the first screen breaks.
 //
 // It only ever runs once. `cold` is welded to the same first-run flag the
-// rest of the opening is: five seconds is an opening on launch one and a
+// rest of the opening is: seven seconds is an opening on launch one and a
 // toll booth on launch forty. Every later launch gets act one, cut short.
+
+/** The six that land hardest, in the order they arrive. `to` is the real
+ *  figure; `comma` marks the one big enough to need grouping. */
+// Three to a row, evenly spaced across the same 100-wide middle the card
+// sits in, so the two rows read as a block rather than as six loose items.
+//
+// No glyphs. The mock had a ✈ beside the flights and a 👟 beside the runs,
+// and on a real device those resolve to the platform's own emoji — a blue
+// trainer, in the middle of a page that is gold and ink. A label already
+// says which number is which.
+const FIGURES = [
+  { to: 16, label: 'DAYS', x: 56, row: 0 },
+  { to: 5, label: 'FLIGHTS', x: 100, row: 0 },
+  { to: 9, label: 'RUNS', x: 144, row: 0 },
+  { to: 18169, label: 'KM FLOWN', x: 56, row: 1, comma: true },
+  { to: 16, label: 'WRITTEN', x: 100, row: 1 },
+  { to: 2, label: 'COUNTRIES', x: 144, row: 1 },
+]
+
+/** When each figure starts counting, and how long it takes. Matches the
+ *  `figin` delays in the stylesheet — the number rolls as its group rises. */
+const FIRST_FIGURE_AT = 3300
+const FIGURE_GAP = 150
+const COUNT_MS = 420
+
 export default function BootScreen({ leaving, cold = false }) {
+  const stage = useRef(null)
+
+  // The count-up, the one thing here CSS cannot do. rAF rather than a timer
+  // per figure: one loop, six reads, and it stops itself the moment the last
+  // number has arrived rather than running for the life of the screen.
+  //
+  // Reduced motion gets the finished figures immediately. Somebody who has
+  // asked for less movement should still be told what the trip was.
+  useEffect(() => {
+    if (!cold || !stage.current) return
+    const nums = [...stage.current.querySelectorAll('.boot-num')]
+    if (!nums.length) return
+
+    const show = (el, v) =>
+      (el.textContent = el.dataset.comma ? v.toLocaleString('en-GB') : String(v))
+
+    const still = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+    if (still) {
+      nums.forEach((el) => show(el, Number(el.dataset.to)))
+      return
+    }
+
+    const began = performance.now()
+    let frame = 0
+    const tick = () => {
+      const gone = performance.now() - began
+      let running = false
+      nums.forEach((el, i) => {
+        const to = Number(el.dataset.to)
+        const from = FIRST_FIGURE_AT + i * FIGURE_GAP
+        const part = Math.max(0, Math.min(1, (gone - from) / COUNT_MS))
+        if (part < 1) running = true
+        // Cubed ease-out: fast to nearly-there, then a visible settle. A
+        // linear count reads as a progress bar rather than a tally.
+        show(el, Math.round(to * (1 - (1 - part) ** 3)))
+      })
+      if (running) frame = requestAnimationFrame(tick)
+    }
+    frame = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(frame)
+  }, [cold])
+
   return (
-    <div className={`boot${leaving ? ' leaving' : ''}${cold ? ' boot--cold' : ''}`}>
+    <div
+      className={`boot${leaving ? ' leaving' : ''}${cold ? ' boot--cold' : ''}`}
+      ref={stage}
+    >
       <div className="boot-stage">
-        <svg className="boot-globe" viewBox="0 0 200 200" aria-hidden="true">
+        <svg className="boot-globe" viewBox="0 0 200 260" aria-hidden="true">
           {/* The sphere: an outline and four meridians, drawn on rather than
               faded in, so it reads as being made rather than revealed. */}
           <g className="bg-sphere" fill="none" strokeLinecap="round">
-            <circle className="bg-line bg-l1" cx="100" cy="100" r="72" />
-            <ellipse className="bg-line bg-l2" cx="100" cy="100" rx="30" ry="72" />
-            <ellipse className="bg-line bg-l3" cx="100" cy="100" rx="58" ry="72" />
-            <path className="bg-line bg-l4" d="M31 78 H169" />
-            <path className="bg-line bg-l5" d="M31 122 H169" />
+            <circle className="bg-line bg-l1" cx="100" cy="86" r="58" />
+            <ellipse className="bg-line bg-l2" cx="100" cy="86" rx="24" ry="58" />
+            <ellipse className="bg-line bg-l3" cx="100" cy="86" rx="45" ry="58" />
+            <path className="bg-line bg-l4" d="M45 68 H155" />
+            <path className="bg-line bg-l5" d="M45 104 H155" />
           </g>
 
           {/* The hop. A great circle drawn as one arc, dashed, so it reads as
               a route rather than as a line. */}
-          <path
-            className="boot-arc"
-            d="M46 140 Q100 34 158 74"
-            fill="none"
-            strokeLinecap="round"
-          />
+          <path className="boot-arc" d="M58 118 Q100 44 146 70" fill="none" strokeLinecap="round" />
 
           {/* Where it left. There is no pin at the other end — the duck is
               the marker, and a dot under it just looks like a smudge. */}
-          <circle className="boot-pin boot-pin-a" cx="46" cy="140" r="3.5" />
+          <circle className="boot-pin-a" cx="58" cy="118" r="3.5" />
 
-          {/* The water rings out from under its feet, not from the middle of
-              its body — 90 is the waterline the landing animation ends on.
-              Three circles scaling from nothing: the cheapest possible ripple
-              and, as it turns out, the right one. */}
+          {/* The water rings out from under its feet. 70 is the waterline the
+              landing ends on — the duck sits at the arc's far end, not near
+              it, which is the note that came back on the mock. */}
           <g className="boot-rings" fill="none">
-            <ellipse className="boot-ring boot-ring-1" cx="158" cy="90" rx="10" ry="3.4" />
-            <ellipse className="boot-ring boot-ring-2" cx="158" cy="90" rx="10" ry="3.4" />
-            <ellipse className="boot-ring boot-ring-3" cx="158" cy="90" rx="10" ry="3.4" />
+            <ellipse className="boot-ring boot-ring-1" cx="146" cy="70" rx="10" ry="3.4" />
+            <ellipse className="boot-ring boot-ring-2" cx="146" cy="70" rx="10" ry="3.4" />
+            <ellipse className="boot-ring boot-ring-3" cx="146" cy="70" rx="10" ry="3.4" />
           </g>
 
-          {/* Act two. Three photographs, which become three pins and a route.
-              Only rendered on the launch that earns it — an SVG group that is
-              never animated is still a group the compositor carries.
-              --tx/--ty is the vector from each photograph's own centre to its
-              pin, which is only that simple because the group collapses about
-              its own middle (transform-box: fill-box) rather than about the
-              viewBox. */}
           {cold && (
-            <g className="boot-second">
-              <g className="boot-snap boot-snap-1" style={{ '--tx': '-25px', '--ty': '41px' }}>
-                <rect className="boot-frame" x="62" y="66" width="34" height="26" rx="3" transform="rotate(-7 79 79)" />
-                <circle className="boot-frame-in" cx="72" cy="75" r="3.5" transform="rotate(-7 79 79)" />
+            <>
+              {/* The trip, drawn as itself: a route across the sphere with a
+                  stop at each end and one in the middle. It is the same three
+                  points the pins gather from later, which is what makes the
+                  rewind read as *this* trip collapsing rather than a new
+                  animation starting. */}
+              <path className="boot-leg" d="M62 108 Q84 82 104 92 T142 72" fill="none" strokeLinecap="round" />
+              <g className="boot-stop boot-stop-1" style={{ '--gx': '38px', '--gy': '52px' }}>
+                <circle cx="62" cy="108" r="3.4" />
               </g>
-              <g className="boot-snap boot-snap-2" style={{ '--tx': '1px', '--ty': '27px' }}>
-                <rect className="boot-frame" x="82" y="76" width="34" height="26" rx="3" transform="rotate(3 99 89)" />
-                <circle className="boot-frame-in" cx="92" cy="85" r="3.5" transform="rotate(3 99 89)" />
+              <g className="boot-stop boot-stop-2" style={{ '--gx': '-4px', '--gy': '68px' }}>
+                <circle cx="104" cy="92" r="3.4" />
               </g>
-              <g className="boot-snap boot-snap-3" style={{ '--tx': '19px', '--ty': '-1px' }}>
-                <rect className="boot-frame" x="102" y="86" width="34" height="26" rx="3" transform="rotate(9 119 99)" />
-                <circle className="boot-frame-in" cx="112" cy="95" r="3.5" transform="rotate(9 119 99)" />
+              <g className="boot-stop boot-stop-3" style={{ '--gx': '-42px', '--gy': '88px' }}>
+                <circle cx="142" cy="72" r="3.4" />
               </g>
 
-              {/* The route the pile turned out to be. It runs left to right
-                  and finishes under the duck, so the trip the photographs
-                  made and the hop the duck flew are the same journey. */}
-              <path className="boot-track" d="M54 120 Q84 104 100 116 T138 98" fill="none" strokeLinecap="round" />
-              <circle className="boot-made boot-made-1" cx="54" cy="120" r="3.4" />
-              <circle className="boot-made boot-made-2" cx="100" cy="116" r="3.4" />
-              <circle className="boot-made boot-made-3" cx="138" cy="98" r="3.4" />
-            </g>
+              {/* The card. Flags, then the name, then the dates — the order
+                  somebody reads a trip in. The two flags overlap slightly so
+                  they read as one mark rather than two stickers. */}
+              <g className="boot-card">
+                {/* Drawn rather than emoji, for the same reason as above —
+                    but drawn to be *seen*. The first pass put a white disc
+                    with a hairline border on a cream page, which measured
+                    perfectly and was invisible: the page is #F5F2EB and the
+                    flag was #FFF. Japan's now carries the same ink outline
+                    the rest of the screen uses, and the pair overlap so they
+                    read as one mark rather than two stickers. */}
+                <g className="boot-flags">
+                  <circle cx="94" cy="155" r="6" fill="#DE2910" />
+                  <circle className="boot-flag-jp" cx="106" cy="155" r="6" fill="#FFFFFF" />
+                  <circle cx="106" cy="155" r="2.6" fill="#BC002D" />
+                </g>
+                <text className="boot-trip" x="100" y="180" textAnchor="middle">
+                  China &amp; Japan
+                </text>
+                <text className="boot-when" x="100" y="190" textAnchor="middle">
+                  21 MAY – 5 JUN
+                </text>
+                <path className="boot-rule" d="M50 198 H150" />
+              </g>
+
+              {/* Six figures on two rows, each centred on its own column so
+                  the numbers line up under their labels rather than beside
+                  them. tabular-nums in the stylesheet stops the row jittering
+                  while they count. */}
+              <g className="boot-figures">
+                {FIGURES.map((f, i) => (
+                  <g className={`boot-fig boot-fig-${i + 1}`} key={f.label}>
+                    <text
+                      className="boot-num"
+                      x={f.x}
+                      y={f.row ? 240 : 216}
+                      textAnchor="middle"
+                      data-to={f.to}
+                      data-comma={f.comma ? '1' : undefined}
+                    >
+                      0
+                    </text>
+                    <text className="boot-lab" x={f.x} y={f.row ? 249 : 225} textAnchor="middle">
+                      {f.label}
+                    </text>
+                  </g>
+                ))}
+              </g>
+
+              {/* All of it, become one small thing. */}
+              <g className="boot-snap">
+                <rect x="86" y="150" width="28" height="28" rx="3" className="boot-snap-card" />
+                <rect x="89" y="153" width="22" height="17" rx="1.5" className="boot-snap-sky" />
+                <circle cx="95" cy="159" r="2" className="boot-snap-sun" />
+                <path d="M89 167 l5-7 4 5 5-8 8 10 h-22z" className="boot-snap-hill" />
+                {/* A torii, just visible in it — the trip that was there a
+                    second ago, still in the one photograph left. */}
+                <g className="boot-snap-torii" fill="none">
+                  <path d="M95 164 v-7 M104 164 v-7" />
+                  <path d="M92.5 157.4 h14" />
+                  <path d="M93.6 155.2 q6-1.6 11.8 0" />
+                </g>
+              </g>
+            </>
           )}
         </svg>
 
@@ -119,14 +245,13 @@ export default function BootScreen({ leaving, cold = false }) {
         <span className="app-title-bold">Hopping</span>
       </div>
 
-      {/* The whole pitch, in the one sentence that survived the card. Real
-          text rather than a picture of text, so it is read out by anything
-          reading the screen aloud and it wraps on a narrow phone. */}
+      {/* The line, last, describing what was just watched. Real text rather
+          than a picture of text, so it is read out by anything reading the
+          screen aloud and it wraps on a narrow phone. */}
       {cold && (
         <p className="boot-say">
-          Your photos already know
-          <br />
-          where you went.
+          You already have the first piece.
+          <span>A photo. A run. A day you barely noticed.</span>
         </p>
       )}
     </div>

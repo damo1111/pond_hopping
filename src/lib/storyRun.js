@@ -36,12 +36,25 @@ export function needsLooking(photos = [], detail = 'low') {
 }
 
 /** One photograph as the seeing endpoint wants it. The time and coordinates
- *  go as text because a vision model never sees EXIF — see docs. */
+ *  go as text because a vision model never sees EXIF — see docs.
+ *
+ *  The cheap pass takes the stored 400px thumbnail where there is one, rather
+ *  than asking the transform endpoint for a 512. Supabase counts a distinct
+ *  origin image transformed per month, so looking at a library once costs one
+ *  transform per photograph — six hundred of them in a month against a quota
+ *  of a hundred, and it grows with the library rather than with traffic. The
+ *  stored file is already 400 on its long edge, which is what "indoors, a
+ *  restaurant, food on the table" needs, and it costs nothing.
+ *
+ *  The second pass still asks for pixels. It is the one that reads the name
+ *  off an awning, 400 will not do it, and needsLooking() only sends it the
+ *  handful the cheap pass flagged. */
 export function asAsked(photo = {}, detail = 'low', zone = null, clock = null) {
   const size = SIZES[detail] ?? SIZES.low
+  const stored = detail === 'low' && photo.thumb_url ? photo.thumb_url : null
   return {
     id: photo.id,
-    url: thumb(photo.url, { width: size, height: size, resize: 'contain', quality: detail === 'high' ? 80 : 60 }),
+    url: stored ?? thumb(photo.url, { width: size, height: size, resize: 'contain', quality: detail === 'high' ? 80 : 60 }),
     at: clock && photo.taken_at ? clock(photo.taken_at, zone) : null,
     lat: photo.lat ?? null,
     lon: photo.lon ?? null,

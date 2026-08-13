@@ -18,6 +18,13 @@ export const TRIP_COLORS = {
   'asia-pacific-2024': '#3E9E96',
 }
 
+/** The example copy of a trip is the same journey, so it is the same colour.
+ *  `china-japan-example` missed the map entirely and fell back to plain gold
+ *  — which was invisible while the example had a photograph on it, and the
+ *  moment an example without a cover took over, its drawn card was drawn in
+ *  the wrong hand. Stripping the suffix rather than adding rows, so it holds
+ *  for whichever trip is the example next. */
 export function tripColor(slug) {
-  return TRIP_COLORS[slug] || '#A8842C'
+  const key = String(slug ?? '')
+  return TRIP_COLORS[key] || TRIP_COLORS[key.replace(/-example$/, '')] || '#A8842C'
 }

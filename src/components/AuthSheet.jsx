@@ -101,6 +101,22 @@ export default function AuthSheet({ onClose }) {
   const [naming, setNaming] = useState(false)
   const [name, setName] = useState('')
 
+  // Anyone signed in without a name gets asked, however they got here.
+  //
+  // The question used to live only at the end of verify(), which is the
+  // emailed-code path — so it could not be reached by somebody who came back
+  // from Apple or Google, because that journey leaves the page entirely and
+  // returns with a session already made. handle_new_user() now keeps whatever
+  // name the provider handed over, which covers Google and covers Apple when
+  // the name was not withheld; this catches the rest, including an Apple
+  // hopper on a private relay address, whose email prefix is a random string.
+  //
+  // Waits for the row: `profile` is null while it loads, and null is not the
+  // same as loaded-and-nameless.
+  useEffect(() => {
+    if (user && profile && !profile.display_name) setNaming(true)
+  }, [user, profile])
+
   /**
    * Off to Apple or Google and back.
    *

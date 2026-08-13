@@ -833,17 +833,21 @@ button {
    paint. That is the whole design constraint: it has to hold sixty
    frames on the oldest WebView the app will ever meet. */
 
+/* 200 × 260 rather than square: act two needs the room under the sphere for
+   the trip card and two rows of figures, and one unit of viewBox is one CSS
+   pixel here, which is what lets the duck's keyframes be read straight off
+   the arc's own coordinates. */
 .boot-stage {
   position: relative;
   width: 200px;
-  height: 200px;
+  height: 260px;
 }
 
 .boot-globe {
   position: absolute;
   inset: 0;
   width: 200px;
-  height: 200px;
+  height: 260px;
   overflow: visible;
 }
 
@@ -944,12 +948,17 @@ button {
   animation: boot-bob 2600ms ease-in-out 1500ms infinite;
 }
 
+/* Read off the arc rather than guessed: the path is M58 118 Q100 44 146 70,
+   and these are that quadratic evaluated at t = 0, .35, .65, 1, less half the
+   duck's 34px so it rides centred on the line. The last frame is the arc's
+   own end point — the note that came back on the mock was that the duck has
+   to finish *at* the far end, not near it. */
 @keyframes boot-fly {
-  0%   { opacity: 0; transform: translate(29px, 123px) scale(0.7); }
+  0%   { opacity: 0; transform: translate(41px, 101px) scale(0.7); }
   15%  { opacity: 1; }
-  35%  { transform: translate(66px, 74px) scale(0.88); }
-  65%  { transform: translate(106px, 45px) scale(1); }
-  100% { opacity: 1; transform: translate(141px, 57px) scale(1); }
+  35%  { transform: translate(71px, 61px) scale(0.88); }
+  65%  { transform: translate(97px, 47px) scale(1); }
+  100% { opacity: 1; transform: translate(129px, 53px) scale(1); }
 }
 
 @keyframes boot-bob {
@@ -972,84 +981,178 @@ button {
   to   { opacity: 1; letter-spacing: 0.01em; }
 }
 
-/* ── Act two: the pile becomes the trip ────────────────────────
-   Everything here is on the same budget as act one — opacity, transform
-   and stroke-dashoffset only — and it starts after the name has resolved
-   at ~2.08s, so the two acts never overlap.
+/* ── Act two: the payoff, then the seed ────────────────────────
+   Everything here is on the same budget as act one — opacity, transform and
+   stroke-dashoffset only — and it starts after the name has resolved at
+   ~2.08s, so the two acts never overlap.
+
+   The order is the argument. A finished trip arrives first, specific and
+   counted; then it runs backwards until nothing is left but one photograph;
+   and the line lands on top of that. Stated forwards it is a promise, and
+   the reader has to take it on trust. Stated backwards it is a demonstration
+   they have already watched.
 
    Timings, since they are the design and not an implementation detail:
 
-     2.15s  three photographs drop onto the globe
-     3.05s  each folds down onto the place it was taken
-     3.62s  a pin appears where each one landed
-     3.80s  a line joins them
-     4.15s  one sentence, and then the app
+     2.25s  the route across the sphere draws
+     2.45s  a stop appears at each end and in the middle
+     2.95s  the trip card rises — flags, name, dates
+     3.30s  six figures count up, 150ms apart
+     5.35s  card and figures sink
+     5.40s  the route retracts the way it came
+     5.45s  the stops gather inward
+     5.80s  all of it, become one photograph
+     6.30s  the line
 
-   Which settles at 4.85s — see minBoot in App.jsx, which holds the screen
+   Which settles at 7.0s — see minBoot in App.jsx, which holds the screen
    until then and not a frame longer. */
 
-.boot-frame {
-  fill: var(--surface);
+.boot-leg {
   stroke: var(--accent);
-  stroke-width: 1.4;
+  stroke-width: 2.2;
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation:
+    boot-draw 700ms cubic-bezier(0.22, 1, 0.36, 1) 2250ms forwards,
+    boot-retract 550ms cubic-bezier(0.5, 0, 0.75, 0) 5400ms forwards;
 }
 
-.boot-frame-in {
+/* Off the far end rather than back to the near one: a route that unwinds
+   from where it finished reads as the journey rewinding. */
+@keyframes boot-retract {
+  to { stroke-dashoffset: -200; }
+}
+
+.boot-stop {
   fill: var(--accent);
-  opacity: 0.35;
-}
-
-/* Hidden until dropped, then held by the fill of `boot-drop` until `boot-tuck`
-   takes over and folds it away. Two animations rather than one keyframe list
-   because the delay between arriving and being filed is the beat that makes
-   it read as filing rather than as a glitch. */
-.boot-snap {
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
   animation:
-    boot-drop 600ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards,
-    boot-tuck 700ms cubic-bezier(0.5, 0, 0.2, 1) forwards;
+    boot-pop 340ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+    boot-gather 600ms cubic-bezier(0.6, 0, 0.3, 1) 5450ms forwards;
 }
 
-.boot-snap-1 { animation-delay: 2150ms, 3050ms; }
-.boot-snap-2 { animation-delay: 2270ms, 3170ms; }
-.boot-snap-3 { animation-delay: 2390ms, 3290ms; }
+.boot-stop-1 { animation-delay: 2450ms, 5450ms; }
+.boot-stop-2 { animation-delay: 2620ms, 5450ms; }
+.boot-stop-3 { animation-delay: 2790ms, 5450ms; }
 
-@keyframes boot-drop {
-  from { opacity: 0; transform: translateY(-40px) rotate(-8deg); }
+/* --gx/--gy is each stop's own vector to the middle of the photograph, which
+   is only that simple because the group collapses about its own centre
+   (transform-box: fill-box) rather than about the viewBox. */
+@keyframes boot-gather {
+  to { opacity: 0; transform: translate(var(--gx), var(--gy)) scale(0.3); }
+}
+
+/* The card and the figures leave together, so the screen empties in one
+   movement rather than in pieces. */
+.boot-card {
+  opacity: 0;
+  animation:
+    boot-rise 500ms cubic-bezier(0.22, 1, 0.36, 1) 2950ms both,
+    boot-sink 400ms ease-in 5350ms forwards;
+}
+
+.boot-trip {
+  fill: var(--text);
+  font-family: var(--font-display);
+  font-weight: 300;
+  font-size: 17px;
+}
+
+.boot-when {
+  fill: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 6.2px;
+  letter-spacing: 1.2px;
+}
+
+.boot-rule {
+  stroke: var(--accent);
+  stroke-width: 1;
+  opacity: 0.5;
+  fill: none;
+}
+
+.boot-fig {
+  opacity: 0;
+  animation:
+    boot-figure-up 340ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    boot-sink 400ms ease-in 5350ms forwards;
+}
+
+.boot-fig-1 { animation-delay: 3300ms, 5350ms; }
+.boot-fig-2 { animation-delay: 3450ms, 5350ms; }
+.boot-fig-3 { animation-delay: 3600ms, 5350ms; }
+.boot-fig-4 { animation-delay: 3750ms, 5350ms; }
+.boot-fig-5 { animation-delay: 3900ms, 5350ms; }
+.boot-fig-6 { animation-delay: 4050ms, 5350ms; }
+
+@keyframes boot-figure-up {
+  from { opacity: 0; transform: translateY(7px); }
   to   { opacity: 1; transform: none; }
 }
 
-/* Each photograph shrinks to nothing on the spot its pin appears, so the pin
-   reads as the photograph rather than as something new arriving. */
-@keyframes boot-tuck {
-  from { opacity: 1; }
-  to   { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.12); }
+@keyframes boot-sink {
+  to { opacity: 0; transform: translateY(10px); }
 }
 
-.boot-made {
+.boot-num {
   fill: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  /* Every digit the same width, or a number counting from 0 to 18,169 makes
+     the whole row twitch sideways on its way there. */
+  font-variant-numeric: tabular-nums;
+}
+
+/* Japan's disc is white on a cream page, so it needs its own edge or it
+   simply is not there. Same ink as everything else, at the weight the card's
+   rule uses. */
+.boot-flag-jp {
+  stroke: var(--text);
+  stroke-width: 0.8;
+  opacity: 1;
+}
+
+.boot-lab {
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 5.6px;
+  letter-spacing: 0.4px;
+}
+
+/* One photograph, where sixteen days used to be. */
+.boot-snap {
   opacity: 0;
   transform-box: fill-box;
   transform-origin: center;
-  animation: boot-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: boot-snap-in 550ms cubic-bezier(0.22, 1, 0.36, 1) 5800ms both;
 }
 
-.boot-made-1 { animation-delay: 3620ms; }
-.boot-made-2 { animation-delay: 3740ms; }
-.boot-made-3 { animation-delay: 3860ms; }
+@keyframes boot-snap-in {
+  from { opacity: 0; transform: scale(0.4) rotate(-6deg); }
+  to   { opacity: 1; transform: none; }
+}
 
-.boot-track {
+.boot-snap-card {
+  fill: var(--surface);
   stroke: var(--accent);
-  stroke-width: 2;
-  stroke-dasharray: 160;
-  stroke-dashoffset: 160;
-  animation: boot-draw 700ms cubic-bezier(0.22, 1, 0.36, 1) 3800ms forwards;
+  stroke-width: 1.3;
+}
+
+.boot-snap-sky { fill: var(--accent); opacity: 0.12; }
+.boot-snap-sun { fill: var(--accent); opacity: 0.6; }
+.boot-snap-hill { fill: var(--accent); opacity: 0.28; }
+
+.boot-snap-torii {
+  stroke: var(--accent);
+  stroke-width: 1;
+  opacity: 0.85;
 }
 
 .boot-say {
-  max-width: 15em;
+  max-width: 17em;
   margin-top: 10px;
   text-align: center;
   font-family: var(--font-display);
@@ -1058,7 +1161,17 @@ button {
   line-height: 1.45;
   text-wrap: balance;
   opacity: 0;
-  animation: boot-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) 4150ms forwards;
+  animation: boot-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) 6300ms forwards;
+}
+
+/* The second half is the list, and it is the half doing the work — three
+   sources, one of which is not photographs. Smaller and quieter so the first
+   line lands on its own first. */
+.boot-say span {
+  display: block;
+  margin-top: 5px;
+  font-size: 14px;
+  color: var(--text-muted);
 }
 
 @keyframes boot-rise {
@@ -1070,17 +1183,21 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .bg-line { stroke-dashoffset: 0; animation: none; }
   .boot-arc { opacity: 1; stroke-dashoffset: 0; animation: none; }
-  .boot-pin { opacity: 1; animation: none; }
+  .boot-pin-a { opacity: 1; animation: none; }
   .boot-ring { animation: none; }
-  .boot-duck-fly { opacity: 1; transform: translate(141px, 57px); animation: none; }
+  .boot-duck-fly { opacity: 1; transform: translate(129px, 53px); animation: none; }
   .boot-duck { animation: none; }
   .boot-title { opacity: 1; animation: none; }
 
-  /* The end of the sequence rather than a blank frame: the photographs have
-     already been filed, so they are the one thing here that rests hidden. */
-  .boot-snap { opacity: 0; animation: none; }
-  .boot-made { opacity: 1; animation: none; }
-  .boot-track { stroke-dashoffset: 0; animation: none; }
+  /* The end of the sequence rather than a blank frame: the trip has already
+     collapsed into the photograph, so the card, the figures, the route and
+     the stops are the things that rest hidden. The count-up is handed its
+     finished figures in JS on the same condition. */
+  .boot-leg { opacity: 0; animation: none; }
+  .boot-stop { opacity: 0; animation: none; }
+  .boot-card { opacity: 0; animation: none; }
+  .boot-fig { opacity: 0; animation: none; }
+  .boot-snap { opacity: 1; animation: none; }
   .boot-say { opacity: 1; animation: none; }
 }
 
