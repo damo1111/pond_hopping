@@ -36,6 +36,28 @@ test('the second pass asks for more pixels', () => {
   assert.ok(high.url.includes('width=1024'))
 })
 
+test('the cheap pass takes the stored thumbnail rather than buying a transform', () => {
+  // One transform per photograph per month is what put this account at 600%
+  // of a quota of 100. The stored file costs nothing.
+  const stored = 'https://x.supabase.co/storage/v1/object/public/photos/a-thumb.webp'
+  const asked = asAsked(pic('a', { thumb_url: stored }), 'low')
+  assert.equal(asked.url, stored)
+  assert.ok(!asked.url.includes('/render/image/'))
+})
+
+test('but a photograph with no stored thumbnail still gets one made', () => {
+  const asked = asAsked(pic('a'), 'low')
+  assert.ok(asked.url.includes('/render/image/'))
+})
+
+test('and the second pass never settles for the small stored one', () => {
+  // 400px cannot read the name off an awning, which is the whole point of it.
+  const stored = 'https://x.supabase.co/storage/v1/object/public/photos/a-thumb.webp'
+  const asked = asAsked(pic('a', { thumb_url: stored }), 'high')
+  assert.ok(asked.url.includes('width=1024'))
+  assert.notEqual(asked.url, stored)
+})
+
 test('the time goes as text, in the trip own clock', () => {
   // A vision model never sees EXIF, so this is the only way it arrives.
   const asked = asAsked(pic('a'), 'low', 'Europe/Rome', clockIn)

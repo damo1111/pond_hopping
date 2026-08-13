@@ -149,7 +149,12 @@ export default async function handler(req, res) {
 /** One batch of photographs, written down as they come back. */
 async function seeThese(secret, tripId, waiting) {
   const asked = waiting.map((p) =>
-    asAsked({ id: p.id, url: p.url, taken_at: p.taken_at, lat: p.lat, lon: p.lon }, 'low', null, clockIn)
+    asAsked(
+      { id: p.id, url: p.url, thumb_url: p.thumb_url, taken_at: p.taken_at, lat: p.lat, lon: p.lon },
+      'low',
+      null,
+      clockIn
+    )
   )
   const { seen } = await look(asked, 'low')
 

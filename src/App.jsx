@@ -251,7 +251,7 @@ export default function App() {
     // third part of the loading animation was too quick. Needs to hold
     // longer." It now holds for a second and a half, which is about what
     // seven words take.
-    const minBoot = meetsColdOpen ? 6300 : 500
+    const minBoot = meetsColdOpen ? 7000 : 500
     const leave = setTimeout(() => {
       if (cancelled) return
       if (meetsColdOpen) {
