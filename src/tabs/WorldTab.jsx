@@ -192,13 +192,6 @@ export default function WorldTab() {
   // thing in a rail of 172px cards. And being gated on firstRun.js meant it
   // appeared on the launch *after* the one it was about, which reads as the
   // app being broken rather than as the app being considerate.
-  //
-  // A state rather than an interruption. It is true exactly while somebody
-  // has nothing of their own, so it needs no flag, no queue and no
-  // dismissing — it goes when the first trip arrives, which is the moment
-  // it stops being true.
-  const nothingIsTheirs =
-    tripsLoaded && tripMeta.length > 0 && tripMeta.every((t) => shouldBadge(t))
 
   // Nothing to look at yet, so the globe stops being a record and becomes an
   // invitation: pointed at wherever they are rather than at where this
@@ -896,33 +889,6 @@ export default function WorldTab() {
         />
       )}
 
-      {/* Where to go, once the opening has finished and there is nothing
-          here that belongs to them.
-
-          One line doing the two jobs the retired card did badly: it says
-          what the stamped trip is, and — the half the card never did at all
-          — it says what to do next. The doing half is a button rather than
-          a description, because "tip some in" that you cannot tap is an
-          instruction, and an instruction is a worse thing to hand somebody
-          than a door.
-
-          Outside the ternary below because it is absolutely positioned, so
-          where it sits in the DOM does not matter; `nothingIsTheirs` needs
-          trips to exist, so it can never appear over the empty home. */}
-      {nothingIsTheirs && (
-        <div className="wt-signpost">
-          None of this is yours yet.{' '}
-          <button
-            onClick={() => {
-              track('signpost_tapped')
-              setRoutesOpen(true)
-            }}
-          >
-            Tip some in
-          </button>
-          , or have a paddle round the example first.
-        </div>
-      )}
 
       {tripsLoaded && !tripMeta.length ? (
         <EmptyHome onPlan={() => goToTab('plan')} onGetIn={() => setRoutesOpen(true)} />
