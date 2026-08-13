@@ -10597,56 +10597,6 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   max-height: 220px;
 }
 
-/* Where to go, before there is anything of your own here.
- *
- * Replaces `.wt-whose`, which was a full-width banner squeezed into a
- * horizontal rail: 134px wide, 275px tall, gold at 10% alpha over a
- * photographic globe, dragging every card beside it from 166px to 289px.
- * That got fixed and it was still the widest thing in the row, still forty
- * words, and still needed dismissing.
- *
- * A line rather than a card, above the rail rather than in it — so it is
- * read before the thing it is about, and it cannot distort the row it is
- * pointing at. */
-.wt-signpost {
-  position: absolute;
-  left: 0;
-  right: 0;
-  /* Directly above `.world-trips`, which is pinned the same distance from
-     the bottom. Moving the rail moves this with it. */
-  bottom: calc(90px + 196px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
-  z-index: 500;
-  padding: 0 16px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--text);
-  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.9);
-  text-wrap: balance;
-}
-
-/* The half that is a door. Underlined rather than boxed: a button here
-   would be a third thing competing with the rail and the nav, and this
-   only has to look like the one word in the sentence you can press. */
-.wt-signpost button {
-  border: 0;
-  background: none;
-  padding: 0;
-  font: inherit;
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) .wt-signpost {
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
-  }
-}
-
-:root[data-theme='dark'] .wt-signpost {
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
-}
 
 /* ── Get your trips in ────────────────────────────────────────────────
    The sheet whose padding read as broken. It wasn't the padding: the sheet
