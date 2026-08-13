@@ -38,6 +38,10 @@
     "api/story-step.js": {
       "maxDuration": 300,
       "memory": 1024
+    },
+    "api/import-google-photos.js": {
+      "maxDuration": 300,
+      "memory": 1024
     }
   },
   "headers": [
