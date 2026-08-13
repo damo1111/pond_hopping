@@ -9,6 +9,7 @@ import { spanOf } from '../lib/dateRange.js'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PhotoUpload from '../components/PhotoUpload.jsx'
 import TripTools from '../components/TripTools.jsx'
+import BringThemIn from '../components/BringThemIn.jsx'
 
 const fmtRange = (t) => spanOf(t, { empty: 'dates tbc' })
 
@@ -337,13 +338,20 @@ export default function PhotosTab({ openPhotoId = null }) {
         // The card survives only for a trip whose photographs are still
         // outside, in Google Photos, where it is the only way to reach them.
         if (count > 0) return null
+        // It used to be a link out, which was the only thing it could
+        // offer. Now it is the way in: the photographs come from Google to
+        // the server and never travel through the phone at all. The link
+        // stays, quietly, for anybody who just wants to look at the album.
         return (
-          <a key={t.slug} className="album-card" href={t.photos_url} target="_blank" rel="noreferrer">
+          <div key={t.slug} className="album-card">
             {cover}
             <span className="album-flags">{t.countries?.join(' ')}</span>
             <span className="album-title">{t.title} — Google Photos</span>
-            <span className="album-open">Open album →</span>
-          </a>
+            <BringThemIn trip={t} onDone={() => setReload((r) => r + 1)} />
+            <a className="album-elsewhere" href={t.photos_url} target="_blank" rel="noreferrer">
+              or open the album →
+            </a>
+          </div>
         )
       })}
 
