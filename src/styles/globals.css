@@ -10284,19 +10284,32 @@ button.ios-sheet-grip:active { cursor: grabbing; }
    The globe has said "Example" across the corner of these since they
    existed; this screen said nothing, so the demo read as somebody's actual
    upcoming holiday — with a countdown on it, which is the most convincing
-   thing a card can carry. Same gold, same mono, same word; a corner ribbon
-   on a card this shallow would cover the photograph, so it sits as a chip. */
+   thing a card can carry.
+
+   It was a chip here and a ribbon on the globe, and the reason given was
+   that a corner ribbon would cover the photograph. That reason was carried
+   over from the globe, where the cover is the whole card. Here the
+   photograph is 62px on the *left* — the corner the ribbon crosses is
+   empty. So it is the ribbon, and the app has one way of saying this
+   instead of two.
+
+   The card owns the clipping so the ribbon runs past both edges and is
+   trimmed to the rounded corner, exactly as .wt-sash is. */
 .plan-card--demo {
   position: relative;
+  overflow: hidden;
 }
 
 .pc-sash {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 9px;
+  right: -30px;
   z-index: 2;
-  padding: 3px 8px;
-  border-radius: 999px;
+  width: 108px;
+  padding: 3px 0;
+  transform: rotate(38deg);
+  transform-origin: center;
+  text-align: center;
   background: linear-gradient(100deg, #C79A2E, #A8842C);
   color: #fff;
   font-family: var(--font-mono);
@@ -10305,6 +10318,12 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   text-transform: uppercase;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
   pointer-events: none;
+}
+
+/* The chevron is decorative — aria-hidden, and the whole card is already
+   the button — so the ribbon takes its corner rather than fighting it. */
+.plan-card--demo .pc-go {
+  display: none;
 }
 
 /* Reads as a link because it behaves like one — it goes somewhere rather
