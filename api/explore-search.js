@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 // Real "things to do" suggestions for the Explore tab, via Foursquare's
 // Places API — chosen over Google Places for now since it needs no GCP
 // console/billing setup, just an API key. Runs server-side so
@@ -31,6 +32,7 @@ export function nearAttempts(raw) {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'GET only' })
     return

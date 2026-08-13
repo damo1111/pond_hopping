@@ -1,5 +1,6 @@
 import { createContext, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './lib/supabase.js'
+import { within } from './lib/within.js'
 import Placeholder from './tabs/Placeholder.jsx'
 import FlightsTab from './tabs/FlightsTab.jsx'
 import JournalTab from './tabs/JournalTab.jsx'
@@ -296,10 +297,9 @@ export default function App() {
   // race, because somebody asked for it.
   const loadTrips = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('trip_meta')
-        .select('*')
-        .order('sort_order', { ascending: true })
+      const { data, error } = await within(
+        supabase.from('trip_meta').select('*').order('sort_order', { ascending: true }),
+      )
 
       if (error) {
         setLoadError(error.message)
@@ -324,10 +324,9 @@ export default function App() {
 
     async function load() {
       try {
-        const { data, error } = await supabase
-          .from('trip_meta')
-          .select('*')
-          .order('sort_order', { ascending: true })
+        const { data, error } = await within(
+          supabase.from('trip_meta').select('*').order('sort_order', { ascending: true }),
+        )
 
         if (cancelled) return
         if (error) setLoadError(error.message)

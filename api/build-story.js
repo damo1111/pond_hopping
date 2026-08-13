@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 import { rest } from './_lib/rest.js'
 import { running, whatThereIs } from '../src/lib/storyBuild.js'
 
@@ -29,6 +30,7 @@ const COLUMNS = {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

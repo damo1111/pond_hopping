@@ -67,6 +67,31 @@ worries about who can see a trip they have not made yet.
 reaches for a link, this is the most reassuring paragraph we have, and "that
 you can take back whenever you like" is the clause that closes it.
 
+### The note about whose trip that is
+
+> One of these is somebody else's, parked here so the place isn't empty when
+> you turn up. Have a paddle round — it's properly finished, photos and all.
+> Then it clears off. — **Right you are**
+
+**Why it left.** Three reasons, and the copy is not one of them. The example
+trip already wears an EXAMPLE stamp across its corner, so this said in forty
+words what one word on the card beside it already said. It was a full-width
+banner living in a horizontal rail of 172px cards and never stopped being
+the wrong shape for the row. And being gated on firstRun.js meant it arrived
+on the launch *after* the one it was about, which reads as the app being
+broken rather than as the app being considerate.
+
+**What replaced it**, and the better idea underneath: a line above the rail,
+shown exactly while nothing on the globe is yours, doing the job this one
+did *and* the job it never did — saying where to go next.
+
+> None of this is yours yet. **Tip some in**, or have a paddle round the
+> example first.
+
+No flag, no queue, no dismissing: it is true while it is true and gone when
+the first trip arrives. "Have a paddle round" is the half of the original
+worth keeping and it is kept.
+
 ---
 
 ## The demo tour

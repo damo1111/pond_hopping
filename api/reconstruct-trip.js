@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 import OpenAI from 'openai'
 
 // The whole trip, in one call, from the coordinates themselves.
@@ -283,6 +284,7 @@ export async function reconstruct({
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

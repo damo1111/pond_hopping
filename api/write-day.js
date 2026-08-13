@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 import OpenAI from 'openai'
 
 // Write the day. Do not report it.
@@ -74,6 +75,7 @@ function voicePrompt(samples = []) {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

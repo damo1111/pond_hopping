@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 // The killer onboarding move: with the user's permission (Gmail read
 // scope, granted via Google sign-in), scan their inbox for everything
 // that belongs to a trip — flights, hotels, restaurant bookings, tours —
@@ -95,6 +96,7 @@ const EXTRACT_TOOL = {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

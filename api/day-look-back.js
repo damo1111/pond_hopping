@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 import { sendPush } from './_lib/sendPush.js'
 import { dueNow, lookBackAt, worthSending } from '../src/lib/dayLookBack.js'
 import { pushLine } from '../src/lib/dayPush.js'
@@ -130,6 +131,7 @@ async function evening(secret, { trip_id, email, on_date }, now) {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 import OpenAI from 'openai'
 
 // Which of these neighbours the photograph was taken at.
@@ -64,6 +65,7 @@ function schema(names) {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

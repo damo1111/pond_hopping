@@ -14,18 +14,23 @@ const store = (start = {}) => {
 test('nothing seen means the first thing in the order is owed', () => {
   const s = store()
   assert.equal(nextUp(s), ONCE.cold_open)
-  assert.equal(seen(ONCE.whose_trip, s), false)
 })
 
-test('one interruption at a time — the whole point of it', () => {
+test('and once it has been met, nothing is owed', () => {
   const s = store()
-  // A brand new hopper is owed two things. They meet one.
   assert.equal(nextUp(s), ONCE.cold_open)
   markSeen(ONCE.cold_open, s)
-  // Not both in eight seconds, which is what four uncoordinated flags did.
-  assert.equal(nextUp(s), ONCE.whose_trip)
-  markSeen(ONCE.whose_trip, s)
   assert.equal(nextUp(s), null)
+})
+
+// The queue is down to one entry and it stays, because it is what stops the
+// next thing anybody adds from arriving on top of the opening.
+test('the queue still only ever offers one thing', () => {
+  const s = store()
+  const order = ['cold_open', 'something_new']
+  assert.equal(nextUp(s, order), 'cold_open')
+  markSeen('cold_open', s)
+  assert.equal(nextUp(s, order), 'something_new')
 })
 
 test('it writes down when, not merely that', () => {
@@ -51,16 +56,13 @@ test('somebody who already sat through the old carousel is not shown it again', 
   const s = store({ 'pond:intro': '1' })
   bringOldFlagsOver(s)
   assert.equal(seen(ONCE.cold_open, s), true)
-  // They never saw the tour, so the line about whose trip it is still owed.
-  assert.equal(nextUp(s), ONCE.whose_trip)
+  assert.equal(nextUp(s), null)
 })
 
-test('finishing the old tour carries over as having been told whose trip it is', () => {
+test('and neither is somebody who finished the old tour', () => {
   const s = store({ 'pond:tourdone': '1' })
   bringOldFlagsOver(s)
-  assert.equal(seen(ONCE.whose_trip, s), true)
-  // Finishing the tour meant having got past the opening to reach it, so
-  // there is now nothing left to show somebody who did.
+  assert.equal(seen(ONCE.cold_open, s), true)
   assert.equal(nextUp(s), null)
 })
 
@@ -79,13 +81,15 @@ test('carrying over is safe to run twice and leaves the old keys alone', () => {
 // The card it used to gate is gone: the opening says what the app is for
 // itself. A record still carrying `pitch` from before is left alone — it is
 // simply never asked about — but nothing may put it back in the queue.
-test('the retired pitch card is not owed to anybody', () => {
+test('the retired cards are not owed to anybody', () => {
   assert.equal(ONCE.pitch, undefined)
+  assert.equal(ONCE.whose_trip, undefined)
   assert.ok(!IN_ORDER.includes('pitch'))
-  const old = store({ 'pond:seen': JSON.stringify({ pitch: 'carried-over' }) })
-  assert.equal(nextUp(old), ONCE.cold_open)
+  assert.ok(!IN_ORDER.includes('whose_trip'))
+  const old = store({ 'pond:seen': JSON.stringify({ pitch: 'x', whose_trip: 'x' }) })
+  assert.equal(nextUp(old), ONCE.cold_open, 'the opening is still owed to them')
 })
 
 test('the order is the order somebody should meet them', () => {
-  assert.deepEqual(IN_ORDER, [ONCE.cold_open, ONCE.whose_trip])
+  assert.deepEqual(IN_ORDER, [ONCE.cold_open])
 })

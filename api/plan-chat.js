@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 import OpenAI from 'openai'
 
 // The "shit hot chatbot" trip-planning assistant. Runs as a Vercel Node
@@ -289,6 +290,7 @@ Keep replies tight — a few sentences plus, when relevant, the itinerary propos
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

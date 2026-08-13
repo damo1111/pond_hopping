@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 import OpenAI from 'openai'
 import { BATCH } from '../src/lib/seeing.js'
 
@@ -188,6 +189,7 @@ export async function look(photos = [], detail = DETAIL.LOW) {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

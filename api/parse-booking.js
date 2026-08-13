@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 // The zero-setup path to the same magic as the Gmail scan, minus Google.
 // The user pastes (or forwards → copies) a booking email; we run the exact
 // same extraction and hand back structured events to review. No OAuth, no
@@ -5,6 +6,7 @@
 import { extractBookingItems } from './_lib/extractBookingItems.js'
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST only' })
     return

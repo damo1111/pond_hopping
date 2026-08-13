@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 // Loyalty-aware hotel search for the Concierge. David has status with
 // Accor, Hilton, Marriott and IHG (see traveler_preferences), so rather
 // than a generic "hotels near X" dump, this fans out one Foursquare text
@@ -57,6 +58,7 @@ async function searchBrand(loc, { q, program }) {
 }
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'GET only' })
     return

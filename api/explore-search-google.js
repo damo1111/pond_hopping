@@ -1,3 +1,4 @@
+import { preflight } from './_lib/cors.js'
 // Parked, not wired to the frontend yet — David's setting up Google Cloud
 // billing/console access himself. Foursquare (explore-search.js) is the
 // live source for now; swap this back in later if Google ends up preferred.
@@ -10,6 +11,7 @@
 const KEY = process.env.GOOGLE_PLACES_API_KEY
 
 export default async function handler(req, res) {
+  if (preflight(req, res)) return
   if (req.method !== 'GET') {
     res.status(405).json({ error: 'GET only' })
     return
