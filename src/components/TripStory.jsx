@@ -512,7 +512,24 @@ export default function TripStory({ trip, photos = [] }) {
 
         {asks}
         {trouble && <div className={`story-trouble${calm ? ' story-trouble--calm' : ''}`}>{trouble}</div>}
-        {written && <div className="story-sofar">{written}</div>}
+        {/* Folded, exactly as it is once the run has settled.
+            This dumped the whole story onto the photographs screen every time
+            a run was under way — and a run starts itself whenever photographs
+            arrive. So adding one picture to a trip that already had a story
+            replaced the screen with several thousand words of prose, above
+            the grid, unasked. "After add the entire story is back!"
+            The intention was to show it improving as photographs are read.
+            The fold keeps that — it is still here, still updating — without
+            making somebody scroll a chapter to reach their own pictures. */}
+        {written && (
+          <>
+            <button className="story-open" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+              <span>{open ? 'Hide the story' : 'Read the story so far'}</span>
+              <span className="story-open-mark">{open ? '−' : '+'}</span>
+            </button>
+            {open && <div className="story-sofar">{written}</div>}
+          </>
+        )}
       </div>
     )
   }
