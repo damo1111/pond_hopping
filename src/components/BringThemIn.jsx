@@ -50,6 +50,8 @@ export default function BringThemIn({ trip, onDone }) {
   // Google's picker address, once there is one. Rendered as a link rather
   // than opened, because a delayed window.open is refused — see below.
   const [pickerUri, setPickerUri] = useState(null)
+  // Only affects what the button says while it works — see tryResume below.
+  const [justBack, setJustBack] = useState(false)
   const alive = useRef(true)
 
   useEffect(() => () => { alive.current = false }, [])
@@ -162,15 +164,23 @@ export default function BringThemIn({ trip, onDone }) {
 
   // Coming back from Google's consent screen.
   //
-  // Asking for the photographs scope leaves the page entirely, so by the
-  // time the answer arrives this component has been unmounted and rebuilt
-  // and knows nothing. The intent was written down before we left; if it
-  // names this trip and is recent, carry on where we stopped rather than
-  // making somebody find the button again having just granted access.
-  const resume = useRef(false)
-  useEffect(() => {
-    if (resume.current) return
-    resume.current = true
+  // Which happens two different ways, and only one of them was handled.
+  //
+  // On the web, consent leaves the page and returns as a fresh load: this
+  // component is unmounted, rebuilt, and knows nothing, so it reads the
+  // intent written down before we left. That worked.
+  //
+  // In the wrappers there is no fresh load at all. Consent goes out to the
+  // system browser and comes back through Capacitor's appUrlOpen, which sets
+  // the session *in place* — same page, same React tree, same mounted
+  // component with its resume already spent. So somebody granted access,
+  // landed back on the identical screen, and nothing whatsoever happened.
+  // Which is exactly what it looked like.
+  //
+  // So this listens as well as running once. takeIntent clears what it
+  // takes, so asking again on every return is free: the first one that finds
+  // something acts, and every later one finds nothing.
+  const tryResume = useCallback(() => {
     let mine = false
     try {
       const said = JSON.parse(globalThis.localStorage?.getItem('pond:importing') ?? 'null')
@@ -179,8 +189,6 @@ export default function BringThemIn({ trip, onDone }) {
       mine = false
     }
     if (!mine) return
-    // takeIntent clears it, so a reopened tab tomorrow does not start an
-    // import nobody asked for.
     const said = takeIntent()
     if (said?.tripId !== trip.id) return
     // An "after consent" intent is only written in the breath before leaving
@@ -191,18 +199,29 @@ export default function BringThemIn({ trip, onDone }) {
     // sessionStorage does not.
     //
     // Resuming on one of those is worse than doing nothing: it goes straight
-    // to a refusal and then reports on a request that was never made. That is
-    // what happened on the last attempt, which reported "we asked for:
-    // unrecorded" and proved nothing at all.
+    // to a refusal and then reports on a request that was never made.
     if (said.afterConsent && whatWeAsked() === null) return
+    setJustBack(true)
 
-    // Carry on. The tap this used to wait for was only ever there to
-    // satisfy a popup blocker, and there is no popup left to block: the
-    // picker is a link now, and a link can be *rendered* without a gesture.
-    // It only needs one to be followed, and that is the tap somebody was
-    // always going to make.
+    // Carry on. The tap this used to wait for was only ever there to satisfy
+    // a popup blocker, and there is no popup left to block: the picker is a
+    // link now, and a link can be rendered without a gesture. It only needs
+    // one to be followed, which is the tap somebody was always going to make.
     go(true)
   }, [trip.id, go])
+
+  useEffect(() => {
+    tryResume()
+    const onBack = () => tryResume()
+    // Both, because the two wrappers and the two browsers do not agree on
+    // which one fires when an app is brought forward.
+    globalThis.addEventListener?.('focus', onBack)
+    globalThis.document?.addEventListener?.('visibilitychange', onBack)
+    return () => {
+      globalThis.removeEventListener?.('focus', onBack)
+      globalThis.document?.removeEventListener?.('visibilitychange', onBack)
+    }
+  }, [tryResume])
 
   const busy = Boolean(step) || (progress && !progress.finished)
 
@@ -226,7 +245,7 @@ export default function BringThemIn({ trip, onDone }) {
       ) : (
         /* Not onClick={go}. A tap is a tap, and saying so is the entire fix. */
         <button className="album-open" onClick={() => go(false)} disabled={busy}>
-          {step ? `${step}…` : 'Google Photos'}
+          {step ? `${step}…` : justBack ? 'Opening Google…' : 'Google Photos'}
         </button>
       )}
 

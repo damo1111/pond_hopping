@@ -71,6 +71,15 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
             way to delete a photo afterwards, landing forty of them on the
             wrong trip was unrecoverable inside the app. */}
         {target && <div className="ph-target">adding to {target.title}</div>}
+        {/* Said before the trip out rather than after it. Choosing happens on
+            Google's own page because the permission we hold cannot list a
+            library — which is the reassuring half of an otherwise abrupt
+            hand-off, and worth one line. */}
+        {target && (
+          <div className="ph-why">
+            Google Photos opens on their side to choose. We only ever see what you pick.
+          </div>
+        )}
         <button className="journal-add-btn" onClick={() => setShow(true)}>
           or paste a photo url
         </button>

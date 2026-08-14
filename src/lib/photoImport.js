@@ -1,5 +1,6 @@
 import { whatIsNew } from './alreadyHere.js'
 import { listPicked, openSession, pollDelay, readSession, worthImporting } from './googlePhotos.js'
+import { closePicker, openPicker } from './showPicker.js'
 
 // Picking photographs out of Google, deciding which ones are actually new,
 // and handing the rest to the queue.
@@ -376,7 +377,15 @@ export function howItWent(p) {
  *  so the sheet can say where it has got to without this knowing about it. */
 export async function bringThemIn(
   tripId,
-  { onStep = () => {}, onPicker = () => {}, token, facts: askGoogle = tokenFacts, open = openSession } = {}
+  {
+    onStep = () => {},
+    onPicker = () => {},
+    token,
+    facts: askGoogle = tokenFacts,
+    open = openSession,
+    show = openPicker,
+    hide = closePicker,
+  } = {}
 ) {
   const key = token ?? (await freshToken())
   // No Google token at all — which is the ordinary case, not an error.
@@ -427,19 +436,26 @@ export async function bringThemIn(
   // opinion about, on any platform. Polling below carries on regardless, so
   // whether they tap now or in a minute makes no difference to the result.
   onPicker(session.pickerUri)
+  // In the wrappers, open it ourselves in a Custom Tab so we are able to put
+  // it away again. Everywhere else this does nothing and the card's link is
+  // the way through.
+  await show(session.pickerUri)
 
   onStep('waiting for you to choose')
   await waitForPick(key, session.id)
 
-  // Picking is over. Come back here.
+  // Picking is over. Put the picker away and come back here.
   //
-  // The picker is a tab we did not open — it is a link somebody tapped — so
-  // there is no window handle to close, and a page cannot close a tab it did
-  // not open anyway. What we can do is ask for focus, which brings this tab
-  // forward where the browser allows it. Google's tab is left behind, spent;
-  // that is the price of a link that actually opens, and it is a far smaller
-  // price than a picker that never appears.
+  // Handed to Chrome, the picker ends on Google's own dead end — "Done!
+  // Continue in the other app or device" — and stays there, because that
+  // page has never heard of us. Somebody has just finished choosing and the
+  // last thing the flow does is abandon them in another app.
+  //
+  // Opened in a Custom Tab it is a sheet this app owns, so it can be closed
+  // the moment the pick lands. On the web there is nothing to close and
+  // asking for focus is the most that is allowed.
   try {
+    await hide()
     globalThis.focus?.()
   } catch {
     /* the import matters more than the housekeeping */
