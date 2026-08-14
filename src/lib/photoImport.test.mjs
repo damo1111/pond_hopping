@@ -140,3 +140,11 @@ test('progress never reads as finished while anything is still waiting', () => {
   assert.ok(p.part < 1)
   assert.equal(p.finished, false)
 })
+
+test('the intent remembers that it already cost a trip to Google', () => {
+  // Without this the resume has no way to tell a first refusal from a second,
+  // and answers both the same way — which is a loop.
+  const store = aStore()
+  rememberIntent('trip-1', store)
+  assert.equal(takeIntent(store)?.afterConsent, true)
+})
