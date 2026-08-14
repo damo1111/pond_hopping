@@ -7470,8 +7470,47 @@ button.album-open:disabled {
 .ph-add {
   display: flex;
   flex-direction: column;
+  gap: 6px;
+  /* Tight. This block used to open the screen with a full-width button, a
+     line of small print, two tool chips and a story, and the photographs —
+     the reason anybody came — began below all of it. */
+  padding: 8px 12px 2px;
+}
+
+/* Where from: two buttons, one question. Equal width because neither answer
+   is the default — a trip from this morning is on the handset and a trip
+   from March is in the cloud, and the app has no business guessing which. */
+.ph-sources {
+  display: flex;
+  align-items: flex-start;
   gap: 8px;
-  padding: 12px 14px 4px;
+}
+.ph-sources > * {
+  /* flex-basis 0 rather than auto, or the longer label decides the split. */
+  flex: 1 1 0;
+  min-width: 0;
+}
+/* Both children wrap their real button, so the sizing has to reach through. */
+.ph-sources .photo-upload,
+.ph-sources .bring-in {
+  width: 100%;
+}
+.ph-sources .pu-pick,
+.ph-sources .album-open {
+  width: 100%;
+  /* Same box, whichever side of the pair it is on. */
+  min-height: 44px;
+  padding: 11px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The Google side is the quieter of the two only because the other one is
+   filled; it is not a lesser option. */
+.ph-sources .album-open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pu-pick {

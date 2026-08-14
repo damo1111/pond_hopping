@@ -231,7 +231,7 @@ export default function BringThemIn({ trip, onDone }) {
             and this goes back to being a button that is simply not
             available. Both saying "bringing them in…" at once was two
             voices reporting the same fact. */}
-        {step ? `${step}…` : justConsented ? 'Choose your photographs →' : 'Bring them in →'}
+        {step ? `${step}…` : justConsented ? 'Choose photographs →' : 'Google Photos'}
       </button>
 
       {/* An anchor with a real href, tapped. Not a window opened on the

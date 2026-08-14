@@ -194,7 +194,11 @@ export default function PhotoUpload({ trip, trips = [], traveler = null, onDone 
         >
           <Icon name="photo" size={16} />
           <span>
-            {phase === 'reading' ? 'Reading the dates…' : phase === 'running' ? 'Adding…' : 'Add photos from this phone'}
+            {/* "This phone", not "Add photos from this phone". It now sits
+                beside a Google Photos button of the same width, and the two
+                are a pair answering one question — where from — so the verb
+                belongs to neither of them. */}
+            {phase === 'reading' ? 'Reading the dates…' : phase === 'running' ? 'Adding…' : 'This phone'}
           </span>
         </button>
       )}

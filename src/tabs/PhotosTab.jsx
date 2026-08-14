@@ -59,7 +59,13 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
         {/* Straight off the phone is what people actually want. Pasting a URL
             assumes you had already uploaded it somewhere else, so it stays,
             but it stops being the headline. */}
-        <PhotoUpload trip={target} trips={tripMeta} onDone={onSaved} />
+        {/* Two ways in, side by side, because they answer one question —
+            where from — and stacking them made the phone the headline and
+            the cloud an afterthought buried under a story and two tools. */}
+        <div className="ph-sources">
+          <PhotoUpload trip={target} trips={tripMeta} onDone={onSaved} />
+          {target && <BringThemIn trip={target} onDone={onSaved} />}
+        </div>
         {/* Which trip these are about to join. It was implicit — whatever was
             selected on Home, or the first trip if nothing was — and with no
             way to delete a photo afterwards, landing forty of them on the
@@ -255,9 +261,13 @@ export default function PhotosTab({ openPhotoId = null }) {
   if (!photos) return <div className="tab-loading">loading photos…</div>
 
   const visible = photos.filter((p) => !selectedTrip || tripsById.get(p.trip_id)?.slug === selectedTrip)
-  const albums = tripMeta.filter(
-    (t) => t.photos_url && (!selectedTrip || t.slug === selectedTrip)
-  )
+  // Album cards are for trips you are *not* looking at.
+  //
+  // Inside a trip this used to show a card for that same trip — a title, a
+  // count, a Bring them in button and a link out to Google — while the top
+  // of the screen now offers the same thing as one of two buttons. Two doors
+  // to one room, one of them buried under a story and two tools.
+  const albums = tripMeta.filter((t) => t.photos_url && !selectedTrip)
   const photoCountByTrip = new Map()
   for (const p of photos) photoCountByTrip.set(p.trip_id, (photoCountByTrip.get(p.trip_id) || 0) + 1)
   const heroTrip = selectedTrip ? tripMeta.find((t) => t.slug === selectedTrip) : null
