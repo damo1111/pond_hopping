@@ -58,7 +58,12 @@ async function goToGoogle(options) {
   } catch {
     /* nowhere to record it is not a reason to refuse to sign in */
   }
-  if (data?.url) window.location.assign(data.url)
+  // No URL and no error is the quietest failure there is: the caller believes
+  // it has sent somebody to Google, and the page simply stays where it was —
+  // indistinguishable from a button that does nothing, which is precisely the
+  // symptom this whole feature has been chasing.
+  if (!data?.url) return { data, error: new Error('Google returned no sign-in address') }
+  window.location.assign(data.url)
   return { data, error: null }
 }
 
