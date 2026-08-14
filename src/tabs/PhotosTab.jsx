@@ -329,24 +329,29 @@ export default function PhotosTab({ openPhotoId = null }) {
             <img src={coverUrl(covers[t.id], { width: 800, height: 450 })} alt="" loading="lazy" />
           </span>
         )
-        // The album link was always a stand-in for photographs that were not
-        // in the app yet. Once they are, this was a very large box whose
-        // whole offer — "View 205 photos ↓" — was the grid immediately
-        // underneath it, and it pushed that grid a screen down to say so.
-        // David, 12 August: remove.
+        // It used to be a link out, which was the only thing it could offer,
+        // and it was hidden the moment any photograph arrived — "View 205
+        // photos ↓" above the grid it was describing was a screen of nothing.
         //
-        // The card survives only for a trip whose photographs are still
-        // outside, in Google Photos, where it is the only way to reach them.
-        if (count > 0) return null
-        // It used to be a link out, which was the only thing it could
-        // offer. Now it is the way in: the photographs come from Google to
-        // the server and never travel through the phone at all. The link
-        // stays, quietly, for anybody who just wants to look at the album.
+        // It is the way *in* now, and that gate is backwards: one photograph
+        // uploaded off a phone would hide the route for the other nine
+        // hundred still in Google, and a trip like Thailand with 264 already
+        // here could never show it at all. Bringing more in later is the
+        // normal case, not the exception, and the dedupe exists precisely so
+        // asking twice is free.
+        //
+        // What is kept from the old rule is its actual point: don't be a
+        // large box above a full grid. With photographs already here it
+        // becomes one quiet line instead of a card.
+        const already = count > 0
         return (
-          <div key={t.slug} className="album-card">
-            {cover}
-            <span className="album-flags">{t.countries?.join(' ')}</span>
-            <span className="album-title">{t.title} — Google Photos</span>
+          <div key={t.slug} className={`album-card${already ? ' album-card--slim' : ''}`}>
+            {!already && cover}
+            {!already && <span className="album-flags">{t.countries?.join(' ')}</span>}
+            <span className="album-title">
+              {t.title}
+              {already ? ` — ${count} here` : ' — Google Photos'}
+            </span>
             <BringThemIn trip={t} onDone={() => setReload((r) => r + 1)} />
             <a className="album-elsewhere" href={t.photos_url} target="_blank" rel="noreferrer">
               or open the album →

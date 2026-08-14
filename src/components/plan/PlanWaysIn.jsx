@@ -1,0 +1,99 @@
+import Icon from '../Icon.jsx'
+
+// What the Plan tab is when there is nothing planned.
+//
+// It used to be a title, one line of prose and a button — on a screen that is
+// otherwise white. David: "Right now tapping plan is one bar page!" Which it
+// was: the tab with the least in it got the least made for it, so the first
+// thing a new hopper found on tapping Plan was an apology.
+//
+// This composes the way GetTripsIn does, because that sheet already solved
+// the same problem for the same person a screen earlier: something drawn to
+// look at, one obvious way in, one that is genuinely ours, and the rest kept
+// quiet underneath. Not a grid of equal tiles — a grid says "choose", and
+// somebody who has just arrived does not yet know enough to choose.
+//
+// It goes away entirely the moment there is one thing in the lane. This is
+// scaffolding for an empty room, not furniture.
+
+/**
+ * The route you have not taken yet.
+ *
+ * Same hand as the Add-a-trip tile and the ways-in sheet: stroke only, no
+ * fills that need a second colour, and small enough that it costs nothing to
+ * draw. Read left to right — where you have been is solid, where you are
+ * going is dashed, and the last pin is open rather than filled because that
+ * is the whole point of this screen.
+ *
+ * There was a sun in the corner. It sat away from everything else and joined
+ * nothing, so it read as a stray circle rather than as weather — the same
+ * fault as the loose lines on the globe. Four marks that all mean something
+ * beats five where one is decoration.
+ */
+function AheadOfYou() {
+  return (
+    <svg className="pwi-draw" viewBox="0 0 200 74" aria-hidden="true" focusable="false">
+      <path className="pwi-horizon" d="M8 60 H192" />
+      {/* Behind: two places, joined and done with. */}
+      <path className="pwi-been" d="M24 52 Q48 34 72 46" />
+      <circle className="pwi-pin pwi-pin--been" cx="24" cy="52" r="3.6" />
+      <circle className="pwi-pin pwi-pin--been" cx="72" cy="46" r="3.6" />
+      {/* Ahead: dashed, because it has not happened. */}
+      <path className="pwi-ahead" d="M72 46 Q112 20 152 38" />
+      <circle className="pwi-pin pwi-pin--next" cx="152" cy="38" r="5.4" />
+      {/* A flag on the one you have not reached. */}
+      <path className="pwi-flag" d="M152 33 V18 M152 18 q7 2 12 0 q-5 4 0 8 q-5 2 -12 0" />
+    </svg>
+  )
+}
+
+export default function PlanWaysIn({ onPlan, onWish, suggestion }) {
+  return (
+    <div className="pwi">
+      {/* The one that is a whole screen rather than a row. Somebody who came
+          to the Plan tab came to plan; this is not the moment to be even-
+          handed about it. */}
+      <button className="pwi-hero pwi-in" style={{ '--in': 1 }} onClick={onPlan}>
+        <span className="pwi-hero-art">
+          <AheadOfYou />
+        </span>
+        <span className="pwi-hero-title">Plan the next one</span>
+        <span className="pwi-hero-body">
+          Say where and roughly when. It finds the flights, the nights and the things worth
+          doing, and leaves you the arguing.
+        </span>
+        <span className="pwi-hero-go">
+          <Icon name="plus" size={15} />
+          <span>Start something</span>
+        </span>
+      </button>
+
+      {/* Second, and only ours.
+          This is drawn from the reader's own flights — nowhere else can tell
+          somebody which corners of the world they have never landed in. It
+          used to appear only once the lane had something in it, which is
+          exactly backwards: it is worth most on the screen with nothing on
+          it, and that is where it now lives. */}
+      {suggestion && (
+        <button className="pwi-never pwi-in" style={{ '--in': 2 }} onClick={onPlan}>
+          <span className="pwi-never-count">
+            {suggestion.visited}
+            <span className="pwi-never-of">/{suggestion.total}</span>
+          </span>
+          <span className="pwi-never-text">
+            <span className="pwi-never-title">You&apos;ve never been to {suggestion.name}</span>
+            <span className="pwi-never-body">{suggestion.prompt}</span>
+          </span>
+        </button>
+      )}
+
+      {/* And the quiet one. Not everything is a trip yet — some of it is just
+          a place somebody mentioned at dinner. */}
+      <div className="pwi-rest pwi-in" style={{ '--in': suggestion ? 3 : 2 }}>
+        <button className="pwi-quiet" onClick={onWish}>
+          Or put somewhere on the someday list →
+        </button>
+      </div>
+    </div>
+  )
+}

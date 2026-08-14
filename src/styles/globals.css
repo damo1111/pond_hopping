@@ -11907,3 +11907,180 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 }
 
 .look-what { color: var(--text-muted); }
+
+/* ── The Plan tab, with nothing planned ────────────────────────
+   "Right now tapping plan is one bar page!" — and it was: a title, a line
+   of prose and a button on an otherwise white screen. The tab with the
+   least in it had the least made for it.
+
+   Composed the way GetTripsIn is, because that sheet already answered the
+   same question for the same person a screen earlier: something drawn to
+   look at, one obvious way in, one that is genuinely ours, and the rest
+   kept quiet. All of it disappears the moment the lane has one thing in
+   it — this is scaffolding for an empty room, not furniture. */
+
+.pwi {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0 8px;
+}
+
+.pwi-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  text-align: left;
+  padding: 0 0 16px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  color: inherit;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.pwi-hero-art {
+  display: block;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 0 10px;
+}
+
+.pwi-draw {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 116px;
+}
+
+/* Stroke only, like the Add-a-trip tile and the ways-in sheet. Nothing here
+   needs a second colour, which is what keeps it looking drawn rather than
+   illustrated. */
+.pwi-horizon,
+.pwi-been,
+.pwi-ahead,
+.pwi-flag {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pwi-horizon { stroke: var(--accent-dim); stroke-width: 1; opacity: 0.7; }
+.pwi-been { stroke-width: 1.8; }
+.pwi-ahead { stroke-width: 1.8; stroke-dasharray: 4 5; }
+.pwi-flag { stroke-width: 1.6; }
+
+.pwi-pin { fill: var(--accent); }
+/* Open rather than filled: it has not happened, which is the whole point of
+   this screen. */
+.pwi-pin--next { fill: var(--surface-2); stroke: var(--accent); stroke-width: 2; }
+
+.pwi-hero-title {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 400;
+  padding: 14px 18px 0;
+}
+
+.pwi-hero-body {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 6px 18px 0;
+  max-width: 42ch;
+}
+
+.pwi-hero-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  align-self: flex-start;
+  margin: 14px 18px 0;
+  padding: 9px 15px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* The one nobody else could offer, so it gets a shape of its own rather
+   than another row. */
+.pwi-never {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+}
+
+.pwi-never-count {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pwi-never-of { font-size: 12px; color: var(--text-muted); }
+
+.pwi-never-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pwi-never-title { font-family: var(--font-display); font-size: 15px; }
+.pwi-never-body { color: var(--text-muted); font-size: 13px; line-height: 1.45; }
+
+.pwi-rest { display: flex; }
+
+.pwi-quiet {
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.pwi-quiet:active { color: var(--accent); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .pwi-in {
+    animation: gti-rise 400ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+    animation-delay: calc(var(--in, 0) * 80ms);
+  }
+}
+
+/* Once photographs are already here the way in stays, but stops being a
+   card: a large box above a full grid was the original complaint, and the
+   answer to that is a smaller thing, not a hidden one. */
+.album-card--slim {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  box-shadow: none;
+}
+
+.album-card--slim .album-title {
+  font-size: 13px;
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 0;
+}
+
+.album-card--slim .bring-in { width: auto; }
+.album-card--slim .album-elsewhere { display: none; }
