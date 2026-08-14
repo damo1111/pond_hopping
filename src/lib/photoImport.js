@@ -91,24 +91,39 @@ export function openEmptyWindow(open = globalThis.open) {
 export const needsConsent = (e) => /\b(401|403)\b/.test(String(e?.message ?? ''))
 
 /**
- * Which scopes a token actually carries, asked of Google rather than assumed.
+ * What Google says about a token — what it carries, and who it was issued to.
  *
  * "Insufficient authentication scopes" after a consent screen somebody just
- * approved has several possible causes and they look identical from here:
- * a stale token still in the tab, an unverified app being quietly refused a
- * sensitive scope, or the wrong project's client. Guessing between them is
- * what produced two wrong answers already, so this asks.
+ * approved looks identical from here whatever the cause, and four causes have
+ * now been proposed and all four were wrong. So this stops theorising and
+ * asks Google two questions instead.
+ *
+ * The second one — `aud`, the OAuth client the token was issued to — is the
+ * one that was never asked and is the one that matters. The Photos Picker API
+ * and the consent screen's scope list belong to a *Google Cloud project*; the
+ * client id Supabase signs people in with belongs to a project too, and
+ * nothing anywhere makes those the same project. When they differ, Google
+ * behaves exactly as observed: it accepts the request, shows a consent screen
+ * that never mentions photographs, and returns a token without the scope. No
+ * error, at any point. Printing the client id turns that from an invisible
+ * mismatch into a two-line comparison.
  *
  * tokeninfo needs no scope of its own — it describes the bearer.
  */
-export async function scopesOn(token, { fetchImpl = fetch } = {}) {
+export async function tokenFacts(token, { fetchImpl = fetch } = {}) {
   try {
     const r = await fetchImpl(
       `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${encodeURIComponent(token)}`
     )
     if (!r.ok) return null
     const said = await r.json()
-    return String(said.scope ?? '').split(/\s+/).filter(Boolean)
+    return {
+      scopes: String(said.scope ?? '').split(/\s+/).filter(Boolean),
+      // `aud` is the client the token was minted for; `azp` is who asked.
+      // They are the same thing for a browser flow, but not every response
+      // carries both.
+      clientId: said.aud ?? said.azp ?? null,
+    }
   } catch {
     return null
   }
@@ -119,26 +134,31 @@ const PHOTOS = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly
 /**
  * What to say when Google refuses after somebody has just granted access.
  *
- * The first version named one cause — the Photos Picker API not being
- * switched on — and was wrong the first time it was seen in anger: the API
- * was on. So this reads the token instead of theorising about it. If the
- * scope genuinely is not on there after an approval, the cause is almost
- * always that Google declined to grant a *sensitive* scope to an app it has
- * not verified, which is a thing only the console can fix.
+ * Every earlier version of this named a cause, and every one of them was
+ * wrong: the API was off, the scope was missing from the consent screen, the
+ * app was unverified, the token was stale. Four confident sentences, four
+ * evenings. So this one names no cause. It prints the three facts that
+ * distinguish between the remaining ones — what we asked for, what came back,
+ * and which OAuth client Google issued it to — and leaves the reading to
+ * somebody who can see both consoles.
  */
-export function stillRefused(e, granted, asked) {
+export function stillRefused(e, facts, asked) {
   const said = String(e?.message ?? '').replace(/^session failed:\s*/, '')
-  // The one case where the app is at fault rather than the console: we never
-  // put the scope in the request. Said first, because everything else is
-  // somebody else's setting and this one is mine.
+  const granted = facts?.scopes ?? null
+  // The one case where the app is at fault rather than a console setting:
+  // we never put the scope in the request. Said first and said plainly,
+  // because everything else is somebody else's switch and this one is mine.
   if (asked !== null && asked !== undefined && !String(asked).includes('photospicker')) {
     return `The app did not ask Google for the Photos scope at all. It asked for: ${asked || 'nothing'}`
   }
   if (Array.isArray(granted) && !granted.includes(PHOTOS)) {
     return (
-      'Google approved the sign-in but did not actually grant access to your photographs. ' +
-      'That happens when the app has not been verified — the Photos scope is a sensitive one, ' +
-      'and an unverified app is refused it without saying so. ' +
+      'The app asked Google for your photographs and Google returned a token without them — ' +
+      'no consent screen mentioned photographs, and no error was raised. ' +
+      `Sign-in client: ${facts?.clientId ?? 'unknown'}. ` +
+      'The Photos Picker API and the scope live on one Google Cloud project; that client id ' +
+      'belongs to whichever project it was made in. If those are two different projects, this ' +
+      'is exactly what it looks like. ' +
       `We asked for: ${asked ?? 'unrecorded'}. The token came back with: ${
         granted.length ? granted.join(', ') : 'no scopes at all'
       }.`

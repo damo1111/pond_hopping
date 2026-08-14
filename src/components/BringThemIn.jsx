@@ -7,7 +7,7 @@ import {
   openEmptyWindow,
   rememberIntent,
   freshToken,
-  scopesOn,
+  tokenFacts,
   stillRefused,
   takeIntent,
 } from '../lib/photoImport.js'
@@ -114,7 +114,7 @@ export default function BringThemIn({ trip, onDone }) {
         // Ask Google what the token it just issued actually carries, rather
         // than theorising about why it was refused. Two wrong answers came
         // out of theorising.
-        setError(stillRefused(e, await scopesOn(await freshToken()), whatWeAsked()))
+        setError(stillRefused(e, await tokenFacts(await freshToken()), whatWeAsked()))
         return
       }
       setError(e.message)
@@ -143,7 +143,20 @@ export default function BringThemIn({ trip, onDone }) {
     // takeIntent clears it, so a reopened tab tomorrow does not start an
     // import nobody asked for.
     const said = takeIntent()
-    if (said?.tripId === trip.id) go(Boolean(said.afterConsent))
+    if (said?.tripId !== trip.id) return
+    // An "after consent" intent is only written in the breath before leaving
+    // for Google, and leaving for Google writes the request down in *session*
+    // storage. Both should be here together. When the intent is here and the
+    // request is not, this tab never went anywhere — the intent is a leftover
+    // from a previous browser session, and localStorage outlives those while
+    // sessionStorage does not.
+    //
+    // Resuming on one of those is worse than doing nothing: it goes straight
+    // to a refusal and then reports on a request that was never made. That is
+    // what happened on the last attempt, which reported "we asked for:
+    // unrecorded" and proved nothing at all.
+    if (said.afterConsent && whatWeAsked() === null) return
+    go(Boolean(said.afterConsent))
   }, [trip.id, go])
 
   const busy = Boolean(step) || (progress && !progress.finished)

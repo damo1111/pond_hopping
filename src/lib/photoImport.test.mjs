@@ -7,9 +7,13 @@ import {
   onlyTheNewOnes,
   openEmptyWindow,
   rememberIntent,
+  stillRefused,
   takeIntent,
+  tokenFacts,
   waitForPick,
 } from './photoImport.js'
+
+const PHOTOS = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly'
 
 function aStore() {
   const held = new Map()
@@ -163,4 +167,61 @@ test('and falls back rather than throwing when there is no live one', async () =
   const from = { auth: { getSession: async () => ({ data: { session: null } }) } }
   // No stash in Node either, so this resolves to null instead of exploding.
   assert.equal(await freshToken({ from }), null)
+})
+
+test('the token is read for who issued it, not only what it carries', async () => {
+  // The client id was the one thing never asked for, and it is the one that
+  // separates "Google refused us" from "we are asking the wrong project".
+  const fetchImpl = async () => ({
+    ok: true,
+    json: async () => ({ scope: `email profile ${PHOTOS}`, aud: '123-abc.apps.googleusercontent.com' }),
+  })
+  const facts = await tokenFacts('t', { fetchImpl })
+  assert.equal(facts.clientId, '123-abc.apps.googleusercontent.com')
+  assert.ok(facts.scopes.includes(PHOTOS))
+})
+
+test('and falls back to azp where aud is absent', async () => {
+  const fetchImpl = async () => ({ ok: true, json: async () => ({ scope: 'email', azp: 'only-azp' }) })
+  assert.equal((await tokenFacts('t', { fetchImpl })).clientId, 'only-azp')
+})
+
+test('a token Google will not describe is null, not a crash', async () => {
+  assert.equal(await tokenFacts('t', { fetchImpl: async () => ({ ok: false }) }), null)
+  assert.equal(await tokenFacts('t', { fetchImpl: async () => { throw new Error('offline') } }), null)
+})
+
+test('a request that never carried the scope blames the app, not the console', () => {
+  // Said first, because everything else is somebody else's switch.
+  const said = stillRefused(new Error('403'), { scopes: ['email'], clientId: 'c' }, 'email profile')
+  assert.match(said, /did not ask Google for the Photos scope/)
+})
+
+test('a refusal on a request that did carry it names the client id instead', () => {
+  const said = stillRefused(new Error('403'), { scopes: ['email'], clientId: '123-abc' }, PHOTOS)
+  // Prove the check can fail: the app-at-fault sentence must NOT appear here.
+  assert.doesNotMatch(said, /did not ask Google/)
+  assert.match(said, /Sign-in client: 123-abc/)
+  assert.match(said, /two different projects/)
+})
+
+test('and no longer claims the app is unverified, which it was not', () => {
+  // In Testing mode a test user is granted sensitive scopes. That sentence
+  // sent somebody chasing a verification review for a fault that was never
+  // verification.
+  const said = stillRefused(new Error('403'), { scopes: ['email'], clientId: 'c' }, PHOTOS)
+  assert.doesNotMatch(said, /verif/i)
+})
+
+test('a refusal with the scope present is reported as itself', () => {
+  const said = stillRefused(new Error('session failed: 500 backend error'), { scopes: [PHOTOS], clientId: 'c' }, PHOTOS)
+  assert.match(said, /500 backend error/)
+})
+
+test('and a token Google would not describe does not become a diagnosis', () => {
+  // null facts means we could not find out — which must not read as "Google
+  // withheld the scope".
+  const said = stillRefused(new Error('403 nope'), null, PHOTOS)
+  assert.doesNotMatch(said, /two different projects/)
+  assert.match(said, /403 nope/)
 })
