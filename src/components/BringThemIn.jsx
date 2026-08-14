@@ -6,7 +6,6 @@ import {
   howFarAlong,
   howItWent,
   needsConsent,
-  openEmptyWindow,
   rememberIntent,
   freshToken,
   tokenFacts,
@@ -51,6 +50,9 @@ export default function BringThemIn({ trip, onDone }) {
   // Back from Google's consent screen, waiting for a finger. See the resume
   // effect below for why it cannot simply carry on by itself.
   const [justConsented, setJustConsented] = useState(false)
+  // Google's picker address, once there is one. Rendered as a link rather
+  // than opened, because a delayed window.open is refused — see below.
+  const [pickerUri, setPickerUri] = useState(null)
   const alive = useRef(true)
 
   useEffect(() => () => { alive.current = false }, [])
@@ -108,26 +110,28 @@ export default function BringThemIn({ trip, onDone }) {
     const afterConsent = cameFromConsent(from)
     setError(null)
     setProgress(null)
-    // Opened on the tap, before anything is awaited. Google's picker address
-    // does not exist yet, and by the time it does the gesture is over — iOS
-    // will not open a window outside one.
-    const win = openEmptyWindow()
+    setPickerUri(null)
     track('photos_import_started')
     try {
-      const { importId: id, sending, already } = await bringThemIn(trip.id, { onStep: setStep, win })
+      const { importId: id, sending, already } = await bringThemIn(trip.id, {
+        onStep: setStep,
+        onPicker: setPickerUri,
+      })
       if (!alive.current) return
       setStep(null)
       if (!id) {
         // Everything picked was already here. Not a failure, and worth saying
         // plainly rather than showing a bar that finishes instantly.
+        setPickerUri(null)
         setProgress(asProgress({ total: already, skipped: already, finished_at: new Date().toISOString() }))
         return
       }
       setImportId(id)
+      setPickerUri(null)
       setProgress(asProgress({ total: sending + already, skipped: already }))
     } catch (e) {
       if (!alive.current) return
-      win?.close?.()
+      setPickerUri(null)
       setStep(null)
       if (needsConsent(e)) {
         // Refused once: the token we hold was granted for the inbox, not the
@@ -229,6 +233,24 @@ export default function BringThemIn({ trip, onDone }) {
             voices reporting the same fact. */}
         {step ? `${step}…` : justConsented ? 'Choose your photographs →' : 'Bring them in →'}
       </button>
+
+      {/* An anchor with a real href, tapped. Not a window opened on the
+          original tap and pointed here two round trips later — Chrome
+          refuses that navigation once the gesture has expired and leaves the
+          tab reading `about:blank#blocked`, which is exactly what happened.
+          A link is a navigation no popup blocker has an opinion about.
+          Polling carries on behind this, so tapping now or in a minute makes
+          no difference to the result. */}
+      {pickerUri && (
+        <a
+          className="album-open album-open--ready bring-in-pick"
+          href={pickerUri}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Choose your photographs →
+        </a>
+      )}
 
       {progress && (
         <div className="bring-in-progress">

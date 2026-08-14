@@ -376,7 +376,7 @@ export function howItWent(p) {
  *  so the sheet can say where it has got to without this knowing about it. */
 export async function bringThemIn(
   tripId,
-  { onStep = () => {}, token, win = null, facts: askGoogle = tokenFacts, open = openSession } = {}
+  { onStep = () => {}, onPicker = () => {}, token, facts: askGoogle = tokenFacts, open = openSession } = {}
 ) {
   const key = token ?? (await freshToken())
   // No Google token at all — which is the ordinary case, not an error.
@@ -411,24 +411,35 @@ export async function bringThemIn(
 
   onStep('asking Google')
   const session = await open(key)
-  if (win) win.location = session.pickerUri
-  else globalThis.open?.(session.pickerUri, '_blank')
+
+  // Handed out, not opened.
+  //
+  // This used to open an empty window on the tap and point it at the picker
+  // once Google answered. Both halves fail. A window opened inside the
+  // gesture is fine, but the address does not exist until two network round
+  // trips later, and by then the gesture has expired — Chrome refuses the
+  // navigation and leaves the tab reading `about:blank#blocked`. Opening it
+  // outright at that point is refused too, for the same reason, and inside a
+  // Capacitor webview neither was ever going to work.
+  //
+  // So the caller is given the address and puts a real link on the screen.
+  // A tap on an anchor with an href is a navigation no popup blocker has an
+  // opinion about, on any platform. Polling below carries on regardless, so
+  // whether they tap now or in a minute makes no difference to the result.
+  onPicker(session.pickerUri)
 
   onStep('waiting for you to choose')
   await waitForPick(key, session.id)
 
-  // Picking is over, so put the picker away and come back here.
+  // Picking is over. Come back here.
   //
-  // Google's tab does not close itself and nothing brought anybody back to
-  // the app, so finishing a pick left somebody sitting in a spent tab with no
-  // indication that anything had happened anywhere. Every single import ended
-  // with a manual hunt for the right tab.
-  //
-  // We opened this window, so we are allowed to close it and to take focus
-  // back. Wrapped because a window opened in one browser and closed by hand
-  // in another is not an error worth failing an import over.
+  // The picker is a tab we did not open — it is a link somebody tapped — so
+  // there is no window handle to close, and a page cannot close a tab it did
+  // not open anyway. What we can do is ask for focus, which brings this tab
+  // forward where the browser allows it. Google's tab is left behind, spent;
+  // that is the price of a link that actually opens, and it is a far smaller
+  // price than a picker that never appears.
   try {
-    win?.close?.()
     globalThis.focus?.()
   } catch {
     /* the import matters more than the housekeeping */
