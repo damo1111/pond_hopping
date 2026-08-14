@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   asProgress,
+  freshToken,
   needsConsent,
   onlyTheNewOnes,
   openEmptyWindow,
@@ -147,4 +148,19 @@ test('the intent remembers that it already cost a trip to Google', () => {
   const store = aStore()
   rememberIntent('trip-1', store)
   assert.equal(takeIntent(store)?.afterConsent, true)
+})
+
+test('the token comes from the live session, not a stale stash', async () => {
+  // Coming back from the Photos consent screen, sessionStorage may still hold
+  // the token from an ordinary sign-in — email and profile and nothing else.
+  // Reading that one produces a confident, wrong report that Google refused
+  // the scope, when nobody ever asked with the new token.
+  const from = { auth: { getSession: async () => ({ data: { session: { provider_token: 'the-new-one' } } }) } }
+  assert.equal(await freshToken({ from }), 'the-new-one')
+})
+
+test('and falls back rather than throwing when there is no live one', async () => {
+  const from = { auth: { getSession: async () => ({ data: { session: null } }) } }
+  // No stash in Node either, so this resolves to null instead of exploding.
+  assert.equal(await freshToken({ from }), null)
 })

@@ -179,6 +179,40 @@ export async function onlyTheNewOnes(tripId, picked, { from } = {}) {
   )
 }
 
+/**
+ * The token as it is *now*, not as it was when some earlier page load stashed
+ * one.
+ *
+ * google.js keeps provider_token in sessionStorage because Supabase only
+ * surfaces it in the instant after an OAuth round trip and never again. That
+ * is fine for reading it later — and wrong at exactly this moment. Coming
+ * back from the Photos consent screen, the stash may still hold the token
+ * from an ordinary sign-in, which carries email and profile and nothing else.
+ * Reading it then produces a confident, wrong report that Google refused the
+ * scope, when in fact nobody ever asked with the new token.
+ *
+ * So the live session wins where it has one, and the stash is the fallback.
+ */
+export async function freshToken({ from } = {}) {
+  try {
+    const client = await db(from)
+    const { data } = await client.auth.getSession()
+    if (data?.session?.provider_token) return data.session.provider_token
+  } catch {
+    /* fall through to whatever was written down */
+  }
+  try {
+    const { getGoogleToken } = await import('./google.js')
+    return getGoogleToken()
+  } catch {
+    // google.js reaches the Supabase client at module scope, so this whole
+    // path is unloadable outside a browser. Returning null lets the caller
+    // say "not connected to Google", which is true, rather than throwing
+    // something unrelated about an environment variable.
+    return null
+  }
+}
+
 /** Hand the list to the queue. Returns the run's id to watch. */
 export async function startImport(tripId, items, token, { from } = {}) {
   const client = await db(from)
@@ -232,7 +266,7 @@ export function asProgress(row) {
 /** Everything between the tap and the queue. The caller supplies `onStep`
  *  so the sheet can say where it has got to without this knowing about it. */
 export async function bringThemIn(tripId, { onStep = () => {}, token, win = null } = {}) {
-  const key = token ?? (await import('./google.js')).getGoogleToken()
+  const key = token ?? (await freshToken())
   if (!key) throw new Error('not connected to Google')
 
   onStep('asking Google')

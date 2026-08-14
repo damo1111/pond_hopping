@@ -6,6 +6,7 @@ import {
   needsConsent,
   openEmptyWindow,
   rememberIntent,
+  freshToken,
   scopesOn,
   stillRefused,
   takeIntent,
@@ -113,8 +114,7 @@ export default function BringThemIn({ trip, onDone }) {
         // Ask Google what the token it just issued actually carries, rather
         // than theorising about why it was refused. Two wrong answers came
         // out of theorising.
-        const { getGoogleToken } = await import('../lib/google.js')
-        setError(stillRefused(e, await scopesOn(getGoogleToken())))
+        setError(stillRefused(e, await scopesOn(await freshToken())))
         return
       }
       setError(e.message)
