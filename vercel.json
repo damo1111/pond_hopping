@@ -38,9 +38,22 @@
     "api/story-step.js": {
       "maxDuration": 300,
       "memory": 1024
+    },
+    "api/import-google-photos.js": {
+      "maxDuration": 300,
+      "memory": 1024
     }
   },
   "headers": [
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    },
     {
       "source": "/sw.js",
       "headers": [

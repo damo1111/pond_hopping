@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "pond.eend.app",
+      "sha256_cert_fingerprints": [
+        "A9:E5:DA:26:5E:F5:8B:C4:3B:B4:43:F7:1D:5F:51:DB:4F:36:2E:6C:F4:48:3D:C4:81:02:6C:86:59:2E:A2:1E",
+        "B7:3A:23:8D:75:C8:51:A5:18:D6:12:F1:40:D1:04:C4:9D:59:3D:09:5D:21:D2:58:39:63:76:B4:B3:DD:CE:9D"
+      ]
+    }
+  }
+]
