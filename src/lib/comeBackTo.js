@@ -4,24 +4,16 @@
 // reason signing in with Google on Android left somebody looking at the web
 // site in Chrome while the app stayed signed out.
 //
-// The app does not run on pond.eend.app. There is no `server.url` in
-// capacitor.config.json, so the web assets are bundled into the package and
-// served from a local origin — `https://localhost` on Android,
-// `capacitor://localhost` on iOS. Reading the origin therefore asks Supabase
-// to come back to an address that exists only inside the app, is not on the
-// project's redirect allow-list, and cannot be a link Android could hand to
-// anybody. Supabase does what it does with an unlisted redirect: ignores it
-// and uses the project's Site URL instead — pond.eend.app — so the browser
-// lands on the web site holding the session, and the app never sees it.
+// The two wrappers do not even agree on what that origin is. iOS bundles the
+// web assets and serves them from `capacitor://localhost`, because App Store
+// review treats a remote-URL wrapper as failing the minimum functionality
+// bar. Android rewrites capacitor.config.json at build time to point at
+// https://pond.eend.app, so the shell is a window onto the live site and web
+// fixes reach it without a new APK. So on iOS the origin is a scheme Supabase
+// has never heard of, and on Android it is the right address for entirely the
+// wrong reason — which is worse, because it looks like it works.
 //
-// The address it has to come back to is the App Link: the real https URL
-// that Android has verified belongs to this app, via
-// /.well-known/assetlinks.json and the autoVerify intent-filter. Android
-// hands that to the app rather than to Chrome, and backFromTheBrowser.js
-// takes the tokens off it.
-//
-// On the web the origin is right and stays — a preview deployment must come
-// back to itself, not to production.
+// It does not, and the reason is below.
 
 /**
  * The address the wrappers come back to.
@@ -31,9 +23,12 @@
  * link, a fresh load. The OAuth return is not that: Google redirects to
  * Supabase, Supabase redirects to us, all inside one browser session that is
  * already open. Chrome follows its own redirect chain and keeps the result,
- * verified domain or not. So the session landed on the web site with the app
- * still signed out — which is exactly what happened after the redirect was
- * corrected to the App Link, on a build that had the correction in it.
+ * verified domain or not.
+ *
+ * Which is why sending the App Link changed nothing, on a build that had the
+ * change in it: Android was already asking to come back to pond.eend.app, and
+ * pond.eend.app arriving as the end of a redirect chain is a page Chrome
+ * renders, not an intent Android dispatches.
  *
  * A custom scheme has no such rule. There is nothing to verify and no
  * question of how the navigation started: the browser cannot render it, so
