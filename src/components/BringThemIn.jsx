@@ -4,6 +4,7 @@ import {
   bringThemIn,
   cameFromConsent,
   howFarAlong,
+  howItWent,
   needsConsent,
   openEmptyWindow,
   rememberIntent,
@@ -39,15 +40,6 @@ const ASK_EVERY = 2000
  * invisible; the stamp is what makes it visible.
  */
 const BUILD = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'
-
-const say = (p) => {
-  if (!p) return null
-  const bits = []
-  if (p.done) bits.push(`${p.done.toLocaleString('en-GB')} in`)
-  if (p.skipped) bits.push(`${p.skipped.toLocaleString('en-GB')} already here`)
-  if (p.failed) bits.push(`${p.failed.toLocaleString('en-GB')} wouldn’t come`)
-  return bits.join(' · ') || 'starting…'
-}
 
 export default function BringThemIn({ trip, onDone }) {
   const [step, setStep] = useState(null)
@@ -207,7 +199,7 @@ export default function BringThemIn({ trip, onDone }) {
             <span className="bring-in-bar-fill" style={{ width: `${Math.round(progress.part * 100)}%` }} />
           </span>
           <span className="bring-in-said">
-            {progress.finished ? (progress.note ?? `Done — ${say(progress)}`) : say(progress)}
+            {(progress.finished && progress.note) || howItWent(progress)}
           </span>
         </div>
       )}

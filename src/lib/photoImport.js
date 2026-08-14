@@ -344,6 +344,34 @@ export function asProgress(row) {
   }
 }
 
+/**
+ * What to say about it, in a sentence.
+ *
+ * The old version listed counters — "1 in · 0 already here" — which is a
+ * table read aloud, and at the end of a journey that has already taken
+ * somebody through two tabs and a consent screen it is not an arrival. It
+ * says the machine finished; it does not say the photographs are here.
+ *
+ * Kept out of the component so the wording can be argued with in a test
+ * rather than by squinting at a screenshot.
+ */
+export function howItWent(p) {
+  if (!p) return null
+  const n = (x) => Number(x || 0).toLocaleString('en-GB')
+  const photos = (x) => (Number(x) === 1 ? '1 photograph is' : `${n(x)} photographs are`)
+
+  if (!p.finished) {
+    // Nothing settled yet is the first second of every import, and a count of
+    // "0 of 8" there reads as stuck rather than as starting.
+    return p.settled ? `Bringing them in — ${n(p.settled)} of ${n(p.total)}` : 'Bringing them in…'
+  }
+  if (p.done && p.skipped) return `${photos(p.done)} in. ${n(p.skipped)} were already here.`
+  if (p.done) return `${photos(p.done)} in.`
+  if (p.skipped) return p.skipped === 1 ? 'That one was already here.' : 'They were all already here.'
+  if (p.failed) return 'None of them would come.'
+  return 'Nothing came in.'
+}
+
 /** Everything between the tap and the queue. The caller supplies `onStep`
  *  so the sheet can say where it has got to without this knowing about it. */
 export async function bringThemIn(
@@ -377,6 +405,23 @@ export async function bringThemIn(
 
   onStep('waiting for you to choose')
   await waitForPick(key, session.id)
+
+  // Picking is over, so put the picker away and come back here.
+  //
+  // Google's tab does not close itself and nothing brought anybody back to
+  // the app, so finishing a pick left somebody sitting in a spent tab with no
+  // indication that anything had happened anywhere. Every single import ended
+  // with a manual hunt for the right tab.
+  //
+  // We opened this window, so we are allowed to close it and to take focus
+  // back. Wrapped because a window opened in one browser and closed by hand
+  // in another is not an error worth failing an import over.
+  try {
+    win?.close?.()
+    globalThis.focus?.()
+  } catch {
+    /* the import matters more than the housekeeping */
+  }
 
   onStep('reading what you picked')
   const picked = worthImporting(await listPicked(key, session.id))
