@@ -242,16 +242,15 @@ export default function App() {
     //
     // The arithmetic: this timer starts at mount and the animation starts at
     // first paint, so the CSS clock runs a frame or two behind it — measured
-    // at ~120ms in Chromium. Cutting at 4850 began the fade while the last
-    // word was still arriving.
+    // at ~120ms in Chromium.
     //
-    // The judgement: the sentence has to be *held*, not merely reached. At
-    // 5100 it stood finished for about a third of a second, which is long
-    // enough to notice and not long enough to read — David, 12 August: "the
-    // third part of the loading animation was too quick. Needs to hold
-    // longer." It now holds for a second and a half, which is about what
-    // seven words take.
-    const minBoot = meetsColdOpen ? 7000 : 500
+    // 6300 rather than 7000. The last seven hundred milliseconds used to
+    // hold a line — "You already have the first piece" — arriving straight
+    // after two seconds of a real trip counting itself up. That trip is the
+    // argument; saying it again afterwards is not part of it, and a phone
+    // held still to read a restatement is exactly the beat somebody notices.
+    // The screen now ends on the photograph everything collapsed into.
+    const minBoot = meetsColdOpen ? 6300 : 500
     const leave = setTimeout(() => {
       if (cancelled) return
       if (meetsColdOpen) {

@@ -57,8 +57,14 @@ const FIGURES = [
   { to: 16, label: 'DAYS', x: 56, row: 0 },
   { to: 5, label: 'FLIGHTS', x: 100, row: 0 },
   { to: 9, label: 'RUNS', x: 144, row: 0 },
-  { to: 18169, label: 'KM FLOWN', x: 56, row: 1, comma: true },
-  { to: 16, label: 'WRITTEN', x: 100, row: 1 },
+  // 18,169 sits in the middle, and the row balances because of it.
+  //
+  // On the left it was three times the width of anything beside it and
+  // dragged the whole row that way — six figures meant to read as a block,
+  // with the second line visibly heavier on one side than the first. The
+  // widest thing on a centred row belongs in the centre.
+  { to: 16, label: 'WRITTEN', x: 56, row: 1 },
+  { to: 18169, label: 'KM FLOWN', x: 100, row: 1, comma: true },
   { to: 2, label: 'COUNTRIES', x: 144, row: 1 },
 ]
 
@@ -175,17 +181,25 @@ export default function BootScreen({ leaving, cold = false }) {
                     the rest of the screen uses, and the pair overlap so they
                     read as one mark rather than two stickers. */}
                 <g className="boot-flags">
-                  <circle cx="94" cy="155" r="6" fill="#DE2910" />
-                  <circle className="boot-flag-jp" cx="106" cy="155" r="6" fill="#FFFFFF" />
-                  <circle cx="106" cy="155" r="2.6" fill="#BC002D" />
+                  {/* Overlapping, and separated by the page rather than by a
+                      line. At r6 twelve apart they were exactly touching —
+                      two discs meeting at a point, which reads as a mistake
+                      rather than as a pair. Ten apart at r5 they overlap by
+                      a fifth, and the disc of --bg behind the second cuts a
+                      hairline of page between them, so they stack the way
+                      two stickers would. */}
+                  <circle cx="96" cy="162" r="5" fill="#DE2910" />
+                  <circle className="boot-flag-veil" cx="104" cy="162" r="6.1" />
+                  <circle className="boot-flag-jp" cx="104" cy="162" r="5" fill="#FFFFFF" />
+                  <circle cx="104" cy="162" r="2.1" fill="#BC002D" />
                 </g>
-                <text className="boot-trip" x="100" y="180" textAnchor="middle">
+                <text className="boot-trip" x="100" y="178" textAnchor="middle">
                   China &amp; Japan
                 </text>
-                <text className="boot-when" x="100" y="190" textAnchor="middle">
+                <text className="boot-when" x="100" y="188" textAnchor="middle">
                   21 MAY – 5 JUN
                 </text>
-                <path className="boot-rule" d="M50 198 H150" />
+                <path className="boot-rule" d="M56 196 H144" />
               </g>
 
               {/* Six figures on two rows, each centred on its own column so
@@ -245,15 +259,14 @@ export default function BootScreen({ leaving, cold = false }) {
         <span className="app-title-bold">Hopping</span>
       </div>
 
-      {/* The line, last, describing what was just watched. Real text rather
-          than a picture of text, so it is read out by anything reading the
-          screen aloud and it wraps on a narrow phone. */}
-      {cold && (
-        <p className="boot-say">
-          You already have the first piece.
-          <span>A photo. A run. A day you barely noticed.</span>
-        </p>
-      )}
+      {/* No line.
+          "You already have the first piece. A photo. A run. A day you barely
+          noticed." — a promise, arriving immediately after two seconds of
+          the thing itself: a real trip, with its real days and flights and
+          kilometres counting up. Sixteen days of Japan is the argument.
+          Telling somebody what they have just watched adds nothing to it,
+          and holding the screen for four more seconds to do so is the part
+          that costs. The name lands, and the trip is next. */}
     </div>
   )
 }

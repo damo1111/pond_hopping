@@ -1002,10 +1002,14 @@ button {
      5.40s  the route retracts the way it came
      5.45s  the stops gather inward
      5.80s  all of it, become one photograph
-     6.30s  the line
 
-   Which settles at 7.0s — see minBoot in App.jsx, which holds the screen
-   until then and not a frame longer. */
+   Which settles at 6.3s — see minBoot in App.jsx, which holds the screen
+   until then and not a frame longer.
+
+   It used to run to 7.0s, the last seven hundred milliseconds spent on a
+   line telling somebody what they had just watched. Sixteen days of Japan,
+   counted up in front of them, is the argument; restating it is not part of
+   it, and holding a phone still to do so is the part that costs. */
 
 .boot-leg {
   stroke: var(--accent);
@@ -12231,3 +12235,7 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   text-align: center;
   margin: -2px 0 0;
 }
+
+/* The page, showing between two overlapping flags. Painted rather than
+   stroked so it matches whatever the boot screen's background is. */
+.boot-flag-veil { fill: var(--bg); }
