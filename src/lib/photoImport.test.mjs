@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   asProgress,
+  cameFromConsent,
   freshToken,
   needsConsent,
   onlyTheNewOnes,
@@ -224,4 +225,18 @@ test('and a token Google would not describe does not become a diagnosis', () => 
   const said = stillRefused(new Error('403 nope'), null, PHOTOS)
   assert.doesNotMatch(said, /two different projects/)
   assert.match(said, /403 nope/)
+})
+
+test('a tap is not a trip to Google', () => {
+  // This is the whole bug. `onClick={go}` handed the import a React
+  // SyntheticEvent, which is an object, which is truthy — so every first
+  // refusal was read as a second one, the consent screen was never opened,
+  // and the Photos scope was never once requested.
+  const aClickEvent = { type: 'click', target: {}, preventDefault() {} }
+  assert.equal(cameFromConsent(aClickEvent), false)
+  assert.equal(cameFromConsent(undefined), false)
+  assert.equal(cameFromConsent('true'), false)
+  assert.equal(cameFromConsent(1), false)
+  // Prove it can still say yes, or the guard against the loop is gone.
+  assert.equal(cameFromConsent(true), true)
 })
