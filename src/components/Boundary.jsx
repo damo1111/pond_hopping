@@ -12,6 +12,49 @@ import { oops, track } from '../lib/analytics.js'
 // the failure that strands someone is usually persisted state (a half-written
 // session, a stale precached bundle after a deploy), and reloading into the
 // same state just fails again.
+/**
+ * The shape of a lazily-imported file that is no longer on the server.
+ *
+ * Every engine words it differently, so this matches on all of them rather
+ * than on whichever browser it was first seen in.
+ */
+const staleChunk = (error) =>
+  /failed to fetch dynamically imported module|error loading dynamically imported module|importing a module script failed|chunkloaderror/i.test(
+    String(error?.message ?? '')
+  )
+
+/** Once per page session. sessionStorage, so a genuine reload loop cannot
+ *  outlive the tab, and a real crash tomorrow is still reported. */
+const TRIED = 'pond.freshened'
+const alreadyTried = () => {
+  try {
+    return sessionStorage.getItem(TRIED) === '1'
+  } catch {
+    // No storage, no guard, and a reload loop is worse than a duck.
+    return true
+  }
+}
+const markTried = () => {
+  try {
+    sessionStorage.setItem(TRIED, '1')
+  } catch {
+    /* handled by alreadyTried returning true */
+  }
+}
+
+/** Drop the worker and its caches, then come back on the current build. */
+async function freshen() {
+  try {
+    const regs = (await navigator.serviceWorker?.getRegistrations?.()) || []
+    await Promise.all(regs.map((r) => r.unregister()))
+    const keys = (await caches?.keys?.()) || []
+    await Promise.all(keys.map((k) => caches.delete(k)))
+  } catch {
+    /* a reload on its own still usually does it */
+  }
+  window.location.reload()
+}
+
 export default class Boundary extends Component {
   constructor(props) {
     super(props)
@@ -23,6 +66,25 @@ export default class Boundary extends Component {
   }
 
   componentDidCatch(error, info) {
+    // A chunk that is no longer there is not a crash — it is a deploy.
+    //
+    // The app is code-split, so a tab is fetched when it is opened. Ship a
+    // new build while somebody has the old index.html cached and the hashed
+    // file it asks for has gone: "Failed to fetch dynamically imported
+    // module: .../WorldTab-Dh69l7R3.js". Nothing is broken. The page they
+    // are holding is simply out of date, and every tester will meet this
+    // every time anything ships.
+    //
+    // So take the old bundle away and come back with the new one, rather
+    // than showing somebody a duck and asking them to press Reload. Once
+    // only: if it happens again straight afterwards the cause is not a
+    // deploy, and a screen that says so beats a reload loop.
+    if (staleChunk(error) && !alreadyTried()) {
+      markTried()
+      freshen()
+      return
+    }
+
     // Still the console, because that is what you read with the device in
     // your hand.
     console.error('Pond Hopping crashed:', error, info?.componentStack)
