@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   asProgress,
+  bringThemIn,
   cameFromConsent,
   freshToken,
   needsConsent,
@@ -239,4 +240,89 @@ test('a tap is not a trip to Google', () => {
   assert.equal(cameFromConsent(1), false)
   // Prove it can still say yes, or the guard against the loop is gone.
   assert.equal(cameFromConsent(true), true)
+})
+
+// A real ten-minute poll interval, so without the wake this cannot pass: the
+// timeout is what makes the check able to fail rather than hang.
+test('coming back to the tab ends the wait early', { timeout: 4000 }, async () => {
+  // Picking happens in Google's tab, so this one is backgrounded throughout —
+  // and a background tab's timers are throttled to about once a minute. Coming
+  // back is the strongest signal picking is over, and waiting a further minute
+  // to act on it looks exactly like nothing happening, which is what it did.
+  const listeners = {}
+  const doc = {
+    visibilityState: 'hidden',
+    addEventListener: (k, fn) => { listeners[k] = fn },
+    removeEventListener: () => {},
+  }
+  const realDoc = globalThis.document
+  const realAdd = globalThis.addEventListener
+  const realRemove = globalThis.removeEventListener
+  globalThis.document = doc
+  globalThis.addEventListener = () => {}
+  globalThis.removeEventListener = () => {}
+  try {
+    let asked = 0
+    const said = waitForPick('t', 's', {
+      read: async () => (++asked < 2 ? { pollingConfig: { pollInterval: '600s' } } : { mediaItemsSet: true }),
+    })
+    await new Promise((r) => setTimeout(r, 10))
+    // Come back to the tab, the way somebody does when they have finished.
+    doc.visibilityState = 'visible'
+    listeners.visibilitychange?.()
+    assert.equal((await said).mediaItemsSet, true)
+    assert.equal(asked, 2)
+  } finally {
+    globalThis.document = realDoc
+    globalThis.addEventListener = realAdd
+    globalThis.removeEventListener = realRemove
+  }
+})
+
+test('a token without the scope goes straight to consent, not to a refusal', async () => {
+  // The first run used to open a session, be refused 403 for a scope the token
+  // visibly did not carry, and only then ask for consent. A wasted round trip
+  // that reads as an error on a screen where nothing has gone wrong.
+  const steps = []
+  await assert.rejects(
+    () =>
+      bringThemIn('trip-1', {
+        token: 'sign-in-only',
+        onStep: (s) => steps.push(s),
+        facts: async () => ({ scopes: ['email', 'profile'], clientId: 'c' }),
+      }),
+    // Shaped as a 403 so the caller's existing consent branch catches it.
+    (e) => needsConsent(e) && /photographs/.test(e.message)
+  )
+  // And it never got as far as opening a session.
+  assert.ok(!steps.includes('waiting for you to choose'))
+})
+
+test('but a token that does carry it is not stopped on the doorstep', async () => {
+  // Prove the check can pass, or it is just a way of never importing anything.
+  let opened = false
+  await assert.rejects(
+    () =>
+      bringThemIn('trip-1', {
+        token: 'good',
+        facts: async () => ({ scopes: [PHOTOS], clientId: 'c' }),
+        open: async () => { opened = true; throw new Error('stop here') },
+      }),
+    /stop here/
+  )
+  assert.equal(opened, true)
+})
+
+test('and Google declining to describe the token is not grounds to refuse', async () => {
+  let opened = false
+  await assert.rejects(
+    () =>
+      bringThemIn('trip-1', {
+        token: 'unknown',
+        facts: async () => null,
+        open: async () => { opened = true; throw new Error('stop here') },
+      }),
+    /stop here/
+  )
+  assert.equal(opened, true)
 })
