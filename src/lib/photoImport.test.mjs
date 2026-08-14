@@ -5,6 +5,7 @@ import {
   bringThemIn,
   cameFromConsent,
   freshToken,
+  howItWent,
   needsConsent,
   onlyTheNewOnes,
   openEmptyWindow,
@@ -325,4 +326,24 @@ test('and Google declining to describe the token is not grounds to refuse', asyn
     /stop here/
   )
   assert.equal(opened, true)
+})
+
+test('the end of it is a sentence, not a row of counters', () => {
+  // "1 in · 0 already here" is a table read aloud. At the end of a journey
+  // through two tabs and a consent screen it says the machine finished; it
+  // does not say the photographs are here.
+  const done = (o) => howItWent(asProgress({ finished_at: 'now', ...o }))
+  assert.equal(done({ total: 8, done: 8 }), '8 photographs are in.')
+  assert.equal(done({ total: 1, done: 1 }), '1 photograph is in.')
+  assert.equal(done({ total: 9, done: 6, skipped: 3 }), '6 photographs are in. 3 were already here.')
+  assert.equal(done({ total: 3, skipped: 3 }), 'They were all already here.')
+  assert.equal(done({ total: 1, skipped: 1 }), 'That one was already here.')
+  assert.equal(done({ total: 2, failed: 2 }), 'None of them would come.')
+})
+
+test('and while it is running it counts up rather than sitting on zero', () => {
+  // "0 of 8" in the first second reads as stuck, not as starting.
+  assert.equal(howItWent(asProgress({ total: 8 })), 'Bringing them in…')
+  assert.equal(howItWent(asProgress({ total: 8, done: 3 })), 'Bringing them in — 3 of 8')
+  assert.equal(howItWent(null), null)
 })
