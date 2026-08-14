@@ -8,6 +8,7 @@ import TripPlanner from '../components/TripPlanner.jsx'
 import EmailImportsReview from '../components/planner/EmailImportsReview.jsx'
 import Icon from '../components/Icon.jsx'
 import PlanCard from '../components/plan/PlanCard.jsx'
+import PlanWaysIn from '../components/plan/PlanWaysIn.jsx'
 import TripStarting from '../components/TripStarting.jsx'
 import { planLane } from '../lib/planLane.js'
 import { neverBeen } from '../lib/neverBeen.js'
@@ -135,6 +136,10 @@ export default function PlanTab() {
   // Only for the empty state's suggestion: which corners of the world this
   // account has actually landed in. Coordinates only — nothing else is read.
   const [flownLegs, setFlownLegs] = useState([])
+  // Where "or put somewhere on the someday list" scrolls to. The form is
+  // already at the foot of this screen; the empty state points at it rather
+  // than growing a second copy of it.
+  const wishRef = useRef(null)
   const [creating, setCreating] = useState(false) // PlanChat for a brand-new trip
   const [plannerId, setPlannerId] = useState(null) // full-screen TripPlanner for an existing draft
   const { plannerJump, clearPlannerJump, closePlanner, openAuth, tripMeta } = useContext(TripContext)
@@ -292,19 +297,11 @@ export default function PlanTab() {
       {user && <TripStarting trips={[...(draftTrips || []), ...(tripMeta || [])]} />}
 
       {lane.length === 0 ? (
-        <div className="plan-blank">
-          <div className="plan-blank-title">Nothing on the horizon.</div>
-          {suggestion && (
-            <p className="plan-blank-note">
-              You&apos;ve landed in {suggestion.visited} of {suggestion.total} corners of the world. Never{' '}
-              {suggestion.name}, though — {suggestion.prompt}.
-            </p>
-          )}
-          <button className="plan-new plan-new-big" onClick={() => (user ? setCreating(true) : openAuth())}>
-            <Icon name="plus" size={16} />
-            <span>Start something</span>
-          </button>
-        </div>
+        <PlanWaysIn
+          suggestion={suggestion}
+          onPlan={() => (user ? setCreating(true) : openAuth())}
+          onWish={() => wishRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+        />
       ) : (
         <div className="plan-lane">
           {lane.map((row, i) => (
@@ -332,7 +329,7 @@ export default function PlanTab() {
         </button>
       )}
 
-      <div className="plan-foot">
+      <div className="plan-foot" ref={wishRef}>
         <WishlistForm onAdded={loadWishlist} />
       </div>
 
