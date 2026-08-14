@@ -47,9 +47,6 @@ export default function BringThemIn({ trip, onDone }) {
   // Every failure carries the build that produced it. See BUILD above.
   const fail = useCallback((msg) => setError(`${msg} · build ${BUILD}`), [])
   const [importId, setImportId] = useState(null)
-  // Back from Google's consent screen, waiting for a finger. See the resume
-  // effect below for why it cannot simply carry on by itself.
-  const [justConsented, setJustConsented] = useState(false)
   // Google's picker address, once there is one. Rendered as a link rather
   // than opened, because a delayed window.open is refused — see below.
   const [pickerUri, setPickerUri] = useState(null)
@@ -199,57 +196,38 @@ export default function BringThemIn({ trip, onDone }) {
     // unrecorded" and proved nothing at all.
     if (said.afterConsent && whatWeAsked() === null) return
 
-    // Not go(). A tap.
-    //
-    // Carrying straight on from here is what the whole consent trip was for,
-    // and it cannot work: this runs from an effect on page load, and the
-    // picker is opened with window.open, which every browser refuses outside
-    // a user gesture. So the popup was blocked, the fallback open() was
-    // blocked too, and the import ended silently having granted access to
-    // nothing — back on the same card, with Google's spent consent page left
-    // faded in another tab.
-    //
-    // One tap is not friction worth avoiding at the cost of the feature. The
-    // button says what it is for, and the whole loop guard survives because
-    // the tap still runs go(true).
-    setJustConsented(true)
+    // Carry on. The tap this used to wait for was only ever there to
+    // satisfy a popup blocker, and there is no popup left to block: the
+    // picker is a link now, and a link can be *rendered* without a gesture.
+    // It only needs one to be followed, and that is the tap somebody was
+    // always going to make.
+    go(true)
   }, [trip.id, go])
 
   const busy = Boolean(step) || (progress && !progress.finished)
 
   return (
     <div className="bring-in">
-      {/* Not onClick={go}. A tap is a tap, and saying so is the entire fix. */}
-      <button
-        className={`album-open${justConsented ? ' album-open--ready' : ''}`}
-        onClick={() => go(justConsented)}
-        disabled={busy}
-      >
-        {/* Never the same sentence as the line below it. While there is a
-            step it says the step, which is the one thing the bar cannot;
-            once the queue has it, the bar and its sentence carry the rest
-            and this goes back to being a button that is simply not
-            available. Both saying "bringing them in…" at once was two
-            voices reporting the same fact. */}
-        {step ? `${step}…` : justConsented ? 'Choose photographs →' : 'Google Photos'}
-      </button>
-
-      {/* An anchor with a real href, tapped. Not a window opened on the
-          original tap and pointed here two round trips later — Chrome
-          refuses that navigation once the gesture has expired and leaves the
-          tab reading `about:blank#blocked`, which is exactly what happened.
-          A link is a navigation no popup blocker has an opinion about.
-          Polling carries on behind this, so tapping now or in a minute makes
-          no difference to the result. */}
-      {pickerUri && (
+      {/* One control, always in the same place.
+          The link used to appear *below* a button that had gone quiet, so
+          finishing the consent trip meant tapping the button, watching
+          nothing obvious happen, and then noticing a second thing further
+          down. Two taps, two places. Now the button becomes the link. */}
+      {pickerUri ? (
         <a
-          className="album-open album-open--ready bring-in-pick"
+          className="album-open album-open--ready"
           href={pickerUri}
           target="_blank"
           rel="noreferrer"
+          onClick={() => track('photos_picker_opened')}
         >
-          Choose your photographs →
+          Choose photographs →
         </a>
+      ) : (
+        /* Not onClick={go}. A tap is a tap, and saying so is the entire fix. */
+        <button className="album-open" onClick={() => go(false)} disabled={busy}>
+          {step ? `${step}…` : 'Google Photos'}
+        </button>
       )}
 
       {progress && (
