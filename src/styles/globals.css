@@ -12084,3 +12084,82 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 
 .album-card--slim .bring-in { width: auto; }
 .album-card--slim .album-elsewhere { display: none; }
+
+/* ── Arriving ─────────────────────────────────────────────────────────────
+   Signing in used to either shut the sheet outright or leave the account
+   panel — avatar, email, a Sign out button — sitting there to be dismissed
+   by hand. Neither is an arrival: one is a disappearance, the other is a
+   form handed to somebody who has just finished filling one in.
+
+   So the sheet says one thing, holds it long enough to read, and then
+   shrinks away on its own. Scale and opacity only, so it composites. */
+.auth-landed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 0 10px;
+  text-align: center;
+  animation: auth-landed-in 380ms cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+.auth-landed-duck {
+  font-size: 40px;
+  line-height: 1;
+  /* Lands, and settles. Two beats rather than one, because a single bounce
+     reads as a glitch and two read as a duck. */
+  animation: auth-landed-drop 620ms cubic-bezier(0.2, 0.9, 0.3, 1.5) both;
+}
+
+@keyframes auth-landed-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes auth-landed-drop {
+  0%   { opacity: 0; transform: translateY(-14px) scale(0.7); }
+  55%  { opacity: 1; transform: translateY(2px) scale(1.06); }
+  75%  { transform: translateY(-2px) scale(0.98); }
+  100% { transform: none; }
+}
+
+/* Going. The sheet shrinks first and the overlay follows, so the app is
+   never revealed behind a panel that is still visibly there. */
+.ios-sheet.is-going {
+  animation: auth-going 420ms cubic-bezier(0.4, 0, 0.7, 0.2) both;
+  pointer-events: none;
+}
+.ios-sheet-overlay--auth.is-going {
+  animation: auth-going-veil 460ms ease both;
+  pointer-events: none;
+}
+@keyframes auth-going {
+  from { opacity: 1; transform: none; }
+  to   { opacity: 0; transform: scale(0.88); }
+}
+@keyframes auth-going-veil {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-landed,
+  .auth-landed-duck,
+  .ios-sheet.is-going,
+  .ios-sheet-overlay--auth.is-going {
+    animation-duration: 1ms;
+  }
+}
+
+/* The tap that has to happen after consent. Google has been and gone, access
+   is granted, and the one thing left is a gesture the browser will accept —
+   so it should not look like the same button it was a moment ago. */
+.album-open--ready {
+  border-color: var(--gold, #A8842C);
+  animation: album-open-ready 1.6s ease-in-out 2;
+}
+@keyframes album-open-ready {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.62; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .album-open--ready { animation: none; }
+}

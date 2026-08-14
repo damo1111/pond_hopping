@@ -48,6 +48,9 @@ export default function BringThemIn({ trip, onDone }) {
   // Every failure carries the build that produced it. See BUILD above.
   const fail = useCallback((msg) => setError(`${msg} · build ${BUILD}`), [])
   const [importId, setImportId] = useState(null)
+  // Back from Google's consent screen, waiting for a finger. See the resume
+  // effect below for why it cannot simply carry on by itself.
+  const [justConsented, setJustConsented] = useState(false)
   const alive = useRef(true)
 
   useEffect(() => () => { alive.current = false }, [])
@@ -191,7 +194,21 @@ export default function BringThemIn({ trip, onDone }) {
     // what happened on the last attempt, which reported "we asked for:
     // unrecorded" and proved nothing at all.
     if (said.afterConsent && whatWeAsked() === null) return
-    go(Boolean(said.afterConsent))
+
+    // Not go(). A tap.
+    //
+    // Carrying straight on from here is what the whole consent trip was for,
+    // and it cannot work: this runs from an effect on page load, and the
+    // picker is opened with window.open, which every browser refuses outside
+    // a user gesture. So the popup was blocked, the fallback open() was
+    // blocked too, and the import ended silently having granted access to
+    // nothing — back on the same card, with Google's spent consent page left
+    // faded in another tab.
+    //
+    // One tap is not friction worth avoiding at the cost of the feature. The
+    // button says what it is for, and the whole loop guard survives because
+    // the tap still runs go(true).
+    setJustConsented(true)
   }, [trip.id, go])
 
   const busy = Boolean(step) || (progress && !progress.finished)
@@ -199,14 +216,18 @@ export default function BringThemIn({ trip, onDone }) {
   return (
     <div className="bring-in">
       {/* Not onClick={go}. A tap is a tap, and saying so is the entire fix. */}
-      <button className="album-open" onClick={() => go(false)} disabled={busy}>
+      <button
+        className={`album-open${justConsented ? ' album-open--ready' : ''}`}
+        onClick={() => go(justConsented)}
+        disabled={busy}
+      >
         {/* Never the same sentence as the line below it. While there is a
             step it says the step, which is the one thing the bar cannot;
             once the queue has it, the bar and its sentence carry the rest
             and this goes back to being a button that is simply not
             available. Both saying "bringing them in…" at once was two
             voices reporting the same fact. */}
-        {step ? `${step}…` : 'Bring them in →'}
+        {step ? `${step}…` : justConsented ? 'Choose your photographs →' : 'Bring them in →'}
       </button>
 
       {progress && (

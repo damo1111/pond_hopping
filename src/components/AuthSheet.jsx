@@ -87,6 +87,32 @@ export default function AuthSheet({ onClose }) {
   // When the outstanding code went out, so the offer of another one can wait
   // the minute Supabase insists on — and so it survives leaving the app.
   const [sentAt, setSentAt] = useState(outstanding?.at ?? null)
+
+  /**
+   * The moment of arriving, which the sheet never had.
+   *
+   * Signing in used to close this outright, or — coming back from Google —
+   * leave the account panel sitting there with a Sign out button on it,
+   * which somebody has to dismiss by hand. Neither is an arrival. One is a
+   * disappearance and the other is a form.
+   *
+   * So: a beat that says you are in, and then gets out of the way on its
+   * own. Nothing to tap.
+   */
+  const [landed, setLanded] = useState(false)
+  const [going, setGoing] = useState(false)
+  useEffect(() => {
+    if (!landed) return
+    // Two timers rather than one: the sheet shrinks away first and the
+    // overlay follows once it has gone, so the app is not revealed behind a
+    // panel that is still visibly there.
+    const shrink = setTimeout(() => setGoing(true), 1500)
+    const gone = setTimeout(() => onClose(), 1980)
+    return () => {
+      clearTimeout(shrink)
+      clearTimeout(gone)
+    }
+  }, [landed, onClose])
   const [waitLeft, setWaitLeft] = useState(() => resendIn(outstanding?.at))
   useEffect(() => {
     if (!sentAt) return setWaitLeft(0)
@@ -217,7 +243,9 @@ export default function AuthSheet({ onClose }) {
       .eq('id', data?.user?.id)
       .maybeSingle()
     setBusy(false)
-    if (prof?.display_name) onClose() // AuthContext picks up the new session.
+    // AuthContext picks up the new session either way; this only decides
+    // whether there is a question left to ask before the landing.
+    if (prof?.display_name) setLanded(true)
     else setNaming(true)
   }
 
@@ -230,7 +258,7 @@ export default function AuthSheet({ onClose }) {
     if (!error) await refreshProfile()
     setBusy(false)
     if (error) setError(error.message)
-    else onClose()
+    else setLanded(true)
   }
 
   // Above the other sheets rather than level with them. Sign-in is the one
@@ -241,8 +269,14 @@ export default function AuthSheet({ onClose }) {
   // nothing at all. Staying on top also leaves the sheet you came from open
   // behind, so signing in puts you back where you were.
   return (
-    <div className="ios-sheet-overlay ios-sheet-overlay--auth" onClick={onClose}>
-      <div className="ios-sheet auth-sheet" onClick={(e) => e.stopPropagation()}>
+    <div
+      className={`ios-sheet-overlay ios-sheet-overlay--auth${going ? ' is-going' : ''}`}
+      onClick={onClose}
+    >
+      <div
+        className={`ios-sheet auth-sheet${going ? ' is-going' : ''}`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <SheetGrip onClose={onClose} />
 
         {/* Ahead of the signed-in branch deliberately: by the time this shows,
@@ -268,6 +302,17 @@ export default function AuthSheet({ onClose }) {
             </button>
             {error && <div className="account-error">{error}</div>}
           </form>
+        ) : landed ? (
+          /* The whole point of this branch is that there is nothing to tap.
+             Somebody who has just proved who they are should not then be
+             asked to dismiss a panel congratulating them for it. */
+          <div className="auth-landed">
+            <span className="auth-landed-duck" aria-hidden="true">🦆</span>
+            <div className="ios-sheet-title">In you hop.</div>
+            <div className="ios-sheet-sub" style={{ margin: 0 }}>
+              {profile?.display_name ? `Good to see you, ${profile.display_name}.` : 'The pond is yours.'}
+            </div>
+          </div>
         ) : user ? (
           <>
             <div className="auth-who">
