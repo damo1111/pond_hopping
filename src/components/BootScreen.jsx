@@ -158,7 +158,15 @@ export default function BootScreen({ leaving, cold = false }) {
                   points the pins gather from later, which is what makes the
                   rewind read as *this* trip collapsing rather than a new
                   animation starting. */}
-              <path className="boot-leg" d="M62 108 Q84 82 104 92 T142 72" fill="none" strokeLinecap="round" />
+              {/* Starts on the pin, not near it.
+                  The pin is at 58,118 and this began at 62,108 — eleven
+                  units adrift, which on a 200-wide stage is a visible gap
+                  with a round cap on one side of it and a black dot on the
+                  other. Two marks where there should be one departure. The
+                  dashed arc above already started at 58,118; this is now
+                  the same point, so the route leaves from where the journey
+                  is marked as beginning. */}
+              <path className="boot-leg" d="M58 118 Q84 82 104 92 T142 72" fill="none" strokeLinecap="round" />
               <g className="boot-stop boot-stop-1" style={{ '--gx': '38px', '--gy': '52px' }}>
                 <circle cx="62" cy="108" r="3.4" />
               </g>
