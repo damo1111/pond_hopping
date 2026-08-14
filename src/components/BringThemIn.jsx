@@ -6,7 +6,7 @@ import {
   needsConsent,
   openEmptyWindow,
   rememberIntent,
-  STILL_REFUSED,
+  stillRefused,
   takeIntent,
 } from '../lib/photoImport.js'
 import { connectGooglePhotos } from '../lib/google.js'
@@ -109,7 +109,7 @@ export default function BringThemIn({ trip, onDone }) {
           await connectGooglePhotos()
           return
         }
-        setError(STILL_REFUSED)
+        setError(stillRefused(e))
         return
       }
       setError(e.message)

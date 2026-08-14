@@ -93,15 +93,22 @@ export const needsConsent = (e) => /\b(401|403)\b/.test(String(e?.message ?? '')
 /**
  * What to say when Google refuses *after* somebody has just granted access.
  *
- * Asking again would be a loop, and a loop is what this replaced: refused →
- * consent → refused → consent, with nothing on screen ever explaining why.
- * The overwhelmingly likely cause is not the person or the scope but the
- * project: the Photos Picker API has to be switched on in Google Cloud
- * before any token, however well scoped, can open a session.
+ * Asking again would be a loop, and a loop is what this replaced: refused
+ * then consent then refused then consent, with nothing on screen ever
+ * explaining why.
+ *
+ * The first version named a single likely cause — the Photos Picker API not
+ * being switched on — and was wrong the first time it was seen in anger: the
+ * API was on. So it carries Google's own words now rather than my guess.
+ * They are unusually good at saying which of several separate things is
+ * missing: the API on the project, the scope on the consent screen, or the
+ * account on the test-user list. A guess that sounds authoritative and is
+ * wrong costs more than a status code does.
  */
-export const STILL_REFUSED =
-  'Google still refused after granting access, which usually means the Photos Picker API ' +
-  'is not switched on for this project yet rather than anything you did.'
+export const stillRefused = (e) =>
+  `Google refused again, even after access was granted. It said: ${
+    String(e?.message ?? '').replace(/^session failed:\s*/, '') || 'nothing useful'
+  }`
 
 /**
  * Wait for somebody to finish choosing.
