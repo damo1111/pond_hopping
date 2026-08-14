@@ -321,7 +321,7 @@ export async function googleTokens({ from } = {}) {
     /* no session is not an error here — the stash may still have one */
   }
   try {
-    const { getGoogleToken } = await import('./google.js')
+    const { getGoogleToken } = await import('./googleToken.js')
     const stashed = getGoogleToken()
     // Written at every OAuth return, so it is the likelier of the two to be
     // the newest — but "likelier" is not "known", which is the whole point.

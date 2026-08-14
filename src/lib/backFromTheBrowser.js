@@ -92,6 +92,8 @@ export async function finishSignIn(url, { client } = {}) {
   if (came.kind === 'refused') return came
 
   const auth = (client ?? (await import('./supabase.js')).supabase).auth
+  // Google's own token, from whichever branch has it.
+  let keep = null
   try {
     if (came.kind === 'tokens') {
       const { error } = await auth.setSession({
@@ -99,20 +101,27 @@ export async function finishSignIn(url, { client } = {}) {
         refresh_token: came.refresh,
       })
       if (error) throw error
+      keep = came.provider
     } else {
-      const { error } = await auth.exchangeCodeForSession(came.code)
+      const { data, error } = await auth.exchangeCodeForSession(came.code)
       if (error) throw error
+      // And here, which is the branch that actually runs.
+      //
+      // supabase-js defaults to PKCE, so the redirect comes back as
+      // ?code=… and there is no provider_token in the fragment to read —
+      // the one above only ever fires on the implicit flow. Google's token
+      // is in the *exchange result*, and that was being thrown away, which
+      // is why connecting Photos ended with "401 not connected to Google
+      // yet" moments after Google had granted the scope.
+      keep = data?.session?.provider_token ?? null
     }
-    // Written down separately, because nothing else will keep it. Same stash
-    // the web flow uses, so freshToken() finds it by the route it already
-    // knows.
-    if (came.provider) {
-      try {
-        const { rememberGoogleToken } = await import('./google.js')
-        rememberGoogleToken({ provider_token: came.provider })
-      } catch {
-        /* no stash is a reconnect, not a failed sign-in */
-      }
+    // Written down separately, because nothing else will keep it: setSession
+    // does not carry a provider token, and a later TOKEN_REFRESHED carries
+    // none either. Same stash the web flow uses, so the import finds it by
+    // the route it already knows.
+    if (keep) {
+      const { rememberGoogleToken } = await import('./googleToken.js')
+      rememberGoogleToken({ provider_token: keep })
     }
     return { kind: 'signed in' }
   } catch (e) {

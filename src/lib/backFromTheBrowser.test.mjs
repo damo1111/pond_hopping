@@ -99,3 +99,32 @@ test('and its absence is not an error — most sign-ins have no provider token',
   assert.equal(said.kind, 'tokens')
   assert.equal(said.provider, null)
 })
+
+test('the PKCE branch keeps Google’s token too — it is the one that runs', async () => {
+  // supabase-js defaults to PKCE, so the redirect comes back as ?code=… and
+  // there is nothing in the fragment to read. Google's token is in the
+  // exchange result, and throwing it away is why connecting Photos ended
+  // with "401 not connected to Google yet" moments after Google said yes.
+  let handed = null
+  const client = {
+    auth: {
+      exchangeCodeForSession: async () => ({
+        data: { session: { provider_token: 'ya29.the-photos-one' } },
+      }),
+      setSession: async () => ({}),
+    },
+  }
+  const realSession = globalThis.sessionStorage
+  globalThis.sessionStorage = {
+    setItem: (k, v) => { if (k === 'pond.google.token') handed = v },
+    getItem: () => null,
+    removeItem: () => {},
+  }
+  try {
+    const said = await finishSignIn('app.eend.pond://auth?code=abc123', { client })
+    assert.equal(said.kind, 'signed in')
+    assert.equal(handed, 'ya29.the-photos-one')
+  } finally {
+    globalThis.sessionStorage = realSession
+  }
+})

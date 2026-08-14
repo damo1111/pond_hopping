@@ -105,34 +105,8 @@ export async function connectGooglePhotos() {
   })
 }
 
-// Supabase surfaces the Google access token as session.provider_token,
-// but only right after the OAuth round-trip — it isn't persisted across
-// reloads. We stash it so an import kicked off moments later still has it,
-// and treat "no token" as "reconnect Gmail".
-const KEY = 'pond.google.token'
-
-export function rememberGoogleToken(session) {
-  if (session?.provider_token) {
-    try {
-      sessionStorage.setItem(KEY, session.provider_token)
-    } catch {
-      /* private mode — token just lives for this tab's memory instead */
-    }
-  }
-}
-
-export function getGoogleToken() {
-  try {
-    return sessionStorage.getItem(KEY) || null
-  } catch {
-    return null
-  }
-}
-
-export function clearGoogleToken() {
-  try {
-    sessionStorage.removeItem(KEY)
-  } catch {
-    /* ignore */
-  }
-}
+// The token stash now lives on its own, with no dependencies, so anything
+// that needs it does not have to import this file and the Supabase client
+// with it. Re-exported here because every existing caller reaches for it by
+// this name.
+export { clearGoogleToken, getGoogleToken, rememberGoogleToken } from './googleToken.js'
