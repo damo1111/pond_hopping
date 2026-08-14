@@ -6,6 +6,7 @@ import {
   needsConsent,
   openEmptyWindow,
   rememberIntent,
+  STILL_REFUSED,
   takeIntent,
 } from '../lib/photoImport.js'
 import { connectGooglePhotos } from '../lib/google.js'
@@ -67,7 +68,9 @@ export default function BringThemIn({ trip, onDone }) {
     return () => { stop = true }
   }, [importId, onDone])
 
-  const go = useCallback(async () => {
+  // `afterConsent` is true only when this run is the one that follows a trip
+  // to Google's consent screen. It is the whole guard against the loop.
+  const go = useCallback(async (afterConsent = false) => {
     setError(null)
     setProgress(null)
     // Opened on the tap, before anything is awaited. Google's picker address
@@ -92,11 +95,21 @@ export default function BringThemIn({ trip, onDone }) {
       win?.close?.()
       setStep(null)
       if (needsConsent(e)) {
-        // The token we hold was granted for the inbox, not the photographs.
-        // Remembered first, because consent leaves the page and this
-        // component will not exist when the answer comes back.
-        rememberIntent(trip.id)
-        await connectGooglePhotos()
+        // Refused once: the token we hold was granted for the inbox, not the
+        // photographs. Remembered first, because consent leaves the page and
+        // this component will not exist when the answer comes back.
+        //
+        // Refused *twice*, with a consent screen in between, means asking a
+        // third time would be a loop — which is exactly what this used to do,
+        // silently, forever. Somebody who has just granted access and is sent
+        // straight back to grant it again has no way to tell that anything is
+        // wrong, let alone what.
+        if (!afterConsent) {
+          rememberIntent(trip.id)
+          await connectGooglePhotos()
+          return
+        }
+        setError(STILL_REFUSED)
         return
       }
       setError(e.message)
@@ -124,7 +137,8 @@ export default function BringThemIn({ trip, onDone }) {
     if (!mine) return
     // takeIntent clears it, so a reopened tab tomorrow does not start an
     // import nobody asked for.
-    if (takeIntent()?.tripId === trip.id) go()
+    const said = takeIntent()
+    if (said?.tripId === trip.id) go(Boolean(said.afterConsent))
   }, [trip.id, go])
 
   const busy = Boolean(step) || (progress && !progress.finished)

@@ -37,7 +37,7 @@ const INTENT = 'pond:importing'
  */
 export function rememberIntent(tripId, store = globalThis.localStorage) {
   try {
-    store?.setItem(INTENT, JSON.stringify({ tripId, at: Date.now() }))
+    store?.setItem(INTENT, JSON.stringify({ tripId, at: Date.now(), afterConsent: true }))
   } catch {
     /* storage off — they land back on the tab and tap again, which is fine */
   }
@@ -58,6 +58,9 @@ export function takeIntent(store = globalThis.localStorage, now = Date.now, with
     const said = JSON.parse(raw)
     if (!said?.tripId) return null
     return now() - (said.at ?? 0) < within ? said : null
+    // `afterConsent` rides along. Whoever resumes needs to know this attempt
+    // already cost somebody a trip to Google, so that a second refusal is
+    // reported rather than answered with a third trip.
   } catch {
     return null
   }
@@ -86,6 +89,19 @@ export function openEmptyWindow(open = globalThis.open) {
 /** Google says no when the token was granted for other scopes — connecting
  *  Gmail does not come with the photographs, on purpose. */
 export const needsConsent = (e) => /\b(401|403)\b/.test(String(e?.message ?? ''))
+
+/**
+ * What to say when Google refuses *after* somebody has just granted access.
+ *
+ * Asking again would be a loop, and a loop is what this replaced: refused →
+ * consent → refused → consent, with nothing on screen ever explaining why.
+ * The overwhelmingly likely cause is not the person or the scope but the
+ * project: the Photos Picker API has to be switched on in Google Cloud
+ * before any token, however well scoped, can open a session.
+ */
+export const STILL_REFUSED =
+  'Google still refused after granting access, which usually means the Photos Picker API ' +
+  'is not switched on for this project yet rather than anything you did.'
 
 /**
  * Wait for somebody to finish choosing.
