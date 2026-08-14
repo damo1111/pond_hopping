@@ -28,6 +28,18 @@ import { track } from '../lib/analytics.js'
 /** Slow enough not to hammer the database, quick enough that a bar moves. */
 const ASK_EVERY = 2000
 
+/**
+ * Which build said it.
+ *
+ * A message copied out of the app and pasted back is the only evidence there
+ * is about this feature, and twice now an identical one arrived from two
+ * different builds — a fix and the build it replaced read exactly alike, and
+ * the second reading cost a round of debugging a defect that was already
+ * gone. A service worker that hands back yesterday's bundle is normal and
+ * invisible; the stamp is what makes it visible.
+ */
+const BUILD = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'
+
 const say = (p) => {
   if (!p) return null
   const bits = []
@@ -41,6 +53,8 @@ export default function BringThemIn({ trip, onDone }) {
   const [step, setStep] = useState(null)
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
+  // Every failure carries the build that produced it. See BUILD above.
+  const fail = useCallback((msg) => setError(`${msg} · build ${BUILD}`), [])
   const [importId, setImportId] = useState(null)
   const alive = useRef(true)
 
@@ -122,18 +136,23 @@ export default function BringThemIn({ trip, onDone }) {
         // wrong, let alone what.
         if (!afterConsent) {
           rememberIntent(trip.id)
-          await connectGooglePhotos()
+          // Said out loud rather than dropped. This returns {error} and the
+          // return was ignored, so a consent screen that could not be reached
+          // looked exactly like a tap that did nothing — on the one path where
+          // "nothing happened" was the entire symptom being chased.
+          const { error: refused } = await connectGooglePhotos()
+          if (refused) fail(`Could not reach Google’s consent screen: ${refused.message}`)
           return
         }
         // Ask Google what the token it just issued actually carries, rather
         // than theorising about why it was refused. Two wrong answers came
         // out of theorising.
-        setError(stillRefused(e, await tokenFacts(await freshToken()), whatWeAsked()))
+        fail(stillRefused(e, await tokenFacts(await freshToken()), whatWeAsked()))
         return
       }
-      setError(e.message)
+      fail(e.message)
     }
-  }, [trip.id])
+  }, [trip.id, fail])
 
   // Coming back from Google's consent screen.
   //
