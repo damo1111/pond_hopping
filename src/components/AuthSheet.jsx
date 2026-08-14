@@ -162,19 +162,35 @@ export default function AuthSheet({ onClose }) {
   async function send(e) {
     track('sign_in_code_asked')
     e.preventDefault()
-    setBusy(true)
     setError(null)
-    const { error } = await supabase.auth.signInWithOtp({ email: email.trim() })
-    setBusy(false)
-    if (error) setError(error.message)
-    else {
-      // Written down before the step is shown, so closing the sheet on the
-      // very next frame — which is what going to fetch the code amounts to —
-      // still comes back here.
-      remember(email.trim())
-      rememberWayIn('code')
-      setSentAt(Date.now())
-      setSent(true)
+    const address = email.trim()
+
+    // Move to the code step now, ask Google's neighbour afterwards.
+    //
+    // This used to await signInWithOtp before changing anything, so the
+    // sheet sat on the email field doing nothing visible for as long as the
+    // round trip took — long enough to look stuck, and to tap again. The
+    // request is not what somebody is waiting for; the code is, and the code
+    // arrives by mail seconds later whatever this screen is showing.
+    //
+    // Written down before the step is shown, so closing the sheet on the very
+    // next frame — which is what going to fetch the code amounts to — still
+    // comes back here.
+    remember(address)
+    rememberWayIn('code')
+    setSentAt(Date.now())
+    setSent(true)
+
+    const { error } = await supabase.auth.signInWithOtp({ email: address })
+    // And back again if it never went. A code field waiting for a code that
+    // was never sent is worse than the wait it replaced, so a refusal —
+    // rate limit, malformed address, provider down — undoes the whole thing
+    // rather than leaving somebody staring at six empty boxes.
+    if (error) {
+      forget()
+      setSentAt(null)
+      setSent(false)
+      setError(error.message)
     }
   }
 
