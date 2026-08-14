@@ -70,5 +70,31 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<!-- Where a sign-in comes back to.
+	     Nothing on this side claimed app.eend.pond:// at all, so the redirect
+	     that fixed Android would have dead-ended on iPhone in exactly the way
+	     it dead-ended on Android: consent granted, browser holding the
+	     session, app still signed out behind it.
+	     Android registers the same scheme through an intent-filter in
+	     AndroidManifest.xml. This is the other half, and Capacitor does not
+	     add it — the appId is not a URL scheme until somebody says so.
+	     Not Universal Links. Those need an apple-app-site-association served
+	     from the domain and an associated-domains entitlement, and they carry
+	     the same flaw the App Link did: they are honoured on a dispatch, not
+	     on the end of a redirect chain inside an open browser. A scheme
+	     Safari cannot render, it must hand on. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>app.eend.pond</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>app.eend.pond</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
