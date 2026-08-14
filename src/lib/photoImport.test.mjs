@@ -355,3 +355,41 @@ test('signing in with a code is not a reason to be refused your photographs', ()
   // particular way. Shaped as a 401 so the existing consent path picks it up.
   assert.equal(needsConsent(new Error('401 not connected to Google yet')), true)
 })
+
+test('the token with the scope wins, not the one written down first', async () => {
+  // There can be two. Signing in *with* Google leaves a provider_token
+  // carrying email and profile; connecting Photos later mints a second that
+  // carries the Photos scope. Preferring one by position handed Google the
+  // sign-in token and got back, correctly, "no photographs on it" — printed
+  // under a button somebody had just used to grant exactly that scope.
+  let opened = null
+  await assert.rejects(
+    () =>
+      bringThemIn('trip-1', {
+        tokens: async () => ['sign-in-only', 'the-photos-one'],
+        facts: async (t) =>
+          t === 'the-photos-one'
+            ? { scopes: [PHOTOS], clientId: 'c' }
+            : { scopes: ['email', 'profile'], clientId: 'c' },
+        open: async (t) => { opened = t; throw new Error('stop here') },
+      }),
+    /stop here/
+  )
+  assert.equal(opened, 'the-photos-one')
+})
+
+test('and a token handed in is held to the same test', async () => {
+  // It used to skip the check entirely, which is how a caller could route
+  // itself to an error instead of to the consent screen.
+  await assert.rejects(
+    () => bringThemIn('trip-1', { token: 'sign-in-only', facts: async () => ({ scopes: ['email'] }) }),
+    (e) => needsConsent(e) && /photographs/.test(e.message)
+  )
+})
+
+test('no tokens at all is a 401, not a crash on an empty list', async () => {
+  await assert.rejects(
+    () => bringThemIn('trip-1', { tokens: async () => [] }),
+    (e) => needsConsent(e) && /not connected/.test(e.message)
+  )
+})

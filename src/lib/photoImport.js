@@ -295,6 +295,44 @@ export async function freshToken({ from } = {}) {
   }
 }
 
+/**
+ * Every Google token this app might be holding, newest-looking first.
+ *
+ * There can be two, and until now the wrong one was always chosen.
+ *
+ * Signing in *with* Google leaves a provider_token on the persisted session
+ * carrying email and profile and nothing else. Later, connecting Google
+ * Photos mints a second token that does carry the Photos scope. freshToken
+ * preferred the live session, so it handed back the first — and Google
+ * answered, entirely correctly, that there were no photographs on it. Which
+ * read as "Google returned a token without them", printed under a button
+ * somebody had just used to grant exactly that scope.
+ *
+ * Neither source is reliably the newer one, so neither wins by position.
+ * The caller asks Google which of them carries the scope and uses that.
+ */
+export async function googleTokens({ from } = {}) {
+  const found = []
+  try {
+    const client = await db(from)
+    const { data } = await client.auth.getSession()
+    if (data?.session?.provider_token) found.push(data.session.provider_token)
+  } catch {
+    /* no session is not an error here — the stash may still have one */
+  }
+  try {
+    const { getGoogleToken } = await import('./google.js')
+    const stashed = getGoogleToken()
+    // Written at every OAuth return, so it is the likelier of the two to be
+    // the newest — but "likelier" is not "known", which is the whole point.
+    if (stashed && !found.includes(stashed)) found.push(stashed)
+  } catch {
+    // google.js reaches the Supabase client at module scope, so this path is
+    // unloadable outside a browser.
+  }
+  return found
+}
+
 /** Hand the list to the queue. Returns the run's id to watch. */
 export async function startImport(tripId, items, token, { from } = {}) {
   const client = await db(from)
@@ -383,39 +421,46 @@ export async function bringThemIn(
     token,
     facts: askGoogle = tokenFacts,
     open = openSession,
+    tokens = googleTokens,
     show = openPicker,
     hide = closePicker,
   } = {}
 ) {
-  const key = token ?? (await freshToken())
-  // No Google token at all — which is the ordinary case, not an error.
+  // Whichever of the tokens we hold actually carries the Photos scope.
   //
-  // Somebody who signed in with an emailed code has never been near Google,
-  // and this said "not connected to Google" and stopped, as though bringing
-  // photographs in were a privilege of having signed in one particular way.
-  // It is not. Connecting Google Photos is its own decision, and the app
-  // already knows how to ask for it — that is the whole consent path below.
+  // Asked of Google rather than guessed at by which was written down last: a
+  // token from an ordinary Google sign-in and a token from the Photos
+  // consent screen are indistinguishable from here, and picking the wrong
+  // one produces a refusal that reads exactly like Google withholding the
+  // scope it has just granted. Which is what it read like.
   //
-  // Shaped as a 401 so needsConsent() catches it and that path runs, rather
-  // than growing a second route to the same consent screen. The wording is
-  // still there for anybody reading a log.
-  if (!key) throw new Error('401 not connected to Google yet')
-
-  // Look at the token before knocking.
-  //
-  // Without this the first run of every import is a wasted round trip: open a
-  // session, be refused 403 for a scope the token visibly does not carry,
-  // *then* go and ask for consent. It works, and it reads as an error on a
-  // screen where nothing has gone wrong — which is exactly how it read.
-  //
-  // Shaped as a 403 on purpose, so needsConsent() catches it and the caller's
-  // existing consent branch handles it, rather than adding a second route to
-  // the same place. tokenFacts returns null when Google will not answer, and
-  // that is not grounds to refuse to try.
+  // One list whether the caller supplied a token or not, so a supplied one
+  // is held to the same test. It was not, and the check it skipped was the
+  // one that sends somebody to consent instead of to an error.
   onStep('checking with Google')
-  const facts = await askGoogle(key)
-  if (facts && !facts.scopes.includes(PHOTOS)) {
+  const candidates = token ? [token] : await tokens()
+  let key = null
+  for (const candidate of candidates) {
+    const facts = await askGoogle(candidate)
+    // A token Google will not describe is still worth trying: not knowing is
+    // not the same as knowing it is wrong.
+    if (!facts || facts.scopes.includes(PHOTOS)) {
+      key = candidate
+      break
+    }
+  }
+
+  // Held one, and none of them carried it. Shaped as a 403 so the caller's
+  // consent path runs — this is a scope to be granted, not a failure.
+  if (!key && candidates.length) {
     throw new Error('403 this sign-in does not carry access to your photographs')
+  }
+  // None at all, which is the ordinary case rather than an error: somebody
+  // who signed in with an emailed code has never been near Google. Also a
+  // 401, so the same consent path runs — connecting Google Photos is its own
+  // decision and has nothing to do with how somebody signed in.
+  if (!key) {
+    throw new Error('401 not connected to Google yet')
   }
 
   onStep('asking Google')
