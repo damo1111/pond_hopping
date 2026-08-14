@@ -6,6 +6,7 @@ import {
   needsConsent,
   openEmptyWindow,
   rememberIntent,
+  scopesOn,
   stillRefused,
   takeIntent,
 } from '../lib/photoImport.js'
@@ -109,7 +110,11 @@ export default function BringThemIn({ trip, onDone }) {
           await connectGooglePhotos()
           return
         }
-        setError(stillRefused(e))
+        // Ask Google what the token it just issued actually carries, rather
+        // than theorising about why it was refused. Two wrong answers came
+        // out of theorising.
+        const { getGoogleToken } = await import('../lib/google.js')
+        setError(stillRefused(e, await scopesOn(getGoogleToken())))
         return
       }
       setError(e.message)

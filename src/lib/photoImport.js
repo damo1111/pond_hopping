@@ -91,24 +91,53 @@ export function openEmptyWindow(open = globalThis.open) {
 export const needsConsent = (e) => /\b(401|403)\b/.test(String(e?.message ?? ''))
 
 /**
- * What to say when Google refuses *after* somebody has just granted access.
+ * Which scopes a token actually carries, asked of Google rather than assumed.
  *
- * Asking again would be a loop, and a loop is what this replaced: refused
- * then consent then refused then consent, with nothing on screen ever
- * explaining why.
+ * "Insufficient authentication scopes" after a consent screen somebody just
+ * approved has several possible causes and they look identical from here:
+ * a stale token still in the tab, an unverified app being quietly refused a
+ * sensitive scope, or the wrong project's client. Guessing between them is
+ * what produced two wrong answers already, so this asks.
  *
- * The first version named a single likely cause — the Photos Picker API not
- * being switched on — and was wrong the first time it was seen in anger: the
- * API was on. So it carries Google's own words now rather than my guess.
- * They are unusually good at saying which of several separate things is
- * missing: the API on the project, the scope on the consent screen, or the
- * account on the test-user list. A guess that sounds authoritative and is
- * wrong costs more than a status code does.
+ * tokeninfo needs no scope of its own — it describes the bearer.
  */
-export const stillRefused = (e) =>
-  `Google refused again, even after access was granted. It said: ${
-    String(e?.message ?? '').replace(/^session failed:\s*/, '') || 'nothing useful'
-  }`
+export async function scopesOn(token, { fetchImpl = fetch } = {}) {
+  try {
+    const r = await fetchImpl(
+      `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${encodeURIComponent(token)}`
+    )
+    if (!r.ok) return null
+    const said = await r.json()
+    return String(said.scope ?? '').split(/\s+/).filter(Boolean)
+  } catch {
+    return null
+  }
+}
+
+const PHOTOS = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly'
+
+/**
+ * What to say when Google refuses after somebody has just granted access.
+ *
+ * The first version named one cause — the Photos Picker API not being
+ * switched on — and was wrong the first time it was seen in anger: the API
+ * was on. So this reads the token instead of theorising about it. If the
+ * scope genuinely is not on there after an approval, the cause is almost
+ * always that Google declined to grant a *sensitive* scope to an app it has
+ * not verified, which is a thing only the console can fix.
+ */
+export function stillRefused(e, granted) {
+  const said = String(e?.message ?? '').replace(/^session failed:\s*/, '')
+  if (Array.isArray(granted) && !granted.includes(PHOTOS)) {
+    return (
+      'Google approved the sign-in but did not actually grant access to your photographs. ' +
+      'That happens when the app has not been verified — the Photos scope is a sensitive one, ' +
+      'and an unverified app is refused it without saying so. ' +
+      `The token came back with: ${granted.length ? granted.join(', ') : 'no scopes at all'}.`
+    )
+  }
+  return `Google refused again, even after access was granted. It said: ${said || 'nothing useful'}`
+}
 
 /**
  * Wait for somebody to finish choosing.
