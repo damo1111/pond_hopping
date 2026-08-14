@@ -187,6 +187,40 @@ export function stillRefused(e, facts, asked) {
 }
 
 /**
+ * A wait that ends early when somebody comes back to this tab.
+ *
+ * Choosing happens in Google's tab, which means this one is in the
+ * background for the whole of it — and a background tab's timers are
+ * throttled to about once a minute, sometimes far worse. So the moment
+ * somebody finishes picking and switches back, the next check can be up to a
+ * minute away, on a screen showing a bar that is not moving. Long enough to
+ * conclude nothing happened, close the tab, and be right.
+ *
+ * Coming back to the tab is the strongest possible signal that picking is
+ * over. It costs one poll to act on it.
+ */
+function restUntilBackOrElapsed(ms) {
+  return new Promise((resolve) => {
+    const doc = globalThis.document
+    let over = false
+    const finish = () => {
+      if (over) return
+      over = true
+      clearTimeout(timer)
+      globalThis.removeEventListener?.('focus', finish)
+      doc?.removeEventListener?.('visibilitychange', onShown)
+      resolve()
+    }
+    const onShown = () => {
+      if (doc?.visibilityState === 'visible') finish()
+    }
+    const timer = setTimeout(finish, ms)
+    globalThis.addEventListener?.('focus', finish)
+    doc?.addEventListener?.('visibilitychange', onShown)
+  })
+}
+
+/**
  * Wait for somebody to finish choosing.
  *
  * Google's own interval is honoured rather than a number picked here, and
@@ -194,7 +228,7 @@ export function stillRefused(e, facts, asked) {
  * choosing anything would otherwise poll until the tab was shut.
  */
 export async function waitForPick(token, sessionId, { read = readSession, sleep, patience = 10 * 60 * 1000 } = {}) {
-  const rest = sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)))
+  const rest = sleep ?? restUntilBackOrElapsed
   const until = Date.now() + patience
   for (;;) {
     const said = await read(token, sessionId)
@@ -312,12 +346,32 @@ export function asProgress(row) {
 
 /** Everything between the tap and the queue. The caller supplies `onStep`
  *  so the sheet can say where it has got to without this knowing about it. */
-export async function bringThemIn(tripId, { onStep = () => {}, token, win = null } = {}) {
+export async function bringThemIn(
+  tripId,
+  { onStep = () => {}, token, win = null, facts: askGoogle = tokenFacts, open = openSession } = {}
+) {
   const key = token ?? (await freshToken())
   if (!key) throw new Error('not connected to Google')
 
+  // Look at the token before knocking.
+  //
+  // Without this the first run of every import is a wasted round trip: open a
+  // session, be refused 403 for a scope the token visibly does not carry,
+  // *then* go and ask for consent. It works, and it reads as an error on a
+  // screen where nothing has gone wrong — which is exactly how it read.
+  //
+  // Shaped as a 403 on purpose, so needsConsent() catches it and the caller's
+  // existing consent branch handles it, rather than adding a second route to
+  // the same place. tokenFacts returns null when Google will not answer, and
+  // that is not grounds to refuse to try.
+  onStep('checking with Google')
+  const facts = await askGoogle(key)
+  if (facts && !facts.scopes.includes(PHOTOS)) {
+    throw new Error('403 this sign-in does not carry access to your photographs')
+  }
+
   onStep('asking Google')
-  const session = await openSession(key)
+  const session = await open(key)
   if (win) win.location = session.pickerUri
   else globalThis.open?.(session.pickerUri, '_blank')
 
