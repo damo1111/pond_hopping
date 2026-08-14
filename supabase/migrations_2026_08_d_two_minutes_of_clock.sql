@@ -1,0 +1,24 @@
+-- Two minutes for one photograph, and almost none of it was work.
+--
+-- The queue was dispatched only by pg_cron, once a minute, and a run was
+-- marked finished only by the same cron. So a single photograph cost:
+--
+--   up to 60s   waiting for the next tick before anything was fetched
+--   ~3s         actually fetching, decoding and storing it
+--   up to 60s   sitting at "1 of 1" before the run was closed and the
+--               grid refreshed
+--
+-- Two minutes of clock around three seconds of work, with a bar that did not
+-- move for either of the two minutes.
+--
+-- start_photo_import now pushes the first batch itself, and
+-- photo_import_settled closes a run the moment its last item settles. The
+-- cron stays and stays the guarantee — it picks up the next batch, retries
+-- failures, and takes over a run whose worker died mid-batch and will never
+-- call settled at all. It is simply no longer the only thing that moves.
+--
+-- Both are wrapped: a run queued and started a minute late is far better
+-- than one never queued, and the same for one closed a minute late.
+--
+-- See migrations_2026_08_d for the function bodies as applied — this file is
+-- the record; the definitions live with the migration applied to production.

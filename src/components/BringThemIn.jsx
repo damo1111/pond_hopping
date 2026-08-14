@@ -58,11 +58,21 @@ export default function BringThemIn({ trip, onDone }) {
   useEffect(() => {
     if (!importId) return
     let stop = false
+    // What the grid has already been told about. Photographs are the point,
+    // and they were only ever asked for once, at the very end — so a run that
+    // brought in two hundred showed nothing at all until the last one landed,
+    // and a run that never quite finished showed nothing ever.
+    let shown = 0
     const tick = async () => {
       try {
         const p = await howFarAlong(importId)
         if (stop || !alive.current) return
         setProgress(p)
+        if (p.done > shown) {
+          shown = p.done
+          // Refreshes the grid underneath. They arrive as they arrive.
+          onDone?.(p)
+        }
         if (p.finished) {
           track('photos_imported', { done: p.done, skipped: p.skipped, failed: p.failed })
           onDone?.(p)
@@ -190,7 +200,13 @@ export default function BringThemIn({ trip, onDone }) {
     <div className="bring-in">
       {/* Not onClick={go}. A tap is a tap, and saying so is the entire fix. */}
       <button className="album-open" onClick={() => go(false)} disabled={busy}>
-        {step ? `${step}…` : busy ? 'bringing them in…' : 'Bring them in →'}
+        {/* Never the same sentence as the line below it. While there is a
+            step it says the step, which is the one thing the bar cannot;
+            once the queue has it, the bar and its sentence carry the rest
+            and this goes back to being a button that is simply not
+            available. Both saying "bringing them in…" at once was two
+            voices reporting the same fact. */}
+        {step ? `${step}…` : 'Bring them in →'}
       </button>
 
       {progress && (
