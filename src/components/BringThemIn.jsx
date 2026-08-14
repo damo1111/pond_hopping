@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   asProgress,
   bringThemIn,
+  cameFromConsent,
   howFarAlong,
   needsConsent,
   openEmptyWindow,
@@ -71,8 +72,21 @@ export default function BringThemIn({ trip, onDone }) {
   }, [importId, onDone])
 
   // `afterConsent` is true only when this run is the one that follows a trip
-  // to Google's consent screen. It is the whole guard against the loop.
-  const go = useCallback(async (afterConsent = false) => {
+  // to Google's consent screen. It is the whole guard against the loop — and
+  // for a week it was also the reason consent never happened at all.
+  //
+  // This was wired straight onto the button as onClick={go}, and React hands
+  // a click handler its event. So every tap arrived as go(SyntheticEvent) —
+  // an object, therefore truthy, therefore "you have already been to Google".
+  // The first refusal was reported as the second, the consent screen was
+  // never opened, and the report said "we asked for: unrecorded" because
+  // nothing had ever been asked. Five separate causes were proposed for the
+  // missing scope over two evenings and the request was never made.
+  //
+  // cameFromConsent is deliberately strict about what counts, and the button
+  // below says what it means rather than handing over whatever it is given.
+  const go = useCallback(async (from = false) => {
+    const afterConsent = cameFromConsent(from)
     setError(null)
     setProgress(null)
     // Opened on the tap, before anything is awaited. Google's picker address
@@ -163,7 +177,8 @@ export default function BringThemIn({ trip, onDone }) {
 
   return (
     <div className="bring-in">
-      <button className="album-open" onClick={go} disabled={busy}>
+      {/* Not onClick={go}. A tap is a tap, and saying so is the entire fix. */}
+      <button className="album-open" onClick={() => go(false)} disabled={busy}>
         {step ? `${step}…` : busy ? 'bringing them in…' : 'Bring them in →'}
       </button>
 

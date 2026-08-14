@@ -91,6 +91,25 @@ export function openEmptyWindow(open = globalThis.open) {
 export const needsConsent = (e) => /\b(401|403)\b/.test(String(e?.message ?? ''))
 
 /**
+ * Did this attempt already cost somebody a trip to Google's consent screen?
+ *
+ * A boolean question that spent a week being answered by a React
+ * SyntheticEvent. The import ran from `onClick={go}`, React handed the
+ * handler its event, and `afterConsent` arrived as an object — truthy, and so
+ * every first refusal was treated as a second one. The branch that opens the
+ * consent screen was therefore never taken, the Photos scope was never
+ * requested, and the resulting message reported on a request that had never
+ * been made.
+ *
+ * Five causes were proposed for the missing scope in that week — the API
+ * being off, the scope missing from the consent screen, an unverified app, a
+ * stale token, the wrong Cloud project — and the answer was that nobody had
+ * asked. So this takes only the literal `true`: an event object, a string, a
+ * number and an accident are all "no, and go and ask properly".
+ */
+export const cameFromConsent = (from) => from === true
+
+/**
  * What Google says about a token — what it carries, and who it was issued to.
  *
  * "Insufficient authentication scopes" after a consent screen somebody just
