@@ -65,13 +65,19 @@
 <main>
 
 <h1>Privacy</h1>
-<p class="sub">Pond Hopping · last updated 7 August 2026</p>
+<p class="sub">Pond Hopping · last updated 14 August 2026</p>
 
 <div class="card">
-  <p style="margin:0">
+  <p style="margin:0 0 10px">
     Pond Hopping is a personal travel log. It holds what you put into it and shows it to
-    you. There is no advertising, no analytics, no tracking across other apps or sites,
-    and nothing here is sold or shared for marketing.
+    you. There is no advertising, nothing is sold, and nothing is shared for marketing or
+    tracked across other apps and sites.
+  </p>
+  <p style="margin:0">
+    Two things it is worth being blunt about, because they are the ones people would mind:
+    <b>the app records which screens you use</b>, so we can tell what is broken or ignored;
+    and <b>to describe your photographs, an AI service has to be sent your photographs</b>.
+    Both are explained below.
   </p>
 </div>
 
@@ -92,6 +98,12 @@
   <li><b>Places you stopped</b>, but only if you switch that on. See below.</li>
   <li><b>A notification token</b> for your device, if you allow notifications, so the app can
       tell you when something arrives.</li>
+  <li><b>Which screens you opened and what you tapped</b>, with a device identifier that is not
+      your name or your email. This is how we find out that a button nobody presses is broken
+      rather than unloved. It is ours alone — it is not sent to an advertising network and
+      there is no third-party analytics service in the app.</li>
+  <li><b>Crash and error reports</b>, including what the app was doing at the time, so faults
+      can be fixed without waiting for somebody to describe them.</li>
 </ul>
 
 <h2>Location</h2>
@@ -132,8 +144,12 @@
   </tr>
   <tr>
     <td>OpenAI</td>
-    <td>Only when you use the planner's chat or paste a booking for it to read. The text you
-        send it, and the trip it relates to, are processed to produce the reply.</td>
+    <td><b>Your photographs, and things you wrote.</b> Asking the app to write up a trip sends
+        each of that trip's photographs to be looked at and described — that is how the
+        feature works, and there is no version of it that does not. It also sees the text you
+        type into the planner's chat, and any booking you paste in. If you would rather your
+        photographs were not sent anywhere, do not run the story on a trip; everything else in
+        the app works without it.</td>
   </tr>
   <tr>
     <td>Google (Firebase)</td>
@@ -142,6 +158,22 @@
   <tr>
     <td>Google (Gmail)</td>
     <td>Only if you connect it. It is used to find booking confirmations, and only those.</td>
+  </tr>
+  <tr>
+    <td>Google (Calendar)</td>
+    <td>Only if you connect it, to put your trips in a calendar of the app's own. It is not
+        used to read the rest of your diary.</td>
+  </tr>
+  <tr>
+    <td>Google (Photos)</td>
+    <td>Only if you connect it, and only to bring in photographs you have picked yourself. The
+        permission asked for cannot list your library — Google shows you its own picker and
+        tells us about the ones you chose and nothing else. Our access lasts about an hour and
+        then stops: no long-lived key to your photographs is ever kept.</td>
+  </tr>
+  <tr>
+    <td>CloudMailin</td>
+    <td>Your email address, to deliver sign-in codes and invitations.</td>
   </tr>
 </table>
 </div>

@@ -34,6 +34,19 @@ import { DISPLAY, THUMB } from '../src/lib/photoResize.js'
 const SUPABASE_URL = 'https://qslksdgxoibzrisywvqk.supabase.co'
 const ANON_KEY = 'sb_publishable_HqXFypbh0cTO8Eub41LlQw_8ypkj2tH'
 
+// Writing to somebody's storage is a server's job, not the public key's.
+//
+// The anon key ships inside the app, so anything it is allowed to do,
+// everybody is allowed to do — and this uploads into other people's trips.
+// While the workers held it, the bucket had to accept writes from anon,
+// which meant anyone could overwrite anyone's photograph.
+//
+// Falls back to the anon key when the service role is not configured, so a
+// deploy without the variable keeps working exactly as before rather than
+// failing at the first upload. The bucket is only locked down once this is
+// set — see the migration that scopes INSERT and UPDATE to authenticated.
+const WRITE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ANON_KEY
+
 /** One batch a tick. Small enough that a failure costs eight photographs
  *  rather than a thousand, big enough to finish inside Google's hour. */
 export const PER_TICK = 8
@@ -141,8 +154,8 @@ async function putObject(path, body) {
   const r = await fetch(`${SUPABASE_URL}/storage/v1/object/photos/${path}`, {
     method: 'POST',
     headers: {
-      apikey: ANON_KEY,
-      Authorization: `Bearer ${ANON_KEY}`,
+      apikey: WRITE_KEY,
+      Authorization: `Bearer ${WRITE_KEY}`,
       'Content-Type': 'image/webp',
       'x-upsert': 'true',
     },
