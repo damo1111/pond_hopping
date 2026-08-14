@@ -12063,3 +12063,24 @@ button.ios-sheet-grip:active { cursor: grabbing; }
     animation-delay: calc(var(--in, 0) * 80ms);
   }
 }
+
+/* Once photographs are already here the way in stays, but stops being a
+   card: a large box above a full grid was the original complaint, and the
+   answer to that is a smaller thing, not a hidden one. */
+.album-card--slim {
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  box-shadow: none;
+}
+
+.album-card--slim .album-title {
+  font-size: 13px;
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 0;
+}
+
+.album-card--slim .bring-in { width: auto; }
+.album-card--slim .album-elsewhere { display: none; }
