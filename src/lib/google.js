@@ -16,16 +16,59 @@ const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.g
 // sheet days ago; this copy was missed.
 const backHere = () => `${window.location.origin}/`
 
-export async function connectGoogle() {
-  return supabase.auth.signInWithOAuth({
+/**
+ * Where the last authorize URL is written down.
+ *
+ * Four separate causes were proposed for a scope that kept coming back
+ * missing — the API being off, the scope not being on the consent screen, an
+ * unverified app being refused, a stale token — and every one of them was a
+ * guess made without looking at the request. This records what was actually
+ * asked for, so the next failure can be read rather than theorised about.
+ */
+export const ASKED = 'pond.google.asked'
+
+/** What the last request asked Google for, as Google saw it. */
+export function whatWeAsked() {
+  try {
+    const url = sessionStorage.getItem(ASKED)
+    if (!url) return null
+    // Supabase's /authorize wraps Google's, so the scope may be on either.
+    const at = new URL(url)
+    return at.searchParams.get('scopes') ?? at.searchParams.get('scope') ?? null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Off to Google, by way of writing down where we sent them.
+ *
+ * skipBrowserRedirect hands back the URL instead of leaving immediately,
+ * which is the only chance there is to record it — once the page has gone,
+ * it is gone, and with it any evidence of what was requested.
+ */
+async function goToGoogle(options) {
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: {
-      scopes: SCOPES,
-      redirectTo: backHere(),
-      // offline + consent so we actually get a refresh token back, needed
-      // later for keeping the calendar in sync after the first session.
-      queryParams: { access_type: 'offline', prompt: 'consent' },
-    },
+    options: { skipBrowserRedirect: true, ...options },
+  })
+  if (error) return { data, error }
+  try {
+    sessionStorage.setItem(ASKED, data?.url ?? '')
+  } catch {
+    /* nowhere to record it is not a reason to refuse to sign in */
+  }
+  if (data?.url) window.location.assign(data.url)
+  return { data, error: null }
+}
+
+export async function connectGoogle() {
+  return goToGoogle({
+    scopes: SCOPES,
+    redirectTo: backHere(),
+    // offline + consent so we actually get a refresh token back, needed
+    // later for keeping the calendar in sync after the first session.
+    queryParams: { access_type: 'offline', prompt: 'consent' },
   })
 }
 
@@ -43,16 +86,13 @@ export async function connectGoogle() {
  * the library to us at all.
  */
 export async function connectGooglePhotos() {
-  return supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      scopes: PHOTOS_SCOPE,
-      redirectTo: backHere(),
-      // Offline here too: a thousand photographs takes longer to bring in
-      // than an access token lives, so the import has to be able to carry on
-      // after the first hour rather than stopping half way.
-      queryParams: { access_type: 'offline', prompt: 'consent' },
-    },
+  return goToGoogle({
+    scopes: PHOTOS_SCOPE,
+    redirectTo: backHere(),
+    // Offline here too: a thousand photographs takes longer to bring in
+    // than an access token lives, so the import has to be able to carry on
+    // after the first hour rather than stopping half way.
+    queryParams: { access_type: 'offline', prompt: 'consent' },
   })
 }
 

@@ -11,7 +11,7 @@ import {
   stillRefused,
   takeIntent,
 } from '../lib/photoImport.js'
-import { connectGooglePhotos } from '../lib/google.js'
+import { connectGooglePhotos, whatWeAsked } from '../lib/google.js'
 import { track } from '../lib/analytics.js'
 
 // The door, on the card that already admits the problem.
@@ -114,7 +114,7 @@ export default function BringThemIn({ trip, onDone }) {
         // Ask Google what the token it just issued actually carries, rather
         // than theorising about why it was refused. Two wrong answers came
         // out of theorising.
-        setError(stillRefused(e, await scopesOn(await freshToken())))
+        setError(stillRefused(e, await scopesOn(await freshToken()), whatWeAsked()))
         return
       }
       setError(e.message)

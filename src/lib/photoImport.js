@@ -126,14 +126,22 @@ const PHOTOS = 'https://www.googleapis.com/auth/photospicker.mediaitems.readonly
  * always that Google declined to grant a *sensitive* scope to an app it has
  * not verified, which is a thing only the console can fix.
  */
-export function stillRefused(e, granted) {
+export function stillRefused(e, granted, asked) {
   const said = String(e?.message ?? '').replace(/^session failed:\s*/, '')
+  // The one case where the app is at fault rather than the console: we never
+  // put the scope in the request. Said first, because everything else is
+  // somebody else's setting and this one is mine.
+  if (asked !== null && asked !== undefined && !String(asked).includes('photospicker')) {
+    return `The app did not ask Google for the Photos scope at all. It asked for: ${asked || 'nothing'}`
+  }
   if (Array.isArray(granted) && !granted.includes(PHOTOS)) {
     return (
       'Google approved the sign-in but did not actually grant access to your photographs. ' +
       'That happens when the app has not been verified — the Photos scope is a sensitive one, ' +
       'and an unverified app is refused it without saying so. ' +
-      `The token came back with: ${granted.length ? granted.join(', ') : 'no scopes at all'}.`
+      `We asked for: ${asked ?? 'unrecorded'}. The token came back with: ${
+        granted.length ? granted.join(', ') : 'no scopes at all'
+      }.`
     )
   }
   return `Google refused again, even after access was granted. It said: ${said || 'nothing useful'}`
