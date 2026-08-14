@@ -440,7 +440,16 @@ export default function AuthSheet({ onClose }) {
             <input
               className="account-input"
               type="email"
-              autoFocus
+              /* Only for somebody who is here to type.
+                 Opening the sheet threw the keyboard up immediately, over
+                 the sign-in buttons, before anybody had decided anything —
+                 so the commonest first move, reaching for Google, meant
+                 dismissing a keyboard you never asked for. The field is
+                 still one tap away; it just no longer assumes.
+                 It does assume for somebody whose last way in *was* a code,
+                 because that is a decision already made, and for anyone with
+                 no providers offered, where the field is the only way in. */
+              autoFocus={last === 'code' || ways.length === 0}
               required
               placeholder="you@example.com"
               value={email}

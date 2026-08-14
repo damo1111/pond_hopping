@@ -422,6 +422,7 @@ export async function bringThemIn(
     facts: askGoogle = tokenFacts,
     open = openSession,
     tokens = googleTokens,
+    rest = (ms) => new Promise((r) => setTimeout(r, ms)),
     show = openPicker,
     hide = closePicker,
   } = {}
@@ -438,16 +439,35 @@ export async function bringThemIn(
   // is held to the same test. It was not, and the check it skipped was the
   // one that sends somebody to consent instead of to an error.
   onStep('checking with Google')
-  const candidates = token ? [token] : await tokens()
-  let key = null
-  for (const candidate of candidates) {
-    const facts = await askGoogle(candidate)
-    // A token Google will not describe is still worth trying: not knowing is
-    // not the same as knowing it is wrong.
-    if (!facts || facts.scopes.includes(PHOTOS)) {
-      key = candidate
-      break
+
+  // Twice, a beat apart, because the good token may still be arriving.
+  //
+  // Coming back from consent inside a wrapper, two things start at once: the
+  // appUrlOpen listener exchanging the code for a session that carries the
+  // new Google token, and this import resuming because the app came
+  // forward. The resume usually wins. It then reads the session as it was a
+  // moment ago — the old sign-in token, email and profile and nothing else —
+  // and reports that Google refused the scope it has just granted.
+  //
+  // Nothing here can order those two: they are different listeners on
+  // different events, and the one that matters is not ours to wait on. So
+  // the question is asked again after a pause, and only a second empty
+  // answer counts.
+  const pick = async () => {
+    const found = token ? [token] : await tokens()
+    for (const candidate of found) {
+      const facts = await askGoogle(candidate)
+      // A token Google will not describe is still worth trying: not knowing
+      // is not the same as knowing it is wrong.
+      if (!facts || facts.scopes.includes(PHOTOS)) return { key: candidate, found }
     }
+    return { key: null, found }
+  }
+
+  let { key, found: candidates } = await pick()
+  if (!key) {
+    await rest(1200)
+    ;({ key, found: candidates } = await pick())
   }
 
   // Held one, and none of them carried it. Shaped as a 403 so the caller's

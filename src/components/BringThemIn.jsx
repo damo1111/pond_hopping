@@ -7,7 +7,7 @@ import {
   howItWent,
   needsConsent,
   rememberIntent,
-  freshToken,
+  googleTokens,
   tokenFacts,
   stillRefused,
   takeIntent,
@@ -155,7 +155,12 @@ export default function BringThemIn({ trip, onDone }) {
         // Ask Google what the token it just issued actually carries, rather
         // than theorising about why it was refused. Two wrong answers came
         // out of theorising.
-        fail(stillRefused(e, await tokenFacts(await freshToken()), whatWeAsked()))
+        // Reported on the token the import actually chose, not on whichever
+        // one a different function would have picked. freshToken prefers the
+        // live session, so the message described the sign-in token while the
+        // import had been weighing both — two answers to one question, and
+        // the one on screen was the wrong one.
+        fail(stillRefused(e, await tokenFacts((await googleTokens())[0]), whatWeAsked()))
         return
       }
       fail(e.message)

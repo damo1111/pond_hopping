@@ -393,3 +393,42 @@ test('no tokens at all is a 401, not a crash on an empty list', async () => {
     (e) => needsConsent(e) && /not connected/.test(e.message)
   )
 })
+
+test('a token still arriving is waited for, not reported as a refusal', async () => {
+  // Coming back from consent in a wrapper, the appUrlOpen listener and this
+  // resume start together and the resume usually wins — reading the session
+  // as it was a moment ago and announcing that Google refused a scope it had
+  // just granted.
+  let looks = 0
+  let opened = null
+  await assert.rejects(
+    () =>
+      bringThemIn('trip-1', {
+        // Empty on the first look, holding the good token on the second.
+        tokens: async () => (++looks === 1 ? ['sign-in-only'] : ['sign-in-only', 'the-photos-one']),
+        facts: async (t) =>
+          t === 'the-photos-one' ? { scopes: [PHOTOS] } : { scopes: ['email', 'profile'] },
+        rest: async () => {},
+        open: async (t) => { opened = t; throw new Error('stop here') },
+      }),
+    /stop here/
+  )
+  assert.equal(looks, 2)
+  assert.equal(opened, 'the-photos-one')
+})
+
+test('but a second empty answer is still a refusal', async () => {
+  // Prove the wait can give up: it must not become a way of never reporting
+  // a genuinely missing scope.
+  let looks = 0
+  await assert.rejects(
+    () =>
+      bringThemIn('trip-1', {
+        tokens: async () => { looks += 1; return ['sign-in-only'] },
+        facts: async () => ({ scopes: ['email', 'profile'] }),
+        rest: async () => {},
+      }),
+    (e) => needsConsent(e) && /photographs/.test(e.message)
+  )
+  assert.equal(looks, 2)
+})
