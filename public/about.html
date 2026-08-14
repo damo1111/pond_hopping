@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pond Hopping — a travel log that writes itself</title>
+<meta name="description" content="Pond Hopping turns the photographs, flights and runs you already have into a written record of a trip. A personal travel log by eend." />
+<!--
+  The public face, and deliberately a static file rather than a route in the
+  app — for three separate readers who all need it to work without an account:
+
+    1. Google's OAuth verification, which refused us with "your homepage is
+       behind a login page" and "does not explain the purpose of your app".
+       pond.eend.app loads straight into a signed-out app, which answers
+       neither. Sensitive scopes — Google Photos among them — are not granted
+       to an unverified app, so this page is what unblocks bringing somebody's
+       photographs in at all.
+    2. Play's store listing, which wants the same explanation in the same
+       words.
+    3. Anybody sent a link who wants to know what this is before installing
+       anything.
+
+  Vercel serves files before it applies the SPA rewrite, so this is reachable
+  at /about.html without touching any routing — same as privacy.html.
+-->
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #F2EFE6;
+    --surface: #FFFDF8;
+    --ink: #1A1611;
+    --muted: #6B6255;
+    --gold: #A8842C;
+    --line: #E2DBCB;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14120E;
+      --surface: #1D1A15;
+      --ink: #F0EBE0;
+      --muted: #A79C8A;
+      --gold: #D0A94A;
+      --line: #302B22;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0 20px 90px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 17px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 680px; margin: 0 auto; }
+
+  header { padding: 64px 0 8px; }
+  .brand {
+    font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--gold); margin: 0 0 20px;
+  }
+  h1 {
+    font-size: clamp(30px, 6.4vw, 44px); font-weight: 300; line-height: 1.1;
+    letter-spacing: -0.02em; margin: 0 0 14px; text-wrap: balance;
+  }
+  .stand { font-size: 19px; color: var(--muted); margin: 0; max-width: 34ch; text-wrap: pretty; }
+
+  h2 { font-size: 20px; font-weight: 600; margin: 44px 0 10px; }
+  p { margin: 0 0 14px; max-width: 62ch; text-wrap: pretty; }
+
+  .ways { display: grid; gap: 12px; margin: 26px 0 8px; }
+  @media (min-width: 620px) { .ways { grid-template-columns: repeat(3, 1fr); } }
+  .way {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 16px 18px;
+  }
+  .way h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .way p { margin: 0; font-size: 14px; color: var(--muted); }
+
+  .cta {
+    display: inline-block; margin: 22px 12px 0 0; padding: 12px 22px;
+    border-radius: 999px; background: var(--gold); color: #fff;
+    text-decoration: none; font-size: 14px; letter-spacing: 0.04em;
+  }
+  .cta.ghost { background: transparent; color: var(--gold); border: 1px solid var(--gold); }
+
+  .plain {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; padding: 18px 20px; margin: 24px 0;
+  }
+  .plain p:last-child { margin-bottom: 0; }
+
+  a { color: var(--gold); }
+  footer {
+    margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 14px;
+  }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <p class="brand">Pond Hopping · by eend</p>
+  <h1>Your trips are already recorded. Just not anywhere you can read them.</h1>
+  <p class="stand">Pond Hopping turns the photographs, flights and runs you already have into
+  something you can actually look back on.</p>
+</header>
+
+<h2>What it does</h2>
+<p>
+  A trip leaves traces long before anybody sits down to write about it: photographs with times
+  and places in them, a booking confirmation in your inbox, a run you logged, a note you made on
+  the third evening. All of it is real, all of it is scattered, and none of it is a record of
+  where you went.
+</p>
+<p>
+  Pond Hopping gathers those traces and reconstructs the trip from them — the days, the route,
+  the cities, what each day actually was. You get a written record without having kept one, a map
+  of everywhere you have been, and a globe that fills in as you go.
+</p>
+
+<h2>Three ways in</h2>
+<div class="ways">
+  <div class="way">
+    <h3>From your photographs</h3>
+    <p>Pick them off your phone, or bring them straight in from Google Photos without downloading
+    them first. The dates and places already inside them do the work.</p>
+  </div>
+  <div class="way">
+    <h3>From your inbox</h3>
+    <p>Forward a booking confirmation, or connect Gmail and let it find them. Flights, hotels and
+    trains become a trip.</p>
+  </div>
+  <div class="way">
+    <h3>From nothing at all</h3>
+    <p>Say where you are going and roughly when. It finds the flights, the nights and the things
+    worth doing, and leaves you the arguing.</p>
+  </div>
+</div>
+
+<h2>Why Google Photos</h2>
+<p>
+  A trip taken months ago lives in the cloud, not on the handset. Getting it into an app usually
+  means downloading every photograph to your phone and uploading it again — two full transfers of
+  something that begins and ends in a data centre. Pond Hopping asks Google's own picker instead:
+  you choose, and the photographs travel from Google to our server directly. Your phone sends a
+  list and nothing else.
+</p>
+<p>
+  We only ever see the photographs you pick. The permission we ask for cannot list your library.
+</p>
+
+<div class="plain">
+  <p><strong>About your data, plainly.</strong> Pond Hopping holds what you put into it and shows
+  it to you. There is no advertising, nothing is sold, and nothing is tracked across other apps.
+  Two things we say out loud because people would rightly mind: the app records which screens get
+  used so we can tell what is broken, and describing your photographs means sending them to an AI
+  service — which is how that feature works, and which you can simply not use.</p>
+  <p><a href="/privacy.html">The full privacy policy</a> · <a href="/delete-account.html">How to
+  delete your account</a></p>
+</div>
+
+<h2>Where it runs</h2>
+<p>
+  In any browser, and as an app on Android and iOS. It is free while it is being built.
+</p>
+
+<a class="cta" href="https://pond.eend.app">Open Pond Hopping</a>
+<a class="cta ghost" href="/privacy.html">Read the privacy policy</a>
+
+<footer>
+  Pond Hopping is made by eend.<br />
+  Questions, problems, or to have your data deleted:
+  <a href="mailto:hello@eend.app">hello@eend.app</a>
+</footer>
+
+</main>
+</body>
+</html>
