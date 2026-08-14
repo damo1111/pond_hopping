@@ -80,3 +80,22 @@ test('an ordinary deep link never touches the auth client', async () => {
   }
   assert.equal((await finishSignIn('https://pond.eend.app/trip/rome', { client })).kind, 'nothing')
 })
+
+test('Google’s own token is taken off the fragment too', () => {
+  // Supabase returns provider_token beside access_token whenever the sign-in
+  // asked for provider scopes, and setSession() knows nothing about it. Left
+  // on the floor, consenting to the Photos scope ended with the app signed
+  // in, the scope granted, and "401 not connected to Google yet" — said
+  // immediately after Google had said yes.
+  const said = whatCameBack(
+    'app.eend.pond://auth#access_token=a&refresh_token=r&provider_token=ya29.google'
+  )
+  assert.equal(said.kind, 'tokens')
+  assert.equal(said.provider, 'ya29.google')
+})
+
+test('and its absence is not an error — most sign-ins have no provider token', () => {
+  const said = whatCameBack('app.eend.pond://auth#access_token=a&refresh_token=r')
+  assert.equal(said.kind, 'tokens')
+  assert.equal(said.provider, null)
+})

@@ -7495,22 +7495,42 @@ button.album-open:disabled {
 .ph-sources .bring-in {
   width: 100%;
 }
+
+/* One shape, one typeface, one height.
+   These were a 14px display-type block with a 14px radius next to a 9px
+   mono-caps pill — the album card's link, which is what it used to be, wearing
+   the styling of somewhere else entirely. Beside each other they read as two
+   unrelated controls that happened to land on the same row.
+   They differ in one thing only now, which is fill: the phone is the filled
+   one because it is the commoner answer, not the better one. */
 .ph-sources .pu-pick,
 .ph-sources .album-open {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   width: 100%;
-  /* Same box, whichever side of the pair it is on. */
-  min-height: 44px;
-  padding: 11px 10px;
+  min-height: 46px;
+  padding: 12px 12px;
+  border-radius: 14px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: normal;
+  text-transform: none;
+  text-decoration: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* The Google side is the quieter of the two only because the other one is
-   filled; it is not a lesser option. */
+.ph-sources .pu-pick {
+  border: 1px solid transparent;
+}
 .ph-sources .album-open {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  align-self: auto;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
 }
 
 .pu-pick {

@@ -56,9 +56,21 @@ export function whatCameBack(url) {
     }
   }
 
+  // Google's own token rides along in the same fragment, and was being
+  // dropped on the floor.
+  //
+  // Supabase returns provider_token beside access_token whenever the sign-in
+  // asked for provider scopes — which is exactly what connecting Google
+  // Photos is. setSession() rebuilds a Supabase session from the two tokens
+  // below and knows nothing about this one, so consenting to the Photos
+  // scope on Android ended with the app signed in, the scope granted, and no
+  // Google token anywhere: "401 not connected to Google yet", said
+  // immediately after Google had said yes.
+  const provider = either('provider_token')
+
   const access = either('access_token')
   const refresh = either('refresh_token')
-  if (access && refresh) return { kind: 'tokens', access, refresh }
+  if (access && refresh) return { kind: 'tokens', access, refresh, provider }
 
   const code = either('code')
   if (code) return { kind: 'code', code }
@@ -90,6 +102,17 @@ export async function finishSignIn(url, { client } = {}) {
     } else {
       const { error } = await auth.exchangeCodeForSession(came.code)
       if (error) throw error
+    }
+    // Written down separately, because nothing else will keep it. Same stash
+    // the web flow uses, so freshToken() finds it by the route it already
+    // knows.
+    if (came.provider) {
+      try {
+        const { rememberGoogleToken } = await import('./google.js')
+        rememberGoogleToken({ provider_token: came.provider })
+      } catch {
+        /* no stash is a reconnect, not a failed sign-in */
+      }
     }
     return { kind: 'signed in' }
   } catch (e) {
