@@ -23,7 +23,29 @@
 // On the web the origin is right and stays — a preview deployment must come
 // back to itself, not to production.
 
-/** The one address Android has been told belongs to this app. */
+/**
+ * The address the wrappers come back to.
+ *
+ * A custom scheme, not the https App Link, and the difference is the whole
+ * bug. An App Link is honoured when Android *dispatches* a URL — a tapped
+ * link, a fresh load. The OAuth return is not that: Google redirects to
+ * Supabase, Supabase redirects to us, all inside one browser session that is
+ * already open. Chrome follows its own redirect chain and keeps the result,
+ * verified domain or not. So the session landed on the web site with the app
+ * still signed out — which is exactly what happened after the redirect was
+ * corrected to the App Link, on a build that had the correction in it.
+ *
+ * A custom scheme has no such rule. There is nothing to verify and no
+ * question of how the navigation started: the browser cannot render it, so
+ * it hands it to whatever registered it, every time.
+ *
+ * Registered in AndroidManifest.xml alongside the App Link intent-filter,
+ * which stays — it is still right for somebody tapping a pond.eend.app link
+ * in a message, which is a dispatch and does work.
+ */
+export const COME_BACK = 'app.eend.pond://auth'
+
+/** Still true, and still what an ordinary link to the site should do. */
 export const APP_LINK = 'https://pond.eend.app/'
 
 /**
@@ -33,7 +55,7 @@ export const APP_LINK = 'https://pond.eend.app/'
  * @param origin  The web origin to use when it is not native.
  */
 export function comeBackTo(native, origin) {
-  if (native) return APP_LINK
+  if (native) return COME_BACK
   // The trailing slash is load-bearing. Supabase matches redirectTo against
   // the allow-list with globs in which `.` and `/` are both separators, so
   // `https://host/**` cannot match a bare origin. Sent bare, the match fails

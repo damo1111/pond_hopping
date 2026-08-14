@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { APP_LINK, comeBackTo } from './comeBackTo.js'
+import { APP_LINK, COME_BACK, comeBackTo } from './comeBackTo.js'
 
 test('a native sign-in comes back to the App Link, not to the app’s own origin', () => {
   // This is the whole bug. Inside the Android wrapper the origin is
@@ -8,9 +8,9 @@ test('a native sign-in comes back to the App Link, not to the app’s own origin
   // Supabase's allow-list and is not a link Android can hand to anybody. Sent
   // that, Supabase falls back to the Site URL, so the session lands in Chrome
   // on the web site and the app stays signed out looking broken.
-  assert.equal(comeBackTo(true, 'https://localhost'), APP_LINK)
+  assert.equal(comeBackTo(true, 'https://localhost'), COME_BACK)
   // iOS serves them from a scheme that is not even http.
-  assert.equal(comeBackTo(true, 'capacitor://localhost'), APP_LINK)
+  assert.equal(comeBackTo(true, 'capacitor://localhost'), COME_BACK)
 })
 
 test('and the web comes back to itself, not to production', () => {
@@ -30,4 +30,13 @@ test('the trailing slash is always there, and never doubled', () => {
   assert.equal(comeBackTo(false, 'https://pond.eend.app/'), 'https://pond.eend.app/')
   assert.equal(comeBackTo(false, 'https://pond.eend.app///'), 'https://pond.eend.app/')
   assert.ok(APP_LINK.endsWith('/'))
+})
+
+test('and native comes back on a scheme a browser cannot keep', () => {
+  // The https App Link is not enough. Android honours one when it dispatches
+  // a URL; the OAuth return is a redirect chain inside a browser that is
+  // already open, and Chrome keeps those. A scheme it cannot render, it must
+  // hand on.
+  assert.ok(!COME_BACK.startsWith('http'))
+  assert.ok(COME_BACK.startsWith('app.eend.pond://'))
 })

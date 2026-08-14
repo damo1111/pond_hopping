@@ -47,6 +47,27 @@
                 <data android:scheme="https" android:host="pond.eend.app" />
             </intent-filter>
 
+            <!-- Where a sign-in comes back to.
+                 Not the App Link above, and the difference is the whole
+                 reason "continue with Google" kept ending on the web site.
+                 Android honours an App Link when it *dispatches* a URL — a
+                 tapped link, a fresh load. The OAuth return is not that:
+                 Google redirects to Supabase, Supabase redirects onward, all
+                 inside one browser session that is already open, and Chrome
+                 keeps the result of its own redirect chain however well
+                 verified the domain is.
+                 A scheme Chrome cannot render, it must hand on. No
+                 verification, no dependence on how the navigation began.
+                 The App Link filter above stays: it is still right for
+                 somebody tapping a pond.eend.app link in a message, which is
+                 a dispatch, and does work. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="app.eend.pond" android:host="auth" />
+            </intent-filter>
+
         </activity>
 
         <!-- Where a location fix lands when the app isn't running. Not
