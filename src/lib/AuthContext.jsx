@@ -3,7 +3,8 @@ import { supabase } from './supabase.js'
 import { rememberGoogleToken } from './google.js'
 import { registerPush } from './push.js'
 import { joinUpTheJourney } from './analytics.js'
-import { itIs, tokenIs, track } from './analytics.js'
+import { catchTheReturn } from './backFromTheBrowser.js'
+import { itIs, oops, tokenIs, track } from './analytics.js'
 
 export const AuthContext = createContext({
   session: null,
@@ -52,9 +53,24 @@ export function AuthProvider({ children }) {
       if (event === 'USER_UPDATED') track('account_updated')
       setSession(s)
     })
+    // On the wrapped builds, a sign-in that went out to the browser comes
+    // back as an App Link rather than a page load — so there is nobody to
+    // read the address bar, because nothing reloaded. Listening here rather
+    // than in a screen: the answer can arrive while any tab is open, or
+    // none. No-ops entirely on the web.
+    let stopListening = null
+    catchTheReturn((said) => {
+      if (said.kind === 'signed in') track('signed_in_from_browser')
+      else if (said.kind !== 'nothing') oops('back_from_browser', said.why)
+    }).then((stop) => {
+      if (alive) stopListening = stop
+      else stop?.()
+    })
+
     return () => {
       alive = false
       sub.subscription.unsubscribe()
+      stopListening?.()
     }
   }, [])
 

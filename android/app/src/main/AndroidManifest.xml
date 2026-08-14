@@ -22,6 +22,31 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Sign-in used to end in Chrome and stay there.
+
+                 The Android build is a window onto pond.eend.app, so tapping
+                 "continue with Google" leaves for accounts.google.com — which
+                 it has to, because Google refuses OAuth inside an embedded
+                 WebView. Google then redirects back to pond.eend.app, and
+                 with nothing here claiming that address Chrome simply kept
+                 it: the session landed in the browser and the app stayed
+                 signed out, looking broken.
+
+                 autoVerify sends Android to
+                 https://pond.eend.app/.well-known/assetlinks.json on install
+                 to check that the site agrees this app may handle its links.
+                 That file lists the *Play app signing* certificates, not the
+                 upload key — Play re-signs on the way out, so the upload
+                 key's fingerprint would fail the check silently. Both the
+                 classic and the post-quantum certificate are listed, because
+                 either may be the one that signed what the device has. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="pond.eend.app" />
+            </intent-filter>
+
         </activity>
 
         <!-- Where a location fix lands when the app isn't running. Not
