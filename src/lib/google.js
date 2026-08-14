@@ -1,6 +1,7 @@
 import { supabase } from './supabase.js'
 import { PHOTOS_SCOPE } from './googlePhotos.js'
 import { whereToComeBack } from './comeBackTo.js'
+import { openAway } from './awayTab.js'
 
 // Gmail read + Calendar write, granted in one Google consent screen.
 // read-only on mail (we never send/delete), events on calendar (create a
@@ -67,7 +68,20 @@ async function goToGoogle(options) {
   // indistinguishable from a button that does nothing, which is precisely the
   // symptom this whole feature has been chasing.
   if (!data?.url) return { data, error: new Error('Google returned no sign-in address') }
-  window.location.assign(data.url)
+
+  // In the wrappers, a sheet over the app rather than a departure from it.
+  //
+  // location.assign hands the whole thing to the system browser: the app
+  // goes to the background, consent happens in another application
+  // entirely, and coming home depends on a custom scheme, a registered
+  // intent-filter and somebody finding their way back. Every one of those
+  // has been a bug tonight.
+  //
+  // A Custom Tab is the same page over the top of the app, which never
+  // backgrounds and never freezes — so the listener that catches the return
+  // is awake to catch it, and the sheet is closed the moment it does.
+  // Returns false on the web, where assigning the location is exactly right.
+  if (!(await openAway(data.url))) window.location.assign(data.url)
   return { data, error: null }
 }
 

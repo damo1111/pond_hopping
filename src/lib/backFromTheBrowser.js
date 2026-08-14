@@ -144,7 +144,17 @@ export async function catchTheReturn(onResult = () => {}) {
     const { App } = await import('@capacitor/app')
     const handle = await App.addListener('appUrlOpen', async ({ url }) => {
       const said = await finishSignIn(url)
-      if (said.kind !== 'nothing') onResult(said)
+      if (said.kind === 'nothing') return
+      // The answer is in, so the sheet has done its job. Closed here rather
+      // than left for somebody to dismiss — the whole point of opening
+      // consent in a Custom Tab is that it can be put away again.
+      try {
+        const { closeAway } = await import('./awayTab.js')
+        await closeAway()
+      } catch {
+        /* nothing to close is the ordinary case on the web */
+      }
+      onResult(said)
     })
     return () => handle.remove()
   } catch {

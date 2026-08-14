@@ -1,6 +1,7 @@
-// Google's picker, opened somewhere we can close again.
+// Google, opened somewhere we can close again.
 //
-// The picker has to happen on Google's own page — the Picker API has no
+// Two legs of this happen on Google's own pages: the consent screen, and
+// the picker. The picker has to happen there — the Picker API has no
 // embeddable widget, and that is the point: we cannot list a library, so
 // somebody points at things themselves, in Google's window. One trip out is
 // inherent.
@@ -16,9 +17,14 @@
 // bringing the photographs in. Google accepts OAuth and the picker in one
 // because a Custom Tab is a real browser, not an embedded WebView.
 //
+// Consent is the same shape of problem. Sent out with location.assign it
+// leaves the app entirely, and coming back depends on a custom scheme, a
+// registered intent-filter and somebody finding their way home. In a Custom
+// Tab it is a sheet over the app, closed the moment the answer arrives.
+//
 // On the web none of this applies: there is a tab, somebody switches back to
-// it, and the wake-on-return in waitForPick notices. So all of this is a
-// no-op there, and the link the card renders stays the way in.
+// it, and the wake-on-return notices. So all of this is a no-op there, and
+// the link the card renders stays the way in.
 
 async function browser() {
   try {
@@ -39,7 +45,7 @@ async function browser() {
  * Returns whether it was opened, so the caller can tell "a sheet is up" from
  * "the link on the card is the only way through".
  */
-export async function openPicker(url, { get = browser } = {}) {
+export async function openAway(url, { get = browser } = {}) {
   const Browser = await get()
   if (!Browser || !url) return false
   try {
@@ -51,7 +57,7 @@ export async function openPicker(url, { get = browser } = {}) {
 }
 
 /** Put it away. Silent everywhere it does not apply, which is most places. */
-export async function closePicker({ get = browser } = {}) {
+export async function closeAway({ get = browser } = {}) {
   const Browser = await get()
   if (!Browser) return false
   try {

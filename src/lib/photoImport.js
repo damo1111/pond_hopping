@@ -1,6 +1,6 @@
 import { whatIsNew } from './alreadyHere.js'
 import { listPicked, openSession, pollDelay, readSession, worthImporting } from './googlePhotos.js'
-import { closePicker, openPicker } from './showPicker.js'
+import { closeAway, openAway } from './awayTab.js'
 
 // Picking photographs out of Google, deciding which ones are actually new,
 // and handing the rest to the queue.
@@ -423,8 +423,8 @@ export async function bringThemIn(
     open = openSession,
     tokens = googleTokens,
     rest = (ms) => new Promise((r) => setTimeout(r, ms)),
-    show = openPicker,
-    hide = closePicker,
+    show = openAway,
+    hide = closeAway,
   } = {}
 ) {
   // Whichever of the tokens we hold actually carries the Photos scope.
