@@ -154,6 +154,21 @@ export default async function handler(req, res) {
       subject: `${inviter} added you to Pond Hopping`,
       html: html({ inviter, invitee }),
       text: text({ inviter, invitee }),
+      // Which queue CloudMailin should put this in.
+      //
+      // Three exist: `priority` for things somebody is sat waiting on —
+      // sign-in codes, password resets — `digest` for anything not time
+      // sensitive, and `standard` for everything else. Their documentation
+      // is explicit that digests *must* be marked as such, because that is
+      // what lets the priority queue stay fast for the messages that need
+      // it, and equally explicit that priority is not for everything.
+      //
+      // An invitation is neither. Nobody is staring at a screen waiting for
+      // it, and it is not a digest — it is one person writing to one other.
+      // So: standard, said out loud rather than left to the default, because
+      // the next message this file sends may not be an invitation and the
+      // question should be asked each time.
+      headers: { 'x-cloudmta-class': 'standard', 'x-cloudmta-tags': 'invite' },
     })
 
     res.status(200).json({ ok: true, sent: invitee })
