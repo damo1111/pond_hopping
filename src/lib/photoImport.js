@@ -379,7 +379,18 @@ export async function bringThemIn(
   { onStep = () => {}, token, win = null, facts: askGoogle = tokenFacts, open = openSession } = {}
 ) {
   const key = token ?? (await freshToken())
-  if (!key) throw new Error('not connected to Google')
+  // No Google token at all — which is the ordinary case, not an error.
+  //
+  // Somebody who signed in with an emailed code has never been near Google,
+  // and this said "not connected to Google" and stopped, as though bringing
+  // photographs in were a privilege of having signed in one particular way.
+  // It is not. Connecting Google Photos is its own decision, and the app
+  // already knows how to ask for it — that is the whole consent path below.
+  //
+  // Shaped as a 401 so needsConsent() catches it and that path runs, rather
+  // than growing a second route to the same consent screen. The wording is
+  // still there for anybody reading a log.
+  if (!key) throw new Error('401 not connected to Google yet')
 
   // Look at the token before knocking.
   //

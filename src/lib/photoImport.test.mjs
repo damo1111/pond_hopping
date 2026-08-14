@@ -347,3 +347,11 @@ test('and while it is running it counts up rather than sitting on zero', () => {
   assert.equal(howItWent(asProgress({ total: 8, done: 3 })), 'Bringing them in — 3 of 8')
   assert.equal(howItWent(null), null)
 })
+
+test('signing in with a code is not a reason to be refused your photographs', () => {
+  // Somebody who signed in by email has never been near Google, so there is
+  // no token — and this said "not connected to Google" and stopped, as though
+  // bringing photographs in were a privilege of having signed in one
+  // particular way. Shaped as a 401 so the existing consent path picks it up.
+  assert.equal(needsConsent(new Error('401 not connected to Google yet')), true)
+})
