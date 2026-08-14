@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { whereToComeBack } from '../lib/comeBackTo.js'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
 import SheetGrip from './SheetGrip.jsx'
@@ -144,7 +145,12 @@ export default function AuthSheet({ onClose }) {
       // lands somewhere the reader may not be able to reach at all — a
       // preview deployment, or a network where the production domain is
       // blocked. It reads as the app being broken.
-      options: { redirectTo: `${window.location.origin}/` },
+      //
+      // And inside the wrappers the origin is not the site at all: the assets
+      // are bundled, so it is https://localhost. Sent that, Supabase fell
+      // back to the Site URL exactly as above and left the session in Chrome
+      // with the app still signed out. comeBackTo knows the difference.
+      options: { redirectTo: await whereToComeBack() },
     })
     // On success the page has already gone. Only a refusal gets this far.
     if (no) {

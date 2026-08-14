@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js'
 import { PHOTOS_SCOPE } from './googlePhotos.js'
+import { whereToComeBack } from './comeBackTo.js'
 
 // Gmail read + Calendar write, granted in one Google consent screen.
 // read-only on mail (we never send/delete), events on calendar (create a
@@ -14,7 +15,10 @@ const SCOPES = ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.g
 // returns you to the project's Site URL instead — which reads as the app
 // being broken rather than as a redirect being refused. Fixed in the sign-in
 // sheet days ago; this copy was missed.
-const backHere = () => `${window.location.origin}/`
+// Inside the wrappers the origin is https://localhost — the bundled assets'
+// own address, which Supabase has never heard of and Android cannot hand to
+// anybody. comeBackTo returns the App Link there instead.
+const backHere = () => whereToComeBack()
 
 /**
  * Where the last authorize URL is written down.
@@ -70,7 +74,7 @@ async function goToGoogle(options) {
 export async function connectGoogle() {
   return goToGoogle({
     scopes: SCOPES,
-    redirectTo: backHere(),
+    redirectTo: await backHere(),
     // offline + consent so we actually get a refresh token back, needed
     // later for keeping the calendar in sync after the first session.
     queryParams: { access_type: 'offline', prompt: 'consent' },
@@ -93,7 +97,7 @@ export async function connectGoogle() {
 export async function connectGooglePhotos() {
   return goToGoogle({
     scopes: PHOTOS_SCOPE,
-    redirectTo: backHere(),
+    redirectTo: await backHere(),
     // Offline here too: a thousand photographs takes longer to bring in
     // than an access token lives, so the import has to be able to carry on
     // after the first hour rather than stopping half way.
