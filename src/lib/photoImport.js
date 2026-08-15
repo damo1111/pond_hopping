@@ -640,3 +640,30 @@ export function comingBackTo(store = globalThis.localStorage, now = Date.now, wi
     return null
   }
 }
+
+/**
+ * Do we already hold a token that carries the Photos scope?
+ *
+ * Asked so the card can be in the right state before anybody taps anything.
+ *
+ * The flow was two taps, every single time: "Google Photos" opened a picker
+ * session and turned itself into a link, and then that link had to be tapped
+ * as well. The second tap is not decoration — a picker address can only be
+ * *followed* by a gesture, so it has to be a real link rather than something
+ * opened after an await. But nothing said the first tap had to be the thing
+ * that created the session. Consent, once given, is remembered by Google;
+ * only this app kept re-asking the question from scratch.
+ *
+ * So the session is made in advance where the scope is already held, the
+ * button is a link on arrival, and one tap goes straight to Google.
+ */
+export async function alreadyConnected({ tokens = googleTokens, facts = tokenFacts } = {}) {
+  const found = await tokens()
+  for (const candidate of found) {
+    const said = await facts(candidate)
+    // Same rule as the import itself: a token Google will not describe is
+    // still worth holding on to. Being unable to ask is not a refusal.
+    if (!said || said.scopes.includes(PHOTOS)) return candidate
+  }
+  return null
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  alreadyConnected,
   asProgress,
   bringThemIn,
   cameFromConsent,
@@ -13,6 +14,7 @@ import {
   takeIntent,
 } from '../lib/photoImport.js'
 import { connectGooglePhotos, whatWeAsked } from '../lib/google.js'
+import { openSession } from '../lib/googlePhotos.js'
 import { track } from '../lib/analytics.js'
 
 // The door, on the card that already admits the problem.
@@ -68,6 +70,9 @@ export default function BringThemIn({ trip, onDone }) {
   const [slow, setSlow] = useState(null)
   // Films picked but left behind, so the count is never a silent loss.
   const [films, setFilms] = useState(0)
+  // null while we are still finding out; true/false once we know whether
+  // Google has already been said yes to on this device.
+  const [connected, setConnected] = useState(null)
   // Every failure carries the build that produced it. See BUILD above.
   const fail = useCallback((msg) => setError(`${msg} · build ${BUILD}`), [])
   const [importId, setImportId] = useState(null)
@@ -320,6 +325,42 @@ export default function BringThemIn({ trip, onDone }) {
     go(true)
   }, [trip.id, go])
 
+  // Get the picker ready before anybody asks for it.
+  //
+  // The flow was two taps every single time — "Google Photos", then "Choose
+  // photographs" — and the second one is not decoration: a picker address can
+  // only be *followed* by a gesture, so it has to be a real link rather than
+  // something opened after an await. But nothing said the first tap had to be
+  // what created the session. Google remembers the consent; only this app
+  // kept asking the question again from nothing.
+  //
+  // So where the scope is already held, the session is opened quietly on
+  // arrival and the button is a link before it is touched. One tap, straight
+  // to Google, every time after the first.
+  useEffect(() => {
+    let dropped = false
+    ;(async () => {
+      try {
+        const key = await alreadyConnected()
+        if (dropped) return
+        setConnected(Boolean(key))
+        if (!key) return
+        const session = await openSession(key)
+        if (dropped || !session?.pickerUri) return
+        setPickerUri(session.pickerUri)
+      } catch {
+        // Not knowing is not a failure. The button falls back to the two-tap
+        // path, which is exactly what it did before any of this.
+        if (!dropped) setConnected((was) => (was === null ? false : was))
+      }
+    })()
+    return () => {
+      dropped = true
+    }
+    // Once per card. Re-running on every progress tick would open a picker
+    // session per second, which Google would rightly object to.
+  }, [trip.id])
+
   useEffect(() => {
     tryResume()
     const onBack = () => tryResume()
@@ -350,12 +391,22 @@ export default function BringThemIn({ trip, onDone }) {
           rel="noreferrer"
           onClick={() => track('photos_picker_opened')}
         >
-          Choose photographs →
+          Choose Google Photos →
         </a>
       ) : (
         /* Not onClick={go}. A tap is a tap, and saying so is the entire fix. */
         <button className="album-open" onClick={() => go(false)} disabled={busy}>
-          {step ? `${step}…` : justBack ? 'Opening Google…' : 'Google Photos'}
+          {step
+            ? `${step}…`
+            : justBack
+              ? 'Opening Google…'
+              : /* Said differently depending on what it will actually do,
+                   because "Google Photos" described the source rather than
+                   the action and was the same words for connecting and for
+                   choosing. */
+                connected === false
+                ? 'Connect Google Photos'
+                : 'Choose Google Photos'}
         </button>
       )}
 

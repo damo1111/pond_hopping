@@ -4,6 +4,7 @@ import {
   withDeadline,
   asProgress,
   bringThemIn,
+  alreadyConnected,
   comingBackTo,
   cameFromConsent,
   freshToken,
@@ -561,4 +562,35 @@ test('and a stale intent from yesterday routes nobody anywhere', () => {
   assert.equal(comingBackTo({ getItem: () => old }), null)
   assert.equal(comingBackTo({ getItem: () => null }), null)
   assert.equal(comingBackTo({ getItem: () => 'not json' }), null)
+})
+
+test('a token that already carries the scope means no second consent', () => {
+  // The card can then be a link on arrival rather than a button that has to
+  // be tapped to become one — which is the duplicate tap, every time.
+  return alreadyConnected({
+    tokens: async () => ['sign-in-only', 'the-photos-one'],
+    facts: async (t) =>
+      t === 'the-photos-one'
+        ? { scopes: ['https://www.googleapis.com/auth/photospicker.mediaitems.readonly'], clientId: 'x' }
+        : { scopes: ['email'], clientId: 'x' },
+  }).then((got) => assert.equal(got, 'the-photos-one'))
+})
+
+test('and no such token means the card must ask first', async () => {
+  assert.equal(await alreadyConnected({ tokens: async () => [], facts: async () => null }), null)
+  assert.equal(
+    await alreadyConnected({
+      tokens: async () => ['inbox-only'],
+      facts: async () => ({ scopes: ['https://www.googleapis.com/auth/gmail.readonly'], clientId: 'x' }),
+    }),
+    null,
+  )
+})
+
+test('a token Google will not describe is still treated as usable', async () => {
+  // Being unable to ask is not a refusal — the same rule the import follows.
+  assert.equal(
+    await alreadyConnected({ tokens: async () => ['mystery'], facts: async () => null }),
+    'mystery',
+  )
 })
