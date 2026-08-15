@@ -84,3 +84,60 @@ export function drift(planned, actual, slack = 5) {
     ? { minutes: mins, word: 'late', late: true }
     : { minutes: -mins, word: 'early', late: false }
 }
+
+/**
+ * Where the flight is, right now.
+ *
+ * The card only ever spoke in the past tense — "landed twelve minutes early"
+ * — which is the least useful thing it can say to somebody sitting at a gate
+ * with the flight in three hours, or in seat 34K with four hours to go.
+ *
+ * Five states, and each one has a different sentence worth reading:
+ *
+ *   later     more than a day out. A date, not a countdown.
+ *   soon      inside a day. Hours, then minutes, then the gate.
+ *   boarding  the last hour before departure. Gate is the whole message.
+ *   airborne  in the air. How much is left, and how far along the line.
+ *   landed    down, within the day. How it went.
+ *   past      history. How it went, quietly.
+ */
+export function flightPhase(flight = {}, now = Date.now()) {
+  const dep = Date.parse(flight.actual_dep_time || flight.dep_time || '')
+  const arr = Date.parse(flight.actual_arr_time || flight.arr_time || '')
+  if (Number.isNaN(dep)) return { phase: 'later', at: null }
+
+  const hour = 3600000
+  if (now < dep - hour) {
+    const mins = Math.round((dep - now) / 60000)
+    return { phase: mins > 1440 ? 'later' : 'soon', until: mins }
+  }
+  if (now < dep) return { phase: 'boarding', until: Math.round((dep - now) / 60000) }
+  if (!Number.isNaN(arr) && now < arr) {
+    const left = Math.round((arr - now) / 60000)
+    const whole = (arr - dep) / 60000
+    return {
+      phase: 'airborne',
+      left,
+      // How far along the line, for the line to show it. Clamped, because a
+      // schedule that slipped should not draw a plane past its destination.
+      part: whole > 0 ? Math.min(1, Math.max(0, 1 - left / whole)) : 0,
+    }
+  }
+  if (!Number.isNaN(arr) && now < arr + 12 * hour) return { phase: 'landed' }
+  return { phase: 'past' }
+}
+
+/** The one line the current state deserves. Null where the retrospective
+ *  line already says it better. */
+export function saysNow(flight = {}, now = Date.now()) {
+  const at = flightPhase(flight, now)
+  if (at.phase === 'soon') {
+    const h = Math.floor(at.until / 60)
+    return h >= 1 ? `In ${h}h ${String(at.until % 60).padStart(2, '0')}m` : `In ${at.until}m`
+  }
+  if (at.phase === 'boarding') {
+    return at.until > 0 ? `Departs in ${at.until}m` : 'Departing'
+  }
+  if (at.phase === 'airborne') return `${saidAs(at.left)} to go`
+  return null
+}

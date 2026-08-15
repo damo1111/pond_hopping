@@ -7,7 +7,7 @@ import Icon from './Icon.jsx'
 import RouteMap from './RouteMap.jsx'
 import { localTime, localDate } from '../lib/airportTz.js'
 import { nameFor, usePeopleNames } from '../lib/people.js'
-import { dayShift, howItWent, saidAs, spanMinutes } from '../lib/flightSpan.js'
+import { dayShift, flightPhase, howItWent, saidAs, saysNow, spanMinutes } from '../lib/flightSpan.js'
 import { photosOnLeg } from '../lib/photosOnLeg.js'
 
 export default function FlightCard({ flight, aircraftType, photos = [], onOpen }) {
@@ -49,6 +49,12 @@ export default function FlightCard({ flight, aircraftType, photos = [], onOpen }
   const mins = spanMinutes(f.dep_time, f.arr_time)
   const shift = dayShift(localDate(f.dep_time, f.dep_airport), localDate(f.arr_time, f.arr_airport))
   const went = howItWent(f)
+  // Where it is now, rather than only how it went. A card at a gate and a
+  // card in seat 34K want different sentences, and this one only ever had
+  // the past tense.
+  const phase = flightPhase(f)
+  const now = saysNow(f)
+  const flying = phase.phase === 'airborne'
   // Terminal and gate have been stored by the enrichment and shown nowhere.
   // They are the two things somebody standing in a concourse actually wants.
   // Everything taken between wheels-up and wheels-down was taken on this
@@ -99,8 +105,14 @@ export default function FlightCard({ flight, aircraftType, photos = [], onOpen }
 
             <span className="fh-mid">
               {mins ? <span className="fh-dur">{saidAs(mins)}</span> : null}
-              <span className="fh-line" aria-hidden="true">
-                <i className="fh-line-plane" />
+              {/* In the air, the line fills and the mark rides it. On the
+                  ground it is the plain rule it always was. */}
+              <span className={`fh-line${flying ? ' flying' : ''}`} aria-hidden="true">
+                {flying && <i className="fh-line-flown" style={{ width: `${Math.round(phase.part * 100)}%` }} />}
+                <i
+                  className="fh-line-plane"
+                  style={flying ? { right: 'auto', left: `${Math.round(phase.part * 100)}%` } : undefined}
+                />
               </span>
               <FlapText className="fh-flightno" text={f.flight_number} groupDelay={420} />
             </span>
@@ -127,7 +139,11 @@ export default function FlightCard({ flight, aircraftType, photos = [], onOpen }
               actual_arr_time has been stored for months and shown nowhere,
               and "landed twelve minutes early" is the single line people
               open a flight tracker for. */}
-          {went && (
+          {/* The present tense wins where there is one: nobody in the air
+              wants to be told how the departure went. */}
+          {now && <span className={`fh-now${flying ? ' flying' : ''}`}>{now}</span>}
+
+          {!now && went && (
             <span className={`fh-went${went.late ? ' late' : ''}`}>
               {went.minutes
                 ? `${went.when} ${went.minutes} min ${went.word}`

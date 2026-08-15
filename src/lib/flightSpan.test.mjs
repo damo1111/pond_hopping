@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { dayShift, drift, howItWent, saidAs, spanMinutes } from './flightSpan.js'
+import { dayShift, drift, flightPhase, howItWent, saidAs, saysNow, spanMinutes } from './flightSpan.js'
 
 test('a flight is a span, and the span is in the data already', () => {
   assert.equal(spanMinutes('2026-05-21T22:05:00Z', '2026-05-22T09:30:00Z'), 685)
@@ -68,4 +68,44 @@ test('an unflown flight says nothing at all', () => {
   assert.equal(howItWent({ arr_time: '2026-05-22T09:30:00Z' }), null)
   assert.equal(howItWent({}), null)
   assert.equal(drift(null, null), null)
+})
+
+const AT = (iso) => Date.parse(iso)
+const trip = { dep_time: '2026-05-21T22:00:00Z', arr_time: '2026-05-22T09:00:00Z' }
+
+test('the card had one tense, and it was the past', () => {
+  // "Landed twelve minutes early" is the least useful thing it can say to
+  // somebody at a gate with the flight in three hours.
+  assert.equal(flightPhase(trip, AT('2026-05-19T10:00:00Z')).phase, 'later')
+  assert.equal(flightPhase(trip, AT('2026-05-21T14:00:00Z')).phase, 'soon')
+  assert.equal(flightPhase(trip, AT('2026-05-21T21:30:00Z')).phase, 'boarding')
+  assert.equal(flightPhase(trip, AT('2026-05-22T03:00:00Z')).phase, 'airborne')
+  assert.equal(flightPhase(trip, AT('2026-05-22T11:00:00Z')).phase, 'landed')
+  assert.equal(flightPhase(trip, AT('2026-05-25T11:00:00Z')).phase, 'past')
+})
+
+test('in the air, it says how much is left and how far along', () => {
+  const at = flightPhase(trip, AT('2026-05-22T03:30:00Z'))
+  assert.equal(at.left, 330)
+  // Five and a half hours into eleven.
+  assert.ok(Math.abs(at.part - 0.5) < 0.01)
+  assert.equal(saysNow(trip, AT('2026-05-22T03:30:00Z')), '5h 30m to go')
+})
+
+test('and never draws the plane past its destination', () => {
+  // A schedule that slipped should not put it beyond the far end of the line.
+  const late = { dep_time: '2026-05-21T22:00:00Z', arr_time: '2026-05-22T09:00:00Z', actual_dep_time: '2026-05-21T22:00:00Z' }
+  const at = flightPhase(late, AT('2026-05-22T08:59:00Z'))
+  assert.ok(at.part <= 1)
+})
+
+test('the phase follows what happened, not what was printed', () => {
+  // Pushed back an hour late: at 22:30 it is still boarding, not airborne.
+  const late = { ...trip, actual_dep_time: '2026-05-21T23:00:00Z' }
+  assert.equal(flightPhase(late, AT('2026-05-21T22:30:00Z')).phase, 'boarding')
+})
+
+test('a flight with no times says nothing rather than guessing', () => {
+  assert.equal(flightPhase({}).phase, 'later')
+  assert.equal(saysNow({}), null)
 })
