@@ -12894,3 +12894,30 @@ button.ios-sheet-grip:active { cursor: grabbing; }
    gesture that begins choosing. */
 .photo-grid--picking .photo-cell,
 .photo-cell { -webkit-touch-callout: none; }
+
+/* "Did you mean" — a question, not a correction. Somebody on a domain that
+   merely looks like a typo says no by carrying on. */
+.auth-meant {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.auth-meant-q { flex: 0 0 auto; }
+
+.auth-meant-yes {
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--accent);
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.auth-meant-no { flex: 1 1 100%; font-size: 12px; opacity: 0.85; }

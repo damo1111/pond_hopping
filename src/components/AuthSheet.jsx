@@ -6,6 +6,7 @@ import SheetGrip from './SheetGrip.jsx'
 import { track } from '../lib/analytics.js'
 import { remember, waiting, forget, resendIn } from '../lib/pendingCode.js'
 import { offerIn, rememberWayIn } from '../lib/waysIn.js'
+import { checkAddress } from '../lib/address.js'
 import SayWhatBroke from './SayWhatBroke.jsx'
 
 /** Which build this is. Stamped on every event and error for days, and
@@ -76,6 +77,8 @@ function WayMark({ id }) {
 // them in to an account they had no idea they could make.
 export default function AuthSheet({ onClose, onAccount }) {
   const [saying, setSaying] = useState(false)
+  // A correction we have suggested and not yet had an answer to.
+  const [offered, setOffered] = useState(null)
   const { user, profile, refreshProfile } = useAuth()
   // Both of these open on whatever was outstanding when the sheet last
   // closed. Reading it once at mount rather than watching it: the code step
@@ -196,6 +199,28 @@ export default function AuthSheet({ onClose, onAccount }) {
     e.preventDefault()
     setError(null)
     const address = email.trim()
+
+    // Nothing malformed leaves this screen.
+    //
+    // It used to go straight to signInWithOtp with only a trim(). Type
+    // gmial.com and everything works: Supabase accepts it, CloudMailin
+    // attempts delivery, and somebody waits on six empty boxes for mail that
+    // cannot arrive. It also spends sender reputation — bounces are what
+    // providers measure — on the one email this app cannot do without.
+    const said = checkAddress(address)
+    if (!said.ok) {
+      track('sign_in_address_refused')
+      setError(said.why)
+      return
+    }
+    // A likely slip is offered, never imposed. Somebody who meant it says so
+    // by pressing again, and the second press sends exactly what they typed.
+    if (said.meant && said.meant !== offered) {
+      track('sign_in_address_queried', { to: said.meant.split('@')[1] })
+      setOffered(said.meant)
+      return
+    }
+    setOffered(null)
 
     // Move to the code step now, ask Google's neighbour afterwards.
     //
@@ -492,10 +517,41 @@ export default function AuthSheet({ onClose, onAccount }) {
               required
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                // Typing again withdraws the question rather than leaving a
+                // suggestion hanging under an address it no longer refers to.
+                if (offered) setOffered(null)
+                if (error) setError(null)
+              }}
             />
+
+            {/* Offered, never imposed.
+                Pressing the button again sends exactly what was typed — the
+                suggestion is a question, and somebody on a domain that only
+                looks like a typo has to be able to say no by simply
+                carrying on. */}
+            {offered && (
+              <div className="auth-meant">
+                <span className="auth-meant-q">Did you mean</span>
+                <button
+                  type="button"
+                  className="auth-meant-yes"
+                  onClick={() => {
+                    setEmail(offered)
+                    setOffered(null)
+                  }}
+                >
+                  {offered}
+                </button>
+                <span className="auth-meant-no">
+                  — or press again to use {email.trim()}.
+                </span>
+              </div>
+            )}
+
             <button className="ios-sheet-done" type="submit" disabled={busy || !email.trim()}>
-              {busy ? 'Sending…' : 'Email me a code'}
+              {busy ? 'Sending…' : offered ? 'Send it anyway' : 'Email me a code'}
             </button>
             {error && <div className="account-error">{error}</div>}
           </form>
