@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { planLane, countdown, daysUntil, readiness, isBooked } from './planLane.js'
+import { countdown, daysUntil, emptyDays, isBooked, nightsCovered, nightsOf, planLane, readiness } from './planLane.js'
 
 const TODAY = new Date('2026-08-06T09:00:00')
 
@@ -117,4 +117,46 @@ test('each row carries its own events, not everyone else’s', () => {
   assert.equal(byTitle.A.readiness.find((m) => m.key === 'flights').have, 1)
   assert.equal(byTitle.B.readiness.find((m) => m.key === 'doing').have, 2)
   assert.equal(byTitle.B.readiness.find((m) => m.key === 'flights').have, 0)
+})
+
+test('a night is either slept in or it is not', () => {
+  // "2 beds" on a seven-night trip could be nearly finished or barely
+  // started. Two hotels can also overlap, or leave a hole in the middle,
+  // which is the case a count of bookings cannot see and the one worth
+  // catching.
+  const trip = { start_date: '2026-10-09', end_date: '2026-10-16' }
+  assert.equal(nightsOf(trip), 7)
+  const hotels = [
+    { kind: 'hotel', event_date: '2026-10-09', end_date: '2026-10-12' },
+    { kind: 'hotel', event_date: '2026-10-14', end_date: '2026-10-16' },
+  ]
+  // Three nights, then a two-night hole, then two nights.
+  assert.equal(nightsCovered(hotels, trip), 5)
+})
+
+test('overlapping bookings are not double-counted', () => {
+  const trip = { start_date: '2026-10-09', end_date: '2026-10-12' }
+  const hotels = [
+    { kind: 'hotel', event_date: '2026-10-09', end_date: '2026-10-11' },
+    { kind: 'hotel', event_date: '2026-10-10', end_date: '2026-10-12' },
+  ]
+  assert.equal(nightsCovered(hotels, trip), 3)
+})
+
+test('a hotel with no end date claims one night, never the whole trip', () => {
+  const trip = { start_date: '2026-10-09', end_date: '2026-10-16' }
+  assert.equal(nightsCovered([{ kind: 'hotel', event_date: '2026-10-09' }], trip), 1)
+})
+
+test('an empty day is named, not counted', () => {
+  // "Saturday and Sunday" is a thing somebody acts on. "2 empty days" is not.
+  const trip = { start_date: '2026-10-09', end_date: '2026-10-11' }
+  const events = [{ kind: 'activity', event_date: '2026-10-10' }]
+  assert.deepEqual(emptyDays(events, trip), ['2026-10-09', '2026-10-11'])
+})
+
+test('and a trip with no dates claims nothing rather than guessing', () => {
+  assert.equal(nightsOf({}), 0)
+  assert.equal(nightsCovered([{ event_date: '2026-10-09' }], {}), 0)
+  assert.deepEqual(emptyDays([], {}), [])
 })

@@ -13,12 +13,48 @@ function Meters({ readiness }) {
   return (
     <div className="pc-meters">
       {readiness.map((m) => (
-        <span className={`pc-meter${m.have ? ' on' : ''}`} key={m.key}>
-          <strong>{m.have}</strong> {m.label}
+        <span className={`pc-meter${m.have ? ' on' : ''}${m.short ? ' short' : ''}`} key={m.key}>
+          <strong>{m.of ? `${m.have}/${m.of}` : m.have}</strong> {m.label}
         </span>
       ))}
     </div>
   )
+}
+
+/**
+ * What is still missing, said as a sentence.
+ *
+ * The counters above say what exists. This says what does not, which is the
+ * only question a planning card is actually asked — and it is the line the
+ * concierge would open with, so it doubles as the reason to tap.
+ *
+ * Nothing invented: nights come from the trip's own dates, an unslept night
+ * is one no hotel covers, an empty day is one with no event on it. Returns
+ * null when there is genuinely nothing to say, because a card that
+ * manufactures a worry is worse than a quiet one.
+ */
+function stillMissing({ unbooked = 0, empty = [], readiness = [] }) {
+  const bits = []
+  if (unbooked > 0) {
+    bits.push(`${unbooked} night${unbooked === 1 ? '' : 's'} with nowhere to sleep`)
+  }
+  if (empty.length) {
+    const names = empty
+      .slice(0, 2)
+      .map((iso) => new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'long' }))
+    const more = empty.length - names.length
+    bits.push(
+      `${names.join(' and ')}${more > 0 ? ` and ${more} more` : ''} still empty`
+    )
+  }
+  if (!bits.length) {
+    const flights = readiness.find((m) => m.key === 'flights')
+    if (flights && !flights.have) bits.push('no way of getting there yet')
+  }
+  if (!bits.length) return null
+  // Sentence case, one line, no full stop — it sits under a title, not in a
+  // paragraph.
+  return bits.join(' · ')
 }
 
 export default function PlanCard({ row, cover, whose, index = 0, onOpen }) {
@@ -28,6 +64,7 @@ export default function PlanCard({ row, cover, whose, index = 0, onOpen }) {
   // demo trip read as somebody's actual upcoming holiday — with a countdown
   // on it, which is the most convincing thing a card can have.
   const example = kind === 'trip' && shouldBadge(trip)
+  const missing = kind === 'trip' ? stillMissing(row) : null
 
   return (
     <button
@@ -65,6 +102,9 @@ export default function PlanCard({ row, cover, whose, index = 0, onOpen }) {
         {whose && <span className="pc-whose">{whose}</span>}
         {kind === 'wish' && wish.notes && <span className="pc-note">{wish.notes}</span>}
         {kind === 'trip' && <Meters readiness={row.readiness} />}
+        {/* The card grows only when it has this to say. A trip with nothing
+            missing stays exactly as short as it was. */}
+        {kind === 'trip' && missing && <span className="pc-missing">{missing}</span>}
       </span>
 
       {example && <span className="pc-sash">Example</span>}

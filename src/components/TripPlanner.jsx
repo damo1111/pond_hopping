@@ -26,6 +26,8 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
   // the counts, what's unsorted, the map — where Itinerary is where you go
   // once you already know.
   const [tab, setTab] = useState('overview')
+  // Half a screen until somebody asks for more. See the sheet below.
+  const [tall, setTall] = useState(false)
   const [cover, setCover] = useState(null)
   const [activeDay, setActiveDay] = useState(null)
   const [scrollSignal, setScrollSignal] = useState(null)
@@ -88,12 +90,38 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
   // shell's fade plays once on arrival and the contents get their own
   // entrance a moment later, instead of the whole planner snapping into
   // existence half-built the way it used to.
-  if (!trip) return <div className="tp-modal"><div className="tp-loading">loading trip…</div></div>
+  if (!trip) {
+    return (
+      <div className="tp-veil">
+        <div className="tp-modal"><div className="tp-loading">loading trip…</div></div>
+      </div>
+    )
+  }
 
   const showDaySwitch = tab === 'itinerary' || tab === 'overview'
 
   return (
-    <div className={`tp-modal tp-modal--ready${cover && tab === 'overview' ? ' tp-modal--hero' : ''}`}>
+    /* Half a screen, not all of it.
+       This opened at inset: 0 — a full-screen takeover for a trip you were
+       glancing at from a lane. Sitting at half height it is a sheet over the
+       plan you came from, which stays visible behind it, and it grows to full
+       only when you ask: the grip is the ask, and height is earned rather
+       than assumed. */
+    <div className="tp-veil" onClick={onClose}>
+      <div
+        className={`tp-modal tp-modal--ready${cover && tab === 'overview' ? ' tp-modal--hero' : ''}${
+          tall ? ' tp-modal--tall' : ''
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          className="tp-grip"
+          onClick={() => setTall((v) => !v)}
+          aria-expanded={tall}
+          aria-label={tall ? 'Make this smaller' : 'Show the whole trip'}
+        >
+          <span className="tp-grip-bar" />
+        </button>
       {/* The trip photo, painted behind everything and masked so it fades out
           before it reaches the back button and title, and again into the page
           below. Sitting behind the chrome rather than under it is what stops
@@ -237,6 +265,7 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
           onChanged={refreshAfterAI}
         />
       )}
+      </div>
     </div>
   )
 }

@@ -5200,10 +5200,32 @@ button.album-open:disabled {
 
 /* ════ Trip planner (full-screen: Overview / Itinerary / Explore) ════ */
 
-.tp-modal {
+/* The plan stays visible behind it. A trip you were glancing at from a lane
+   should not take the whole screen away — and the lane underneath is the
+   thing you came from and will go back to. */
+.tp-veil {
   position: fixed;
   inset: 0;
   z-index: 100000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(20, 18, 14, 0.28);
+  animation: tp-shell-in 200ms ease-out;
+}
+
+.tp-modal {
+  position: relative;
+  width: 100%;
+  max-width: 560px;
+  /* Half a screen. It opened at inset:0 — a full-screen takeover — and grows
+     to nearly full only when the grip is pressed, so height is asked for
+     rather than assumed. */
+  height: 58dvh;
+  border-radius: 22px 22px 0 0;
+  overflow: hidden;
+  transition: height 260ms cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 1;
   background: var(--bg);
   display: flex;
   flex-direction: column;
@@ -5212,7 +5234,33 @@ button.album-open:disabled {
      cut, in the middle of a sequence that had been nothing but motion. The
      shell fades on quickly (it's only paper; there is nothing to admire),
      and the trip itself lifts in below once the read lands. */
-  animation: tp-shell-in 200ms ease-out;
+  animation: tp-sheet-in 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.tp-modal--tall { height: 94dvh; }
+
+/* The ask. A real control rather than a decorative pill: this one changes
+   the height, and says which way in its label. */
+.tp-grip {
+  flex: none;
+  border: 0;
+  background: transparent;
+  padding: 9px 0 5px;
+  cursor: pointer;
+  z-index: 3;
+}
+.tp-grip-bar {
+  display: block;
+  width: 38px;
+  height: 4px;
+  border-radius: 2px;
+  margin: 0 auto;
+  background: var(--surface-2);
+}
+
+@keyframes tp-sheet-in {
+  from { transform: translateY(14px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
 }
 
 @keyframes tp-shell-in {
@@ -12265,3 +12313,20 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 @media (prefers-reduced-motion: reduce) {
   .boot.leaving.boot--carrying .boot-card { animation-duration: 1ms; }
 }
+
+/* What is still missing, under the counters.
+   The counters say what exists; this says what does not, which is the only
+   question a planning card is actually asked. It is also the line the
+   concierge would open with, so it doubles as the reason to tap. */
+.pc-missing {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+/* A meter that is short of its own denominator. Not alarm — a planning card
+   that shouted would be exhausting eight weeks out — just enough that the
+   eye finds it before the ones that are done. */
+.pc-meter.short strong { color: var(--accent); }

@@ -48,16 +48,89 @@ export function countdown(trip, today = new Date()) {
 // A trip is "booked" once the things that cost money exist. Not a fraction of
 // items ticked off — you can plan twenty restaurants and still have no way of
 // getting there.
-export function readiness(events = []) {
+//
+// This used to return inventory: 2 flights, 2 beds, 18 to do. Three counts
+// with no denominator, on the one card in the app whose whole job is what
+// still needs doing. "2 beds" on a seven-night trip could be nearly finished
+// or barely started and the card gave no way to tell, so it read as a row of
+// numbers rather than as a state of affairs.
+//
+// Every denominator here is already known. The nights come from the trip's
+// own dates, hotels carry a date range, and a day with nothing on it is a day
+// with no event. Same data, turned round to say what is missing.
+export function readiness(events = [], trip = null) {
   const of = (kind) => events.filter((e) => e.kind === kind)
   const flights = of('flight')
-  const beds = of('hotel')
   const doing = events.filter((e) => e.kind === 'activity' || e.kind === 'place')
+  const nights = nightsOf(trip)
+  const covered = nightsCovered(of('hotel'), trip)
+
   return [
     { key: 'flights', label: 'flights', have: flights.length },
-    { key: 'beds', label: 'beds', have: beds.length },
+    // "5 of 7 nights" rather than "2 beds": a bed is a booking, a night is
+    // the thing that either has one or does not.
+    nights
+      ? { key: 'beds', label: `of ${nights} nights`, have: covered, of: nights, short: nights - covered }
+      : { key: 'beds', label: 'beds', have: of('hotel').length },
     { key: 'doing', label: 'to do', have: doing.length },
   ]
+}
+
+/** How many nights the trip is, from its own dates. Nights, not days: six
+ *  nights is what a hotel is booked for across a seven-day trip. */
+export function nightsOf(trip) {
+  const from = trip?.start_date
+  const to = trip?.end_date
+  if (!from || !to) return 0
+  const a = new Date(`${String(from).slice(0, 10)}T00:00:00`)
+  const b = new Date(`${String(to).slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return 0
+  return Math.max(0, Math.round((b - a) / day))
+}
+
+/** Nights with a bed under them, counted rather than assumed.
+ *
+ *  A hotel runs from event_date to end_date, and two of them can overlap or
+ *  leave a hole in the middle — which is exactly the case worth catching, and
+ *  the one a count of bookings cannot see. */
+export function nightsCovered(hotels = [], trip = null) {
+  const nights = nightsOf(trip)
+  if (!nights) return 0
+  const start = new Date(`${String(trip.start_date).slice(0, 10)}T00:00:00`)
+  const slept = new Set()
+  for (const h of hotels) {
+    const from = h?.event_date
+    if (!from) continue
+    const a = new Date(`${String(from).slice(0, 10)}T00:00:00`)
+    // A hotel with no end_date is one night, which is the safe reading: it
+    // never claims to cover more of the trip than it was told about.
+    const b = h.end_date ? new Date(`${String(h.end_date).slice(0, 10)}T00:00:00`) : new Date(a.getTime() + day)
+    for (let t = a.getTime(); t < b.getTime(); t += day) {
+      const n = Math.round((t - start.getTime()) / day)
+      if (n >= 0 && n < nights) slept.add(n)
+    }
+  }
+  return slept.size
+}
+
+/** The days of the trip with nothing on them at all.
+ *
+ *  Returned as dates rather than a count, because "Saturday and Sunday" is a
+ *  thing somebody acts on and "2 empty days" is not. */
+export function emptyDays(events = [], trip = null) {
+  const from = trip?.start_date
+  const to = trip?.end_date
+  if (!from || !to) return []
+  const start = new Date(`${String(from).slice(0, 10)}T00:00:00`)
+  const end = new Date(`${String(to).slice(0, 10)}T00:00:00`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return []
+  const busy = new Set(events.map((e) => String(e?.event_date ?? '').slice(0, 10)).filter(Boolean))
+  const out = []
+  for (let t = start.getTime(); t <= end.getTime(); t += day) {
+    const iso = new Date(t).toISOString().slice(0, 10)
+    if (!busy.has(iso)) out.push(iso)
+  }
+  return out
 }
 
 export function isBooked(events = []) {
@@ -82,7 +155,10 @@ export function planLane({ trips = [], wishlist = [], events = [], today = new D
       trip: t,
       events: own,
       countdown: countdown(t, today),
-      readiness: readiness(own),
+      readiness: readiness(own, t),
+      nights: nightsOf(t),
+      unbooked: Math.max(0, nightsOf(t) - nightsCovered(own.filter((e) => e.kind === 'hotel'), t)),
+      empty: emptyDays(own, t),
       sortAt: daysUntil(t.start_date, today),
     }
   })
