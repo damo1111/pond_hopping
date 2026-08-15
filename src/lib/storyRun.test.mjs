@@ -29,33 +29,28 @@ test('receipts are not part of anybody holiday', () => {
   assert.deepEqual(needsLooking([pic('r', { kind: 'receipt' })], 'low'), [])
 })
 
-test('the second pass asks for more pixels', () => {
-  const low = asAsked(pic('a'), 'low')
-  const high = asAsked(pic('a'), 'high')
-  assert.ok(low.url.includes('width=512'))
-  assert.ok(high.url.includes('width=1024'))
+test('the cheap pass takes the stored thumbnail, and asks for no render', () => {
+  // The transform endpoint counts a distinct origin image per month, and the
+  // account reached 600% of the allowance — at which point every transformed
+  // URL in the app stops resolving at once. The 400px file is already there.
+  const low = asAsked({ id: 'p', url: 'https://s/photos/t/a.webp', thumb_url: 'https://s/photos/t/a-thumb.webp' }, 'low')
+  assert.equal(low.url, 'https://s/photos/t/a-thumb.webp')
+  assert.ok(!low.url.includes('/render/image/'))
 })
 
-test('the cheap pass takes the stored thumbnail rather than buying a transform', () => {
-  // One transform per photograph per month is what put this account at 600%
-  // of a quota of 100. The stored file costs nothing.
-  const stored = 'https://x.supabase.co/storage/v1/object/public/photos/a-thumb.webp'
-  const asked = asAsked(pic('a', { thumb_url: stored }), 'low')
-  assert.equal(asked.url, stored)
+test('and the pass that has to read something takes the display copy', () => {
+  // 2048px, which is more than the 1024 this used to ask to be rendered.
+  const high = asAsked({ id: 'p', url: 'https://s/photos/t/a.webp', thumb_url: 'https://s/photos/t/a-thumb.webp' }, 'high')
+  assert.equal(high.url, 'https://s/photos/t/a.webp')
+  assert.ok(!high.url.includes('/render/image/'))
+})
+
+test('a photograph with no stored thumbnail falls back to the display copy', () => {
+  // Four of nine hundred and sixty-one. A render would be the one thing that
+  // cannot be afforded, and the display copy is right there.
+  const asked = asAsked({ id: 'p', url: 'https://s/photos/t/a.webp' }, 'low')
+  assert.equal(asked.url, 'https://s/photos/t/a.webp')
   assert.ok(!asked.url.includes('/render/image/'))
-})
-
-test('but a photograph with no stored thumbnail still gets one made', () => {
-  const asked = asAsked(pic('a'), 'low')
-  assert.ok(asked.url.includes('/render/image/'))
-})
-
-test('and the second pass never settles for the small stored one', () => {
-  // 400px cannot read the name off an awning, which is the whole point of it.
-  const stored = 'https://x.supabase.co/storage/v1/object/public/photos/a-thumb.webp'
-  const asked = asAsked(pic('a', { thumb_url: stored }), 'high')
-  assert.ok(asked.url.includes('width=1024'))
-  assert.notEqual(asked.url, stored)
 })
 
 test('the time goes as text, in the trip own clock', () => {

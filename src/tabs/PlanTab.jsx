@@ -296,6 +296,15 @@ export default function PlanTab() {
           days and recording is still off. */}
       {user && <TripStarting trips={[...(draftTrips || []), ...(tripMeta || [])]} />}
 
+      {/* The way in does not disappear the moment there is one card.
+          It used to: an empty lane got the whole invitation, and a lane with
+          anything in it got nothing at all — so a signed-out hopper looking
+          at one example trip and a someday list reached the end of the page
+          a third of the way down the screen, with the rest of it blank and
+          no next thing anywhere. A tab that has run out of things to say
+          should still say what to do.
+          Quieter in that state: the suggestion and the someday link are
+          already above it, so only the hero comes. */}
       {lane.length === 0 ? (
         <PlanWaysIn
           suggestion={suggestion}

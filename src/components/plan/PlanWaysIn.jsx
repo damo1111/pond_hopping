@@ -47,9 +47,16 @@ function AheadOfYou() {
   )
 }
 
-export default function PlanWaysIn({ onPlan, onWish, suggestion }) {
+/**
+ * @param tail  Rendered under a lane that already has something in it, rather
+ *              than as the whole screen. Same invitation, quieter: the
+ *              suggestion and the wishlist link are already on the page above
+ *              it in that state, and repeating them is noise where the point
+ *              is simply that planning another one is still the next thing.
+ */
+export default function PlanWaysIn({ onPlan, onWish, suggestion, tail = false }) {
   return (
-    <div className="pwi">
+    <div className={`pwi${tail ? ' pwi--tail' : ''}`}>
       {/* The one that is a whole screen rather than a row. Somebody who came
           to the Plan tab came to plan; this is not the moment to be even-
           handed about it. */}
@@ -74,7 +81,7 @@ export default function PlanWaysIn({ onPlan, onWish, suggestion }) {
           used to appear only once the lane had something in it, which is
           exactly backwards: it is worth most on the screen with nothing on
           it, and that is where it now lives. */}
-      {suggestion && (
+      {!tail && suggestion && (
         <button className="pwi-never pwi-in" style={{ '--in': 2 }} onClick={onPlan}>
           <span className="pwi-never-count">
             {suggestion.visited}
@@ -88,12 +95,15 @@ export default function PlanWaysIn({ onPlan, onWish, suggestion }) {
       )}
 
       {/* And the quiet one. Not everything is a trip yet — some of it is just
-          a place somebody mentioned at dinner. */}
-      <div className="pwi-rest pwi-in" style={{ '--in': suggestion ? 3 : 2 }}>
-        <button className="pwi-quiet" onClick={onWish}>
-          Or put somewhere on the someday list →
-        </button>
-      </div>
+          a place somebody mentioned at dinner. Absent in the tail, where the
+          someday list is already the section directly above. */}
+      {!tail && (
+        <div className="pwi-rest pwi-in" style={{ '--in': suggestion ? 3 : 2 }}>
+          <button className="pwi-quiet" onClick={onWish}>
+            Or put somewhere on the someday list →
+          </button>
+        </div>
+      )}
     </div>
   )
 }
