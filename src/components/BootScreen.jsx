@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 // The cold open.
 //
@@ -117,9 +117,54 @@ export default function BootScreen({ leaving, cold = false }) {
     return () => cancelAnimationFrame(frame)
   }, [cold])
 
+  /**
+   * The card carries.
+   *
+   * The opening ends on a trip — flags, name, dates — and the app it hands
+   * to has that same trip as a card on the World tab. A dissolve between
+   * them is a cut with a fade painted on it: everything the last six seconds
+   * built disappears, and a different screen is there instead.
+   *
+   * So the card does not disappear. It is measured where it stands, the real
+   * card is measured where it sits, and it travels from one to the other
+   * while everything around it goes. What lands under a thumb is the trip
+   * that was just being counted up.
+   *
+   * Measured rather than choreographed, because the target moves: the
+   * carousel scrolls, the phone rotates, and a card two hundred pixels wide
+   * on one device is a hundred and forty on another. A number written here
+   * would be right on the machine it was written on.
+   *
+   * Falls back to the plain fade when there is nothing to land on — no demo
+   * trip, an empty account, a first run with the World tab still loading. An
+   * opening that ends by flying a card to nowhere is worse than one that
+   * simply ends.
+   */
+  const cardLayer = useRef(null)
+  const [carrying, setCarrying] = useState(false)
+  useEffect(() => {
+    if (!leaving || !cold) return
+    const card = cardLayer.current?.querySelector('.boot-card')
+    // The demo trip's own card first; any trip card is still a better
+    // landing than the middle of the screen.
+    const target = document.querySelector('.wt-card--demo') ?? document.querySelector('.wt-card')
+    if (!card || !target) return
+    const from = card.getBoundingClientRect()
+    const to = target.getBoundingClientRect()
+    // A card that has not been laid out yet has no width, and dividing by it
+    // produces a transform of Infinity — which is a blank screen, silently.
+    if (!from.width || !to.width) return
+    card.style.setProperty('--fly-x', `${to.left + to.width / 2 - (from.left + from.width / 2)}px`)
+    card.style.setProperty('--fly-y', `${to.top + to.height / 2 - (from.top + from.height / 2)}px`)
+    card.style.setProperty('--fly-s', String(to.width / from.width))
+    setCarrying(true)
+  }, [leaving, cold])
+
   return (
     <div
-      className={`boot${leaving ? ' leaving' : ''}${cold ? ' boot--cold' : ''}`}
+      className={`boot${leaving ? ' leaving' : ''}${cold ? ' boot--cold' : ''}${
+        carrying ? ' boot--carrying' : ''
+      }`}
       ref={stage}
     >
       <div className="boot-stage">
@@ -177,39 +222,6 @@ export default function BootScreen({ leaving, cold = false }) {
                 <circle cx="142" cy="72" r="3.4" />
               </g>
 
-              {/* The card. Flags, then the name, then the dates — the order
-                  somebody reads a trip in. The two flags overlap slightly so
-                  they read as one mark rather than two stickers. */}
-              <g className="boot-card">
-                {/* Drawn rather than emoji, for the same reason as above —
-                    but drawn to be *seen*. The first pass put a white disc
-                    with a hairline border on a cream page, which measured
-                    perfectly and was invisible: the page is #F5F2EB and the
-                    flag was #FFF. Japan's now carries the same ink outline
-                    the rest of the screen uses, and the pair overlap so they
-                    read as one mark rather than two stickers. */}
-                <g className="boot-flags">
-                  {/* Overlapping, and separated by the page rather than by a
-                      line. At r6 twelve apart they were exactly touching —
-                      two discs meeting at a point, which reads as a mistake
-                      rather than as a pair. Ten apart at r5 they overlap by
-                      a fifth, and the disc of --bg behind the second cuts a
-                      hairline of page between them, so they stack the way
-                      two stickers would. */}
-                  <circle cx="96" cy="162" r="5" fill="#DE2910" />
-                  <circle className="boot-flag-veil" cx="104" cy="162" r="6.1" />
-                  <circle className="boot-flag-jp" cx="104" cy="162" r="5" fill="#FFFFFF" />
-                  <circle cx="104" cy="162" r="2.1" fill="#BC002D" />
-                </g>
-                <text className="boot-trip" x="100" y="178" textAnchor="middle">
-                  China &amp; Japan
-                </text>
-                <text className="boot-when" x="100" y="188" textAnchor="middle">
-                  21 MAY – 5 JUN
-                </text>
-                <path className="boot-rule" d="M56 196 H144" />
-              </g>
-
               {/* Six figures on two rows, each centred on its own column so
                   the numbers line up under their labels rather than beside
                   them. tabular-nums in the stylesheet stops the row jittering
@@ -234,23 +246,53 @@ export default function BootScreen({ leaving, cold = false }) {
                 ))}
               </g>
 
-              {/* All of it, become one small thing. */}
-              <g className="boot-snap">
-                <rect x="86" y="150" width="28" height="28" rx="3" className="boot-snap-card" />
-                <rect x="89" y="153" width="22" height="17" rx="1.5" className="boot-snap-sky" />
-                <circle cx="95" cy="159" r="2" className="boot-snap-sun" />
-                <path d="M89 167 l5-7 4 5 5-8 8 10 h-22z" className="boot-snap-hill" />
-                {/* A torii, just visible in it — the trip that was there a
-                    second ago, still in the one photograph left. */}
-                <g className="boot-snap-torii" fill="none">
-                  <path d="M95 164 v-7 M104 164 v-7" />
-                  <path d="M92.5 157.4 h14" />
-                  <path d="M93.6 155.2 q6-1.6 11.8 0" />
-                </g>
-              </g>
             </>
           )}
         </svg>
+
+        {/* The card, on its own layer.
+            It has to outlive the fade. Everything else on this screen goes
+            when the opening ends — globe, route, duck, name — and the card
+            does not: it travels to where the real trip sits on the World tab
+            and hands over to it. Inside the stage's own <svg> it would fade
+            with its parent, so it gets a sibling layer of identical geometry
+            that the leave animation leaves alone. */}
+        {cold && (
+          <svg className="boot-card-layer" viewBox="0 0 200 260" aria-hidden="true" ref={cardLayer}>
+              {/* The card. Flags, then the name, then the dates — the order
+                somebody reads a trip in. The two flags overlap slightly so
+                they read as one mark rather than two stickers. */}
+            <g className="boot-card">
+              {/* Drawn rather than emoji, for the same reason as above —
+                  but drawn to be *seen*. The first pass put a white disc
+                  with a hairline border on a cream page, which measured
+                  perfectly and was invisible: the page is #F5F2EB and the
+                  flag was #FFF. Japan's now carries the same ink outline
+                  the rest of the screen uses, and the pair overlap so they
+                  read as one mark rather than two stickers. */}
+              <g className="boot-flags">
+                {/* Overlapping, and separated by the page rather than by a
+                    line. At r6 twelve apart they were exactly touching —
+                    two discs meeting at a point, which reads as a mistake
+                    rather than as a pair. Ten apart at r5 they overlap by
+                    a fifth, and the disc of --bg behind the second cuts a
+                    hairline of page between them, so they stack the way
+                    two stickers would. */}
+                <circle cx="96" cy="162" r="5" fill="#DE2910" />
+                <circle className="boot-flag-veil" cx="104" cy="162" r="6.1" />
+                <circle className="boot-flag-jp" cx="104" cy="162" r="5" fill="#FFFFFF" />
+                <circle cx="104" cy="162" r="2.1" fill="#BC002D" />
+              </g>
+              <text className="boot-trip" x="100" y="178" textAnchor="middle">
+                China &amp; Japan
+              </text>
+              <text className="boot-when" x="100" y="188" textAnchor="middle">
+                21 MAY – 5 JUN
+              </text>
+              <path className="boot-rule" d="M56 196 H144" />
+            </g>
+          </svg>
+        )}
 
         {/* The duck rides the arc. Keyframed translate rather than an
             offset-path: the motion is indistinguishable at this size and

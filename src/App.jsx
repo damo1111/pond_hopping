@@ -258,7 +258,11 @@ export default function App() {
         setOwed(nextUp())
       }
       setBootLeaving(true)
-      setTimeout(() => !cancelled && setBooting(false), 550)
+      // 700, not 550. The card does not fade out of this screen any more —
+      // it travels to where the same trip sits on the World tab, and that
+      // flight is 620ms. Unmounting at 550 cut it off two thirds of the way
+      // across, which is a card vanishing in mid-air.
+      setTimeout(() => !cancelled && setBooting(false), 700)
     }, minBoot)
 
     return () => {
