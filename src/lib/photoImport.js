@@ -604,3 +604,31 @@ export async function bringThemIn(
   const importId = await startImport(tripId, fresh, key)
   return { importId, sending: fresh.length, already }
 }
+
+/**
+ * The trip somebody left for Google from, without spending the intent.
+ *
+ * Coming back from consent lands on whatever redirectTo said, which is the
+ * site's root — so somebody who left from a trip's Photos tab returns to the
+ * home screen. BringThemIn is the thing that resumes the import and it only
+ * exists on that Photos tab, so nothing resumes: they arrive somewhere else
+ * entirely, with no message, and have to find their own way back and tap
+ * again. Reported as "it took me back to the app home screen and I had to
+ * tap Google Photos twice".
+ *
+ * Deliberately a peek and not takeIntent(). The intent is consumed by
+ * whoever actually resumes; routing must not eat it on the way past, or the
+ * screen it navigates to arrives with nothing left to act on — which would
+ * turn two taps into a dead end.
+ */
+export function comingBackTo(store = globalThis.localStorage, now = Date.now, within = 10 * 60 * 1000) {
+  try {
+    const raw = store?.getItem(INTENT)
+    if (!raw) return null
+    const said = JSON.parse(raw)
+    if (!said?.tripId) return null
+    return now() - (said.at ?? 0) < within ? said.tripId : null
+  } catch {
+    return null
+  }
+}

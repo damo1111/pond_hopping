@@ -4,6 +4,7 @@ import {
   withDeadline,
   asProgress,
   bringThemIn,
+  comingBackTo,
   cameFromConsent,
   freshToken,
   howItWent,
@@ -532,4 +533,32 @@ test('a deadline that swallows rejections is the wrong tool for the tap path', (
       (e) => assert.match(e.message, /401/, 'race preserves the throw'),
     ),
   ])
+})
+
+test('the trip somebody left from can be read without spending the intent', async () => {
+  // Coming back from consent lands on the site root, so somebody who left
+  // from a trip's Photos tab returns to the home screen — where BringThemIn
+  // does not exist and nothing resumes. Routing needs to know where to send
+  // them, and must not consume the intent doing it: the screen it navigates
+  // to is what actually resumes, and would arrive with nothing to act on.
+  const box = { 'pond:importing': JSON.stringify({ tripId: 'trip-9', at: Date.now(), afterConsent: true }) }
+  const store = {
+    getItem: (k) => box[k] ?? null,
+    setItem: (k, v) => { box[k] = String(v) },
+    removeItem: (k) => { delete box[k] },
+  }
+  assert.equal(comingBackTo(store), 'trip-9')
+  assert.equal(comingBackTo(store), 'trip-9', 'peeking twice is still the same answer')
+  assert.ok(box['pond:importing'], 'and the intent is still there for whoever resumes')
+
+  // Only then is it spent.
+  assert.equal(takeIntent(store)?.tripId, 'trip-9')
+  assert.equal(comingBackTo(store), null)
+})
+
+test('and a stale intent from yesterday routes nobody anywhere', () => {
+  const old = JSON.stringify({ tripId: 'trip-9', at: Date.now() - 40 * 60 * 1000 })
+  assert.equal(comingBackTo({ getItem: () => old }), null)
+  assert.equal(comingBackTo({ getItem: () => null }), null)
+  assert.equal(comingBackTo({ getItem: () => 'not json' }), null)
 })

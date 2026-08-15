@@ -19,6 +19,7 @@ import TripPicker from './components/TripPicker.jsx'
 import Icon from './components/Icon.jsx'
 import AuthSheet from './components/AuthSheet.jsx'
 import BootScreen from './components/BootScreen.jsx'
+import { comingBackTo } from './lib/photoImport.js'
 import DayLookBack from './components/DayLookBack.jsx'
 import { ONCE, bringOldFlagsOver, forget, markSeen, nextUp } from './lib/firstRun.js'
 import { readPreference, visibleTrips, writePreference } from './lib/demoVisibility.js'
@@ -212,6 +213,28 @@ export default function App() {
     listenForPushTaps()
     return onPushTap(setPushJump)
   }, [])
+
+  // Back from Google's consent screen, to where you were.
+  //
+  // redirectTo is the site root, so somebody who left from a trip's Photos
+  // tab comes back to the home screen. BringThemIn is what resumes the
+  // import and it only exists on that Photos tab — so nothing resumes, there
+  // is no message, and the way out is to find the trip again and tap Google
+  // Photos a second time. Reported exactly that way.
+  //
+  // Peeked rather than taken: the intent is spent by whoever actually
+  // resumes, and eating it here would land them on the right screen with
+  // nothing left to act on.
+  useEffect(() => {
+    if (!tripsLoaded) return
+    const back = comingBackTo()
+    if (!back) return
+    const trip = tripMeta.find((t) => t.id === back)
+    if (!trip) return
+    track('photos_consent_returned', { trip: trip.slug })
+    setSelectedTrip(trip.slug)
+    setActiveTab('photos')
+  }, [tripsLoaded, tripMeta])
 
   useEffect(() => {
     let cancelled = false

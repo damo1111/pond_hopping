@@ -12803,3 +12803,7 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   text-transform: uppercase;
   cursor: pointer;
 }
+
+/* The one moment the next step is not obvious: Google has said yes, the
+   button has quietly become a link, and the picker opens somewhere else. */
+.bring-in-note--ready { color: var(--text-muted); }

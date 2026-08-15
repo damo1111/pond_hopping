@@ -49,6 +49,22 @@ const WRITE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ANON_KEY
 
 /** One batch a tick. Small enough that a failure costs eight photographs
  *  rather than a thousand, big enough to finish inside Google's hour. */
+/**
+ * How long this invocation may run.
+ *
+ * Absent, so Vercel's default applied — ten seconds — and the worker was
+ * sized to fit inside it: one batch of eight and out. Combined with the
+ * fifteen-minute lease in photo_imports_waiting that produced eight
+ * photographs per fifteen minutes, which on a real import of 1,203 was
+ * thirty-seven hours. Both halves had to move; this is the other one.
+ */
+export const config = { maxDuration: 60 }
+
+/** Stop claiming new batches with this much of the budget left, so the work
+ *  already in flight finishes and settles rather than being killed mid-upload
+ *  and retried from the top. */
+const LEAVE_SPARE_MS = 14000
+
 export const PER_TICK = 8
 
 /** How many at a time within the batch. Each one is a download, a decode and
@@ -221,22 +237,16 @@ export default async function handler(req, res) {
     return
   }
 
-  try {
-    const batch = (await rpc('photo_import_batch', {
-      p_secret: secret,
-      p_import: importId,
-      p_limit: PER_TICK,
-    })) ?? []
+  const began = Date.now()
+  const budgetLeft = () => config.maxDuration * 1000 - (Date.now() - began)
 
-    if (!batch.length) {
-      await rpc('photo_import_finished', { p_secret: secret, p_import: importId }).catch(() => {})
-      res.status(200).json({ ok: true, done: 0, left: 0 })
-      return
-    }
+  let done = 0
+  let skipped = 0
+  let failed = 0
 
-    let done = 0
-    let skipped = 0
-    let failed = 0
+  /** One claimed batch, AT_ONCE in flight. Each photograph settles on its
+   *  own, so one bad file never takes the batch down with it. */
+  async function workThrough(batch) {
     for (let i = 0; i < batch.length; i += AT_ONCE) {
       const slice = batch.slice(i, i + AT_ONCE)
       await Promise.all(
@@ -251,9 +261,6 @@ export default async function handler(req, res) {
               p_state: how === 'skipped' ? 'skipped' : 'done',
             })
           } catch (e) {
-            // One photograph never takes the batch down with it. The run
-            // carries on and the failure is recorded against the item, so
-            // somebody can see which ones and why rather than a count.
             failed += 1
             console.error(`import-google-photos: ${item.google_id} — ${e.message}`)
             await rpc('photo_import_settled', {
@@ -266,13 +273,44 @@ export default async function handler(req, res) {
         })
       )
     }
+  }
 
-    res.status(200).json({ ok: true, done, skipped, failed })
+  try {
+    let rounds = 0
+
+    // Keep going while there is both work and time.
+    //
+    // One batch and out was sized for the ten-second default this no longer
+    // runs under. Each round claims afresh, so nothing is held across the
+    // whole invocation and a worker that dies has only its current eight to
+    // redo — which is what the lease in photo_imports_waiting is for, now
+    // that it is ninety seconds rather than fifteen minutes.
+    while (budgetLeft() > LEAVE_SPARE_MS) {
+      const batch = (await rpc('photo_import_batch', {
+        p_secret: secret,
+        p_import: importId,
+        p_limit: PER_TICK,
+      })) ?? []
+
+      if (!batch.length) {
+        // Nothing left. Only closed on the first round: a later round
+        // finding nothing means this invocation drained the queue, and the
+        // tick closes finished runs anyway.
+        if (rounds === 0) {
+          await rpc('photo_import_finished', { p_secret: secret, p_import: importId }).catch(() => {})
+        }
+        break
+      }
+      rounds += 1
+      await workThrough(batch)
+    }
+
+    res.status(200).json({ ok: true, done, skipped, failed, rounds, ms: Date.now() - began })
   } catch (e) {
     console.error(`import-google-photos: ${e.message}`)
     // Left unfinished on purpose: the next tick tries again, and
     // photo_imports_waiting lets a run that has gone quiet be taken over
-    // after fifteen minutes.
+    // after ninety seconds. Whatever settled before the throw stays settled.
     res.status(502).json({ error: e.message })
   }
 }

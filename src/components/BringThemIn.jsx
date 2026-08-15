@@ -44,6 +44,10 @@ const ASK_EVERY = 2000
  */
 const SAY_SOMETHING_BY = 25000
 
+// Note what this does NOT cover: the wait for somebody to choose. That wait
+// has no honest deadline — see handPicker below, where the clock is stopped
+// the moment there is a picker to open.
+
 /**
  * Which build said it.
  *
@@ -60,6 +64,8 @@ export default function BringThemIn({ trip, onDone }) {
   const [step, setStep] = useState(null)
   const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
+  // Taking a while is not failing, and must not be said in the same voice.
+  const [slow, setSlow] = useState(null)
   // Every failure carries the build that produced it. See BUILD above.
   const fail = useCallback((msg) => setError(`${msg} · build ${BUILD}`), [])
   const [importId, setImportId] = useState(null)
@@ -121,9 +127,28 @@ export default function BringThemIn({ trip, onDone }) {
   //
   // cameFromConsent is deliberately strict about what counts, and the button
   // below says what it means rather than handing over whatever it is given.
+  // What a finished run does, wherever it finished from. Quick and slow have
+  // to land identically — the first version had the slow path return into
+  // nothing, which is how an error ended up sitting on top of a working
+  // import of twelve hundred photographs.
+  const land = useCallback(({ importId: id, sending, already }) => {
+    if (!alive.current) return
+    setStep(null)
+    setPickerUri(null)
+    if (!id) {
+      // Everything picked was already here. Not a failure, and worth saying
+      // plainly rather than showing a bar that finishes instantly.
+      setProgress(asProgress({ total: already, skipped: already, finished_at: new Date().toISOString() }))
+      return
+    }
+    setImportId(id)
+    setProgress(asProgress({ total: sending + already, skipped: already }))
+  }, [])
+
   const go = useCallback(async (from = false) => {
     const afterConsent = cameFromConsent(from)
     setError(null)
+    setSlow(null)
     setProgress(null)
     setPickerUri(null)
     track('photos_import_started')
@@ -153,32 +178,60 @@ export default function BringThemIn({ trip, onDone }) {
       //
       // Race lets a throw through untouched and only adds an upper bound.
       const TIMED_OUT = Symbol('timed out')
-      const outcome = await Promise.race([
-        bringThemIn(trip.id, { onStep: step, onPicker: setPickerUri }),
-        new Promise((settle) => setTimeout(() => settle(TIMED_OUT), SAY_SOMETHING_BY)),
-      ])
+      let clock = null
+      const stall = new Promise((settle) => {
+        clock = setTimeout(() => settle(TIMED_OUT), SAY_SOMETHING_BY)
+      })
+
+      // The clock stops the moment there is a picker to open.
+      //
+      // Everything before that point is the app talking to Google and has an
+      // honest deadline. Everything after it is a person choosing
+      // photographs on Google's side, and that has none: they may pick six
+      // or six hundred, they may put the phone down, they may go and find
+      // the trip they meant. Timing that out reports a stall against
+      // somebody who is doing exactly what they were asked to do — which is
+      // what it did, on a real import, within a minute of shipping.
+      const handPicker = (uri) => {
+        clearTimeout(clock)
+        setPickerUri(uri)
+      }
+
+      // Held, so the slow path can go on waiting for the same work rather
+      // than abandoning it. Racing a promise does not cancel it.
+      const running = bringThemIn(trip.id, { onStep: step, onPicker: handPicker })
+      const outcome = await Promise.race([running, stall])
+      clearTimeout(clock)
       if (outcome === TIMED_OUT) {
         track('photos_step_stalled', { step: reached })
-        setStep(null)
-        setPickerUri(null)
-        fail(`Stopped at “${reached}” and stayed there. Tap again — if it stops in the same place, that is the thing to tell us.`)
-        return
+        // Deliberately NOT clearing step or pickerUri, and deliberately not
+        // returning to a dead end.
+        //
+        // The race only stops *waiting*; the work underneath it carries on.
+        // The first version cleared both and returned, so a run that was
+        // merely slow got an error painted over a flow that then went on to
+        // queue twelve hundred photographs perfectly well — an error and a
+        // live "handing them over…" on screen at the same time, with the
+        // error telling somebody to tap again and undo it.
+        //
+        // So: say it is taking a while, keep watching, and take the words
+        // back if it arrives.
+        setSlow(
+          `Still on “${reached}”. It may simply be slow — nothing has been lost, and this will ` +
+            'correct itself if it gets there.'
+        )
+        // Keep waiting for the same work. If it arrives, the warning is
+        // taken back and the run is picked up exactly as if it had been
+        // quick. If it throws, the catch below handles it as it always would.
+        const late = await running
+        if (!alive.current) return
+        setSlow(null)
+        return land(late)
       }
-      const { importId: id, sending, already } = outcome
-      if (!alive.current) return
-      setStep(null)
-      if (!id) {
-        // Everything picked was already here. Not a failure, and worth saying
-        // plainly rather than showing a bar that finishes instantly.
-        setPickerUri(null)
-        setProgress(asProgress({ total: already, skipped: already, finished_at: new Date().toISOString() }))
-        return
-      }
-      setImportId(id)
-      setPickerUri(null)
-      setProgress(asProgress({ total: sending + already, skipped: already }))
+      land(outcome)
     } catch (e) {
       if (!alive.current) return
+      setSlow(null)
       setPickerUri(null)
       setStep(null)
       if (needsConsent(e)) {
@@ -214,7 +267,7 @@ export default function BringThemIn({ trip, onDone }) {
       }
       fail(e.message)
     }
-  }, [trip.id, fail])
+  }, [trip.id, fail, land])
 
   // Coming back from Google's consent screen.
   //
@@ -303,6 +356,22 @@ export default function BringThemIn({ trip, onDone }) {
         </button>
       )}
 
+      {/* What just happened, and what to do about it.
+          Coming back from Google left somebody looking at a button whose
+          words had changed and nothing else: no confirmation that the
+          consent worked, no statement of what the next tap does, and — since
+          the picker opens on Google's side — no warning that they are about
+          to leave again. Reported as "no messaging after authenticating and
+          what I need to do".
+          Only while the picker is waiting, because that is the one moment
+          the next step is not obvious. */}
+      {pickerUri && (
+        <span className="bring-in-note bring-in-note--ready">
+          Google said yes. Tap above to pick the photographs you want — it opens on Google’s side,
+          and we bring back only what you choose.
+        </span>
+      )}
+
       {progress && (
         <div className="bring-in-progress">
           <span className="bring-in-bar">
@@ -322,6 +391,9 @@ export default function BringThemIn({ trip, onDone }) {
           here are skipped.
         </span>
       )}
+
+      {/* Slow is not broken, and is not allowed to look like it. */}
+      {slow && !error && <span className="bring-in-note">{slow}</span>}
 
       {error && <span className="bring-in-note bring-in-note--bad">{error}</span>}
     </div>
