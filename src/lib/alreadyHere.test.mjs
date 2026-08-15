@@ -136,3 +136,47 @@ test('an unknown Google id is still new', () => {
   const { fresh } = whatIsNew([{ googleId: 'g-new' }], [{ google_id: 'g-old' }])
   assert.deepEqual(fresh.map((p) => p.googleId), ['g-new'])
 })
+
+test('the same instant is recognised however it was written down', () => {
+  // The two sides are written by different systems. PostgREST renders a
+  // timestamptz as "+00:00"; Google's picker sends "Z". Keyed on the string,
+  // the Map never matched — so the rule that refuses a duplicate before any
+  // bytes move silently refused nothing, and re-picking a library fetched
+  // every photograph in it again. Measured: a re-pick of 1,260 skipped 37.
+  const existing = [{ taken_at: '2026-05-21T14:05:00+00:00' }]
+  const picked = [{ googleId: 'new-id-each-session', takenAt: '2026-05-21T14:05:00Z' }]
+  const { fresh, already } = whatIsNew(picked, existing)
+  assert.equal(already, 1, 'same moment, different spelling')
+  assert.equal(fresh.length, 0)
+})
+
+test('and offsets that are not UTC still line up', () => {
+  const existing = [{ taken_at: '2026-05-21T16:05:00+02:00' }]
+  const picked = [{ googleId: 'x', takenAt: '2026-05-21T14:05:00Z' }]
+  assert.equal(whatIsNew(picked, existing).already, 1)
+})
+
+test('an unreadable timestamp is treated as unrecognisable, not as a match', () => {
+  // The safe direction: a duplicate photograph costs a duplicate; a wrong
+  // guess costs a photograph that is never uploaded at all.
+  const existing = [{ taken_at: 'not a date' }]
+  const picked = [{ googleId: 'x', takenAt: 'nor this' }]
+  assert.equal(whatIsNew(picked, existing).fresh.length, 1)
+})
+
+test('a burst still only absorbs as many as the trip actually holds', () => {
+  // Five shots in one second is five photographs. Matching on the timestamp
+  // alone would look at three already held and throw away all five.
+  const existing = [
+    { taken_at: '2026-05-21T14:05:00+00:00' },
+    { taken_at: '2026-05-21T14:05:00+00:00' },
+  ]
+  const picked = [
+    { googleId: 'a', takenAt: '2026-05-21T14:05:00Z' },
+    { googleId: 'b', takenAt: '2026-05-21T14:05:00Z' },
+    { googleId: 'c', takenAt: '2026-05-21T14:05:00Z' },
+  ]
+  const { fresh, already } = whatIsNew(picked, existing)
+  assert.equal(already, 2, 'two absorbed')
+  assert.equal(fresh.length, 1, 'the third is genuinely new')
+})

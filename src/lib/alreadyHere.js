@@ -49,6 +49,30 @@
  * nine hundred photographs should cost nine hundred *lines of JSON*, not
  * nine hundred downloads.
  */
+/**
+ * The same instant, however it was written down.
+ *
+ * Rule 2 keyed a Map on the timestamp *string*, and the two sides of the
+ * comparison are written by different systems: PostgREST renders a
+ * timestamptz as "2026-05-21T14:05:00+00:00" and Google's picker sends
+ * "2026-05-21T14:05:00Z". The same moment, two spellings, and a Map lookup
+ * that never matched — so the rule that is supposed to refuse a duplicate
+ * before a single byte moves silently refused nothing, and re-picking a
+ * library fetched every photograph in it again.
+ *
+ * Measured: a re-pick of 1,260 skipped 37, all by google id. Rule 2 caught
+ * none, on a trip holding 943 of the same photographs.
+ *
+ * Epoch milliseconds, so the key is the instant rather than its spelling.
+ * Null for anything unparseable, which falls through to "cannot be
+ * recognised, therefore fresh" — the safe direction.
+ */
+const instant = (at) => {
+  if (!at) return null
+  const ms = Date.parse(at)
+  return Number.isNaN(ms) ? null : ms
+}
+
 export function whatIsNew(picked = [], existing = []) {
   const seenPrints = new Set()
   const seenGoogle = new Set()
@@ -62,8 +86,8 @@ export function whatIsNew(picked = [], existing = []) {
   // by rule 1 would also be counted by rule 2 and let a second one through.
   const room = new Map()
   for (const e of existing) {
-    const at = e?.taken_at
-    if (!at) continue
+    const at = instant(e?.taken_at)
+    if (at === null) continue
     room.set(at, (room.get(at) ?? 0) + 1)
   }
 
@@ -72,8 +96,9 @@ export function whatIsNew(picked = [], existing = []) {
   // Each rule that matches also spends the instant its row occupied, or a
   // photograph caught by an earlier rule would be counted again by a later
   // one and let a genuinely new photograph through in its place.
-  const spend = (at) => {
-    if (at && room.get(at) > 0) room.set(at, room.get(at) - 1)
+  const spend = (raw) => {
+    const at = instant(raw)
+    if (at !== null && room.get(at) > 0) room.set(at, room.get(at) - 1)
   }
   for (const p of picked) {
     if (p?.googleId && seenGoogle.has(p.googleId)) {
@@ -86,8 +111,8 @@ export function whatIsNew(picked = [], existing = []) {
       spend(p.takenAt)
       continue
     }
-    const at = p?.takenAt
-    if (at && room.get(at) > 0) {
+    const at = instant(p?.takenAt)
+    if (at !== null && room.get(at) > 0) {
       room.set(at, room.get(at) - 1)
       already += 1
       continue
