@@ -66,6 +66,8 @@ export default function BringThemIn({ trip, onDone }) {
   const [error, setError] = useState(null)
   // Taking a while is not failing, and must not be said in the same voice.
   const [slow, setSlow] = useState(null)
+  // Films picked but left behind, so the count is never a silent loss.
+  const [films, setFilms] = useState(0)
   // Every failure carries the build that produced it. See BUILD above.
   const fail = useCallback((msg) => setError(`${msg} · build ${BUILD}`), [])
   const [importId, setImportId] = useState(null)
@@ -149,6 +151,7 @@ export default function BringThemIn({ trip, onDone }) {
     const afterConsent = cameFromConsent(from)
     setError(null)
     setSlow(null)
+    setFilms(0)
     setProgress(null)
     setPickerUri(null)
     track('photos_import_started')
@@ -199,7 +202,7 @@ export default function BringThemIn({ trip, onDone }) {
 
       // Held, so the slow path can go on waiting for the same work rather
       // than abandoning it. Racing a promise does not cancel it.
-      const running = bringThemIn(trip.id, { onStep: step, onPicker: handPicker })
+      const running = bringThemIn(trip.id, { onStep: step, onPicker: handPicker, onFilms: setFilms })
       const outcome = await Promise.race([running, stall])
       clearTimeout(clock)
       if (outcome === TIMED_OUT) {
@@ -389,6 +392,16 @@ export default function BringThemIn({ trip, onDone }) {
         <span className="bring-in-note">
           {progress.failed.toLocaleString('en-GB')} couldn’t be fetched. Tap again — the ones already
           here are skipped.
+        </span>
+      )}
+
+      {/* Picked and not brought in. Saying nothing would read as an import
+          that quietly lost things — which is exactly how "but photo didn't
+          add" got reported before any of this was instrumented. */}
+      {films > 0 && (
+        <span className="bring-in-note">
+          {films.toLocaleString('en-GB')} {films === 1 ? 'video was' : 'videos were'} left where they
+          are — Pond Hopping doesn’t take video yet. Everything else is coming.
         </span>
       )}
 

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   asImport,
   closeSession,
+  filmsAmong,
   isPhoto,
   listPicked,
   openSession,
@@ -131,4 +132,32 @@ test('only items the server can actually fetch are sent to it', () => {
     { type: 'PHOTO', mediaFile: { baseUrl: 'https://lh3/d' } }, // no id
   ]
   assert.deepEqual(worthImporting(picked).map((i) => i.googleId), ['a'])
+})
+
+test('a film is left where it is, however Google labels it', () => {
+  // Three shapes, because the API has renamed these fields once already and
+  // only one of the three was actually being checked.
+  assert.equal(isPhoto({ type: 'VIDEO' }), false, 'the obvious one')
+  assert.equal(isPhoto({ mediaFile: { mimeType: 'video/quicktime' } }), false, 'no type, but a film')
+  assert.equal(isPhoto({ mimeType: 'video/mp4' }), false, 'the older field name')
+  assert.equal(isPhoto({ mediaFile: { mediaFileMetadata: { video: { fps: 30 } } } }), false, 'metadata says film')
+})
+
+test('and a photograph still gets through, including an unlabelled one', () => {
+  // The default has to stay PHOTO: an import that drops everything because a
+  // field moved is far worse than one that lets an odd item through.
+  assert.equal(isPhoto({}), true)
+  assert.equal(isPhoto({ type: 'PHOTO' }), true)
+  assert.equal(isPhoto({ mediaFile: { mimeType: 'image/jpeg' } }), true)
+  assert.equal(isPhoto({ mediaFile: { mediaFileMetadata: { width: 4032, height: 3024 } } }), true)
+})
+
+test('films are counted rather than silently dropped', () => {
+  const picked = [
+    { id: 'a', mediaFile: { mimeType: 'image/jpeg' } },
+    { id: 'b', type: 'VIDEO' },
+    { id: 'c', mediaFile: { mimeType: 'video/mp4' } },
+  ]
+  assert.equal(filmsAmong(picked), 2)
+  assert.equal(filmsAmong([]), 0)
 })

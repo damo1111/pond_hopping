@@ -195,6 +195,26 @@ async function bringIn(secret, item) {
     original.byteLength
   )
 
+  // Asked here, not at the end.
+  //
+  // photo_import_store() has always caught a duplicate by fingerprint — but
+  // it is the last call, so by the time it says 'skipped' this has already
+  // decoded the image, rendered two derivatives and uploaded both, leaving
+  // two orphaned objects in the bucket to be thrown away.
+  //
+  // Rare enough not to matter, until it wasn't: Google's Picker mints a
+  // fresh media id per session, so the same photograph picked twice carries
+  // two different ids and the client's check by google_id cannot see it. On
+  // a re-pick of the same library, 37 ids of 1,086 matched — the other
+  // thousand would each have made the whole round trip to be discarded.
+  //
+  // The fingerprint needs only the head bytes and the length, both of which
+  // are already in hand. So the cheap question comes before the expensive
+  // work rather than after it.
+  if (await rpc('photo_already_here', { p_secret: secret, p_item: item.item_id, p_fingerprint: fingerprint })) {
+    return 'skipped'
+  }
+
   const pixels = await pixelsFrom(original, item.fetch_from, item.token)
   const [display, thumb] = await renderBoth(pixels)
 

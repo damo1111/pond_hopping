@@ -1,5 +1,5 @@
 import { whatIsNew } from './alreadyHere.js'
-import { listPicked, openSession, pollDelay, readSession, worthImporting } from './googlePhotos.js'
+import { filmsAmong, listPicked, openSession, pollDelay, readSession, worthImporting } from './googlePhotos.js'
 import { closeAway, openAway } from './awayTab.js'
 
 // Picking photographs out of Google, deciding which ones are actually new,
@@ -484,6 +484,7 @@ export async function bringThemIn(
   {
     onStep = () => {},
     onPicker = () => {},
+    onFilms = () => {},
     token,
     facts: askGoogle = tokenFacts,
     open = openSession,
@@ -593,8 +594,15 @@ export async function bringThemIn(
   }
 
   onStep('reading what you picked')
-  const picked = worthImporting(await listPicked(key, session.id))
+  const everything = await listPicked(key, session.id)
+  const picked = worthImporting(everything)
+  // Films are left where they are — see isPhoto. Counted rather than dropped
+  // in silence: picking twenty videos and getting eighty photographs back,
+  // with no mention of the twenty, reads as an import that lost things.
+  const films = filmsAmong(everything)
   if (!picked.length) throw new Error('nothing was picked')
+
+  if (films) onFilms(films)
 
   onStep('checking what is already here')
   const { fresh, already } = await onlyTheNewOnes(tripId, picked)

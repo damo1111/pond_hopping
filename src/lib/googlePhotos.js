@@ -110,7 +110,35 @@ export async function closeSession(token, sessionId, { fetchImpl = fetch } = {})
 }
 
 /** Video, one day (#13), but not silently and not today. */
-export const isPhoto = (item) => (item?.type ?? 'PHOTO') === 'PHOTO'
+/**
+ * A still photograph, and not a film.
+ *
+ * Two tests rather than one, because the first has a hole. `type` is absent
+ * on some responses and the default has to be PHOTO — an import that drops
+ * everything because a field moved is far worse than one that lets an odd
+ * item through. But that default is exactly what a video with no `type`
+ * lands on, and a video sent to the importer is a download, a sharp decode
+ * that throws, and a row marked failed for a file that was never wanted.
+ *
+ * So the mime type gets a say too, and it is the more reliable of the two:
+ * `video/quicktime`, `video/mp4`. Either one saying film is enough.
+ *
+ * Video is a real feature, not a bug — see backlog. Until it exists, the
+ * honest thing is to leave them where they are and say so, rather than
+ * fetching them to fail.
+ */
+export const isPhoto = (item) => {
+  if ((item?.type ?? 'PHOTO') !== 'PHOTO') return false
+  const mime = item?.mediaFile?.mimeType ?? item?.mimeType ?? ''
+  if (String(mime).toLowerCase().startsWith('video/')) return false
+  // The metadata carries a `video` block only for films, whatever `type` says.
+  const meta = item?.mediaFile?.mediaFileMetadata ?? item?.mediaMetadata ?? {}
+  return !meta?.video
+}
+
+/** How many films were left where they are, so it can be said out loud
+ *  rather than silently dropped from the count. */
+export const filmsAmong = (items = []) => items.filter((i) => !isPhoto(i)).length
 
 /**
  * A picked item, as the import route wants it.
