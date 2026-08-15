@@ -24,23 +24,40 @@ cd "$REPO_ROOT"
 # ── A store build is a decision, not a side effect ────────────────────────
 #
 # Xcode Cloud's start condition lives in App Store Connect, not in this
-# repository, so nothing here can stop it firing on a push. This can stop it
-# finishing.
+# repository, so nothing here can stop a build firing. This can stop one
+# finishing — no archive, no TestFlight upload, no submission, and no
+# spending of the daily upload budget that a real release then cannot have.
 #
-# Unless ios/RELEASE_UNLOCKED exists, this exits non-zero before anything is
-# built — no archive, no TestFlight upload, no submission, and no spending of
-# the daily upload budget that a real release then cannot have.
+# Two things count as somebody having decided, and a build needs one of them.
 #
-# To cut a build: create the file, commit it, run the build, delete it again.
+# A TAG. Cutting a tag and pushing it cannot be done by accident, it is
+# named, and it records which commit shipped. This is the way to cut a
+# release, and it is why the gate now opens for one.
+#
+# THE FILE, ios/RELEASE_UNLOCKED, for the occasional build off a branch.
+# Deliberately a file rather than a setting, because a file appears in the
+# diff of the commit that asked for the build:
 #
 #     touch ios/RELEASE_UNLOCKED && git add -f ios/RELEASE_UNLOCKED
 #
-# It is deliberately a file rather than a setting, because a file appears in
-# the diff of the commit that asked for the build.
-if [ ! -f "$REPO_ROOT/ios/RELEASE_UNLOCKED" ]; then
-  echo "Refusing to build: ios/RELEASE_UNLOCKED is not present."
+# and it is deleted again once that build has uploaded. It was not deleted:
+# it sat in the tree for twenty-nine commits, six of them in one evening,
+# each of which was therefore eligible to spend the upload budget. A brake
+# nobody releases is not a brake. The tag route exists so that the ordinary
+# case never needs the file at all.
+#
+# CI_TAG is set by Xcode Cloud when a tag started the build. If it is ever
+# absent when it ought not to be, the gate falls straight back to requiring
+# the file — the failure mode is a refused build, never an unasked-for one.
+if [ -z "$CI_TAG" ] && [ ! -f "$REPO_ROOT/ios/RELEASE_UNLOCKED" ]; then
+  echo "Refusing to build: no tag, and ios/RELEASE_UNLOCKED is not present."
   echo "Store builds are off until somebody asks for one. See ci_scripts/ci_post_clone.sh."
   exit 1
+fi
+if [ -n "$CI_TAG" ]; then
+  echo "Building because: tag $CI_TAG"
+else
+  echo "Building because: ios/RELEASE_UNLOCKED is present"
 fi
 
 
