@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { carryTo, receiveThe, RECEIVE_AT, waitForLanding } from '../lib/landing.js'
+import { track } from '../lib/analytics.js'
 
 // The cold open.
 //
@@ -144,20 +146,57 @@ export default function BootScreen({ leaving, cold = false }) {
   const [carrying, setCarrying] = useState(false)
   useEffect(() => {
     if (!leaving || !cold) return
-    const card = cardLayer.current?.querySelector('.boot-card')
-    // The demo trip's own card first; any trip card is still a better
-    // landing than the middle of the screen.
-    const target = document.querySelector('.wt-card--demo') ?? document.querySelector('.wt-card')
-    if (!card || !target) return
-    const from = card.getBoundingClientRect()
-    const to = target.getBoundingClientRect()
-    // A card that has not been laid out yet has no width, and dividing by it
-    // produces a transform of Infinity — which is a blank screen, silently.
-    if (!from.width || !to.width) return
-    card.style.setProperty('--fly-x', `${to.left + to.width / 2 - (from.left + from.width / 2)}px`)
-    card.style.setProperty('--fly-y', `${to.top + to.height / 2 - (from.top + from.height / 2)}px`)
-    card.style.setProperty('--fly-s', String(to.width / from.width))
-    setCarrying(true)
+    let dropped = false
+    let receiving = null
+
+    // Kept looking for, rather than asked once.
+    //
+    // The original measured in the frame `leaving` flipped. WorldTab is
+    // lazily loaded behind Suspense and its cards come from a query, so on a
+    // cold start the target can still be a hundred milliseconds away —
+    // asking once means asking too early and never asking again, and the
+    // handoff falls back to the plain fade for a reason that has nothing to
+    // do with whether there was a card.
+    waitForLanding(document).then((target) => {
+      if (dropped) return
+      const card = cardLayer.current?.querySelector('.boot-card')
+      const flight = card && target ? carryTo(card.getBoundingClientRect(), target.getBoundingClientRect()) : null
+
+      // Said out loud, either way.
+      //
+      // A failed handoff, a handoff never attempted, and the plain fade were
+      // three different things that looked identical — and it has been
+      // reported twice as "the animation is fine but it doesn't bounce into
+      // the app" with no way to tell which of the three happened. Now the
+      // session says.
+      if (!flight) {
+        track('cold_open_no_landing', {
+          card: Boolean(card),
+          target: Boolean(target),
+          // Which of the two it was. A missing target is the World tab not
+          // being ready or having nothing on it; a zero-width box is a card
+          // that exists and has not been laid out.
+          why: !target ? 'nothing to land on' : !card ? 'no card to carry' : 'not laid out yet',
+        })
+        return
+      }
+
+      card.style.setProperty('--fly-x', `${flight.x}px`)
+      card.style.setProperty('--fly-y', `${flight.y}px`)
+      card.style.setProperty('--fly-s', String(flight.scale))
+      track('cold_open_carried')
+      setCarrying(true)
+
+      // And the card being landed on answers, just before the flight ends,
+      // so the two overlap and it reads as one object arriving rather than
+      // as one layer stopping on top of another.
+      receiving = setTimeout(() => receiveThe(target), RECEIVE_AT)
+    })
+
+    return () => {
+      dropped = true
+      clearTimeout(receiving)
+    }
   }, [leaving, cold])
 
   return (
