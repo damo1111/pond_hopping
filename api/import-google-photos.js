@@ -65,12 +65,13 @@ export const config = { maxDuration: 60 }
  *  and retried from the top. */
 const LEAVE_SPARE_MS = 14000
 
-export const PER_TICK = 8
+export const PER_TICK = 24
 
 /** How many at a time within the batch. Each one is a download, a decode and
- *  two uploads; four in flight keeps the network busy without four 50MP
- *  decodes sharing the same 1GB of memory. */
-const AT_ONCE = 4
+ *  two uploads; six in flight keeps the network busy without six 50MP decodes
+ *  sharing the same memory. Raised from four alongside claiming — several of
+ *  these now run at once, so the ceiling is the box, not the queue. */
+const AT_ONCE = 6
 
 /** EXIF lives at the front, and a quarter of a megabyte is generous — the
  *  same window the phone reads. */
