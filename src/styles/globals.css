@@ -12448,3 +12448,35 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   color: #e8c568;
 }
 .fh-went.late { color: #e0876a; }
+
+/* The photographs taken on the flight itself.
+   A tracker knows the flight happened. This app also holds the pictures, and
+   the ones between wheels-up and wheels-down are unambiguously from that leg
+   — the meal, the wing, the sunrise somewhere over the Gobi. Nobody else can
+   put the two side by side. */
+.fh-onboard {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.fh-onboard-strip {
+  display: flex;
+  /* Overlapped, so five read as a handful rather than as a row of tiles. */
+  padding-left: 5px;
+}
+.fh-onboard-strip img {
+  width: 26px;
+  height: 26px;
+  object-fit: cover;
+  border-radius: 5px;
+  margin-left: -5px;
+  border: 1px solid rgba(240, 234, 217, 0.28);
+  background: rgba(240, 234, 217, 0.06);
+}
+.fh-onboard-said {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #b9ae91;
+}

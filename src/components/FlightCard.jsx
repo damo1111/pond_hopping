@@ -8,8 +8,9 @@ import RouteMap from './RouteMap.jsx'
 import { localTime, localDate } from '../lib/airportTz.js'
 import { nameFor, usePeopleNames } from '../lib/people.js'
 import { dayShift, howItWent, saidAs, spanMinutes } from '../lib/flightSpan.js'
+import { photosOnLeg } from '../lib/photosOnLeg.js'
 
-export default function FlightCard({ flight, aircraftType, onOpen }) {
+export default function FlightCard({ flight, aircraftType, photos = [], onOpen }) {
   const names = usePeopleNames()
   const [open, setOpen] = useState(false)
   const [photo, setPhoto] = useState(undefined) // undefined = not loaded, null = none
@@ -50,6 +51,14 @@ export default function FlightCard({ flight, aircraftType, onOpen }) {
   const went = howItWent(f)
   // Terminal and gate have been stored by the enrichment and shown nowhere.
   // They are the two things somebody standing in a concourse actually wants.
+  // Everything taken between wheels-up and wheels-down was taken on this
+  // leg. A tracker knows the flight happened; this app also holds the
+  // photographs, and nobody else can put the two side by side.
+  const onboard = photosOnLeg(
+    photos.filter((p) => p.trip_id === f.trip_id),
+    f
+  )
+
   const at = (t, g) => [t && `T${String(t).replace(/^T/i, '')}`, g && `Gate ${g}`].filter(Boolean).join(' · ')
   const depAt = at(f.terminal_dep, f.gate_dep)
   const arrAt = at(f.terminal_arr, f.gate_arr)
@@ -123,6 +132,19 @@ export default function FlightCard({ flight, aircraftType, onOpen }) {
               {went.minutes
                 ? `${went.when} ${went.minutes} min ${went.word}`
                 : `${went.when} on time`}
+            </span>
+          )}
+
+          {onboard.length > 0 && (
+            <span className="fh-onboard">
+              <span className="fh-onboard-strip" aria-hidden="true">
+                {onboard.slice(0, 5).map((p) => (
+                  <img key={p.id} src={p.thumb_url || p.url} alt="" loading="lazy" />
+                ))}
+              </span>
+              <span className="fh-onboard-said">
+                {onboard.length} from this flight
+              </span>
             </span>
           )}
 

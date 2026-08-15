@@ -22,6 +22,10 @@ export default function FlightsTab() {
   // booked — Seeby's whole September itinerary, for instance. Same split
   // the globe had. Read both rather than copying rows between them.
   const [planned, setPlanned] = useState([])
+  // Just enough of each photograph to place it in time and draw it small.
+  // Every column of nine hundred rows would be a page of JSON for a strip of
+  // thumbnails; four fields is a few kilobytes.
+  const [photos, setPhotos] = useState([])
   const [drafts, setDrafts] = useState([])
   const [error, setError] = useState(null)
   // null until the reader touches a year, so the newest one can default to
@@ -48,6 +52,12 @@ export default function FlightsTab() {
         if (error) setError(error.message)
         else setFlights(data ?? [])
       })
+    supabase
+      .from('photos')
+      .select('id,trip_id,taken_at,thumb_url,url')
+      .not('taken_at', 'is', null)
+      .order('taken_at', { ascending: true })
+      .then(({ data }) => alive && setPhotos(data ?? []))
     supabase
       .from('planned_events')
       .select('*')
@@ -243,6 +253,7 @@ export default function FlightsTab() {
                 key={f.id}
                 flight={f}
                 aircraftType={f.aircraft_types}
+                photos={photos}
                 onOpen={(id) => setShowing((m) => ({ ...m, [tripId]: id }))}
               />
             ))}
@@ -284,7 +295,9 @@ export default function FlightsTab() {
               </span>
             </button>
             {open &&
-              list.map((f) => <FlightCard key={f.id} flight={f} aircraftType={f.aircraft_types} />)}
+              list.map((f) => (
+                <FlightCard key={f.id} flight={f} aircraftType={f.aircraft_types} photos={photos} />
+              ))}
           </section>
         )
       })}
