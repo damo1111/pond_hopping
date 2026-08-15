@@ -93,6 +93,37 @@ export function markSeen(what, store = globalThis.localStorage, now = () => new 
 }
 
 /**
+ * Un-see it.
+ *
+ * The record was write-only, which was fine right up until somebody wanted
+ * to watch the opening again — and everybody does. An Android build is
+ * installed over the top of the last one, so the WebView's storage survives
+ * the update: a "fresh" launch of a new build finds cold_open already
+ * stamped and correctly shows nothing. Correct, and indistinguishable from
+ * the opening being broken, which is exactly how it was reported.
+ *
+ * It also has a real job beyond debugging. Handing your phone to somebody so
+ * they can see what the app is has no other route: the pitch lives in the
+ * opening now, and the opening had no second showing.
+ *
+ * Deliberately deletes rather than writing a falsy value, so the record only
+ * ever holds things that genuinely happened and `seen()` stays a question
+ * about presence.
+ */
+export function forget(what, store = globalThis.localStorage) {
+  const next = { ...read(store) }
+  delete next[what]
+  try {
+    store?.setItem(KEY, JSON.stringify(next))
+  } catch {
+    // Storage refused the write, so the flag stands and the opening does not
+    // replay on the next launch. The in-place replay this is called from has
+    // already happened either way.
+  }
+  return next
+}
+
+/**
  * Only one interruption at a time, ever.
  *
  * The order is the order somebody should meet them, and this hands back the

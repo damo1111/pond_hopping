@@ -20,7 +20,7 @@ import Icon from './components/Icon.jsx'
 import AuthSheet from './components/AuthSheet.jsx'
 import BootScreen from './components/BootScreen.jsx'
 import DayLookBack from './components/DayLookBack.jsx'
-import { ONCE, bringOldFlagsOver, markSeen, nextUp } from './lib/firstRun.js'
+import { ONCE, bringOldFlagsOver, forget, markSeen, nextUp } from './lib/firstRun.js'
 import { readPreference, visibleTrips, writePreference } from './lib/demoVisibility.js'
 import { tripColor } from './lib/tripColors.js'
 import { busy, whenIdle } from './lib/busy.js'
@@ -154,7 +154,11 @@ export default function App() {
   // on exactly the frame the screen started fading, so the pitch vanished
   // and an empty globe faded out after it. Caught by tracing the DOM frame
   // by frame; invisible in a screenshot at any single moment.
-  const [meetsColdOpen] = useState(() => owed === ONCE.cold_open)
+  const [meetsColdOpen, setMeetsColdOpen] = useState(() => owed === ONCE.cold_open)
+  // Bumped to play the opening again. See replayColdOpen on the context
+  // below: the wrappers never reload, so a replay has to be something this
+  // component does rather than something a fresh page load does for it.
+  const [replay, setReplay] = useState(0)
   const [bootLeaving, setBootLeaving] = useState(false)
   const [activeTab, setActiveTab] = useState('world')
   const [usefulTab, setUsefulTab] = useState('costs')
@@ -269,7 +273,11 @@ export default function App() {
       cancelled = true
       clearTimeout(leave)
     }
-  }, [])
+    // Re-runs on replay, and only on replay. meetsColdOpen is read from the
+    // closure deliberately — it is fixed for the life of a launch, and
+    // replayColdOpen sets it in the same batch as this counter, so the
+    // re-run sees the new value.
+  }, [replay])
 
   // Load the trips, and load them again when the session arrives.
   //
@@ -572,6 +580,29 @@ export default function App() {
       // Pull the trip list again without reloading the page. What making a
       // trip now does instead of throwing the whole app away.
       refreshTrips: loadTrips,
+      // Play the opening again, now, rather than on some future launch.
+      //
+      // Android installs a new build over the old one and the WebView keeps
+      // its storage, so cold_open stays stamped across an update and a
+      // genuinely new build opens straight onto the app. That is the flag
+      // working; it is also exactly what a broken animation looks like, and
+      // it was reported as one.
+      //
+      // Forgetting as well as replaying, because the two questions are
+      // different: this launch shows it again, and so does the next one on
+      // whatever device you have just handed to somebody.
+      //
+      // World, because the opening does not fade out any more — the card
+      // flies to where that trip sits on the World tab. Replayed from the
+      // Account tab it would otherwise land on nothing.
+      replayColdOpen: () => {
+        forget(ONCE.cold_open)
+        setActiveTab('world')
+        setMeetsColdOpen(true)
+        setBootLeaving(false)
+        setBooting(true)
+        setReplay((n) => n + 1)
+      },
       // Bumped whenever photographs are added or removed. Anything showing
       // a count reads it, because several screens count photographs
       // independently and none of them could hear about a removal made on

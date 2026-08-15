@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { IN_ORDER, ONCE, bringOldFlagsOver, markSeen, nextUp, seen } from './firstRun.js'
+import { IN_ORDER, ONCE, bringOldFlagsOver, forget, markSeen, nextUp, seen } from './firstRun.js'
 
 const store = (start = {}) => {
   const box = { ...start }
@@ -92,4 +92,40 @@ test('the retired cards are not owed to anybody', () => {
 
 test('the order is the order somebody should meet them', () => {
   assert.deepEqual(IN_ORDER, [ONCE.cold_open])
+})
+
+// The record was write-only until somebody wanted to watch the opening a
+// second time. On Android that is not a nicety: a new build installs over
+// the old one and the WebView keeps its storage, so cold_open is already
+// stamped and the new build opens onto the app with no opening at all —
+// indistinguishable from the animation being broken.
+test('what has been seen can be unseen, so the opening can play again', () => {
+  const s = store()
+  markSeen(ONCE.cold_open, s)
+  assert.equal(seen(ONCE.cold_open, s), true)
+  assert.equal(nextUp(s), null, 'nothing owed while it is stamped')
+
+  forget(ONCE.cold_open, s)
+
+  assert.equal(seen(ONCE.cold_open, s), false)
+  assert.equal(nextUp(s), ONCE.cold_open, 'owed again, so the next cold launch plays it')
+})
+
+test('and forgetting one thing leaves everything else alone', () => {
+  // Deleted rather than written falsy, so the record only ever holds things
+  // that genuinely happened and seen() stays a question about presence.
+  const s = store({ 'pond:seen': JSON.stringify({ cold_open: 'x', something_else: 'y' }) })
+  forget(ONCE.cold_open, s)
+  const left = JSON.parse(s.box['pond:seen'])
+  assert.deepEqual(left, { something_else: 'y' })
+  assert.ok(!('cold_open' in left), 'removed, not set to false')
+})
+
+test('and storage that refuses the write does not take the app down', () => {
+  const refuses = {
+    getItem: () => JSON.stringify({ cold_open: 'x' }),
+    setItem: () => { throw new Error('quota') },
+  }
+  assert.doesNotThrow(() => forget(ONCE.cold_open, refuses))
+  assert.doesNotThrow(() => forget(ONCE.cold_open, undefined))
 })

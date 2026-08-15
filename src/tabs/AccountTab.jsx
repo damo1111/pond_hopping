@@ -752,6 +752,42 @@ function TimelineCard() {
   )
 }
 
+// Watching the opening again.
+//
+// It plays once per device and then never again, which is right — two and a
+// half seconds is an opening on launch one and a toll booth on launch forty.
+// But "never again" turned out to include the case that matters most.
+//
+// Android installs a build over the top of the last one and the WebView
+// keeps its storage, so a genuinely new build opens straight onto the app
+// with no opening at all. That is the flag working exactly as designed, and
+// it is also precisely what a broken animation looks like from the outside.
+// It was reported as one.
+//
+// And the ordinary reason: the pitch lives inside the opening now — there is
+// no card after it any more — so handing somebody your phone to show them
+// what this is had no route back to the one screen that explains it.
+function OpeningCard() {
+  const { replayColdOpen } = useContext(TripContext)
+  if (!replayColdOpen) return null
+  return (
+    <div className="account-card">
+      <div className="account-card-title">The opening</div>
+      <div className="account-card-body">
+        The globe drawing itself, the route crossing it, and a year of photographs folding into one
+        trip. It plays once on a new device, so it stays an opening rather than a toll gate.
+      </div>
+      <button className="account-btn ghost" onClick={replayColdOpen}>
+        Play it again
+      </button>
+      <div className="account-hint">
+        Starts now and lands on the globe, and it will play once more the next time this app is
+        opened cold — so it is still there on a phone you hand to somebody.
+      </div>
+    </div>
+  )
+}
+
 function DemoCard() {
   const { allTrips, demoPref, setDemoPref } = useContext(TripContext)
   const trips = allTrips ?? []
@@ -1271,6 +1307,7 @@ function SignedIn() {
       <ConnectCard />
 
       <DemoCard />
+      <OpeningCard />
       <BrokenCard />
       <NumbersCard />
       <ExamplesCard />
