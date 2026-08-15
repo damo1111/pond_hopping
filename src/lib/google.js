@@ -2,6 +2,7 @@ import { supabase } from './supabase.js'
 import { PHOTOS_SCOPE } from './googlePhotos.js'
 import { whereToComeBack } from './comeBackTo.js'
 import { openAway } from './awayTab.js'
+import { track } from './analytics.js'
 
 // Gmail read + Calendar write, granted in one Google consent screen.
 // read-only on mail (we never send/delete), events on calendar (create a
@@ -53,11 +54,30 @@ export function whatWeAsked() {
  * it is gone, and with it any evidence of what was requested.
  */
 async function goToGoogle(options) {
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { skipBrowserRedirect: true, ...options },
-  })
-  if (error) return { data, error }
+  track('google_leaving', { scopes: String(options?.scopes ?? '').includes('photospicker') ? 'photos' : 'other' })
+
+  // Bounded, because this is the step that "does nothing".
+  //
+  // signInWithOAuth reaches the network, and a request that never settles
+  // never rejects — so this await is one of the places the whole flow can
+  // stop without failing, with no error to catch and nothing on screen. The
+  // same shape of bug as the tokeninfo hang, in the one function whose only
+  // job is to leave the page.
+  const REFUSED = Symbol('no answer')
+  const raced = await Promise.race([
+    supabase.auth.signInWithOAuth({ provider: 'google', options: { skipBrowserRedirect: true, ...options } }),
+    new Promise((settle) => setTimeout(() => settle(REFUSED), 12000)),
+  ]).catch((e) => ({ data: null, error: e }))
+
+  if (raced === REFUSED) {
+    track('google_no_answer')
+    return { data: null, error: new Error('Google did not answer in time — worth trying again') }
+  }
+  const { data, error } = raced
+  if (error) {
+    track('google_refused', { why: String(error.message ?? '').slice(0, 120) })
+    return { data, error }
+  }
   try {
     sessionStorage.setItem(ASKED, data?.url ?? '')
   } catch {
@@ -81,6 +101,12 @@ async function goToGoogle(options) {
   // backgrounds and never freezes — so the listener that catches the return
   // is awake to catch it, and the sheet is closed the moment it does.
   // Returns false on the web, where assigning the location is exactly right.
+  // Said out loud immediately before leaving, because everything after this
+  // line happens on Google's side and is invisible from here. An event with
+  // no `google_landed` after it is the signature of a redirect that never
+  // took — which is exactly what "tapping does nothing" looks like, and
+  // could not previously be told apart from a tap that never registered.
+  track('google_assigning')
   if (!(await openAway(data.url))) window.location.assign(data.url)
   return { data, error: null }
 }

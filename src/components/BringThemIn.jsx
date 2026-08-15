@@ -29,6 +29,22 @@ import { track } from '../lib/analytics.js'
 const ASK_EVERY = 2000
 
 /**
+ * The longest this is allowed to say nothing.
+ *
+ * Everything between the tap and the picker is network, and tonight proved
+ * three separate ways for that stretch to stop without failing: a fetch that
+ * never settles, a session read that never returns, a consent redirect that
+ * never leaves. None of them throws, so none of them reaches the catch
+ * below, and the button simply sits there — which from the outside is
+ * identical to a button that is not wired up, and was reported as one twice.
+ *
+ * Generous, because a slow phone on a bad connection is not a fault and
+ * cutting somebody off at five seconds would invent failures. But finite,
+ * because "nothing happened" must stop being a state this can be in.
+ */
+const SAY_SOMETHING_BY = 25000
+
+/**
  * Which build said it.
  *
  * A message copied out of the app and pasted back is the only evidence there
@@ -112,10 +128,43 @@ export default function BringThemIn({ trip, onDone }) {
     setPickerUri(null)
     track('photos_import_started')
     try {
-      const { importId: id, sending, already } = await bringThemIn(trip.id, {
-        onStep: setStep,
-        onPicker: setPickerUri,
-      })
+      // Where it got to, recorded as it goes.
+      //
+      // Reading this back is the only way anybody has found out where this
+      // stops: it fails on somebody else's phone, in an incognito window, on
+      // a network nobody here can reproduce. The steps go to app_events, so
+      // the session timeline on Account shows the exact point it stalled
+      // instead of leaving it to be inferred from a screenshot.
+      let reached = 'starting'
+      const step = (s) => {
+        reached = s
+        setStep(s)
+        track('photos_step', { step: s })
+      }
+
+      // Raced against a deadline so a silent stall becomes a sentence.
+      //
+      // Deliberately Promise.race and NOT withDeadline, which is the wrong
+      // tool here and quietly so: withDeadline turns a rejection into its
+      // fallback, and the rejections on this path are load-bearing. A 401 is
+      // how "not connected to Google yet" reaches the consent branch below —
+      // swallowing it into a timeout would report a stall and never send
+      // anybody to Google at all, which is the exact symptom being chased.
+      //
+      // Race lets a throw through untouched and only adds an upper bound.
+      const TIMED_OUT = Symbol('timed out')
+      const outcome = await Promise.race([
+        bringThemIn(trip.id, { onStep: step, onPicker: setPickerUri }),
+        new Promise((settle) => setTimeout(() => settle(TIMED_OUT), SAY_SOMETHING_BY)),
+      ])
+      if (outcome === TIMED_OUT) {
+        track('photos_step_stalled', { step: reached })
+        setStep(null)
+        setPickerUri(null)
+        fail(`Stopped at “${reached}” and stayed there. Tap again — if it stops in the same place, that is the thing to tell us.`)
+        return
+      }
+      const { importId: id, sending, already } = outcome
       if (!alive.current) return
       setStep(null)
       if (!id) {

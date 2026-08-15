@@ -507,3 +507,29 @@ test('and a token Google will not describe still reaches the picker', async () =
   assert.ok(steps.includes('checking with Google'))
   assert.ok(steps.includes('asking Google'), 'the step advanced rather than sticking')
 })
+
+test('a deadline that swallows rejections is the wrong tool for the tap path', () => {
+  // Pinning a distinction I got wrong while writing it, and nearly shipped.
+  //
+  // withDeadline turns a rejection into its fallback, which is right for a
+  // lookup whose answer is optional. It is wrong for bringThemIn, whose
+  // rejections are load-bearing: a 401 is how "not connected to Google yet"
+  // reaches the consent branch. Swallowed, the button reports a stall and
+  // nobody is ever sent to Google — the exact symptom being chased.
+  //
+  // So the tap path uses Promise.race, which only adds an upper bound.
+  const boom = () => Promise.reject(new Error('401 not connected to Google yet'))
+  const LATE = Symbol('late')
+
+  return Promise.all([
+    // withDeadline: the 401 disappears.
+    withDeadline(boom(), 50, 'swallowed').then((v) =>
+      assert.equal(v, 'swallowed', 'withDeadline hides the rejection — which is why it is not used there'),
+    ),
+    // race: the 401 survives, and that is what reaches the consent branch.
+    Promise.race([boom(), new Promise((r) => setTimeout(() => r(LATE), 50))]).then(
+      () => assert.fail('the rejection should have come through'),
+      (e) => assert.match(e.message, /401/, 'race preserves the throw'),
+    ),
+  ])
+})
