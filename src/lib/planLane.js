@@ -26,6 +26,31 @@ export function daysUntil(date, today = new Date()) {
 }
 
 /**
+ * How far ahead the example trip is kept, and why it is this number.
+ *
+ * The date itself is written by keep_the_example_ahead(), the hourly job in
+ * migrations_2026_08_the_example_is_always_five_days_out.sql. The number is
+ * repeated here because it was chosen against countdown()'s buckets below
+ * and belongs beside them: change the buckets and this is what has to be
+ * re-checked.
+ *
+ * The buckets are not equally good. 2–6 gives "In 4 days" — concrete and
+ * imminent, which is the whole point of an example built to demonstrate
+ * planning. 7–13 gives "Next week", which is vague. 1 gives "Tomorrow",
+ * which reads as a crisis on a trip with two nights still unbooked.
+ *
+ * Five rather than six because the job runs on UTC and the readers do not.
+ * One stored date is a day further out to the west and a day nearer to the
+ * east, so five is read as four, five or six — all three inside the strong
+ * bucket. Six would say "Next week" to everyone west of Greenwich for part
+ * of every day.
+ */
+export const EXAMPLE_DAYS_OUT = 5
+
+/** The most a reader's own calendar day can differ from the job's UTC one. */
+export const TIMEZONE_SLIP = 1
+
+/**
  * The line a planning screen exists to print. Anticipation is the whole
  * emotional content of this screen, so it gets said in words rather than
  * left as a date the reader has to subtract from today.

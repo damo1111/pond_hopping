@@ -1,6 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { countdown, daysUntil, emptyDays, isBooked, nightsCovered, nightsOf, planLane, readiness } from './planLane.js'
+import {
+  countdown,
+  daysUntil,
+  emptyDays,
+  EXAMPLE_DAYS_OUT,
+  isBooked,
+  nightsCovered,
+  nightsOf,
+  planLane,
+  readiness,
+  TIMEZONE_SLIP,
+} from './planLane.js'
 
 const TODAY = new Date('2026-08-06T09:00:00')
 
@@ -159,4 +170,42 @@ test('and a trip with no dates claims nothing rather than guessing', () => {
   assert.equal(nightsOf({}), 0)
   assert.equal(nightsCovered([{ event_date: '2026-10-09' }], {}), 0)
   assert.deepEqual(emptyDays([], {}), [])
+})
+
+// The example trip's distance from today is a product decision that lives in
+// two places — the hourly job that writes the date, and countdown()'s buckets
+// that decide what the date reads as. Neither knows about the other, and the
+// failure is silent: the card simply starts saying "Next week" one day and
+// nobody notices, because "Next week" is a perfectly ordinary thing for it to
+// say about somebody's real trip.
+//
+// This is the seam. It fails if the buckets move, if EXAMPLE_DAYS_OUT moves,
+// or if either moves without the other.
+test('the example trip is never vague, from any timezone', () => {
+  const jobRanOn = new Date('2026-08-15T00:07:00')
+
+  // The job writes one date from UTC. Readers west of Greenwich are still on
+  // yesterday's calendar day and read it as further out; readers east are on
+  // tomorrow's and read it as nearer.
+  for (let slip = -TIMEZONE_SLIP; slip <= TIMEZONE_SLIP; slip += 1) {
+    const asRead = EXAMPLE_DAYS_OUT + slip
+    const start = new Date(jobRanOn)
+    start.setDate(start.getDate() + asRead)
+    const said = countdown({ start_date: start.toISOString().slice(0, 10) }, jobRanOn)
+
+    assert.match(
+      said.text,
+      /^In \d+ days$/,
+      `${asRead} days out reads as "${said.text}" — the vague bucket, or a crisis`,
+    )
+    assert.equal(said.soon, true, `${asRead} days out should still read as soon`)
+  }
+})
+
+test('and the bucket it has to stay out of is a real one', () => {
+  // Proof the check above can fail: seven days is the vague bucket, which is
+  // exactly what six-days-out would become for a reader west of Greenwich.
+  const jobRanOn = new Date('2026-08-15T00:07:00')
+  assert.equal(countdown({ start_date: '2026-08-22' }, jobRanOn).text, 'Next week')
+  assert.equal(countdown({ start_date: '2026-08-16' }, jobRanOn).text, 'Tomorrow')
 })
