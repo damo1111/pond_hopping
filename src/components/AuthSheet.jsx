@@ -6,6 +6,11 @@ import SheetGrip from './SheetGrip.jsx'
 import { track } from '../lib/analytics.js'
 import { remember, waiting, forget, resendIn } from '../lib/pendingCode.js'
 import { offerIn, rememberWayIn } from '../lib/waysIn.js'
+import SayWhatBroke from './SayWhatBroke.jsx'
+
+/** Which build this is. Stamped on every event and error for days, and
+ *  shown nowhere a person could read it — see auth-build below. */
+const BUILD = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'
 
 /**
  * The provider's own mark, drawn rather than typed.
@@ -69,7 +74,8 @@ function WayMark({ id }) {
 // user when the address is new. Nothing said so, which meant a stranger
 // looking at the demo had no visible way in — the heading offered to sign
 // them in to an account they had no idea they could make.
-export default function AuthSheet({ onClose }) {
+export default function AuthSheet({ onClose, onAccount }) {
+  const [saying, setSaying] = useState(false)
   const { user, profile, refreshProfile } = useAuth()
   // Both of these open on whatever was outstanding when the sheet last
   // closed. Reading it once at mount rather than watching it: the code step
@@ -314,24 +320,57 @@ export default function AuthSheet({ onClose }) {
             </div>
           </div>
         ) : user ? (
-          <>
+          /* Tapping the duck while already signed in used to produce a panel
+             whose entire content was your own name and a button offering to
+             sign you out. No greeting, no way onward, and a sheet sized for
+             a form holding two lines of text — so the one thing it invited
+             you to do was the one thing nobody opened it for.
+
+             It is the same door either way: signed out it is how you get in,
+             signed in it should be how you get to the things that are yours.
+             Sign out stays, demoted to what it is. */
+          <div className="auth-back">
             <div className="auth-who">
               <div className="auth-avatar">{(profile?.display_name || user.email || '?')[0].toUpperCase()}</div>
               <div>
-                <div className="ios-sheet-title" style={{ marginBottom: 2 }}>{profile?.display_name || 'Signed in'}</div>
+                <div className="ios-sheet-title" style={{ marginBottom: 2 }}>
+                  {profile?.display_name ? `Welcome back, ${profile.display_name}` : 'Welcome back'}
+                </div>
                 <div className="ios-sheet-sub" style={{ margin: 0 }}>{user.email}</div>
               </div>
             </div>
-            <button
-              className="account-btn ghost"
-              onClick={async () => {
-                await supabase.auth.signOut()
-                onClose()
-              }}
-            >
-              Sign out
-            </button>
-          </>
+
+            <div className="auth-back-rows">
+              <button className="auth-row" onClick={() => (onAccount ? onAccount() : onClose())}>
+                <span className="auth-row-what">Your account</span>
+                <span className="auth-row-sub">Your name, who you travel with, the example trip</span>
+              </button>
+              <button className="auth-row" onClick={() => setSaying(true)}>
+                <span className="auth-row-what">Something not right?</span>
+                <span className="auth-row-sub">Tell us in your own words — it comes with the details</span>
+              </button>
+            </div>
+
+            <div className="auth-back-foot">
+              {/* Which build this is, where somebody can actually read it.
+                  It has been stamped on every event and every error for days
+                  and shown nowhere — so "is the fix in this one?" has been
+                  answered by guessing from behaviour, wrongly, three times in
+                  one evening. */}
+              <span className="auth-build">build {BUILD}</span>
+              <button
+                className="auth-signout"
+                onClick={async () => {
+                  await supabase.auth.signOut()
+                  onClose()
+                }}
+              >
+                Sign out
+              </button>
+            </div>
+
+            <SayWhatBroke open={saying} onClose={() => setSaying(false)} />
+          </div>
         ) : sent ? (
           <form onSubmit={verify}>
             <div className="ios-sheet-title">Check your email</div>

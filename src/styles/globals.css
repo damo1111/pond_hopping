@@ -12744,3 +12744,62 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   text-transform: uppercase;
   cursor: pointer;
 }
+
+/* ── Coming back, rather than getting in ──────────────────────────────────
+   Same sheet, other side of the door. Signed out it is a form; signed in it
+   was your own name and a button offering to sign you out — no greeting, no
+   way onward, in a panel sized for the form it no longer was. */
+.auth-back { display: flex; flex-direction: column; gap: 14px; }
+
+.auth-back-rows { display: flex; flex-direction: column; gap: 8px; }
+
+.auth-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.auth-row:active { border-color: var(--accent); }
+.auth-row-what { font-size: 15px; }
+.auth-row-sub { font-size: 12.5px; line-height: 1.4; color: var(--text-muted); }
+
+/* The two quiet things, on one line, below everything that is not quiet.
+   Sign out is not the purpose of this panel and no longer looks like it. */
+.auth-back-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.auth-build {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  /* Selectable on purpose: the whole point is being able to send it to
+     somebody, and a build id you cannot copy is one you will mistype. */
+  user-select: text;
+}
+
+.auth-signout {
+  padding: 7px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}

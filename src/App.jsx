@@ -718,7 +718,18 @@ export default function App() {
           <InstallChip />
         </header>
 
-        {authOpen && <AuthSheet onClose={() => setAuthOpen(false)} />}
+        {authOpen && (
+          <AuthSheet
+            onClose={() => setAuthOpen(false)}
+            // Somewhere to go from the signed-in panel, which previously had
+            // exactly one offer on it and that offer was to leave.
+            onAccount={() => {
+              setAuthOpen(false)
+              setUsefulTab('account')
+              setActiveTab('useful')
+            }}
+          />
+        )}
 
         {/* Journal, Map and Photos are always about the trip you came in
             from, so they say which one and offer the way back rather than a
