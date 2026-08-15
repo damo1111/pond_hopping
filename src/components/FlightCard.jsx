@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchAircraftPhoto } from '../lib/planespotters.js'
 import { supabase } from '../lib/supabase.js'
 import TailFin from './TailFin.jsx'
-import FlapText from './FlapText.jsx'
+import FlightSpan from './FlightSpan.jsx'
 import Icon from './Icon.jsx'
 import RouteMap from './RouteMap.jsx'
 import { localTime, localDate } from '../lib/airportTz.js'
@@ -95,45 +95,24 @@ export default function FlightCard({ flight, aircraftType, photos = [], onOpen }
               no duration, no sense that the thing takes eleven hours, which
               is the one fact a flight card exists to carry. Both numbers
               were already in the row; nothing new is asked of anybody. */}
-          <span className="fh-span">
-            <span className="fh-end">
-              <FlapText className="fh-time" text={localTime(f.dep_time, f.dep_airport)} groupDelay={0} />
-              <FlapText className="fh-code" text={f.dep_airport} groupDelay={200} />
-              <span className="fh-place">{f.dep_city}</span>
-              {depAt && <span className="fh-gate">{depAt}</span>}
-            </span>
-
-            <span className="fh-mid">
-              {mins ? <span className="fh-dur">{saidAs(mins)}</span> : null}
-              {/* In the air, the line fills and the mark rides it. On the
-                  ground it is the plain rule it always was. */}
-              <span className={`fh-line${flying ? ' flying' : ''}`} aria-hidden="true">
-                {flying && <i className="fh-line-flown" style={{ width: `${Math.round(phase.part * 100)}%` }} />}
-                <i
-                  className="fh-line-plane"
-                  style={flying ? { right: 'auto', left: `${Math.round(phase.part * 100)}%` } : undefined}
-                />
-              </span>
-              <FlapText className="fh-flightno" text={f.flight_number} groupDelay={420} />
-            </span>
-
-            <span className="fh-end fh-end--to">
-              <span className="fh-time-wrap">
-                <FlapText className="fh-time" text={localTime(f.arr_time, f.arr_airport)} groupDelay={320} />
-                {/* Leaving at 23:55 and landing at 06:10 reads as arriving
-                    before you left without this. */}
-                {shift !== 0 && (
-                  <sup className="fh-next">
-                    {shift > 0 ? '+' : '−'}
-                    {Math.abs(shift)}
-                  </sup>
-                )}
-              </span>
-              <FlapText className="fh-code" text={f.arr_airport} groupDelay={260} />
-              <span className="fh-place">{f.arr_city}</span>
-              {arrAt && <span className="fh-gate">{arrAt}</span>}
-            </span>
-          </span>
+          <FlightSpan
+            dep={{
+              code: f.dep_airport,
+              city: f.dep_city,
+              time: localTime(f.dep_time, f.dep_airport),
+              at: depAt,
+            }}
+            arr={{
+              code: f.arr_airport,
+              city: f.arr_city,
+              time: localTime(f.arr_time, f.arr_airport),
+              at: arrAt,
+            }}
+            number={f.flight_number}
+            minutes={mins}
+            shift={shift}
+            flying={flying ? { part: phase.part } : null}
+          />
 
           {/* How it actually went, against how it was meant to go.
               actual_arr_time has been stored for months and shown nowhere,

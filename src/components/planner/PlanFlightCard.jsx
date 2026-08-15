@@ -3,7 +3,8 @@ import { supabase } from '../../lib/supabase.js'
 import { fetchAircraftPhoto } from '../../lib/planespotters.js'
 import TailFin from '../TailFin.jsx'
 import RouteMap from '../RouteMap.jsx'
-import FlapText from '../FlapText.jsx'
+import FlightSpan from '../FlightSpan.jsx'
+import { dayShift, flightPhase, saysNow, spanMinutes } from '../../lib/flightSpan.js'
 import { AIRPORT_COORDS } from '../../lib/airportCoords.js'
 import { distanceKm } from '../../lib/geo.js'
 
@@ -119,6 +120,24 @@ export default function PlanFlightCard({ event, onEditEvent, onSaveDetail }) {
   const status = STATUS[d.status] || STATUS.scheduled
   const dep = d.dep_airport || '—'
   const arr = d.arr_airport || '—'
+
+  // A planned flight is still a span, and — unlike a flown one — it is the
+  // only kind anybody is ever about to be on.
+  //
+  // The times live in the detail rather than in columns, as local wall-clock
+  // strings against the event's own date. Composed into instants here so the
+  // same duration, day shift and live states the flown card has can be shown
+  // on the flight somebody is actually waiting for.
+  const whenIs = (t) => (event.event_date && t ? `${event.event_date}T${String(t).slice(0, 5)}:00` : null)
+  const depIso = whenIs(event.start_time)
+  const arrIso = whenIs(d.arr_time)
+  const mins = spanMinutes(depIso, arrIso)
+  const shift = dayShift(event.event_date, d.arr_date || event.event_date)
+  const phase = flightPhase({ dep_time: depIso, arr_time: arrIso })
+  const flying = phase.phase === 'airborne'
+  const now = saysNow({ dep_time: depIso, arr_time: arrIso })
+  const gateOf = (terminal, gate) =>
+    [terminal ? `T${terminal}` : null, gate ? `Gate ${gate}` : null].filter(Boolean).join(' · ') || null
   const km =
     AIRPORT_COORDS[d.dep_airport] && AIRPORT_COORDS[d.arr_airport]
       ? distanceKm(AIRPORT_COORDS[d.dep_airport], AIRPORT_COORDS[d.arr_airport])
@@ -132,15 +151,29 @@ export default function PlanFlightCard({ event, onEditEvent, onSaveDetail }) {
           <span className={`pf-status pf-status-${status.cls}`}>{status.label}</span>
         </span>
         <span className="fh-main">
-          <span className="fh-row1">
-            <FlapText className="fh-time" text={event.start_time || '--:--'} groupDelay={0} />
-            <span className="fh-route">
-              <FlapText text={dep} groupDelay={200} />
-              <span className="fh-arrow">→</span>
-              <FlapText text={arr} groupDelay={260} />
-            </span>
-            <FlapText className="fh-flightno" text={d.flight_number || ''} groupDelay={420} />
-          </span>
+          <FlightSpan
+            dep={{
+              code: dep,
+              city: d.dep_city,
+              time: (event.start_time || '--:--').slice(0, 5),
+              at: gateOf(d.dep_terminal, d.dep_gate),
+            }}
+            arr={{
+              code: arr,
+              city: d.arr_city,
+              time: (d.arr_time || '--:--').slice(0, 5),
+              at: gateOf(d.arr_terminal, d.arr_gate),
+            }}
+            number={d.flight_number}
+            minutes={mins}
+            shift={shift}
+            flying={flying ? { part: phase.part } : null}
+          />
+          {/* The states that only an upcoming flight has: hours to go, then
+              minutes, then the gate, then how far across it is. Built in #22
+              and until now unreachable, because they were wired to the card
+              that only ever renders flights already taken. */}
+          {now && <span className="fh-now">{now}</span>}
           <span className="fh-row2">
             {d.dep_city || dep} — {d.arr_city || arr}
             {event.event_date && (
