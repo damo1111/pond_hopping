@@ -12807,3 +12807,90 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 /* The one moment the next step is not obvious: Google has said yes, the
    button has quietly become a link, and the picker opens somewhere else. */
 .bring-in-note--ready { color: var(--text-muted); }
+
+/* ── Choosing many photographs ────────────────────────────────────────────
+   The shape everybody already has from Google Photos: a circle at the corner
+   of each tile, a long press to begin, a count and one action. */
+.pick-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.pick-count {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.pick-btn {
+  padding: 7px 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.pick-btn:disabled { opacity: 0.4; cursor: default; }
+.pick-btn--bad:not(:disabled) { border-color: var(--bad, #c2410c); color: var(--bad, #c2410c); }
+
+.photo-cell { position: relative; }
+
+/* The circle. Empty until chosen, and drawn on the photograph rather than
+   beside it, so the tile itself is the target — a separate hit area at this
+   size is a miss waiting to happen. */
+.photo-tick {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  background: rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.photo-cell--chosen .photo-tick {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+/* A tick, drawn rather than typed, so it sits right at any size. */
+.photo-cell--chosen .photo-tick::after {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Chosen tiles step back, so what is selected reads at a glance across a
+   grid of nine hundred rather than having to be counted. */
+.photo-cell--chosen img {
+  transform: scale(0.9);
+  border-radius: 8px;
+  filter: brightness(0.82);
+}
+
+.photo-grid--picking .photo-cell img {
+  transition: transform 120ms ease, filter 120ms ease;
+}
+
+/* Long-pressing a picture otherwise offers to save it, which fights the
+   gesture that begins choosing. */
+.photo-grid--picking .photo-cell,
+.photo-cell { -webkit-touch-callout: none; }

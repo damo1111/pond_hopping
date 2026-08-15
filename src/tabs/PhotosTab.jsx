@@ -3,6 +3,15 @@ import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import { tripColor } from '../lib/tripColors.js'
 import { thumb, coverUrl } from '../lib/imgTransform.js'
+import {
+  allOf,
+  askingToRemove,
+  everyOneChosen,
+  inChunks,
+  stillVisible,
+  toggle,
+  whatWentThrough,
+} from '../lib/choosing.js'
 import { applied } from '../lib/applied.js'
 import { afterTap, standing } from '../lib/recapPhotos.js'
 import { spanOf } from '../lib/dateRange.js'
@@ -200,6 +209,65 @@ export default function PhotosTab({ openPhotoId = null }) {
     setLightbox(found)
   }, [openPhotoId, photos])
 
+  // ── Choosing many ───────────────────────────────────────────────────────
+  const [picking, setPicking] = useState(false)
+  const [chosen, setChosen] = useState(() => new Set())
+  const held = useRef(null)
+
+  // A selection cannot outlive the things it points at. Switch from Tuesday
+  // to Wednesday with forty chosen and a Remove would take away photographs
+  // that are no longer on screen — unseen, unchecked, and unmeant.
+  useEffect(() => {
+    setChosen((c) => (c.size ? stillVisible(c, visible) : c))
+  }, [visible])
+
+  const startHold = (id) => {
+    if (picking) return
+    held.current = setTimeout(() => {
+      setPicking(true)
+      setChosen((c) => toggle(c, id))
+    }, 450)
+  }
+  const endHold = () => {
+    clearTimeout(held.current)
+    held.current = null
+  }
+  useEffect(() => () => clearTimeout(held.current), [])
+
+  const stopPicking = () => {
+    setPicking(false)
+    setChosen(new Set())
+  }
+
+  // Removes rows, never files — same rule as the single one below.
+  async function removeChosen() {
+    const ids = [...chosen]
+    if (!ids.length) return
+    if (!globalThis.confirm?.(`${askingToRemove(ids.length)} They stay in storage.`)) return
+    setRemoving(true)
+    // In chunks, because PostgREST builds `in.(…)` into the URL and a
+    // thousand uuids is past what proxies will carry — and it fails as a
+    // malformed request rather than as anything mentioning length.
+    const results = []
+    for (const part of inChunks(ids)) {
+      results.push(await supabase.from('photos').delete().in('id', part).select('id'))
+    }
+    const { removed, refused } = whatWentThrough(results)
+    setRemoving(false)
+
+    // Counted from the rows that came back. A delete RLS declines returns no
+    // error and no rows, so trusting the request would clear them off screen
+    // and put them all back on the next load.
+    const gone = new Set(results.flatMap((r) => (r?.data ?? []).map((x) => x.id)))
+    setPhotos((rows) => rows.filter((r) => !gone.has(r.id)))
+    setChosen(new Set())
+    setPicking(false)
+    notePhotosChanged?.()
+    if (refused.length) {
+      alert(`Removed ${removed.toLocaleString('en-GB')}. ${refused.length} couldn’t be: ${refused[0]}`)
+    }
+  }
+
   // Removes the row, never the file. The example trip's photos point at the
   // same pictures as the real one, so deleting the bytes would take them out
   // of a trip nobody asked to change.
@@ -379,10 +447,53 @@ export default function PhotosTab({ openPhotoId = null }) {
         )
       })}
 
+      {/* Choosing many, then doing one thing to them.
+          Removing was one at a time through the lightbox behind a confirm() —
+          fine for the one that came out blurred, useless for the eight
+          hundred that arrived twice. */}
       {visible.length > 0 && (
-        <div ref={gridRef} className="photo-grid">
+        <div className="pick-bar">
+          {picking ? (
+            <>
+              <button className="pick-btn" onClick={stopPicking}>Done</button>
+              <span className="pick-count">
+                {chosen.size ? `${chosen.size.toLocaleString('en-GB')} chosen` : 'Tap to choose'}
+              </span>
+              <button
+                className="pick-btn"
+                onClick={() => setChosen(everyOneChosen(chosen, visible) ? new Set() : allOf(visible))}
+              >
+                {everyOneChosen(chosen, visible) ? 'None' : 'All'}
+              </button>
+              <button
+                className="pick-btn pick-btn--bad"
+                disabled={!chosen.size || removing}
+                onClick={removeChosen}
+              >
+                {removing ? 'Removing…' : 'Remove'}
+              </button>
+            </>
+          ) : (
+            <button className="pick-btn" onClick={() => setPicking(true)}>Select</button>
+          )}
+        </div>
+      )}
+
+      {visible.length > 0 && (
+        <div ref={gridRef} className={`photo-grid${picking ? ' photo-grid--picking' : ''}`}>
           {visible.map((p) => (
-            <button key={p.id} className="photo-cell" onClick={() => setLightbox(p)}>
+            <button
+              key={p.id}
+              className={`photo-cell${chosen.has(p.id) ? ' photo-cell--chosen' : ''}`}
+              onClick={() => (picking ? setChosen((c) => toggle(c, p.id)) : setLightbox(p))}
+              // Long press begins choosing and takes the one pressed with it,
+              // which is the gesture everybody already has from Google Photos.
+              onPointerDown={() => startHold(p.id)}
+              onPointerUp={endHold}
+              onPointerLeave={endHold}
+              onContextMenu={(e) => { e.preventDefault(); setPicking(true); setChosen((c) => toggle(c, p.id)) }}
+            >
+              {picking && <span className="photo-tick" aria-hidden="true" />}
               <img
                 src={p.thumb_url || thumb(p.url)}
                 alt={p.caption || ''}
