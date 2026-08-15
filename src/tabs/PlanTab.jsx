@@ -10,7 +10,7 @@ import Icon from '../components/Icon.jsx'
 import PlanCard from '../components/plan/PlanCard.jsx'
 import PlanWaysIn from '../components/plan/PlanWaysIn.jsx'
 import TripStarting from '../components/TripStarting.jsx'
-import { planLane } from '../lib/planLane.js'
+import { planLane, waysInMode } from '../lib/planLane.js'
 import { neverBeen } from '../lib/neverBeen.js'
 
 function slugify(title) {
@@ -250,6 +250,9 @@ export default function PlanTab() {
   if (!draftTrips || !wishlist) return <div className="tab-loading">loading plans…</div>
 
   const lane = planLane({ trips: draftTrips, wishlist, events: plannedEvents })
+  // One answer, asked once. Two `lane.length` checks written out separately
+  // is how you end up with both versions on screen, or neither.
+  const waysIn = waysInMode(lane)
   const suggestion = neverBeen(flownLegs)
 
   return (
@@ -305,7 +308,7 @@ export default function PlanTab() {
           should still say what to do.
           Quieter in that state: the suggestion and the someday link are
           already above it, so only the hero comes. */}
-      {lane.length === 0 ? (
+      {waysIn === 'full' ? (
         <PlanWaysIn
           suggestion={suggestion}
           onPlan={() => (user ? setCreating(true) : openAuth())}
@@ -341,6 +344,21 @@ export default function PlanTab() {
       <div className="plan-foot" ref={wishRef}>
         <WishlistForm onAdded={loadWishlist} />
       </div>
+
+      {/* And the same invitation at the end, when the lane is not empty.
+          This is the half that was missing: PlanWaysIn has carried a `tail`
+          prop and the comment above has described this exact fix since the
+          day it was written, and the two lines that render it were never
+          added — so a hopper with one example trip still ran out of page a
+          third of the way down, which is the complaint the whole component
+          was built for.
+          Last on the screen on purpose. The suggestion and the someday form
+          are both above it now, which is why the tail carries neither: what
+          is left to say at the bottom of a plan is that planning another one
+          is still the next thing. */}
+      {waysIn === 'tail' && (
+        <PlanWaysIn tail onPlan={() => (user ? setCreating(true) : openAuth())} />
+      )}
 
       {creating && (
         <PlanChat

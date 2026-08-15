@@ -214,3 +214,30 @@ export function planLane({ trips = [], wishlist = [], events = [], today = new D
     return a.sortAt - b.sortAt
   })
 }
+
+/**
+ * Which version of the way-in the Plan tab shows, of the two that exist.
+ *
+ * It used to be one version and a disappearance. An empty lane got the whole
+ * invitation; a lane with anything at all in it got nothing — so a signed-out
+ * hopper looking at one example trip and a someday list reached the end of
+ * the page a third of the way down the screen, with the rest of it blank and
+ * no next thing anywhere. A tab that has run out of things to say should
+ * still say what to do.
+ *
+ * PlanWaysIn grew a `tail` mode for exactly this and PlanTab never rendered
+ * it: the component, its prop and the comment explaining the fix all shipped,
+ * and the two lines that would have shown it did not.
+ *
+ * A function rather than two conditions written out twice, because the
+ * failure that would matter is not either branch being wrong — it is both
+ * being true at once, which is what you get the first time somebody edits one
+ * `lane.length` and not the other. There is exactly one answer here, so
+ * there can only ever be one on screen.
+ *
+ * @returns 'full' — the whole screen, when there is nothing planned.
+ *          'tail' — quieter, under a lane that already has cards in it.
+ */
+export function waysInMode(lane = []) {
+  return lane.length === 0 ? 'full' : 'tail'
+}

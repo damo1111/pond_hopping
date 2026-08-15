@@ -10,6 +10,7 @@ import {
   nightsOf,
   planLane,
   readiness,
+  waysInMode,
   TIMEZONE_SLIP,
 } from './planLane.js'
 
@@ -208,4 +209,25 @@ test('and the bucket it has to stay out of is a real one', () => {
   const jobRanOn = new Date('2026-08-15T00:07:00')
   assert.equal(countdown({ start_date: '2026-08-22' }, jobRanOn).text, 'Next week')
   assert.equal(countdown({ start_date: '2026-08-16' }, jobRanOn).text, 'Tomorrow')
+})
+
+test('the way in has exactly one version on screen, never two and never none', () => {
+  // The bug this guards is not either branch being wrong. It is both being
+  // true at once, which is what happens the first time somebody edits one
+  // `lane.length` check and not the other.
+  assert.equal(waysInMode([]), 'full')
+  assert.equal(waysInMode([{ id: 'a', kind: 'trip' }]), 'tail')
+  assert.equal(waysInMode([{ id: 'a' }, { id: 'b' }]), 'tail')
+
+  for (const lane of [[], [{ id: 'a' }], [{ id: 'a' }, { id: 'b' }]]) {
+    const mode = waysInMode(lane)
+    assert.ok(['full', 'tail'].includes(mode), `${mode} is not a version that exists`)
+  }
+})
+
+test('and a lane nobody passed is the empty one, not a crash', () => {
+  // PlanTab computes the lane from three separate fetches. Any of them can be
+  // undefined for a frame on a cold start, and the way in is the one thing on
+  // that screen which must render during exactly that frame.
+  assert.equal(waysInMode(), 'full')
 })
