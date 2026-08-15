@@ -1,4 +1,6 @@
 import { useContext, useEffect, useState } from 'react'
+import { onTodaysClock } from '../lib/demoFlightClock.js'
+import { shouldBadge } from '../lib/demoTour.js'
 import { supabase } from '../lib/supabase.js'
 import { TripContext } from '../App.jsx'
 import FlightCard from '../components/FlightCard.jsx'
@@ -218,7 +220,11 @@ export default function FlightsTab() {
       )}
       {sections.map((tripId) => {
         const trip = tripsById.get(tripId)
-        const list = byTrip.get(tripId) ?? []
+        // The example trips borrow today's clock, so the card's live states
+        // can be seen at all. There is no live data source yet — backlog §8 —
+        // and states that are built, unshippable and unreviewable are the
+        // worst of both. Demo trips only; nothing here reaches a real flight.
+        const list = shouldBadge(trip) ? onTodaysClock(byTrip.get(tripId) ?? []) : byTrip.get(tripId) ?? []
         const upcoming = plannedByTrip.get(tripId) ?? []
         const km = list.reduce((s, f) => s + (f.distance_km || 0), 0)
         const color = tripColor(trip?.slug)

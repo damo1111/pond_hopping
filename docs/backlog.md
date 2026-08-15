@@ -486,6 +486,29 @@ See `docs/lounges.md`.
 
 ---
 
+## 8. No live flight data source for the pre-flight and in-flight states
+
+The card now has six states — later, soon, boarding, airborne, landed, past
+— and the last two are the only ones any real flight ever reaches, because
+nothing feeds the first four in real time.
+
+What exists: `actual_dep_time`, `actual_arr_time`, `gate_dep`, `gate_arr`,
+`terminal_dep`, `terminal_arr`, `status`, filled once by the enrichment run
+after the fact. What does not exist: anything that updates while somebody is
+standing at the gate or sitting in the air. AeroDataBox has live endpoints;
+they cost per call and want polling, which is a decision about money and
+about how often, not a missing function.
+
+Until then the states are demonstrated on the example trips only — see
+`src/lib/demoFlightClock.js`, which shifts a demo flight's own times onto
+today so the states can be seen. Nothing touches a real flight.
+
+**Baggage carousel is not stored at all** and may not be available from the
+source. It is the second half of the landing notification — "Gate B14, bags
+on 4" — and needs checking before it is promised to anybody.
+
+---
+
 ## Smaller things
 
 - ~~**`ios/RELEASE_UNLOCKED` comes off main**~~ — done. Build 116 reached
