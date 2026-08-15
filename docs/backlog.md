@@ -527,3 +527,54 @@ on 4" — and needs checking before it is promised to anybody.
 - **`gmail-scan.js` is still on `gpt-5.5`**, a generation behind everything
   else.
 - **One unexplained 405** on `/api/reconstruct-trip`, seen once.
+
+## 9. Video, and what the Picker will not tell us
+
+Videos are picked and then left where they are, deliberately and out loud —
+`isPhoto` refuses anything Google labels VIDEO, anything with a `video/` mime
+type, and anything whose metadata carries a video block, and the card says
+how many were left rather than dropping them from the count in silence.
+
+Taking them properly is a different feature, not a missing branch. A video
+needs `=dv` on the base URL rather than `=d`, a transcode rather than a
+resize, a poster frame, a duration, a player, and a storage bill with a
+different shape. The photo pipeline shares almost nothing with it beyond the
+queue.
+
+**What we learnt tonight, and what it costs:** the Picker mints a
+*session-scoped* media id, so the same photograph picked twice carries two
+different ids — measured, 37 of 1,086 matched on a re-pick. And Google does
+not return byte-identical originals across sessions, so fingerprints do not
+match either: all 1,998 rows on China & Japan carry distinct ones. The only
+stable identity is the EXIF timestamp, which is now what the skip compares.
+Anything built on the assumption that a picked item can be recognised before
+it is downloaded has to account for this.
+
+## 10. A live source for flights
+
+Four of the flight card's six states — later, soon, boarding, airborne — can
+only be right if something feeds them. Nothing does. The card computes them
+from `dep_time` and `arr_time`, which are a schedule rather than a fact, so
+a delay is invisible and the gate is whatever was last typed in.
+
+This is a decision about money and polling rather than a missing function:
+a flight data provider, a poll cadence per flight per day, and a cost that
+scales with how many hoppers are travelling at once. Until it exists, the
+example trips borrow today's clock so the states can at least be seen — see
+`demoFlightClock.js`, which cannot reach a real flight.
+
+Baggage carousel is not stored at all and may not be available from the
+source; the "prod to your landing gate" idea depends on both.
+
+## 11. Settings, once there are real users
+
+Account was nineteen cards. It is now grouped into You, Your trips and Help,
+with the diagnostics folded under "Under the bonnet" — which is the right
+shape for testers and still the wrong shape for strangers.
+
+What is still wrong: several of the folded cards are one-off imports that
+should not be permanent furniture, "Places on your trips" is a developer's
+tool wearing a settings card's clothes, and the notification card asks a
+question the app has not earned the right to ask yet (see #37). The real cut
+is deciding which of those survive contact with somebody who did not build
+this, and deleting the rest rather than folding them.
