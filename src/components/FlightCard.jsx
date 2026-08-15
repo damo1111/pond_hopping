@@ -7,13 +7,7 @@ import Icon from './Icon.jsx'
 import RouteMap from './RouteMap.jsx'
 import { localTime, localDate } from '../lib/airportTz.js'
 import { nameFor, usePeopleNames } from '../lib/people.js'
-
-function fmtDuration(min) {
-  if (!min) return ''
-  const h = Math.floor(min / 60)
-  const m = min % 60
-  return `${h}h ${String(m).padStart(2, '0')}m`
-}
+import { dayShift, saidAs, spanMinutes } from '../lib/flightSpan.js'
 
 export default function FlightCard({ flight, aircraftType, onOpen }) {
   const names = usePeopleNames()
@@ -51,6 +45,9 @@ export default function FlightCard({ flight, aircraftType, onOpen }) {
     setRegSaving(false)
   }
 
+  const mins = spanMinutes(f.dep_time, f.arr_time)
+  const shift = dayShift(localDate(f.dep_time, f.dep_airport), localDate(f.arr_time, f.arr_airport))
+
   const from = [f.dep_lat, f.dep_lon]
   const to = [f.arr_lat, f.arr_lon]
 
@@ -72,18 +69,44 @@ export default function FlightCard({ flight, aircraftType, onOpen }) {
           <TailFin airline={f.airline || f.flight_number} size={22} />
         </span>
         <span className="fh-main">
-          <span className="fh-row1">
-            <FlapText className="fh-time" text={localTime(f.dep_time, f.dep_airport)} groupDelay={0} />
-            <span className="fh-route">
-              <FlapText text={f.dep_airport} groupDelay={200} />
-              <span className="fh-arrow">→</span>
-              <FlapText text={f.arr_airport} groupDelay={260} />
+          {/* Two ends and the time between them.
+              This showed the departure time and nothing else — no arrival,
+              no duration, no sense that the thing takes eleven hours, which
+              is the one fact a flight card exists to carry. Both numbers
+              were already in the row; nothing new is asked of anybody. */}
+          <span className="fh-span">
+            <span className="fh-end">
+              <FlapText className="fh-time" text={localTime(f.dep_time, f.dep_airport)} groupDelay={0} />
+              <FlapText className="fh-code" text={f.dep_airport} groupDelay={200} />
+              <span className="fh-place">{f.dep_city}</span>
             </span>
-            <FlapText className="fh-flightno" text={f.flight_number} groupDelay={420} />
+
+            <span className="fh-mid">
+              {mins ? <span className="fh-dur">{saidAs(mins)}</span> : null}
+              <span className="fh-line" aria-hidden="true">
+                <i className="fh-line-plane" />
+              </span>
+              <FlapText className="fh-flightno" text={f.flight_number} groupDelay={420} />
+            </span>
+
+            <span className="fh-end fh-end--to">
+              <span className="fh-time-wrap">
+                <FlapText className="fh-time" text={localTime(f.arr_time, f.arr_airport)} groupDelay={320} />
+                {/* Leaving at 23:55 and landing at 06:10 reads as arriving
+                    before you left without this. */}
+                {shift !== 0 && (
+                  <sup className="fh-next">
+                    {shift > 0 ? '+' : '−'}
+                    {Math.abs(shift)}
+                  </sup>
+                )}
+              </span>
+              <FlapText className="fh-code" text={f.arr_airport} groupDelay={260} />
+              <span className="fh-place">{f.arr_city}</span>
+            </span>
           </span>
+
           <span className="fh-row2">
-            {f.dep_city} — {f.arr_city}
-            <span className="fh-dot">·</span>
             {localDate(f.dep_time, f.dep_airport)}
             {f.distance_km ? (
               <>
@@ -148,7 +171,7 @@ export default function FlightCard({ flight, aircraftType, onOpen }) {
             <Meta label="Seat" value={f.seat} mono onSave={(v) => saveField('seat', v)} />
             <Meta label="Depart" value={localTime(f.dep_time, f.dep_airport)} mono />
             <Meta label="Arrive" value={localTime(f.arr_time, f.arr_airport)} mono />
-            <Meta label="Duration" value={fmtDuration(durationMin(f))} mono />
+            <Meta label="Duration" value={saidAs(mins)} mono />
           </div>
 
           <a
@@ -163,12 +186,6 @@ export default function FlightCard({ flight, aircraftType, onOpen }) {
       )}
     </div>
   )
-}
-
-function durationMin(flight) {
-  if (!flight.dep_time || !flight.arr_time) return null
-  const d = (new Date(flight.arr_time) - new Date(flight.dep_time)) / 60000
-  return d > 0 ? Math.round(d) : null
 }
 
 function Meta({ label, value, mono, onSave }) {

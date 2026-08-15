@@ -12330,3 +12330,98 @@ button.ios-sheet-grip:active { cursor: grabbing; }
    that shouted would be exhausting eight weeks out — just enough that the
    eye finds it before the ones that are done. */
 .pc-meter.short strong { color: var(--accent); }
+
+/* ── The flight as a span ─────────────────────────────────────────────────
+   The head showed a departure time and nothing else: no arrival, no
+   duration, no sense that the thing takes eleven hours — which is the one
+   fact a flight card exists to carry. Two ends and the time between them,
+   in the same split-flap language the board already speaks. */
+.fh-span {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(72px, 1.25fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  font-family: var(--font-mono);
+}
+
+.fh-end {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+/* The arrival reads right-to-left, so the eye finishes where the flight
+   finishes rather than travelling back to the middle. */
+.fh-end--to { align-items: flex-end; text-align: right; }
+
+.fh-time-wrap { display: flex; align-items: flex-start; gap: 2px; }
+
+.fh-code {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: #f0ead9;
+}
+.fh-place {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: #b9ae91;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* Landing the next day, or — westbound over the line — the day before. */
+.fh-next {
+  font-size: 9px;
+  line-height: 1;
+  color: #e8c568;
+  opacity: 0.85;
+}
+
+.fh-mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding-top: 3px;
+  min-width: 0;
+}
+.fh-dur {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #b9ae91;
+  white-space: nowrap;
+}
+.fh-line {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: rgba(240, 234, 217, 0.22);
+}
+/* A mark on the line rather than an aircraft glyph: at this size an emoji
+   plane resolves to the platform's own, in the platform's own colour, in the
+   middle of a board that is gold and ink. */
+.fh-line-plane {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: #e8c568;
+}
+.fh-mid .fh-flightno {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #b9ae91;
+  white-space: nowrap;
+}
+
+/* Narrow phones: the cities are the first thing that can go, since the codes
+   above them say the same in three letters. */
+@media (max-width: 380px) {
+  .fh-place { display: none; }
+}
