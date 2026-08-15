@@ -107,6 +107,22 @@ export function nowLooking(at = {}) {
 }
 
 /**
+ * Where they are, for anything that is not an event.
+ *
+ * Added for the bug reporter. A report that says which tab somebody was on
+ * is a different object from one that does not, and this is already the
+ * answer every event gets stamped with — reading it here rather than asking
+ * React for it means the report and the events around it cannot disagree
+ * about which screen this was.
+ *
+ * A copy, because whereabouts is module state and a caller that mutated it
+ * would silently retag every subsequent event.
+ */
+export function whereWeAre() {
+  return { ...whereabouts }
+}
+
+/**
  * Who, when there is a who.
  *
  * Told by AuthContext rather than asked of supabase-js. Asking would mean

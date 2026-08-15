@@ -130,12 +130,71 @@ export const cameFromConsent = (from) => from === true
  *
  * tokeninfo needs no scope of its own — it describes the bearer.
  */
+/**
+ * A promise that is not allowed to take forever.
+ *
+ * The import hung at "checking with Google…" and stayed there. Both steps
+ * before the picker reach the network — Google's tokeninfo endpoint, and
+ * supabase-js reading the session — and neither had a deadline. A `try/catch`
+ * around them looks like it handles the network, and it does not: catch
+ * catches a *rejection*, and a request that never settles never rejects. On
+ * a phone with a marginal signal the fetch simply hangs, the step never
+ * advances, and the button says "checking with Google…" until the app is
+ * killed. Nothing is logged, because nothing failed.
+ *
+ * Never rejects, and never throws. A deadline helper that can itself blow up
+ * has moved the problem rather than solved it.
+ *
+ * @param fallback what the caller gets when the deadline passes. Chosen at
+ *                 each call site to be the answer that keeps things moving —
+ *                 for tokenFacts that is `null`, which the picker already
+ *                 reads as "Google would not say", and already handles by
+ *                 trying the token anyway.
+ */
+export function withDeadline(work, ms, fallback) {
+  return new Promise((resolve) => {
+    let settled = false
+    const done = (v) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve(v)
+    }
+    const timer = setTimeout(() => done(fallback), ms)
+    try {
+      Promise.resolve(typeof work === 'function' ? work() : work).then(done, () => done(fallback))
+    } catch {
+      done(fallback)
+    }
+  })
+}
+
+/** Long enough for a slow answer on a train, short enough that nobody
+ *  decides the app is broken. Google's tokeninfo is one small GET. */
+export const ASK_GOOGLE_MS = 6000
+
+/** Reading a session already in memory should be instant; this is only a
+ *  ceiling for the case where supabase-js is mid-refresh against a network
+ *  that has gone away. */
+export const READ_SESSION_MS = 4000
+
 export async function tokenFacts(token, { fetchImpl = fetch } = {}) {
+  // Aborted as well as raced, so a hung request is dropped rather than left
+  // holding a socket open behind a promise nobody is waiting on any more.
+  const stop = typeof AbortController === 'function' ? new AbortController() : null
+  const timer = setTimeout(() => stop?.abort(), ASK_GOOGLE_MS)
   try {
-    const r = await fetchImpl(
-      `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${encodeURIComponent(token)}`
+    const r = await withDeadline(
+      fetchImpl(
+        `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${encodeURIComponent(token)}`,
+        stop ? { signal: stop.signal } : undefined
+      ),
+      ASK_GOOGLE_MS,
+      null
     )
-    if (!r.ok) return null
+    // Null means the deadline passed. Not knowing is not the same as knowing
+    // the token is wrong, and the caller treats it that way.
+    if (!r || !r.ok) return null
     const said = await r.json()
     return {
       scopes: String(said.scope ?? '').split(/\s+/).filter(Boolean),
@@ -146,6 +205,8 @@ export async function tokenFacts(token, { fetchImpl = fetch } = {}) {
     }
   } catch {
     return null
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -315,7 +376,12 @@ export async function googleTokens({ from } = {}) {
   const found = []
   try {
     const client = await db(from)
-    const { data } = await client.auth.getSession()
+    // Same reason as tokenFacts: getSession() can sit on a refresh against a
+    // network that has gone away, and this is the first thing the import
+    // does. A missing token here is not a failure — the stash below may
+    // still have one, and an empty list sends somebody to consent, which is
+    // a screen rather than a spinner.
+    const { data } = (await withDeadline(client.auth.getSession(), READ_SESSION_MS, null)) ?? {}
     if (data?.session?.provider_token) found.push(data.session.provider_token)
   } catch {
     /* no session is not an error here — the stash may still have one */

@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import { oops, track } from '../lib/analytics.js'
+import SayWhatBroke from './SayWhatBroke.jsx'
 
 // The app had no error boundary at all. Any exception thrown while rendering
 // unmounted the entire tree, leaving a blank page with no message, no reload
@@ -58,7 +59,7 @@ async function freshen() {
 export default class Boundary extends Component {
   constructor(props) {
     super(props)
-    this.state = { error: null }
+    this.state = { error: null, saying: false }
   }
 
   static getDerivedStateFromError(error) {
@@ -136,9 +137,25 @@ export default class Boundary extends Component {
         <button className="crash-btn" onClick={() => window.location.reload()}>
           Reload
         </button>
+        {/* Here above all. This screen is the one place somebody is
+            guaranteed to be stuck, and until now the only thing it could
+            offer was two buttons that throw state away — after which
+            whatever they were doing is unrecoverable and unreportable.
+            The crash itself is already in app_errors with its stack; what
+            was missing is the sentence saying what they were trying to do,
+            which is the half that makes a stack trace actionable. */}
+        <button className="crash-btn crash-btn--quiet" onClick={() => this.setState({ saying: true })}>
+          Tell us what you were doing
+        </button>
         <button className="crash-btn crash-btn--quiet" onClick={() => this.reset()}>
           Sign out and clear this device
         </button>
+        <SayWhatBroke
+          open={this.state.saying}
+          onClose={() => this.setState({ saying: false })}
+          hint="What were you trying to do when this happened? The crash itself is already recorded — this is the part only you know."
+          context={{ tab: 'crash', trip: null }}
+        />
         <div className="crash-build">
           build {typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'}
         </div>

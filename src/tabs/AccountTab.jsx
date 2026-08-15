@@ -23,6 +23,8 @@ import { isOn as gestureDebugOn, toggle as toggleGestureDebug } from '../lib/ges
 import { pushDiagnostics, registerPush } from '../lib/push.js'
 import { TripContext } from '../App.jsx'
 import { demoSwitchNote, hiddenByArrival } from '../lib/demoVisibility.js'
+import SayWhatBroke from '../components/SayWhatBroke.jsx'
+import TesterSessions from '../components/TesterSessions.jsx'
 import { ownTrips } from '../lib/demoTour.js'
 import { remember, waiting, forget, resendIn } from '../lib/pendingCode.js'
 import { readAll, ENOUGH } from '../lib/kpis.js'
@@ -767,6 +769,30 @@ function TimelineCard() {
 // And the ordinary reason: the pitch lives inside the opening now — there is
 // no card after it any more — so handing somebody your phone to show them
 // what this is had no route back to the one screen that explains it.
+// The way in, for everybody.
+//
+// Not admin-gated and not hidden behind a debug menu: the whole point is
+// that a tester who has just hit something can say so while they still
+// remember what they were doing. It sits on Account because that is the one
+// screen every tester finds, and the crash screen offers the same sheet for
+// the case where Account is not reachable at all.
+function SomethingWrongCard() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="account-card">
+      <div className="account-card-title">Something not right?</div>
+      <div className="account-card-body">
+        Tell us in your own words. It goes with the build you are on, the screen you were looking
+        at and what you tapped before it — so you are never asked any of that.
+      </div>
+      <button className="account-btn ghost" onClick={() => setOpen(true)}>
+        Report a problem
+      </button>
+      <SayWhatBroke open={open} onClose={() => setOpen(false)} />
+    </div>
+  )
+}
+
 function OpeningCard() {
   const { replayColdOpen } = useContext(TripContext)
   if (!replayColdOpen) return null
@@ -1308,6 +1334,8 @@ function SignedIn() {
 
       <DemoCard />
       <OpeningCard />
+      <SomethingWrongCard />
+      <TesterSessions />
       <BrokenCard />
       <NumbersCard />
       <ExamplesCard />

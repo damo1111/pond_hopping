@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  withDeadline,
   asProgress,
   bringThemIn,
   cameFromConsent,
@@ -431,4 +432,78 @@ test('but a second empty answer is still a refusal', async () => {
     (e) => needsConsent(e) && /photographs/.test(e.message)
   )
   assert.equal(looks, 2)
+})
+
+// ── A hang is not an error, which is why nothing caught it ────────────────
+//
+// The import sat at "checking with Google…" and stayed there. Both steps
+// before the picker reach the network, and both were wrapped in try/catch —
+// which looks like handling the network and is not. catch catches a
+// rejection; a request that never settles never rejects. On a marginal
+// signal the fetch simply hangs, the step never advances, and the button
+// says "checking with Google…" until the app is killed. Nothing is logged,
+// because nothing failed.
+
+test('a promise that never settles is not allowed to hold the app', async () => {
+  const never = new Promise(() => {})
+  const got = await withDeadline(never, 20, 'gave up')
+  assert.equal(got, 'gave up')
+})
+
+test('and one that answers in time is not interfered with', async () => {
+  assert.equal(await withDeadline(Promise.resolve('answered'), 500, 'gave up'), 'answered')
+  // A rejection is the ordinary failure and lands on the same fallback,
+  // because the caller has one thing to do about either.
+  assert.equal(await withDeadline(Promise.reject(new Error('no')), 500, 'gave up'), 'gave up')
+  // Including one thrown synchronously, which is not a rejection at all.
+  assert.equal(await withDeadline(() => { throw new Error('sync') }, 500, 'gave up'), 'gave up')
+})
+
+test('the deadline never resolves twice, whichever wins', async () => {
+  let count = 0
+  const slow = new Promise((r) => setTimeout(() => r('late'), 30))
+  const out = await withDeadline(slow, 5, 'gave up')
+  count += 1
+  await new Promise((r) => setTimeout(r, 60))
+  assert.equal(out, 'gave up')
+  assert.equal(count, 1)
+})
+
+test('Google refusing to answer at all still lets the import carry on', async () => {
+  // The behaviour that matters. tokenFacts returning null means "Google
+  // would not say", and bringThemIn already treats that as a token worth
+  // trying — so a dead tokeninfo endpoint costs six seconds and a picker,
+  // rather than a spinner that never ends.
+  const hangs = () => new Promise(() => {})
+  const facts = await tokenFacts('a-token', { fetchImpl: hangs })
+  assert.equal(facts, null, 'a hung lookup is "do not know", not a hang')
+})
+
+test('and a token Google will not describe still reaches the picker', async () => {
+  // The behaviour that was broken. "checking with Google" is the step before
+  // the picker, and it is where the app sat forever. What matters is that a
+  // silent Google no longer stops the flow there: openSession is reached,
+  // with the token, and the picker address comes back.
+  let opened = null
+  let handed = null
+  const steps = []
+  await bringThemIn('trip-1', {
+    token: 'the-only-token',
+    facts: async () => null, // Google says nothing at all about it
+    open: async (key) => {
+      opened = key
+      return { id: 'sess-1', pickerUri: 'https://photos.google.com/picker/x' }
+    },
+    tokens: async () => ['the-only-token'],
+    rest: async () => {},
+    show: async () => true,
+    hide: async () => {},
+    onPicker: (uri) => { handed = uri },
+    onStep: (s) => steps.push(s),
+  }).catch(() => {})
+
+  assert.equal(opened, 'the-only-token', 'it got past "checking with Google"')
+  assert.equal(handed, 'https://photos.google.com/picker/x', 'and handed out the picker')
+  assert.ok(steps.includes('checking with Google'))
+  assert.ok(steps.includes('asking Google'), 'the step advanced rather than sticking')
 })

@@ -12576,3 +12576,171 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 @media (prefers-reduced-motion: reduce) {
   .fh-now.flying { animation: none; }
 }
+
+/* ── Saying what broke ────────────────────────────────────────────────────
+   A sheet rather than a screen, on purpose. Somebody reporting a problem is
+   in the middle of something; taking them somewhere else to describe it
+   means they lose the thing they were describing.
+
+   Sized in dvh for the same reason the trip sheet is: a phone keyboard
+   changes the viewport, and a bug reporter is nothing but a textarea and a
+   keyboard. */
+.swb-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+}
+
+.swb {
+  width: 100%;
+  max-width: 560px;
+  max-height: 88dvh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 18px calc(20px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.35);
+}
+
+.swb-grip {
+  align-self: center;
+  width: 38px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.swb-title { font-family: var(--font-display); font-size: 20px; }
+
+.swb-body { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin: 0; }
+
+.swb-text {
+  width: 100%;
+  resize: vertical;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: inherit;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.swb-text:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Printed rather than summarised as "diagnostics attached". Somebody typing
+   into a box on a phone deserves to know what travels with it, and the list
+   is short enough to say. */
+.swb-note { color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.swb-note--bad { color: var(--bad, #c2410c); }
+
+.swb-send {
+  align-self: flex-start;
+  padding: 11px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.swb-send:disabled { opacity: 0.45; cursor: default; }
+.swb-send--retry { background: var(--bad, #c2410c); }
+
+/* ── A tester's session, read back ────────────────────────────────────────
+   Dense on purpose. This is the one screen in the app that is a tool rather
+   than a place: it is read by one person looking for one thing, and every
+   line that is not a step is a line between them and it. */
+.ts-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.ts-item { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface-2); }
+/* Dealt with, and therefore no longer the thing to look at. */
+.ts-item--done { opacity: 0.55; }
+
+.ts-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 11px 13px;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ts-said { font-size: 14px; line-height: 1.45; }
+.ts-meta { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.04em; color: var(--text-muted); }
+
+.ts-story { display: flex; flex-direction: column; gap: 10px; padding: 0 13px 13px; }
+
+.ts-short { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+
+/* The answer, above the evidence for it. */
+.ts-led {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 11px;
+  border-left: 2px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: var(--surface);
+}
+
+.ts-led-title { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+.ts-led-step { font-size: 13px; }
+.ts-led-broke { font-size: 13px; color: var(--bad, #c2410c); }
+
+.ts-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.ts-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  border-top: 1px solid var(--border);
+}
+
+.ts-at { flex: 0 0 auto; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); }
+.ts-what { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.ts-where { display: block; font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+
+/* Three kinds, and only two of them need a colour: what somebody did is the
+   baseline, and colouring it would leave nothing for the two that matter. */
+.ts-line--broke .ts-what { color: var(--bad, #c2410c); }
+.ts-line--said .ts-what { color: var(--accent); }
+.ts-line--quiet { color: var(--text-muted); border-top: 0; }
+
+/* Where they stopped to work out what to do. */
+.ts-gap { flex: 0 0 auto; font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); opacity: 0.8; }
+
+.ts-done {
+  align-self: flex-start;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
