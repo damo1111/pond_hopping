@@ -776,6 +776,45 @@ function TimelineCard() {
 // remember what they were doing. It sits on Account because that is the one
 // screen every tester finds, and the crash screen offers the same sheet for
 // the case where Account is not reachable at all.
+// Whose app this is, and how to reach the people who made it.
+//
+// There was nothing. No name behind the duck, no version, no way to say
+// something without finding whoever handed you the link. That is fine while
+// every tester is somebody you know; it is not fine the moment one of them
+// shows it to somebody you don't, which is the entire point of giving it to
+// them.
+//
+// Deliberately last on the screen and deliberately quiet — a colophon, not a
+// marketing panel. What it has to carry is small: who, how to say something,
+// and which build, because the build is the first thing anybody will be
+// asked for.
+function AboutCard() {
+  return (
+    <div className="account-card account-card--about">
+      <div className="about-mark">
+        <img src="/duck.png" alt="" className="about-duck" />
+        <div>
+          <div className="about-name">Pond Hopping</div>
+          <div className="about-by">
+            by <span className="about-eend">.eend</span>
+          </div>
+        </div>
+      </div>
+      <div className="account-card-body">
+        A travel log that fills itself in — from your photographs, your
+        boarding passes and where you actually went.
+      </div>
+      <div className="about-links">
+        <a className="about-link" href="mailto:hello@eend.app?subject=Pond%20Hopping">
+          hello@eend.app
+        </a>
+        <span className="about-build">build {thisBuild}</span>
+      </div>
+    </div>
+  )
+}
+
+
 function SomethingWrongCard() {
   const [open, setOpen] = useState(false)
   return (
@@ -1327,20 +1366,37 @@ function SignedIn() {
 
   return (
     <>
+      <div className="account-group">You</div>
       <NameCard />
       <DegreesCard />
 
+      <div className="account-group">Your trips</div>
       <ConnectCard />
 
       <DemoCard />
       <OpeningCard />
+
+      <div className="account-group">Help</div>
       <SomethingWrongCard />
-      <TesterSessions />
-      <BrokenCard />
-      <NumbersCard />
-      <ExamplesCard />
-      <OriginalsCard />
-      <PushCard />
+      <AboutCard />
+
+      {/* Everything a hopper never needs to look at.
+          Nineteen cards had accumulated on one screen — diagnostics,
+          one-off imports, upload queues — each of them added for a reason
+          and none of them ever taken away, so the settings a person actually
+          changes were buried among tools for somebody who built the thing.
+          Folded rather than deleted: they are still the fastest route to an
+          answer when something is wrong, which is exactly when nobody wants
+          to go and find them. */}
+      <details className="account-more">
+        <summary className="account-group account-group--fold">Under the bonnet</summary>
+        <TesterSessions />
+        <BrokenCard />
+        <NumbersCard />
+        <ExamplesCard />
+        <OriginalsCard />
+        <PushCard />
+      </details>
       <FlightSourceCard />
       <TimelineCard />
 

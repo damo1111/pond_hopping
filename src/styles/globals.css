@@ -12921,3 +12921,58 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 }
 
 .auth-meant-no { flex: 1 1 100%; font-size: 12px; opacity: 0.85; }
+
+/* ── Settings, grouped ────────────────────────────────────────────────────
+   Nineteen cards had accumulated on one screen — diagnostics, one-off
+   imports, upload queues — each added for a reason and none ever taken away,
+   so the settings a person actually changes were buried among tools for
+   whoever built the thing. */
+.account-group {
+  margin: 22px 0 -2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.account-group--fold {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.account-group--fold::-webkit-details-marker { display: none; }
+.account-group--fold::after { content: '▸'; font-size: 11px; }
+.account-more[open] .account-group--fold::after { content: '▾'; }
+.account-more > *:not(summary) { margin-top: 10px; }
+
+/* A colophon, not a marketing panel. */
+.account-card--about { gap: 10px; }
+
+.about-mark { display: flex; align-items: center; gap: 11px; }
+.about-duck { width: 38px; height: 38px; border-radius: 10px; }
+.about-name { font-family: var(--font-display); font-size: 17px; }
+.about-by { font-size: 12.5px; color: var(--text-muted); }
+.about-eend { color: var(--accent); letter-spacing: 0.02em; }
+
+.about-links {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.about-link { color: var(--accent); font-size: 13px; }
+
+/* Selectable, because the point is sending it to somebody. */
+.about-build {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  user-select: text;
+}
