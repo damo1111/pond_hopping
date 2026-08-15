@@ -7,7 +7,7 @@ import Icon from './Icon.jsx'
 import RouteMap from './RouteMap.jsx'
 import { localTime, localDate } from '../lib/airportTz.js'
 import { nameFor, usePeopleNames } from '../lib/people.js'
-import { dayShift, saidAs, spanMinutes } from '../lib/flightSpan.js'
+import { dayShift, howItWent, saidAs, spanMinutes } from '../lib/flightSpan.js'
 
 export default function FlightCard({ flight, aircraftType, onOpen }) {
   const names = usePeopleNames()
@@ -47,6 +47,12 @@ export default function FlightCard({ flight, aircraftType, onOpen }) {
 
   const mins = spanMinutes(f.dep_time, f.arr_time)
   const shift = dayShift(localDate(f.dep_time, f.dep_airport), localDate(f.arr_time, f.arr_airport))
+  const went = howItWent(f)
+  // Terminal and gate have been stored by the enrichment and shown nowhere.
+  // They are the two things somebody standing in a concourse actually wants.
+  const at = (t, g) => [t && `T${String(t).replace(/^T/i, '')}`, g && `Gate ${g}`].filter(Boolean).join(' · ')
+  const depAt = at(f.terminal_dep, f.gate_dep)
+  const arrAt = at(f.terminal_arr, f.gate_arr)
 
   const from = [f.dep_lat, f.dep_lon]
   const to = [f.arr_lat, f.arr_lon]
@@ -79,6 +85,7 @@ export default function FlightCard({ flight, aircraftType, onOpen }) {
               <FlapText className="fh-time" text={localTime(f.dep_time, f.dep_airport)} groupDelay={0} />
               <FlapText className="fh-code" text={f.dep_airport} groupDelay={200} />
               <span className="fh-place">{f.dep_city}</span>
+              {depAt && <span className="fh-gate">{depAt}</span>}
             </span>
 
             <span className="fh-mid">
@@ -103,11 +110,36 @@ export default function FlightCard({ flight, aircraftType, onOpen }) {
               </span>
               <FlapText className="fh-code" text={f.arr_airport} groupDelay={260} />
               <span className="fh-place">{f.arr_city}</span>
+              {arrAt && <span className="fh-gate">{arrAt}</span>}
             </span>
           </span>
 
+          {/* How it actually went, against how it was meant to go.
+              actual_arr_time has been stored for months and shown nowhere,
+              and "landed twelve minutes early" is the single line people
+              open a flight tracker for. */}
+          {went && (
+            <span className={`fh-went${went.late ? ' late' : ''}`}>
+              {went.minutes
+                ? `${went.when} ${went.minutes} min ${went.word}`
+                : `${went.when} on time`}
+            </span>
+          )}
+
           <span className="fh-row2">
             {localDate(f.dep_time, f.dep_airport)}
+            {f.aircraft_model ? (
+              <>
+                <span className="fh-dot">·</span>
+                {f.aircraft_model}
+              </>
+            ) : null}
+            {f.seat ? (
+              <>
+                <span className="fh-dot">·</span>
+                {f.cabin ? `${f.cabin} ${f.seat}` : f.seat}
+              </>
+            ) : null}
             {f.distance_km ? (
               <>
                 <span className="fh-dot">·</span>

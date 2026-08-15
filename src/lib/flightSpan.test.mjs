@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { dayShift, saidAs, spanMinutes } from './flightSpan.js'
+import { dayShift, drift, howItWent, saidAs, spanMinutes } from './flightSpan.js'
 
 test('a flight is a span, and the span is in the data already', () => {
   assert.equal(spanMinutes('2026-05-21T22:05:00Z', '2026-05-22T09:30:00Z'), 685)
@@ -33,4 +33,39 @@ test('a red-eye says +1, or it reads as landing before it left', () => {
   // Westbound across the line can land the day before, and that is real.
   assert.equal(dayShift('2026-05-21', '2026-05-20'), -1)
   assert.equal(dayShift(null, '2026-05-22'), 0)
+})
+
+test('landed early is the line people open a flight tracker for', () => {
+  // actual_arr_time has been stored for months and shown nowhere.
+  const said = howItWent({
+    arr_time: '2026-05-22T09:30:00Z',
+    actual_arr_time: '2026-05-22T09:18:00Z',
+  })
+  assert.deepEqual(said, { minutes: 12, word: 'early', late: false, when: 'Landed' })
+})
+
+test('and arrival beats departure, because once it has landed nobody cares', () => {
+  const said = howItWent({
+    dep_time: '2026-05-21T22:05:00Z',
+    actual_dep_time: '2026-05-21T22:48:00Z',
+    arr_time: '2026-05-22T09:30:00Z',
+    actual_arr_time: '2026-05-22T09:35:00Z',
+  })
+  // Five minutes is within the slack, so it landed on time despite leaving
+  // forty-three minutes late.
+  assert.equal(said.when, 'Landed')
+  assert.equal(said.word, 'on time')
+})
+
+test('three minutes is not a story', () => {
+  // Airlines pad schedules. A card announcing "2 minutes late" every leg
+  // trains somebody to stop reading the line that matters when it is twenty.
+  assert.equal(drift('2026-05-22T09:30:00Z', '2026-05-22T09:33:00Z').word, 'on time')
+  assert.equal(drift('2026-05-22T09:30:00Z', '2026-05-22T09:52:00Z').word, 'late')
+})
+
+test('an unflown flight says nothing at all', () => {
+  assert.equal(howItWent({ arr_time: '2026-05-22T09:30:00Z' }), null)
+  assert.equal(howItWent({}), null)
+  assert.equal(drift(null, null), null)
 })

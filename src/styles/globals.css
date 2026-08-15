@@ -12425,3 +12425,26 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 @media (max-width: 380px) {
   .fh-place { display: none; }
 }
+
+/* Terminal and gate, under the airport they belong to. Stored by the
+   enrichment for months and shown nowhere — and they are the two things
+   somebody standing in a concourse actually wants. */
+.fh-gate {
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: #9a8f76;
+  white-space: nowrap;
+}
+
+/* How it went. Gold when it beat the schedule or matched it, warm red when
+   it did not — the only place on this board that is allowed to be red, so
+   that it means something when it is. */
+.fh-went {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: #e8c568;
+}
+.fh-went.late { color: #e0876a; }

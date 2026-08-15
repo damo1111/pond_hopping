@@ -47,3 +47,40 @@ export function saidAs(minutes) {
   if (!h) return `${m}m`
   return m ? `${h}h ${String(m).padStart(2, '0')}m` : `${h}h`
 }
+
+/**
+ * How the flight actually went, against how it was meant to go.
+ *
+ * `actual_dep_time` and `actual_arr_time` have been stored by the enrichment
+ * for months and shown nowhere. "Landed twelve minutes early" is the single
+ * line people open a flight tracker for, and this app had every number
+ * needed to say it and said none of them.
+ *
+ * Arrival first, because once a flight has landed nobody cares what the
+ * departure did. Returns null when there is nothing honest to say — an
+ * unflown flight, or one nobody enriched.
+ */
+export function howItWent(flight = {}) {
+  const arr = drift(flight.arr_time, flight.actual_arr_time)
+  if (arr) return { ...arr, when: 'Landed' }
+  const dep = drift(flight.dep_time, flight.actual_dep_time)
+  if (dep) return { ...dep, when: 'Departed' }
+  return null
+}
+
+/** Minutes between what was planned and what happened, and what to call it.
+ *
+ *  Three minutes is not a story. Airlines pad schedules and a card that
+ *  announces "two minutes late" on every leg trains somebody to stop reading
+ *  the line that matters when it is twenty. */
+export function drift(planned, actual, slack = 5) {
+  if (!planned || !actual) return null
+  const a = Date.parse(planned)
+  const b = Date.parse(actual)
+  if (Number.isNaN(a) || Number.isNaN(b)) return null
+  const mins = Math.round((b - a) / 60000)
+  if (Math.abs(mins) <= slack) return { minutes: 0, word: 'on time', late: false }
+  return mins > 0
+    ? { minutes: mins, word: 'late', late: true }
+    : { minutes: -mins, word: 'early', late: false }
+}
