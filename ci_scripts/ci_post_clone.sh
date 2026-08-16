@@ -75,6 +75,25 @@ if [ -n "$CI_BUILD_NUMBER" ]; then
     || echo "Could not set the build number to $CI_BUILD_NUMBER — carrying on."
 fi
 
+# ── The build variables Vercel has and this runner does not ──────────────
+#
+# VITE_WAYS_IN is read at *build* time, through import.meta.env, and baked
+# into the bundle. Vercel has it set, so the web sheet offers Apple and
+# Google. Xcode Cloud is a different machine with a different environment and
+# nobody ever set it here — so every TestFlight build has shipped with an
+# empty provider list and an email-and-code sheet, while the web showed all
+# three. Reported as "no google apple login" on iOS, with the web working
+# perfectly, which is exactly what this produces.
+#
+# Verified by building both ways and reading the sheet: without it the sheet
+# offers only a code; with it, Continue with Apple and Continue with Google.
+#
+# Apple is not optional here. App Store guideline 4.8 requires Sign in with
+# Apple wherever a third-party sign-in is offered, so an iOS build that
+# offered Google alone would be rejected.
+export VITE_WAYS_IN="${VITE_WAYS_IN:-apple,google}"
+echo "Building with ways in: $VITE_WAYS_IN"
+
 npm ci
 npm run build
 npx cap sync ios
