@@ -8,6 +8,23 @@ import { apiFailed, tookMs } from './analytics.js'
 export const API_BASE = Capacitor.isNativePlatform() ? 'https://pond.eend.app' : ''
 
 /**
+ * How long any of our own endpoints may take before it counts as not
+ * answering.
+ *
+ * Generous, because the model-backed ones genuinely think — the planner and
+ * the story take tens of seconds on a long trip, and cutting those off would
+ * invent failures on a feature that was working. But finite, because a
+ * request that never settles never rejects, so every `try/catch` around a
+ * caller is decoration against it: the promise simply never resolves, the
+ * spinner never stops, and nothing anywhere is recorded.
+ *
+ * That is not hypothetical. It is exactly how the Google Photos import sat
+ * on "checking with Google" until the app was killed, in two different
+ * functions, on two different nights.
+ */
+export const NO_ANSWER_AFTER = 45000
+
+/**
  * Calling one of our own endpoints, and noticing when it does not answer.
  *
  * Every caller used to `fetch` directly and handle its own failure, which
@@ -29,8 +46,14 @@ export const API_BASE = Capacitor.isNativePlatform() ? 'https://pond.eend.app' :
  */
 export async function callApi(path, options) {
   const at = performance.now()
+  // Aborted rather than merely raced, so a dead request is dropped instead
+  // of left holding a connection behind a promise nobody awaits any more.
+  // A caller that passes its own signal keeps it — theirs wins, and this
+  // only adds a ceiling where there was none.
+  const stop = !options?.signal && typeof AbortController === 'function' ? new AbortController() : null
+  const timer = stop ? setTimeout(() => stop.abort(), NO_ANSWER_AFTER) : null
   try {
-    const res = await fetch(`${API_BASE}${path}`, options)
+    const res = await fetch(`${API_BASE}${path}`, stop ? { ...options, signal: stop.signal } : options)
     if (!res.ok) {
       // Read the body from a clone, so the caller still gets an unread one.
       const said = await res.clone().text().catch(() => '')
@@ -42,9 +65,18 @@ export async function callApi(path, options) {
     }
     return res
   } catch (e) {
-    // No network, DNS gone, the request blocked. A real failure, and the
-    // one most likely to be silent because there is no status to inspect.
-    apiFailed(path, 0, e?.message)
-    throw e
+    // No network, DNS gone, the request blocked, or the deadline above. A
+    // real failure, and the one most likely to be silent because there is no
+    // status to inspect.
+    //
+    // An abort we caused is reported as what it is rather than as the
+    // browser's own wording, which says "The user aborted a request" — a
+    // sentence that sends whoever reads it looking for a user who did
+    // nothing of the kind.
+    const ours = stop?.signal.aborted && e?.name === 'AbortError'
+    apiFailed(path, 0, ours ? `no answer in ${NO_ANSWER_AFTER / 1000}s` : e?.message)
+    throw ours ? new Error(`${path} did not answer — worth trying again`) : e
+  } finally {
+    clearTimeout(timer)
   }
 }
