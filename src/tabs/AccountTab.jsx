@@ -23,6 +23,7 @@ import { isOn as gestureDebugOn, toggle as toggleGestureDebug } from '../lib/ges
 import { pushDiagnostics, registerPush } from '../lib/push.js'
 import { TripContext } from '../App.jsx'
 import { demoSwitchNote, hiddenByArrival } from '../lib/demoVisibility.js'
+import { whatIsMissing } from '../lib/buildFacts.js'
 import SayWhatBroke from '../components/SayWhatBroke.jsx'
 import TesterSessions from '../components/TesterSessions.jsx'
 import { ownTrips } from '../lib/demoTour.js'
@@ -789,6 +790,7 @@ function TimelineCard() {
 // and which build, because the build is the first thing anybody will be
 // asked for.
 function AboutCard() {
+  const missingFromBuild = whatIsMissing(import.meta.env)
   return (
     <div className="account-card account-card--about">
       <div className="about-mark">
@@ -808,7 +810,16 @@ function AboutCard() {
         <a className="about-link" href="mailto:hello@eend.app?subject=Pond%20Hopping">
           hello@eend.app
         </a>
-        <span className="about-build">build {thisBuild}</span>
+        <span className="about-build">
+          build {thisBuild}
+          {/* Two bundles from the same commit differ if they were built on
+              machines with different environments — which is exactly what
+              happens here, since the web and the wrapper are built from one
+              repository by two CI systems that share no configuration. Every
+              iOS build shipped without Apple or Google sign-in and the build
+              id could not have told anybody. */}
+          {missingFromBuild && <span className="about-lacking">{missingFromBuild}</span>}
+        </span>
       </div>
     </div>
   )

@@ -12976,3 +12976,13 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   color: var(--text-muted);
   user-select: text;
 }
+
+/* What a build was made without. Absent on a complete build, which is the
+   ordinary case and deserves no words. */
+.about-lacking {
+  display: block;
+  margin-top: 2px;
+  color: var(--bad, #c2410c);
+  text-transform: none;
+  letter-spacing: 0;
+}
