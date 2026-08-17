@@ -193,6 +193,38 @@ export default function PhotosTab({ openPhotoId = null }) {
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
 
+  // ── Choosing many ───────────────────────────────────────────────────────
+  const [picking, setPicking] = useState(false)
+  const [chosen, setChosen] = useState(() => new Set())
+  const held = useRef(null)
+
+  // What is actually on screen, computed above every early return.
+  //
+  // Two rules collide here and both are load-bearing. A hook may not sit
+  // below `if (!photos) return` — React requires the same hooks in the same
+  // order on every render, and a conditional one corrupts state in a way
+  // that surfaces somewhere else entirely. And a const may not be read above
+  // its own declaration — that is a temporal dead zone, which is precisely
+  // the crash that shipped tonight when this effect was placed too high.
+  //
+  // Satisfying one by moving it broke the other, twice. The answer is not to
+  // move the effect at all: it is to compute what it depends on before
+  // anything can return, so there is no ordering left to get wrong.
+  //
+  // `photos` is null until the first read lands, hence the ?? — this now
+  // runs on renders that previously bailed out above it.
+  const visible = useMemo(
+    () => (photos ?? []).filter((p) => !selectedTrip || tripsById.get(p.trip_id)?.slug === selectedTrip),
+    [photos, selectedTrip, tripsById]
+  )
+
+  // A selection cannot outlive the things it points at. Switch from Tuesday
+  // to Wednesday with forty chosen and a Remove would take away photographs
+  // that are no longer on screen — unseen, unchecked, and unmeant.
+  useEffect(() => {
+    setChosen((c) => (c.size ? stillVisible(c, visible) : c))
+  }, [visible])
+
   // Opened by tapping a photograph rather than the count: land on that
   // photograph. Waits for the fetch, because the caller only has an id —
   // the row it names arrives with everybody else's.
@@ -209,17 +241,6 @@ export default function PhotosTab({ openPhotoId = null }) {
     setLightbox(found)
   }, [openPhotoId, photos])
 
-  // ── Choosing many ───────────────────────────────────────────────────────
-  const [picking, setPicking] = useState(false)
-  const [chosen, setChosen] = useState(() => new Set())
-  const held = useRef(null)
-
-  // A selection cannot outlive the things it points at. Switch from Tuesday
-  // to Wednesday with forty chosen and a Remove would take away photographs
-  // that are no longer on screen — unseen, unchecked, and unmeant.
-  useEffect(() => {
-    setChosen((c) => (c.size ? stillVisible(c, visible) : c))
-  }, [visible])
 
   const startHold = (id) => {
     if (picking) return
@@ -337,7 +358,7 @@ export default function PhotosTab({ openPhotoId = null }) {
 
   if (!photos) return <div className="tab-loading">loading photos…</div>
 
-  const visible = photos.filter((p) => !selectedTrip || tripsById.get(p.trip_id)?.slug === selectedTrip)
+
   // Album cards are for trips you are *not* looking at.
   //
   // Inside a trip this used to show a card for that same trip — a title, a

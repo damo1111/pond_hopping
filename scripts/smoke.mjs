@@ -127,6 +127,31 @@ try {
   // this looked for "That didn't work" and would never once have fired: the
   // component is written with a typographic apostrophe. A check that cannot
   // fail is worse than no check, because it reports green.
+  // Every tab, not just the one the app opens on.
+  //
+  // "Cannot access 'Q' before initialization" shipped to production and to a
+  // TestFlight build. A const read above its own declaration is a temporal
+  // dead zone: it throws the instant the component renders, for everybody,
+  // with no data required. The unit tests never mount a component, the
+  // linter has no opinion about ordering inside a function body, and this
+  // check only ever opened the World tab — so nothing in the pipeline went
+  // anywhere near PhotosTab, which is where it was.
+  //
+  // Clicking each tab costs a couple of seconds and covers every lazily
+  // loaded screen in the app. It needs no account and no network: the crash
+  // it is looking for happens at render, before anything is fetched.
+  for (const tab of ['plan', 'flights', 'journal', 'map', 'photos', 'useful', 'world']) {
+    const button = await page.$(`.navitem[data-tab="${tab}"], .navitem-${tab}`)
+    if (!button) continue
+    await button.click().catch(() => {})
+    await page.waitForTimeout(900)
+    if (await page.$('.crash')) {
+      const why = await page.$eval('.crash-detail', (el) => el.textContent).catch(() => '')
+      problems.push(`the ${tab} tab crashed the app — ${why || 'no detail'}`)
+      break
+    }
+  }
+
   const crashed = await page.$('.crash')
   if (crashed) {
     const said = await page.$eval('.crash-detail', (el) => el.textContent).catch(() => '')

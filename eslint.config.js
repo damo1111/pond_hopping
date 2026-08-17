@@ -54,6 +54,42 @@ export default [
     },
   },
   {
+    // Where a temporal dead zone is a crash rather than a curiosity.
+    //
+    // A const read before its own declaration throws the instant the code
+    // runs. In a lib file that is usually harmless — a module-scope const
+    // referenced inside a function that is called later never sees the dead
+    // zone. In a component it is fatal and immediate: the body runs top to
+    // bottom on every render, so the throw happens for everybody, on first
+    // paint, with no data required.
+    //
+    // "Cannot access 'Q' before initialization" shipped to production and
+    // into a TestFlight build exactly this way — a useEffect placed above the
+    // const it depends on. Nothing else in the pipeline could see it: the
+    // unit tests never mount a component, and the smoke check walks the app
+    // signed-out where Photos is a trip tab and unreachable.
+    files: ['src/App.jsx', 'src/components/**/*.jsx', 'src/tabs/**/*.jsx'],
+    rules: {
+      // A const read before its own declaration.
+      //
+      // "Cannot access 'Q' before initialization" shipped to production and
+      // into a TestFlight build: a useEffect placed above the const it
+      // depends on. It throws the instant the component renders, for
+      // everybody, with no data needed — and nothing in the pipeline could
+      // see it. The unit tests never mount a component; the smoke check
+      // walks the app signed-out, where Photos is a trip tab and therefore
+      // unreachable; and the bundler has no opinion about the order in which
+      // a function reads its own variables.
+      //
+      // This does. It is the only check here that is *static* about
+      // ordering, which is exactly what a temporal dead zone is.
+      //
+      // functions:false because hoisted function declarations are fine and
+      // used deliberately throughout — it is let/const/class that bite.
+      'no-use-before-define': ['error', { functions: false, classes: true, variables: true }],
+    },
+  },
+  {
     files: ['api/**/*.js'],
     languageOptions: {
       ecmaVersion: 2023,

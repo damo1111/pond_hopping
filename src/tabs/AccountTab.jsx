@@ -30,6 +30,10 @@ import { ownTrips } from '../lib/demoTour.js'
 import { remember, waiting, forget, resendIn } from '../lib/pendingCode.js'
 import { readAll, ENOUGH } from '../lib/kpis.js'
 
+/** Which build this is. Declared here, above every use — it was below them,
+ *  which is the same shape as the crash that shipped tonight. */
+const thisBuild = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'
+
 const ROLES = [
   { id: 'family', label: 'Family' },
   { id: 'travel_companion', label: 'Travel companion' },
@@ -473,7 +477,6 @@ function BrokenCard() {
   )
 }
 
-const thisBuild = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'
 
 function whenish(iso) {
   if (!iso) return 'never'
