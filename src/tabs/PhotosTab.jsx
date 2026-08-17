@@ -151,23 +151,59 @@ export default function PhotosTab({ openPhotoId = null }) {
 
   useEffect(() => {
     let alive = true
-    supabase
-      .from('photos')
-      .select('*')
-      // Receipts have been filed under the cost they paid for. They are
-      // still photographs and still in this table; they are just not part
-      // of anybody's holiday.
-      .neq('kind', 'receipt')
-      // Day, then the instant inside it. Ordering on taken_on alone sorts to
-      // day granularity and leaves everything within a day in whatever order
-      // Postgres felt like — so a day's photographs came back shuffled, and
-      // differently on each load. id last so the order is total: photos with
-      // no EXIF time at all still land somewhere stable rather than moving
-      // about between renders.
-      .order('taken_on', { ascending: true })
-      .order('taken_at', { ascending: true, nullsFirst: true })
-      .order('id', { ascending: true })
-      .then(({ data }) => alive && setPhotos(data ?? []))
+
+    // Every photograph on this trip, and only this trip.
+    //
+    // Two things were wrong and they multiplied.
+    //
+    // It asked for every photograph in the database and filtered to the trip
+    // in the browser — so opening one trip downloaded everybody's, and the
+    // work grew with the whole table rather than with what is on screen.
+    //
+    // And PostgREST caps a response at a thousand rows. Not an error, not a
+    // warning: a short array. Ordered by date across all trips, the cap ate
+    // whichever trips fell late in the ordering — China & Japan showed 69 of
+    // its 1,998 photographs, and every other trip looked fine only because
+    // it happened to fit inside the window. At 2,955 rows it was about to
+    // start eating the others too.
+    //
+    // So: filtered server-side, and paged past the cap in slices rather than
+    // hoping one request is enough.
+    const PAGE = 500
+    const load = async () => {
+      const trip = tripMeta.find((t) => t.slug === selectedTrip)
+      let all = []
+      for (let from = 0; ; from += PAGE) {
+        let q = supabase
+          .from('photos')
+          .select('*')
+          // Receipts have been filed under the cost they paid for. They are
+          // still photographs and still in this table; they are just not part
+          // of anybody's holiday.
+          .neq('kind', 'receipt')
+          // Day, then the instant inside it. Ordering on taken_on alone sorts
+          // to day granularity and leaves everything within a day in whatever
+          // order Postgres felt like — so a day's photographs came back
+          // shuffled, and differently on each load. id last so the order is
+          // total: photos with no EXIF time at all still land somewhere
+          // stable rather than moving about between renders. It is also what
+          // makes paging safe — without a total order, two pages can overlap
+          // or skip.
+          .order('taken_on', { ascending: true })
+          .order('taken_at', { ascending: true, nullsFirst: true })
+          .order('id', { ascending: true })
+          .range(from, from + PAGE - 1)
+        if (trip?.id) q = q.eq('trip_id', trip.id)
+        const { data, error } = await q
+        if (error || !data) break
+        all = all.concat(data)
+        // A short page is the last page. Also the only honest way to know:
+        // the cap and the end of the data look identical from here.
+        if (data.length < PAGE) break
+      }
+      if (alive) setPhotos(all)
+    }
+    load()
     // A cover somebody chose wins over one scraped from an album.
     Promise.all([
       supabase.from('trips').select('id,cover_photo_url'),
@@ -189,7 +225,10 @@ export default function PhotosTab({ openPhotoId = null }) {
     // Keyed on userId because restoring a session is asynchronous: a read
     // fired at mount goes out before the token exists, comes back answered
     // as an anonymous request, and this loaded empty and never tried again.
-  }, [reload, userId])
+    // selectedTrip and tripMeta are dependencies now that the query filters
+    // by trip: without them, changing trip would keep showing the last one's
+    // photographs until something else happened to trigger a reload.
+  }, [reload, userId, selectedTrip, tripMeta])
 
   const tripsById = useMemo(() => new Map(tripMeta.map((t) => [t.id, t])), [tripMeta])
 

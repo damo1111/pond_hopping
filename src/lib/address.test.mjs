@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { checkAddress, didYouMean, looksLikeAddress } from './address.js'
+import { checkAddress, didYouMean, looksLikeAddress, oneInboxTwoNames } from './address.js'
 
 test('real addresses are never refused, however odd they look', () => {
   // The cost of being wrong here is refusing somebody their account, which
@@ -96,4 +96,31 @@ test('no domain is listed as a typo of itself', () => {
   for (const domain of ['gmail.com', 'hotmail.com', 'outlook.com', 'yahoo.com', 'icloud.com', 'me.com', 'protonmail.com']) {
     assert.equal(didYouMean(`someone@${domain}`), null, domain)
   }
+})
+
+test('googlemail and gmail are one inbox, and the app says so', () => {
+  // Not a typo — the address is correct, spelled as its owner writes it. But
+  // Supabase treats the two domains as different people, and Google always
+  // reports the gmail.com form: sign in with a code as one and with Google as
+  // the other and you have two accounts, two sets of trips, and nothing in
+  // the app to say they are the same person.
+  assert.equal(oneInboxTwoNames('seebyd@googlemail.com'), 'seebyd@gmail.com')
+  const said = checkAddress('seebyd@googlemail.com')
+  assert.equal(said.ok, true, 'a real address is never refused')
+  assert.equal(said.meant, 'seebyd@gmail.com')
+  assert.match(said.why_meant, /second account/)
+})
+
+test('and gmail itself is left alone', () => {
+  assert.equal(oneInboxTwoNames('seebyd@gmail.com'), null)
+  assert.equal(checkAddress('seebyd@gmail.com').meant, undefined)
+  assert.equal(oneInboxTwoNames('someone@example.com'), null)
+  assert.equal(oneInboxTwoNames('nonsense'), null)
+})
+
+test('the alias is answered before the typo guess', () => {
+  // Both could fire on one address. The alias is a certainty and its cost is
+  // a duplicate account; the typo guess is a guess and its cost is a resend.
+  const said = checkAddress('DAVE@GOOGLEMAIL.COM')
+  assert.equal(said.meant, 'dave@gmail.com')
 })

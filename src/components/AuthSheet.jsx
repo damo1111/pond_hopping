@@ -79,6 +79,8 @@ export default function AuthSheet({ onClose, onAccount }) {
   const [saying, setSaying] = useState(false)
   // A correction we have suggested and not yet had an answer to.
   const [offered, setOffered] = useState(null)
+  // Why we are asking, when there is a reason worth giving.
+  const [offeredWhy, setOfferedWhy] = useState(null)
   const { user, profile, refreshProfile } = useAuth()
   // Both of these open on whatever was outstanding when the sheet last
   // closed. Reading it once at mount rather than watching it: the code step
@@ -218,9 +220,11 @@ export default function AuthSheet({ onClose, onAccount }) {
     if (said.meant && said.meant !== offered) {
       track('sign_in_address_queried', { to: said.meant.split('@')[1] })
       setOffered(said.meant)
+      setOfferedWhy(said.why_meant ?? null)
       return
     }
     setOffered(null)
+    setOfferedWhy(null)
 
     // Move to the code step now, ask Google's neighbour afterwards.
     //
@@ -521,7 +525,7 @@ export default function AuthSheet({ onClose, onAccount }) {
                 setEmail(e.target.value)
                 // Typing again withdraws the question rather than leaving a
                 // suggestion hanging under an address it no longer refers to.
-                if (offered) setOffered(null)
+                if (offered) { setOffered(null); setOfferedWhy(null) }
                 if (error) setError(null)
               }}
             />
@@ -545,7 +549,7 @@ export default function AuthSheet({ onClose, onAccount }) {
                   {offered}
                 </button>
                 <span className="auth-meant-no">
-                  — or press again to use {email.trim()}.
+                  {offeredWhy ? `${offeredWhy} ` : ''}Or press again to use {email.trim()}.
                 </span>
               </div>
             )}

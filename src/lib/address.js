@@ -111,6 +111,36 @@ export function didYouMean(raw) {
 }
 
 /**
+ * Domains that are the same inbox under two names.
+ *
+ * googlemail.com and gmail.com are one mailbox — Google's own alias, kept
+ * from the days when gmail.com was unavailable in Germany and the UK. Mail
+ * to either arrives in the same place.
+ *
+ * Supabase does not know that. Sign in with a code as seebyd@googlemail.com
+ * and later with Google — which always reports the gmail.com form — and you
+ * have two accounts, two sets of trips, and no way to tell from inside the
+ * app that they are the same person. Nothing errors. It simply splits.
+ *
+ * This is not a typo, so it is not in MEANT: the address is correct, spelled
+ * exactly as its owner writes it. It is an identity question, which is why it
+ * gets its own list and its own sentence.
+ */
+const SAME_INBOX = {
+  'googlemail.com': 'gmail.com',
+}
+
+/** The canonical form of an address whose domain has an alias, or null. */
+export function oneInboxTwoNames(raw) {
+  const s = String(raw ?? '').trim().toLowerCase()
+  const at = s.indexOf('@')
+  if (at < 1) return null
+  const host = s.slice(at + 1)
+  const canonical = SAME_INBOX[host]
+  return canonical ? `${s.slice(0, at)}@${canonical}` : null
+}
+
+/**
  * What the sheet should do about what has been typed.
  *
  * One answer rather than two booleans, so the field cannot end up refusing
@@ -129,6 +159,19 @@ export function checkAddress(raw) {
         : 'That doesn’t look like an email address — it needs an @ in it.',
     }
   }
+  // The alias first: it is a certainty rather than a guess, and it is the
+  // one whose cost is a duplicate account rather than an undelivered code.
+  const canonical = oneInboxTwoNames(address)
+  if (canonical && canonical !== address.toLowerCase()) {
+    return {
+      ok: true,
+      meant: canonical,
+      why_meant:
+        'googlemail.com and gmail.com are the same inbox. Use the gmail.com form, or signing in ' +
+        'with Google later will make you a second account.',
+    }
+  }
+
   const meant = didYouMean(address)
   return meant && meant !== address.toLowerCase() ? { ok: true, meant } : { ok: true }
 }
