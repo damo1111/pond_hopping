@@ -12081,11 +12081,28 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   padding: 16px 16px 12px;
 }
 
+/* Fuller when it has the screen to itself, and never a screen.
+ *
+ * This card is the whole Plan tab when the lane is empty, and it was cut to
+ * the size of the Start-from-photos card it rhymes with — which made it
+ * correct and too small for the one job it has there. Two numbers keep both
+ * halves true: it grows with the screen, and it is bounded by one.
+ *
+ * The bound is on the drawing rather than on the card, because the drawing
+ * is the only elastic part — capping the card itself would clip words at
+ * large text sizes, which is a worse failure than a smaller picture.
+ *
+ * 17vh, so a short phone gets a smaller card rather than the same card
+ * eating more of a smaller screen; 150px, so a big phone stops before the
+ * proportions leave card and start becoming poster. Measured across
+ * 360×640, 390×844 and 430×932, the card stays between 0.6 and 0.7 of its
+ * own width — a card, in the same hand as the example, just further from
+ * the tail. */
 .pwi-draw {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 84px;
+  max-height: clamp(96px, 17vh, 150px);
 }
 
 /* Stroke only, like the Add-a-trip tile and the ways-in sheet. Nothing here

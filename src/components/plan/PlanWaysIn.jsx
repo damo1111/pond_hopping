@@ -64,20 +64,21 @@ function AheadOfYou() {
 export default function PlanWaysIn({ onPlan, onWish, suggestion, tail = false }) {
   return (
     <div className={`pwi${tail ? ' pwi--tail' : ''}`}>
-      {/* The one that is a whole screen rather than a row. Somebody who came
-          to the Plan tab came to plan; this is not the moment to be even-
-          handed about it. */}
-      {/* Art band, name, one line — the shape of the Start-from-photos card,
-          which is the one people meet first and the one this was asked to
-          match. Two things went, and both were height rather than meaning:
-          the second and third lines of the body, and the Start something
-          pill. The pill was the whole card's job stated twice; a card that
-          is entirely a button does not need a button drawn on it, and the
-          card it rhymes with has never had one. The chevron keeps it
-          obviously tappable for the cost of nothing.
+      {/* Art band, name, a line of prose — the anatomy of the
+          Start-from-photos card, which is the one people meet first and the
+          one this was asked to rhyme with. Somebody who came to the Plan tab
+          came to plan, so on a tab with nothing in it this is allowed to be
+          the biggest thing there; what it is never allowed to be is the
+          whole screen. The bound that guarantees that is on .pwi-draw, in
+          numbers, and it is measured rather than judged by eye.
 
-          The pill stays in the tail, where the card is a row and the pill is
-          the only part of it that looks like a control. */}
+          The Start something pill went. It was the whole card's job stated
+          twice — a card that is entirely a button does not need a button
+          drawn on it, and the card it rhymes with has never had one. The
+          chevron says the same thing for the cost of nothing.
+
+          The pill stays in the tail, where the card is a row and it is the
+          only part that looks like a control. */}
       <button className="pwi-hero pwi-in" style={{ '--in': 1 }} onClick={onPlan}>
         <span className="pwi-hero-art">
           <AheadOfYou />
@@ -86,7 +87,9 @@ export default function PlanWaysIn({ onPlan, onWish, suggestion, tail = false })
           Plan the next one
           {!tail && <Icon className="pwi-hero-chev" name="chevron" size={16} />}
         </span>
-        <span className="pwi-hero-body">Say where and roughly when. I&apos;ll do the rest.</span>
+        <span className="pwi-hero-body">
+          Say where and roughly when. It finds the flights, the nights and the things worth doing.
+        </span>
         {tail && (
           <span className="pwi-hero-go">
             <Icon name="plus" size={15} />
