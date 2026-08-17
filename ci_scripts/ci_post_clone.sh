@@ -49,16 +49,37 @@ cd "$REPO_ROOT"
 # CI_TAG is set by Xcode Cloud when a tag started the build. If it is ever
 # absent when it ought not to be, the gate falls straight back to requiring
 # the file — the failure mode is a refused build, never an unasked-for one.
-if [ -z "$CI_TAG" ] && [ ! -f "$REPO_ROOT/ios/RELEASE_UNLOCKED" ]; then
-  echo "Refusing to build: no tag, and ios/RELEASE_UNLOCKED is not present."
+#
+# A MANUAL START. Pressing Start Build in App Store Connect is a person
+# deciding, in the same way cutting a tag is — it cannot happen on a push, it
+# cannot happen by accident, and somebody had to open the page and choose the
+# workflow and the branch.
+#
+# This one was learnt by wasting a build. The gate used to accept only a tag
+# or the file, so a manual build had to be preceded by committing the file —
+# and a manual build pins the commit at the moment the button is pressed. Do
+# both and it is a race: build 124 pinned 3e0c989 seconds before the unlock
+# commit landed, refused, and cost fifty-nine seconds and a round trip to
+# work out why. The file was on main. The build simply predated it.
+#
+# CI_WORKFLOW is set on every Xcode Cloud run, so it cannot stand in for
+# "manual" on its own. CI_START_CONDITION is the one that says how the build
+# began.
+if [ -z "$CI_TAG" ] \
+  && [ "$CI_START_CONDITION" != "manual" ] \
+  && [ ! -f "$REPO_ROOT/ios/RELEASE_UNLOCKED" ]; then
+  echo "Refusing to build: not a tag, not a manual start, and ios/RELEASE_UNLOCKED is not present."
   echo "Store builds are off until somebody asks for one. See ci_scripts/ci_post_clone.sh."
   exit 1
 fi
 if [ -n "$CI_TAG" ]; then
   echo "Building because: tag $CI_TAG"
+elif [ "$CI_START_CONDITION" = "manual" ]; then
+  echo "Building because: somebody pressed Start Build"
 else
   echo "Building because: ios/RELEASE_UNLOCKED is present"
 fi
+echo "Start condition reported as: ${CI_START_CONDITION:-<unset>}" 
 
 
 # A build number Apple has not seen before.
