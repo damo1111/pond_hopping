@@ -36,6 +36,21 @@ const INTENT = 'pond:importing'
  * unmounted and rebuilt by the time they come back. Same reason the sign-in
  * sheet writes its outstanding code down.
  */
+/**
+ * The trip that does not exist yet.
+ *
+ * Consent leaves the page, and what gets written down before leaving is the
+ * trip somebody was importing into. Starting a *new* trip from Google Photos
+ * has no such id — the trip is made afterwards, out of the dates on the
+ * photographs they are about to pick. So it writes this down instead, and
+ * the home screen knows to reopen the ways-in sheet on the photos route
+ * rather than to go looking for a trip with this id.
+ *
+ * Deliberately not a value any real id could take: Postgres ids here are
+ * uuids.
+ */
+export const NEW_TRIP = 'new-trip'
+
 export function rememberIntent(tripId, store = globalThis.localStorage) {
   try {
     store?.setItem(INTENT, JSON.stringify({ tripId, at: Date.now(), afterConsent: true }))
@@ -477,23 +492,39 @@ export function howItWent(p) {
   return 'Nothing came in.'
 }
 
-/** Everything between the tap and the queue. The caller supplies `onStep`
- *  so the sheet can say where it has got to without this knowing about it. */
-export async function bringThemIn(
-  tripId,
-  {
-    onStep = () => {},
-    onPicker = () => {},
-    onFilms = () => {},
-    token,
-    facts: askGoogle = tokenFacts,
-    open = openSession,
-    tokens = googleTokens,
-    rest = (ms) => new Promise((r) => setTimeout(r, ms)),
-    show = openAway,
-    hide = closeAway,
-  } = {}
-) {
+/**
+ * Choosing, with no trip in mind.
+ *
+ * This half of the import knows nothing about where the photographs are
+ * going, and it had no reason to — it was written inside bringThemIn, which
+ * takes a trip id, so Google Photos could only ever add to a trip that
+ * already existed. "Start from photos" is the door that *makes* a trip out
+ * of a pile of photographs, and it could only read a pile off the phone.
+ * Which is backwards for the case it exists to serve: the trip that happened
+ * two years ago is exactly the one whose photographs are no longer on the
+ * phone.
+ *
+ * The split is possible because Google hands over each item's creation time
+ * with the pick, before a single byte is fetched — so the dates that decide
+ * what the trip is are already here, and the trip can be made from them and
+ * then filled.
+ *
+ * Returns the token as well as the picks, because the token that was proven
+ * to carry the scope is the one the send must use, and asking again would be
+ * a second chance to pick the wrong one.
+ */
+export async function pickFromGoogle({
+  onStep = () => {},
+  onPicker = () => {},
+  onFilms = () => {},
+  token,
+  facts: askGoogle = tokenFacts,
+  open = openSession,
+  tokens = googleTokens,
+  rest = (ms) => new Promise((r) => setTimeout(r, ms)),
+  show = openAway,
+  hide = closeAway,
+} = {}) {
   // Whichever of the tokens we hold actually carries the Photos scope.
   //
   // Asked of Google rather than guessed at by which was written down last: a
@@ -604,6 +635,22 @@ export async function bringThemIn(
 
   if (films) onFilms(films)
 
+  return { key, picked, films }
+}
+
+/**
+ * The picks, into a trip.
+ *
+ * The half that needs a trip id, kept separate from the half that does not —
+ * so a trip made a moment ago out of these very photographs' dates can be
+ * filled by the same code that fills one made a year ago.
+ *
+ * @param picked  what pickFromGoogle returned, or a subset of it. A subset is
+ *                the ordinary case for a new trip: a camera roll handed over
+ *                whole splits into several trips, and only one of them is
+ *                being made right now.
+ */
+export async function sendThemIn(tripId, picked, key, { onStep = () => {} } = {}) {
   onStep('checking what is already here')
   const { fresh, already } = await onlyTheNewOnes(tripId, picked)
   if (!fresh.length) return { importId: null, sending: 0, already }
@@ -611,6 +658,14 @@ export async function bringThemIn(
   onStep('handing them over')
   const importId = await startImport(tripId, fresh, key)
   return { importId, sending: fresh.length, already }
+}
+
+/** Everything between the tap and the queue, for a trip that already exists.
+ *  The caller supplies `onStep` so the sheet can say where it has got to
+ *  without this knowing about it. */
+export async function bringThemIn(tripId, opts = {}) {
+  const { key, picked } = await pickFromGoogle(opts)
+  return sendThemIn(tripId, picked, key, opts)
 }
 
 /**

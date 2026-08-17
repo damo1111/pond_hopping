@@ -72,10 +72,16 @@ function PhotosToTrip() {
   )
 }
 
-export default function GetTripsIn({ onClose, onCreated, mcpUrl }) {
+/**
+ * @param openAt  Which route to open straight onto, skipping the menu. Only
+ *                used coming back from Google's consent screen, where the
+ *                page has reloaded and somebody who has just granted access
+ *                must not have to find their way back and choose again.
+ */
+export default function GetTripsIn({ onClose, onCreated, mcpUrl, openAt = null }) {
   const { user } = useAuth()
   const { openAuth } = useContext(TripContext)
-  const [route, setRoute] = useState(null)
+  const [route, setRoute] = useState(openAt)
   // The trip that was made, not merely that one was — so closing this can
   // open it instead of dropping you back on the globe to find it.
   const [made, setMade] = useState(null)

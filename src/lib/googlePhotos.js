@@ -176,3 +176,22 @@ export const originalUrl = (fetchFrom) => (fetchFrom ? `${fetchFrom}=d` : null)
 export function worthImporting(items = []) {
   return items.filter(isPhoto).map(asImport).filter((i) => i.googleId && i.fetchFrom)
 }
+
+/**
+ * Picks, as clusterPhotos wants to read them.
+ *
+ * One renamed field, and it is the field that makes "Start from photos"
+ * possible from Google at all: the creation time arrives with the pick,
+ * before a single byte is fetched, so the dates that decide what the trip is
+ * are already in hand. clusterPhotos reads `takenAt`; the picker calls it
+ * `creationTime`, and asImport carries it as `takenAtHint` precisely because
+ * it is not the authority.
+ *
+ * Still a hint on the way through. The authority for when a photograph was
+ * taken is the EXIF the server reads off the original bytes, and the two can
+ * disagree — a scan of a print is created today and taken in 1994. It is
+ * good enough to split a camera roll into trips, which is all this is asked
+ * to do.
+ */
+export const asDated = (picked = []) =>
+  picked.map((p) => ({ ...p, takenAt: p.takenAtHint ?? null }))

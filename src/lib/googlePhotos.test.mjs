@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  asDated,
   asImport,
   closeSession,
   filmsAmong,
@@ -11,6 +12,7 @@ import {
   pollDelay,
   worthImporting,
 } from './googlePhotos.js'
+import { clusterPhotos } from './tripFromPhotos.js'
 
 const ok = (body) => ({ ok: true, status: 200, json: async () => body })
 const bad = (status, text = '') => ({ ok: false, status, text: async () => text })
@@ -160,4 +162,43 @@ test('films are counted rather than silently dropped', () => {
   ]
   assert.equal(filmsAmong(picked), 2)
   assert.equal(filmsAmong([]), 0)
+})
+
+test('a camera roll picked in Google splits into trips before a byte is fetched', () => {
+  // The whole reason "Start from photos" can offer Google at all. The picker
+  // hands back a creation time with each item, so the dates that decide what
+  // the trip is are here at pick time — no download, no EXIF read, nothing on
+  // the phone. Two holidays and a stray video, picked in one go.
+  const picked = worthImporting([
+    { id: '1', createTime: '2026-03-02T09:00:00Z', mediaFile: { baseUrl: 'u1', mimeType: 'image/jpeg' } },
+    { id: '2', createTime: '2026-03-05T18:30:00Z', mediaFile: { baseUrl: 'u2', mimeType: 'image/jpeg' } },
+    { id: '3', mediaFile: { baseUrl: 'u3', mimeType: 'video/mp4' } },
+    { id: '4', createTime: '2026-07-19T11:00:00Z', mediaFile: { baseUrl: 'u4', mimeType: 'image/jpeg' } },
+    { id: '5', createTime: '2026-07-21T07:15:00Z', mediaFile: { baseUrl: 'u5', mimeType: 'image/jpeg' } },
+  ])
+  // The video never reaches the clustering, because it never reaches import.
+  assert.equal(picked.length, 4)
+
+  const { clusters, undated } = clusterPhotos(asDated(picked))
+  assert.equal(undated.length, 0)
+  assert.equal(clusters.length, 2)
+  assert.deepEqual(
+    clusters.map((c) => [c.start, c.end, c.count]),
+    [['2026-03-02', '2026-03-05', 2], ['2026-07-19', '2026-07-21', 2]]
+  )
+  // And each cluster still carries the picks themselves, so the half of the
+  // import that needs a trip id can be handed exactly the ones that made it.
+  assert.deepEqual(clusters[1].photos.map((p) => p.googleId), ['4', '5'])
+})
+
+test('and without the rename none of them have a date at all', () => {
+  // Prove the check can fail. clusterPhotos reads `takenAt`; the picker says
+  // `creationTime`. Skip asDated and every photograph is undated, which is
+  // silent — a pile of photographs with no trip in them and no error.
+  const picked = worthImporting([
+    { id: '1', createTime: '2026-03-02T09:00:00Z', mediaFile: { baseUrl: 'u1', mimeType: 'image/jpeg' } },
+  ])
+  const { clusters, undated } = clusterPhotos(picked)
+  assert.equal(clusters.length, 0)
+  assert.equal(undated.length, 1)
 })

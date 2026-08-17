@@ -21,6 +21,7 @@ import { shouldBadge } from '../lib/demoTour.js'
 import { pickVariant } from '../lib/variants.js'
 import { oops, track, whoAmI } from '../lib/analytics.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
+import { NEW_TRIP, comingBackTo } from '../lib/photoImport.js'
 
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.
@@ -203,11 +204,32 @@ export default function WorldTab() {
   // the demo trip and nothing else needs this just as much as someone with
   // nothing at all.
   const [routesOpen, setRoutesOpen] = useState(false)
+  // Which route the sheet should open straight onto. Only ever set coming
+  // back from Google's consent screen; see below.
+  const [routesAt, setRoutesAt] = useState(null)
   const [apiToken, setApiToken] = useState(null)
   useEffect(() => {
     if (!routesOpen || apiToken) return
     supabase.rpc('my_api_token').then(({ data }) => setApiToken(data ?? null))
   }, [routesOpen, apiToken])
+
+  // Back from Google, with no trip to go back to.
+  //
+  // Granting access to Google Photos leaves the page and returns to the
+  // site's root. For an import into a trip that exists, App routes to that
+  // trip's Photos tab and the card there resumes. Starting a *new* trip from
+  // Google has no trip to route to — so the intent says NEW_TRIP, and the
+  // answer is to put the sheet back up on the photos route, where the resume
+  // inside it can spend the intent and carry on choosing.
+  //
+  // Peeked rather than taken: StartFromPhotos is what spends it, and eating
+  // it here would reopen the sheet with nothing left to act on, which is a
+  // dead end rather than a resume.
+  useEffect(() => {
+    if (comingBackTo() !== NEW_TRIP) return
+    setRoutesAt('photos')
+    setRoutesOpen(true)
+  }, [])
 
   const home = useMemo(() => homeCoords(), [])
   const idleSpin = isEmpty ? 0.9 : 0.35
@@ -852,6 +874,7 @@ export default function WorldTab() {
 
       {routesOpen && (
         <GetTripsIn
+          openAt={routesAt}
           mcpUrl={apiToken ? `https://pond.eend.app/api/mcp?key=${apiToken}` : null}
           // Was window.location.reload(). Adding one row to a list already
           // in memory does not justify booting the whole app — on iOS that
@@ -872,6 +895,7 @@ export default function WorldTab() {
           // which reads as the button having done nothing at all.
           onCreated={async (trip, route) => {
             setRoutesOpen(false)
+            setRoutesAt(null)
             await refreshTrips()
             if (route === 'photos' && trip?.slug) {
               setSelectedTrip(trip.slug)
@@ -884,6 +908,7 @@ export default function WorldTab() {
           }}
           onClose={(go) => {
             setRoutesOpen(false)
+            setRoutesAt(null)
             if (go === 'plan') goToTab('plan')
           }}
         />

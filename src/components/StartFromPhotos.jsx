@@ -19,6 +19,19 @@ import UploadGrid from './UploadGrid.jsx'
 import { oops, track } from '../lib/analytics.js'
 import { withDeadline, ONE_PHOTO_MS } from '../lib/deadline.js'
 import { whatIsNew, fingerprintOf } from '../lib/alreadyHere.js'
+import {
+  NEW_TRIP,
+  howFarAlong,
+  howItWent,
+  needsConsent,
+  pickFromGoogle,
+  rememberIntent,
+  sendThemIn,
+  takeIntent,
+} from '../lib/photoImport.js'
+import { asDated } from '../lib/googlePhotos.js'
+import { connectGooglePhotos } from '../lib/google.js'
+import { WayMark } from './AuthSheet.jsx'
 
 // "I've already been somewhere."
 //
@@ -35,6 +48,25 @@ import { whatIsNew, fingerprintOf } from '../lib/alreadyHere.js'
 // anything is uploaded — so the confirm screen can be honest about what was
 // found, including when the answer is "nothing", which is the normal case for
 // photos that came via WhatsApp or Google Photos.
+//
+// Two piles, one screen.
+//
+// The pile on the phone is the one this was built for, and it is the wrong
+// pile for the case it exists to serve. "I've already been somewhere" means
+// a trip that happened — and the older the trip, the less likely its
+// photographs are still on the phone. Mine were in Google Photos; so are most
+// people's. Until now the only Google route was into a trip that already
+// existed, which is the wrong way round: you had to invent the trip by hand
+// first, and inventing it by hand is precisely the work this screen removes.
+//
+// So Google is a second source into the same screen, not a second screen.
+// It works because the picker hands back each item's creation time at pick
+// time — so the dates arrive before any bytes do, and everything after the
+// choosing (cluster, name it, confirm the span, join an existing trip
+// instead) is identical for both piles. What differs is only the last step:
+// the phone's pile is shrunk and uploaded from here, and Google's is handed
+// to the server queue, which fetches the originals without them ever
+// touching the phone.
 
 
 // Enough to tell two trips apart at a glance, which is the whole job of
@@ -73,9 +105,39 @@ export default function StartFromPhotos({ onDone, onClose }) {
   const abandoned = useRef(false)
   useEffect(() => () => { abandoned.current = true }, [])
 
+  // Which pile these came from. 'device' is a list of Files to shrink and
+  // upload from here; 'google' is a list of picks to hand to the queue.
+  // Everything between the choosing and the trip is the same either way.
+  const [source, setSource] = useState('device')
+  // The token proven to carry the Photos scope, kept from the pick so the
+  // send is not a second chance to choose the wrong one.
+  const googleKey = useRef(null)
+  // Where the Google half has got to, and Google's own picker address —
+  // handed out as a link rather than opened, for the reasons in bringThemIn.
+  const [step, setStep] = useState(null)
+  const [pickerUri, setPickerUri] = useState(null)
+  const [films, setFilms] = useState(0)
+  // The server queue, once it is running.
+  const [queue, setQueue] = useState(null)
+
+  // The same landing for both piles: clusters on screen, a name, a span.
+  // Split out so the phone's photographs and Google's picks arrive at the
+  // confirm screen by one road rather than two that drift apart.
+  const land = (photos) => {
+    const result = clusterPhotos(photos)
+    setRead(result)
+    const first = result.clusters[0]
+    setPick(0)
+    setTitle(suggestTitle(first))
+    setStart(first?.start || '')
+    setEnd(first && !looksOngoing(first) ? first.end : '')
+    setPhase('confirm')
+  }
+
   async function choose(e) {
     const picked = [...(e.target.files || [])]
     if (!picked.length) return
+    setSource('device')
     setFiles(picked)
     setPhase('reading')
     setError(null)
@@ -94,16 +156,117 @@ export default function StartFromPhotos({ onDone, onClose }) {
         meta.push({ file: f })
       }
     }
-    const result = clusterPhotos(meta)
-    setRead(result)
-
-    const first = result.clusters[0]
-    setPick(0)
-    setTitle(suggestTitle(first))
-    setStart(first?.start || '')
-    setEnd(first && !looksOngoing(first) ? first.end : '')
-    setPhase('confirm')
+    land(meta)
   }
+
+  /**
+   * Choosing in Google, with no trip yet.
+   *
+   * @param afterConsent  true when this run follows a trip to the consent
+   *                      screen. A second refusal then is reported rather
+   *                      than answered with a third trip — the loop that
+   *                      cost an evening on the other door.
+   */
+  async function fromGoogle(afterConsent = false) {
+    setSource('google')
+    setPhase('google')
+    setError(null)
+    setPickerUri(null)
+    setFilms(0)
+    track('trip_from_photos_google', { after_consent: afterConsent })
+    try {
+      const { key, picked } = await pickFromGoogle({
+        onStep: (s) => { if (!abandoned.current) setStep(s) },
+        onPicker: (uri) => { if (!abandoned.current) setPickerUri(uri) },
+        onFilms: (n) => { if (!abandoned.current) setFilms(n) },
+      })
+      if (abandoned.current) return
+      googleKey.current = key
+      setStep(null)
+      setPickerUri(null)
+      land(asDated(picked))
+    } catch (e) {
+      if (abandoned.current) return
+      setStep(null)
+      setPickerUri(null)
+      if (needsConsent(e) && !afterConsent) {
+        // Written down before leaving, because consent leaves the page and
+        // this sheet will not exist when the answer comes back. NEW_TRIP
+        // rather than a trip id: there is no trip yet, and the home screen
+        // reads it as "reopen the photos route" instead of going looking for
+        // one.
+        rememberIntent(NEW_TRIP)
+        const { error: refused } = await connectGooglePhotos()
+        if (refused) {
+          setPhase('idle')
+          setError(`Could not reach Google’s consent screen: ${refused.message}`)
+        }
+        return
+      }
+      setPhase('idle')
+      setError(
+        needsConsent(e)
+          ? 'Google did not grant access to your photographs. Worth trying again from your Google account settings.'
+          : e?.message || 'Google Photos would not open.'
+      )
+    }
+  }
+
+  // Coming back from consent, on either kind of platform.
+  //
+  // On the web that is a fresh page load and this component is new, so the
+  // intent written down before leaving is what resumes it. In the wrappers
+  // there is no reload at all — the session is set in place through
+  // appUrlOpen — so the same check runs again whenever the app comes
+  // forward. takeIntent clears what it takes, so asking twice costs nothing.
+  useEffect(() => {
+    const resume = () => {
+      const said = takeIntent()
+      if (said?.tripId !== NEW_TRIP) return
+      fromGoogle(Boolean(said.afterConsent))
+    }
+    resume()
+    globalThis.addEventListener?.('focus', resume)
+    return () => globalThis.removeEventListener?.('focus', resume)
+    // Once, on mount. Re-running this on every render would spend the intent
+    // repeatedly and restart the pick mid-flight.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Watching the queue, not driving it.
+  //
+  // The work happens on the server whether or not this sheet is open, so
+  // closing it loses the progress line and nothing else. A missed poll is
+  // not a failed import either — the next one asks again.
+  useEffect(() => {
+    if (!queue?.importId) return
+    let stop = false
+    let shown = 0
+    const tick = async () => {
+      try {
+        const p = await howFarAlong(queue.importId)
+        if (stop || abandoned.current) return
+        setQueue((q) => (q ? { ...q, progress: p } : q))
+        // The grid underneath refreshes as they land, rather than once at the
+        // end — a run of two hundred showed nothing at all until the last one
+        // arrived, and a run that never quite finished showed nothing ever.
+        if (p.done > shown) {
+          shown = p.done
+          notePhotosChanged?.()
+        }
+        if (p.finished) {
+          track('photos_imported', { done: p.done, skipped: p.skipped, failed: p.failed })
+          notePhotosChanged?.()
+          return
+        }
+      } catch {
+        /* a missed poll is not a failed import */
+      }
+      if (!stop) setTimeout(tick, 2000)
+    }
+    tick()
+    return () => { stop = true }
+  }, [queue?.importId, notePhotosChanged])
 
   const cluster = read?.clusters?.[pick] ?? null
   // Photos with no date at all still belong to the trip being made — they
@@ -165,6 +328,34 @@ export default function StartFromPhotos({ onDone, onClose }) {
           throw new Error('That trip would not save. Worth trying again.')
         }
         trip = made.data
+      }
+
+      // Google's pile never comes through the phone.
+      //
+      // The trip is made out of the dates that arrived with the pick, and
+      // then the picks are handed to the server queue, which fetches the
+      // originals from Google directly. Nothing is downloaded here, nothing
+      // is shrunk here, and closing this sheet does not stop it — which is
+      // the whole point of a queue, and why this branch watches rather than
+      // works.
+      if (source === 'google') {
+        const { importId, sending, already: had } = await sendThemIn(
+          trip.id,
+          toUpload,
+          googleKey.current
+        )
+        setAlready(had)
+        setProgress({ done: 0, total: sending, bytes: 0, original: 0, already: had })
+        notePhotosChanged?.()
+        if (!importId) {
+          setPhase('done')
+          onDone?.(trip)
+          return
+        }
+        setQueue({ importId, trip })
+        setPhase('queued')
+        onDone?.(trip)
+        return
       }
 
       // Which of these the trip has not got.
@@ -293,6 +484,57 @@ export default function StartFromPhotos({ onDone, onClose }) {
             <button className="ios-sheet-done" onClick={() => input.current?.click()}>
               Choose photos
             </button>
+
+            {/* The other pile.
+                Second rather than first, because the photographs somebody
+                took this week are on the phone and that is the quicker road.
+                But present, and named, because the trip this screen is *for*
+                — the one that already happened — is usually the one whose
+                photographs have long since left the phone. */}
+            <button className="sfp-google" onClick={() => fromGoogle()}>
+              <WayMark id="google" />
+              <span className="sfp-google-text">
+                <span className="sfp-google-name">Google Photos</span>
+                <span className="sfp-google-hint">
+                  Straight from Google. They never touch your phone.
+                </span>
+              </span>
+            </button>
+            {error && <div className="account-error">{error}</div>}
+          </>
+        )}
+
+        {phase === 'google' && (
+          <>
+            <div className="ios-sheet-title">
+              {pickerUri ? 'Choose them in Google' : 'Opening Google Photos…'}
+            </div>
+            <div className="ios-sheet-sub">
+              {pickerUri
+                ? 'Pick as many as you like — several holidays at once is fine. I’ll split them into trips when you’re done.'
+                : step || 'One moment.'}
+            </div>
+            {/* A link, not something opened for them. The picker's address does
+                not exist until two round trips after the tap, and by then the
+                gesture that would have allowed a window has expired — so the
+                only thing that works on every platform is an anchor they tap
+                themselves. Polling carries on regardless. */}
+            {pickerUri && (
+              <a
+                className="ios-sheet-done"
+                href={pickerUri}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Google Photos
+              </a>
+            )}
+            {films > 0 && (
+              <div className="ios-sheet-sub">
+                {films === 1 ? 'One video stays' : `${films} videos stay`} in Google for now — I
+                can’t bring films in yet.
+              </div>
+            )}
           </>
         )}
 
@@ -386,6 +628,34 @@ export default function StartFromPhotos({ onDone, onClose }) {
             {error && <div className="account-error">{error}</div>}
             <button className="ios-sheet-done" onClick={() => create()}>
               Make the trip · {toUpload.length} photo{toUpload.length === 1 ? '' : 's'}
+            </button>
+          </>
+        )}
+
+        {/* Google's pile, once the queue has it.
+            Deliberately not the upload grid: there is nothing on this device
+            to draw tiles from, and a grid of empty boxes would be a worse
+            lie than a sentence. The trip already exists and the photographs
+            are arriving into it, so leaving is genuinely safe — which the
+            button says rather than implying by being enabled. */}
+        {phase === 'queued' && (
+          <>
+            <div className="ios-sheet-title">That’s on the globe now</div>
+            <div className="ios-sheet-sub">
+              {howItWent(queue?.progress) ?? 'Bringing them in…'}
+            </div>
+            <div className="ios-sheet-sub">
+              They’re coming straight from Google, so you can close this — it carries on without
+              you.
+            </div>
+            {already > 0 && (
+              <div className="ios-sheet-sub">
+                {already} {already === 1 ? 'was' : 'were'} already here.
+              </div>
+            )}
+            <TrackPlaces compact />
+            <button className="ios-sheet-done" onClick={onClose}>
+              Have a look
             </button>
           </>
         )}

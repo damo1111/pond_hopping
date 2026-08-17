@@ -32,8 +32,13 @@ const BUILD = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'
  * and stays legible in both themes — which is what their guidelines ask for.
  * Google's is theirs exactly, four colours and all: it is a trademark, and
  * the permission to use it is a permission to use it unaltered.
+ *
+ * Exported because the sign-in sheet is no longer the only place Google is
+ * named. A hand-drawn approximation went into the Start-from-photos sheet
+ * and was wrong for exactly the reason written above: an altered mark is not
+ * the mark. One copy, used everywhere it is needed.
  */
-function WayMark({ id }) {
+export function WayMark({ id }) {
   if (id === 'apple') {
     return (
       <span className="way-mark" aria-hidden="true">

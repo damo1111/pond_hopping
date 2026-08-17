@@ -9563,6 +9563,49 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   padding-top: 2px;
 }
 
+/* The second pile. A row rather than a second full-width button, because the
+   photographs on the phone are the quicker road for the trip somebody took
+   last week and this is the one for the trip they took in 2019 — equal
+   weight would be a lie about which is usually right. */
+.sfp-google {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: inherit;
+  cursor: pointer;
+}
+
+.sfp-google .way-mark {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+}
+
+.sfp-google .way-mark svg { width: 100%; height: 100%; display: block; }
+
+.sfp-google-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sfp-google-name { font-size: 15px; }
+
+.sfp-google-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
 /* The keep-originals choice, made where somebody knows the answer: at the
    moment they are looking at what they picked. */
 .pu-keep {
@@ -12018,7 +12061,7 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   align-items: stretch;
   width: 100%;
   text-align: left;
-  padding: 0 0 16px;
+  padding: 0 0 14px;
   border: 1px solid var(--border);
   border-radius: 18px;
   background: var(--surface);
@@ -12028,18 +12071,21 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   box-shadow: var(--shadow);
 }
 
+/* Inset rather than edge to edge, so the drawing reads as a picture in a
+   band and not as a header the card grew. Same treatment as .gti-hero-art,
+   which is the card this one was asked to match. */
 .pwi-hero-art {
   display: block;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border);
-  padding: 14px 0 10px;
+  padding: 16px 16px 12px;
 }
 
 .pwi-draw {
   display: block;
   width: 100%;
   height: auto;
-  max-height: 116px;
+  max-height: 84px;
 }
 
 /* Stroke only, like the Add-a-trip tile and the ways-in sheet. Nothing here
@@ -12066,17 +12112,27 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .pwi-pin--next { fill: var(--surface-2); stroke: var(--accent); stroke-width: 2; }
 
 .pwi-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-family: var(--font-display);
-  font-size: 21px;
+  font-size: 19px;
   font-weight: 400;
-  padding: 14px 18px 0;
+  padding: 13px 16px 0;
+}
+
+/* The affordance the Start something pill used to be, for no rows. */
+.pwi-hero-chev {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  opacity: 0.65;
 }
 
 .pwi-hero-body {
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
-  padding: 6px 18px 0;
+  padding: 4px 16px 0;
   max-width: 42ch;
 }
 

@@ -117,6 +117,45 @@ echo "Building with ways in: $VITE_WAYS_IN"
 
 npm ci
 npm run build
+
+# ── Where the iOS shell gets its web app from ────────────────────────────
+#
+# By default the IPA carries a copy of dist/. That copy is frozen at the
+# moment of the build, so a fix deployed to pond.eend.app at four o'clock is
+# still not on the phone at six — it needs a new build, an upload, a review
+# for external TestFlight, and a tester who remembers to update. Android has
+# never worked that way: its workflow rewrites this same file to point at the
+# live site, which is why a web fix reaches an Android tester on next launch
+# and an iOS tester a day later. The same bug therefore gets reported twice.
+#
+# So TestFlight builds point at the live site too, and iterating no longer
+# costs a build.
+#
+# THE RISK, stated plainly rather than discovered at review. App Store
+# guideline 4.2 (minimum functionality) is what a wrapper around a website
+# fails, and Beta App Review applies it to external TestFlight groups as well
+# as to submissions. This is a real chance of a rejection, accepted
+# deliberately: the app is a PWA with native camera, push and photo access,
+# not a web view of a marketing site, and the cost of being wrong is a
+# rejection notice rather than anything shipped to anybody.
+#
+# ios/STORE_BUILD turns it off and bundles the assets, for a submission.
+# A file, so it appears in the diff of the commit that asked for it — and
+# unlike ios/RELEASE_UNLOCKED, forgetting to delete it fails safe: a stale
+# STORE_BUILD produces an ordinary self-contained app, not an unasked-for one.
+if [ -f "$REPO_ROOT/ios/STORE_BUILD" ]; then
+  echo "Bundling the web assets into the app: ios/STORE_BUILD is present."
+else
+  echo "Pointing the iOS shell at https://pond.eend.app — web fixes arrive without a build."
+  node -e '
+    const fs = require("fs");
+    const c = JSON.parse(fs.readFileSync("capacitor.config.json", "utf8"));
+    c.server = { url: "https://pond.eend.app", cleartext: false };
+    fs.writeFileSync("capacitor.config.json", JSON.stringify(c, null, 2));
+    console.log(c.server);
+  '
+fi
+
 npx cap sync ios
 
 # capacitor-swift-pm is a *transitive* dependency (App.xcodeproj depends on

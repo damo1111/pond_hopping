@@ -29,10 +29,17 @@ import Icon from '../Icon.jsx'
  * nothing, so it read as a stray circle rather than as weather — the same
  * fault as the loose lines on the globe. Four marks that all mean something
  * beats five where one is decoration.
+ *
+ * The viewBox is cropped tight to the marks — 6..194 across, 14..66 down —
+ * rather than to the 200×74 grid they were drawn on. The grid had a band of
+ * nothing at the top and bottom, and because the drawing is sized by its
+ * width that empty band was costing real height on the card: measured, the
+ * whole card was 313px against 172px for the Start-from-photos card it is
+ * meant to rhyme with. Same drawing, no margins.
  */
 function AheadOfYou() {
   return (
-    <svg className="pwi-draw" viewBox="0 0 200 74" aria-hidden="true" focusable="false">
+    <svg className="pwi-draw" viewBox="6 14 188 52" aria-hidden="true" focusable="false">
       <path className="pwi-horizon" d="M8 60 H192" />
       {/* Behind: two places, joined and done with. */}
       <path className="pwi-been" d="M24 52 Q48 34 72 46" />
@@ -60,19 +67,32 @@ export default function PlanWaysIn({ onPlan, onWish, suggestion, tail = false })
       {/* The one that is a whole screen rather than a row. Somebody who came
           to the Plan tab came to plan; this is not the moment to be even-
           handed about it. */}
+      {/* Art band, name, one line — the shape of the Start-from-photos card,
+          which is the one people meet first and the one this was asked to
+          match. Two things went, and both were height rather than meaning:
+          the second and third lines of the body, and the Start something
+          pill. The pill was the whole card's job stated twice; a card that
+          is entirely a button does not need a button drawn on it, and the
+          card it rhymes with has never had one. The chevron keeps it
+          obviously tappable for the cost of nothing.
+
+          The pill stays in the tail, where the card is a row and the pill is
+          the only part of it that looks like a control. */}
       <button className="pwi-hero pwi-in" style={{ '--in': 1 }} onClick={onPlan}>
         <span className="pwi-hero-art">
           <AheadOfYou />
         </span>
-        <span className="pwi-hero-title">Plan the next one</span>
-        <span className="pwi-hero-body">
-          Say where and roughly when. It finds the flights, the nights and the things worth
-          doing, and leaves you the arguing.
+        <span className="pwi-hero-title">
+          Plan the next one
+          {!tail && <Icon className="pwi-hero-chev" name="chevron" size={16} />}
         </span>
-        <span className="pwi-hero-go">
-          <Icon name="plus" size={15} />
-          <span>Start something</span>
-        </span>
+        <span className="pwi-hero-body">Say where and roughly when. I&apos;ll do the rest.</span>
+        {tail && (
+          <span className="pwi-hero-go">
+            <Icon name="plus" size={15} />
+            <span>Start something</span>
+          </span>
+        )}
       </button>
 
       {/* Second, and only ours.
