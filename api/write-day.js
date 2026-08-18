@@ -42,6 +42,18 @@ felt, not what a place is famous for. The person reading it was there and
 will know. Where a place has no name, say where it was among the ones it
 sits between, or say the coordinates had nothing on them — never invent one.
 
+A flight in \`legs\`, a hotel in \`stays\`: both are things that happened and
+both belong in the day. Name the hotel if it is named. A check-in is an
+arrival somewhere, not an administrative event, so write it as arriving.
+
+\`km_on_foot\` is a floor and never a total — straight lines between the
+fixes, with anything faster than walking removed. \`km_from\` says which
+record it came from. "photographs" means it is a floor under a floor, drawn
+from wherever somebody happened to lift a camera, and must not be leaned on
+at all; "tracking" means something was recording all day and it is worth
+something. Either way it shapes how much you say about how far they went. It
+is not a step count and there is no step count — never write one.
+
 Length follows the day. A day with a dozen moments in it deserves several
 paragraphs; a travel day with a flight and four photographs deserves three
 or four sentences. Do not pad a thin day and do not compress a full one.

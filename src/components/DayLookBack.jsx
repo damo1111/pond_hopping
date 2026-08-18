@@ -130,6 +130,25 @@ export default function DayLookBack({ tripId, date, title, onClose }) {
               </ul>
             )}
 
+            {/* Where they slept, by name.
+                Guarded on the type rather than on the length, because this
+                field has changed shape. Evenings already written carry
+                `stays: 3` — a count of tracked stops — and calling .map on a
+                number throws at render, in a sheet somebody opened from a
+                notification. Old rows simply show no hotel line, which is
+                what they always did. */}
+            {Array.isArray(facts.stays) && facts.stays.length > 0 && (
+              <ul className="look-list">
+                {facts.stays.map((s, i) => (
+                  <li key={`${s.name ?? 'stay'}-${i}`}>
+                    Checked into {s.name || 'somewhere'}
+                    {s.city ? `, ${s.city}` : ''}
+                    {s.nights ? ` · ${s.nights} ${s.nights === 1 ? 'night' : 'nights'}` : ''}
+                  </li>
+                ))}
+              </ul>
+            )}
+
             {facts.activities?.length > 0 && (
               <ul className="look-list">
                 {facts.activities.map((a, i) => (

@@ -74,10 +74,17 @@ async function evening(secret, { trip_id, email, on_date }, now) {
   const day = await rpc('look_back_day', { p_secret: secret, p_trip: trip_id, p_date: on_date })
   if (!day) return { on_date, skipped: 'no day' }
 
+  // Everything the day left, not the third of it this used to read. See
+  // migrations_2026_08_the_evening_reads_everything_the_day_left.sql:
+  // `planned` carries the flights and hotels this app actually stores,
+  // `visits` and `path` are what was recording while somebody walked.
   const facts = lookBackAt(on_date, day.photos ?? [], {
     flights: day.flights ?? [],
+    planned: day.planned ?? [],
     runs: day.runs ?? [],
     stays: day.stays ?? [],
+    visits: day.visits ?? [],
+    path: Array.isArray(day.path) ? day.path : [],
     been: day.been ?? [],
   })
 

@@ -2,6 +2,9 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   ENOUGH,
+  fixesOf,
+  legsOf,
+  staysOf,
   STILL_WORTH_IT_MS,
   SUBJECTS,
   clockFace,
@@ -203,4 +206,75 @@ test('a fix with no time is better than no fix at all', () => {
 
 test('a day with no fix anywhere has no zone rather than a wrong one', () => {
   assert.equal(lookBackAt('2026-04-03', [{ taken_at: '2026-04-03T09:00:00Z' }]).zone, null)
+})
+
+test('a flight taken today counts, from wherever this app keeps it', () => {
+  // Nothing in the app writes to `flights` — the only inserts are in
+  // seed_flights.sql — so every flight anybody books here is a planned_event,
+  // and that is also where every flight on a trip somebody is *on* lives.
+  // Reading `flights` alone, the evening could never mention a flight taken
+  // today by anybody actually using the app.
+  const planned = [
+    {
+      kind: 'flight',
+      event_date: '2026-08-19',
+      detail: { flight_number: 'FD3117', dep_airport: 'BKK', arr_airport: 'KBV' },
+    },
+  ]
+  assert.deepEqual(legsOf('2026-08-19', { planned }), [
+    { number: 'FD3117', from: 'BKK', to: 'KBV', mode: 'air' },
+  ])
+  // Prove the check can fail: this is what it did before.
+  assert.deepEqual(legsOf('2026-08-19', { flights: [] }), [])
+})
+
+test('and a leg in both tables is one flight, not two', () => {
+  const flights = [{ dep_time: '2026-08-19T03:20:00Z', flight_number: 'FD3117', dep_airport: 'BKK', arr_airport: 'KBV' }]
+  const planned = [{ kind: 'flight', event_date: '2026-08-19', detail: { flight_number: 'FD3117' } }]
+  assert.equal(legsOf('2026-08-19', { flights, planned }).length, 1)
+})
+
+test('a hotel is a name, not a number', () => {
+  // `stays` was a count of tracked place *visits* — anywhere the phone
+  // decided you had stopped — so it could never say where you slept, while
+  // the name sat unread in planned_events.
+  const planned = [
+    { kind: 'hotel', event_date: '2026-08-19', title: 'Hotel — Rayavadee, Railay', city: 'Krabi', detail: { nights: 3 } },
+    { kind: 'hotel', event_date: '2026-08-25', title: 'Hotel — somewhere else' },
+  ]
+  assert.deepEqual(staysOf('2026-08-19', planned), [
+    { name: 'Rayavadee, Railay', city: 'Krabi', nights: 3 },
+  ])
+})
+
+test('and checking in somewhere is a day worth sending on its own', () => {
+  const facts = lookBackAt('2026-08-19', [], {
+    planned: [{ kind: 'hotel', event_date: '2026-08-19', title: 'Hotel — Rayavadee, Railay' }],
+  })
+  assert.equal(facts.stays.length, 1)
+  assert.equal(worthSending(facts), true)
+  assert.match(oneLine(facts), /checked into Rayavadee, Railay/)
+})
+
+test('distance comes from whatever was recording, not from the photographs alone', () => {
+  // Fourteen kilometres and four pictures used to come out near zero, on the
+  // one line of the evening meant to say what somebody did with their legs.
+  const photos = [
+    { taken_on: '2026-08-19', taken_at: '2026-08-19T09:00:00Z', lat: 13.7563, lon: 100.5018 },
+    { taken_on: '2026-08-19', taken_at: '2026-08-19T09:10:00Z', lat: 13.7570, lon: 100.5030 },
+  ]
+  const visits = [
+    { arrived_at: '2026-08-19T10:00:00Z', lat: 13.7600, lng: 100.5100 },
+    { arrived_at: '2026-08-19T11:30:00Z', lat: 13.7700, lng: 100.5200 },
+    { arrived_at: '2026-08-19T13:00:00Z', lat: 13.7800, lng: 100.5300 },
+  ]
+  const withOut = lookBackAt('2026-08-19', photos)
+  const withIn = lookBackAt('2026-08-19', photos, { visits })
+  assert.ok(withIn.km_on_foot > withOut.km_on_foot)
+  assert.equal(withOut.km_from, 'photographs')
+  assert.equal(withIn.km_from, 'tracking')
+  // The two tables disagree about the name of the second coordinate, and
+  // the mapping is the whole reason fixesOf exists.
+  assert.equal(fixesOf([], { visits }).length, 3)
+  assert.equal(fixesOf([], { visits: [{ arrived_at: 'x', lat: 1 }] }).length, 0)
 })

@@ -95,8 +95,102 @@ export function clockFace(at) {
  * @param extras   { flights, runs, stays, been } — `been` is the places
  *                 visited before today, for working out what is new
  */
+/**
+ * Every fix of the day, from whatever was recording.
+ *
+ * km_on_foot came from the photographs alone, and photographs are a terrible
+ * record of walking: somebody who covered fourteen kilometres and took four
+ * pictures got a number near zero, on the one line of the evening that is
+ * meant to say what they did with their legs.
+ *
+ * Two other things know better and neither was ever read. `location_visits`
+ * is what this app records itself when somebody turns tracking on.
+ * `day_tracks.path` is what a Google Timeline export knew. Both are lists of
+ * places with times, which is the same shape groundCovered already takes.
+ *
+ * Merged rather than chosen between, because more fixes is a better floor
+ * and the speed cap inside groundCovered removes the vehicle hops either
+ * source might contribute. It is still a floor and must still be described
+ * as one.
+ *
+ * Note what this is *not*: a step count. This app records where you stopped,
+ * not how many times your foot hit the ground. A real step count is
+ * HealthKit and Google Fit — a permission, a plugin and a build each — and
+ * inventing one from distance would be exactly the confident nonsense the
+ * top of this file exists to refuse.
+ */
+export function fixesOf(photos = [], { visits = [], path = [] } = {}) {
+  const out = []
+  for (const p of photos) {
+    if (p?.taken_at && p.lat != null && p.lon != null) out.push({ taken_at: p.taken_at, lat: p.lat, lon: p.lon })
+  }
+  for (const v of visits) {
+    // lng here, lon there. The two tables disagree and have always
+    // disagreed; the mapping is the point of this loop.
+    const lat = v?.lat
+    const lon = v?.lon ?? v?.lng
+    const at = v?.arrived_at ?? v?.at ?? v?.start
+    if (at && lat != null && lon != null) out.push({ taken_at: at, lat, lon })
+  }
+  for (const q of path) {
+    const at = q?.at ?? q?.t ?? q?.time
+    const lat = q?.lat
+    const lon = q?.lon ?? q?.lng
+    if (at && lat != null && lon != null) out.push({ taken_at: at, lat, lon })
+  }
+  return out.sort((a, b) => String(a.taken_at).localeCompare(String(b.taken_at)))
+}
+
+/**
+ * A flight taken today, from wherever this app happens to keep it.
+ *
+ * `flights` holds flights that have been flown, and nothing in the app ever
+ * writes to it — checked across src/ and api/, where the only inserts are in
+ * seed_flights.sql. Every flight anybody has booked in the app is a
+ * planned_event, which is also where every flight on a trip somebody is
+ * *on* lives.
+ *
+ * So the evening look-back, which read `flights` alone, could not mention a
+ * flight taken today by anybody using the app — on precisely the day it is
+ * most worth mentioning. Both sources, one shape.
+ */
+export function legsOf(date, { flights = [], planned = [] } = {}) {
+  const out = flights
+    .filter((f) => onDay(f?.dep_time, date))
+    .map((f) => ({ number: f.flight_number, from: f.dep_airport, to: f.arr_airport, mode: f.mode ?? 'air' }))
+
+  for (const e of planned) {
+    if (e?.kind !== 'flight' || e?.event_date !== date) continue
+    const d = e.detail ?? {}
+    const number = d.flight_number ?? null
+    // The same leg can be in both tables once a planned flight has been
+    // flown and copied across. Said twice, the evening reads as two flights.
+    if (number && out.some((l) => l.number === number)) continue
+    out.push({ number, from: d.dep_airport ?? null, to: d.arr_airport ?? null, mode: 'air' })
+  }
+  return out
+}
+
+/**
+ * Where you slept, by name.
+ *
+ * `stays` was a bare count, and it was a count of tracked place visits —
+ * anywhere the phone decided you had stopped — so it could never say "you
+ * checked into the Rayavadee". The hotel is sitting in planned_events with
+ * its name, its confirmation and its nights on it, and was not being read.
+ */
+export function staysOf(date, planned = []) {
+  return planned
+    .filter((e) => e?.kind === 'hotel' && e?.event_date === date)
+    .map((e) => ({
+      name: String(e.title ?? '').replace(/^Hotel\s+—\s+/, ''),
+      city: e.city ?? null,
+      nights: e.detail?.nights ?? null,
+    }))
+}
+
 export function lookBackAt(date, photos = [], extras = {}) {
-  const { flights = [], runs = [], stays = [], been = [] } = extras
+  const { flights = [], runs = [], stays = [], been = [], planned = [], visits = [], path = [] } = extras
   const today = photos.filter((p) => p?.taken_on === date || onDay(p?.taken_at, date))
   const located = today.filter((p) => p.lat != null && p.lon != null)
   const times = today.map((p) => p.taken_at).filter(Boolean).sort()
@@ -135,9 +229,13 @@ export function lookBackAt(date, photos = [], extras = {}) {
     if (p.seen?.what) observations.push({ at: clockFace(p.taken_at), what: p.seen.what, notable: p.seen.notable || null })
   }
 
-  const legsToday = flights.filter((f) => onDay(f?.dep_time, date))
+  const legsToday = legsOf(date, { flights, planned })
   const runsToday = runs.filter((r) => r?.run_date === date)
-  const staysToday = stays.filter((s) => onDay(s?.arrived_at, date) || onDay(s?.at, date))
+  // The tracked stops of the day, which is a different thing from a hotel
+  // and is now counted as one rather than standing in for it.
+  const visitsToday = stays.filter((s) => onDay(s?.arrived_at, date) || onDay(s?.at, date))
+  const checkedIn = staysOf(date, planned)
+  const fixes = fixesOf(today, { visits, path })
 
   // Somewhere they had not been before today. Compared on the city rather
   // than the coordinate, because standing on a different corner of the same
@@ -153,22 +251,25 @@ export function lookBackAt(date, photos = [], extras = {}) {
     photographs: today.length,
     // A floor, never a total: straight lines between fixes with anything
     // faster than walking taken out. groundCovered() says so itself.
-    km_on_foot: groundCovered(today),
+    km_on_foot: groundCovered(fixes),
+    // Which record that number came from, so the prose can be honest about
+    // it. Distance off four photographs and distance off a day of tracking
+    // are not the same claim and should not be written the same way.
+    km_from: visits.length || path.length ? 'tracking' : 'photographs',
     counts,
     // Ordered biggest first, so whoever writes this does not have to.
     ranked: Object.entries(counts)
       .sort((a, b) => b[1] - a[1])
       .map(([subject, n]) => ({ subject, n, word: n === 1 ? SUBJECTS[subject]?.one : SUBJECTS[subject]?.many })),
-    legs: legsToday.map((f) => ({
-      number: f.flight_number,
-      from: f.dep_airport,
-      to: f.arr_airport,
-      mode: f.mode ?? 'air',
-    })),
+    legs: legsToday,
     activities: runsToday.map((r) => ({ kind: r.sport, km: Number(r.distance_km) || null })),
     places: wherever,
     first_time,
-    stays: staysToday.length,
+    // Named, because "the Rayavadee" is the fact and "1" never was.
+    stays: checkedIn,
+    // Anywhere the phone decided you stopped. Kept, because it is real, and
+    // separate, because it is not a hotel.
+    stops: visitsToday.length,
     weather: [...new Set(today.map((p) => p.seen?.weather).filter(Boolean))],
     observations,
     zone: lastFix ? zoneAt([lastFix.lat, lastFix.lon]) : null,
@@ -179,6 +280,9 @@ export function lookBackAt(date, photos = [], extras = {}) {
 export function worthSending(facts) {
   if (!facts) return false
   if (facts.legs.length || facts.activities.length || facts.first_time.length) return true
+  // Arriving somewhere new to sleep is a day, even one spent entirely in
+  // transit with the camera in a bag.
+  if (facts.stays?.length) return true
   return facts.photographs >= ENOUGH.photos || facts.km_on_foot >= ENOUGH.km
 }
 
@@ -200,6 +304,10 @@ export function oneLine(facts) {
   if (facts.legs.length) {
     const l = facts.legs[0]
     bits.push(l.from && l.to ? `${l.from} to ${l.to}` : 'a flight')
+  }
+  if (facts.stays?.length) {
+    const s = facts.stays[0]
+    bits.push(s.name ? `checked into ${s.name}` : 'checked in')
   }
   if (facts.km_on_foot >= ENOUGH.km) bits.push(`${facts.km_on_foot} km on your feet`)
   const top = facts.ranked[0]
