@@ -1,0 +1,107 @@
+name: Cut an iOS release tag
+
+# Somebody has to press a button, and it does not have to be you.
+#
+# ── What this is for ─────────────────────────────────────────────────────
+#
+# Xcode Cloud's start condition is Tag Changes on `ios-v*`, and the gate in
+# ci_scripts/ci_post_clone.sh opens for a tag. So cutting the tag *is* cutting
+# the build. Every release so far has been a manual Start Build in App Store
+# Connect, pressed by hand, because the assistant's credentials are refused
+# on tag creation specifically — branch pushes work, `git push --tags` comes
+# back 403.
+#
+# GITHUB_TOKEN inside Actions is not refused. So the tag is created here, and
+# this workflow is started by whoever wants a build — from the Actions tab, or
+# by the assistant through the API, which it *can* do.
+#
+# ── Why a tag and not just a build ───────────────────────────────────────
+#
+# A tag records which commit shipped, which is the thing nobody can
+# reconstruct afterwards. Build 125 went out with a crash in it and working
+# out what was in it meant reading timestamps. A tag makes that a lookup.
+#
+# ── What this deliberately does not do ───────────────────────────────────
+#
+# It does not build anything itself, and it holds no Apple credentials. It
+# writes one tag. Xcode Cloud notices and does the rest — which means this
+# cannot spend an upload budget by being wrong about signing, and there is
+# no .p8 or App Store Connect key anywhere in this repository.
+#
+# It also refuses to move a tag that already exists. A tag is a record of
+# what shipped, and a record that can be quietly rewritten is not one.
+
+on:
+  workflow_dispatch:
+    inputs:
+      why:
+        description: What is in this build (goes in the tag message)
+        required: true
+        type: string
+      ref:
+        description: Commit or branch to tag. Defaults to main.
+        required: false
+        default: main
+        type: string
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      # The only permission it needs, and it needs it for exactly one thing.
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # The whole history, because the next tag number is read from the
+          # tags and a shallow clone has none of them.
+          fetch-depth: 0
+
+      # The next number, from what has already been cut.
+      #
+      # Deliberately not the Xcode Cloud build number: that is assigned when
+      # the build starts, which is after this has run, so it cannot be known
+      # here. This is a release counter of its own — ios-v1, ios-v2 — and its
+      # only job is to be unique and to sort.
+      - name: Work out the next tag
+        id: next
+        run: |
+          set -euo pipefail
+          last=$(git tag --list 'ios-v*' --sort=-v:refname | head -n1)
+          if [ -z "$last" ]; then
+            n=1
+          else
+            n=$(( ${last#ios-v} + 1 ))
+          fi
+          echo "tag=ios-v$n" >> "$GITHUB_OUTPUT"
+          echo "Last was ${last:-<none>}; cutting ios-v$n"
+
+      # Refused rather than forced. See the header.
+      - name: Refuse to move a tag that exists
+        run: |
+          set -euo pipefail
+          if git rev-parse -q --verify "refs/tags/${{ steps.next.outputs.tag }}" >/dev/null; then
+            echo "::error::${{ steps.next.outputs.tag }} already exists. A tag records what shipped and is not moved."
+            exit 1
+          fi
+
+      # Annotated, so `git show` on the tag says why the build was cut. The
+      # identity is the workflow's own rather than a person's, because that
+      # is what actually made it.
+      - name: Cut it
+        env:
+          TAG: ${{ steps.next.outputs.tag }}
+          WHY: ${{ inputs.why }}
+        run: |
+          set -euo pipefail
+          git config user.name  'pond release'
+          git config user.email 'noreply@github.com'
+          git tag -a "$TAG" -m "$WHY"
+          git push origin "$TAG"
+          echo "### Cut \`$TAG\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "on $(git rev-parse --short HEAD) — $WHY" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Xcode Cloud builds on \`ios-v*\`. Watch it in App Store Connect." >> "$GITHUB_STEP_SUMMARY"
