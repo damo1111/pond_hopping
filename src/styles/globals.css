@@ -3703,12 +3703,25 @@ button.album-open:disabled {
 
 /* ── World landing: trip-selector overlay ──────────────────── */
 
-.world-trips {
+/* The bottom of Home is a column now, not a strip.
+ *
+ * The strip is a horizontal scroller, so anything put inside it becomes
+ * another card in the row — including the one card that is meant to outrank
+ * the row. So the positioning moves out here and the strip becomes what it
+ * always was underneath: a line of equal cards, with the present sitting
+ * above it. */
+.world-bottom {
   position: absolute;
   left: 0;
   right: 0;
   bottom: calc(90px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   z-index: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.world-trips {
   display: flex;
   gap: 9px;
   padding: 6px 12px;
@@ -13280,3 +13293,77 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   font-size: 13px;
   color: var(--text-muted);
 }
+
+/* ── The present, above the strip ─────────────────────────────────────────
+ *
+ * One card, the width of the screen, over the trip's own cover. It is the
+ * only thing on Home that is allowed to be bigger than a 172px tile, and it
+ * appears only when there is a trip that is genuinely the present — see
+ * frontOfMind.js. When there is not, Home is exactly what it was.
+ */
+.wt-front {
+  position: relative;
+  display: block;
+  margin: 0 12px;
+  height: 96px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.wt-front-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Bottom-weighted, because the words sit at the bottom and the top of a
+   cover is usually the sky — scrimming all of it evenly would dull the
+   photograph for no reading benefit. */
+.wt-front-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.68) 0%, rgba(0, 0, 0, 0.28) 45%, rgba(0, 0, 0, 0) 78%);
+}
+
+.wt-front-text {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #fff;
+}
+
+/* "Day 6 of 10" is the fact that makes this card worth its size, so it goes
+   first and in the face that reads as a measurement. */
+.wt-front-when {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.92;
+}
+
+.wt-front-title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A trip that has not started yet is an anticipation, not a report, so its
+   countdown takes the accent rather than the plain white. */
+.wt-front--soon .wt-front-when { color: var(--accent-on-dark, #f0d68a); }

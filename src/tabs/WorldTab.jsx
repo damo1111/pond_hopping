@@ -22,6 +22,8 @@ import { pickVariant } from '../lib/variants.js'
 import { oops, track, whoAmI } from '../lib/analytics.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
 import { NEW_TRIP, comingBackTo } from '../lib/photoImport.js'
+import { frontOfMind, heroWhen, tileLeads } from '../lib/frontOfMind.js'
+import { todayHere } from '../lib/whereYouAre.js'
 
 // Default framing for the "all trips" overview — centred on the
 // Asia-Pacific cluster where 5 of 6 trips actually happened.
@@ -165,7 +167,37 @@ export default function WorldTab() {
   const [wrapEl, setWrapEl] = useState(null)
   const wrapRef = useCallback((node) => setWrapEl(node), [])
 
-  const sections = useMemo(() => sectionTrips(tripMeta), [tripMeta])
+  // The one trip that is the present, lifted out of the strip.
+  //
+  // Home knew which trips were Right now and Coming up and did nothing with
+  // the difference: every card at one weight, in a fixed order that began
+  // with the empty Add-a-trip tile. So somebody in the middle of a holiday
+  // opened the app and met a blank invitation to start another one, with the
+  // trip they were on sitting off the right-hand edge.
+  //
+  // The day is watched as well as the trips, because "Day 6 of 10" is wrong
+  // by breakfast otherwise.
+  const [today, setToday] = useState(todayHere)
+  useEffect(() => {
+    const tick = setInterval(() => setToday((was) => (todayHere() === was ? was : todayHere())), 60000)
+    return () => clearInterval(tick)
+  }, [])
+  const front = useMemo(() => frontOfMind(tripMeta, today), [tripMeta, today])
+  const leads = useMemo(() => tileLeads(tripMeta), [tripMeta])
+
+  // Promoted out of the strip, not copied above it.
+  //
+  // Rendered, the hero and the first card of the row were the same trip,
+  // touching. The strip is the index of everything; the hero is one row of
+  // it lifted out, and leaving the row behind makes the promotion look like
+  // a duplicate. Only the one that was lifted — a second live trip, which
+  // happens, stays where it is. sectionTrips drops a section with nothing
+  // left in it, so Right now simply goes.
+  const sections = useMemo(
+    () => sectionTrips(front ? tripMeta.filter((t) => t.slug !== front.trip.slug) : tripMeta),
+    [tripMeta, front]
+  )
+
 
   // Which words the tile wears. Decided once per mount from the session id,
   // so it cannot change under somebody mid-scroll, and falls back to the
@@ -780,6 +812,57 @@ export default function WorldTab() {
   const cityLabels = markerPoints.map((m) => ({ kind: 'city', lat: m.pos[0], lng: m.pos[1], text: m.city }))
   const labelsData = [...countryLabels, ...cityLabels]
 
+
+  // The door. A value rather than markup in place, because where it goes is
+  // now a decision: it leads the strip while the only thing on the globe is
+  // somebody else's example — a screen with nothing of yours on it, where the
+  // tile is the whole point — and moves to the end the moment there is one
+  // real trip, which is where "add another" belongs. It never disappears;
+  // nobody's log is ever finished.
+  const addTile = (
+<div className="wt-section wt-section--add">
+      <div className="wt-section-label">Yours</div>
+      <button
+        className="wt-card wt-card--add"
+        onClick={() => {
+          track('tile_tapped', { test: 'add_tile', variant: tile?.id })
+          setRoutesOpen(true)
+        }}
+      >
+        {/* A real tile opens with a photograph 78px tall. This one
+            opened with a small mark and then 78px of nothing, which is
+            why it read as broken rather than empty. So it gets a cover
+            of its own, in the same box: the globe the app is built
+            around, a hop not yet taken, and the duck waiting on it. */}
+        <span className="wt-cover wt-add-cover" aria-hidden="true">
+          <svg viewBox="0 0 172 78" preserveAspectRatio="xMidYMid slice" role="img">
+            <g className="wt-add-globe" fill="none" strokeLinecap="round">
+              <circle cx="86" cy="60" r="44" />
+              <ellipse cx="86" cy="60" rx="17" ry="44" />
+              <ellipse cx="86" cy="60" rx="32" ry="44" />
+              <path d="M42 60h88M47 44h78M47 76h78" />
+            </g>
+            <path
+              className="wt-add-arc"
+              d="M36 44C56 14 116 12 138 34"
+              fill="none"
+              strokeLinecap="round"
+            />
+            <circle className="wt-add-from" cx="36" cy="44" r="3.2" />
+            <g className="wt-add-to">
+              <circle cx="139" cy="34" r="7" />
+              <path d="M139 30.2v7.6M135.2 34h7.6" strokeLinecap="round" />
+            </g>
+          </svg>
+          <img className="wt-add-duck" src="/duck.png" alt="" />
+        </span>
+        <span className="wt-title">{tile?.title ?? 'Add a trip'}</span>
+        <span className="wt-subtitle">{tile?.strap ?? "One you've taken, or one you're on"}</span>
+        <span className="wt-dates">photos · email · ai</span>
+      </button>
+    </div>
+  )
+
   return (
     <div
       className={`world-wrap globe-wrap${introRunning ? ' introing' : ''}`}
@@ -918,55 +1001,41 @@ export default function WorldTab() {
       {tripsLoaded && !tripMeta.length ? (
         <EmptyHome onPlan={() => goToTab('plan')} onGetIn={() => setRoutesOpen(true)} />
       ) : (
-        <div className="world-trips">
-          {memory && <MemoryCard memory={memory} onOpen={() => jumpToJournal(memory.slug, memory.entry_date)} />}
-
-          {/* The door, sitting in the strip where the trips are rather than
-              buried in a tab. It stays put once there are real trips —
-              nobody's log is ever finished — but it leads the row while the
-              only thing there is somebody else's example. */}
-          <div className="wt-section wt-section--add">
-            <div className="wt-section-label">Yours</div>
+        <div className="world-bottom">
+          {/* The present, at the size of the present.
+              Above the strip rather than in it, because the strip is a
+              horizontal list and a list has no way to say that one of its
+              rows is the reason somebody opened the app. One at a time,
+              always: two of these is a dashboard, and the point is that
+              there is one obvious thing. Which trip, and never an example,
+              is decided in frontOfMind.js and tested there. */}
+          {front && (
             <button
-              className="wt-card wt-card--add"
+              className={`wt-front wt-front--${front.when}`}
               onClick={() => {
-                track('tile_tapped', { test: 'add_tile', variant: tile?.id })
-                setRoutesOpen(true)
+                track('front_of_mind_tapped', { when: front.when })
+                setSelectedTrip(front.trip.slug)
               }}
             >
-              {/* A real tile opens with a photograph 78px tall. This one
-                  opened with a small mark and then 78px of nothing, which is
-                  why it read as broken rather than empty. So it gets a cover
-                  of its own, in the same box: the globe the app is built
-                  around, a hop not yet taken, and the duck waiting on it. */}
-              <span className="wt-cover wt-add-cover" aria-hidden="true">
-                <svg viewBox="0 0 172 78" preserveAspectRatio="xMidYMid slice" role="img">
-                  <g className="wt-add-globe" fill="none" strokeLinecap="round">
-                    <circle cx="86" cy="60" r="44" />
-                    <ellipse cx="86" cy="60" rx="17" ry="44" />
-                    <ellipse cx="86" cy="60" rx="32" ry="44" />
-                    <path d="M42 60h88M47 44h78M47 76h78" />
-                  </g>
-                  <path
-                    className="wt-add-arc"
-                    d="M36 44C56 14 116 12 138 34"
-                    fill="none"
-                    strokeLinecap="round"
-                  />
-                  <circle className="wt-add-from" cx="36" cy="44" r="3.2" />
-                  <g className="wt-add-to">
-                    <circle cx="139" cy="34" r="7" />
-                    <path d="M139 30.2v7.6M135.2 34h7.6" strokeLinecap="round" />
-                  </g>
-                </svg>
-                <img className="wt-add-duck" src="/duck.png" alt="" />
+              {covers[front.trip.id] && (
+                <img
+                  className="wt-front-img"
+                  src={coverUrl(covers[front.trip.id], { width: 900, height: 420, quality: 78 })}
+                  alt=""
+                />
+              )}
+              <span className="wt-front-scrim" aria-hidden="true" />
+              <span className="wt-front-text">
+                <span className="wt-front-when">{heroWhen(front, today)}</span>
+                <span className="wt-front-title">{front.trip.title}</span>
               </span>
-              <span className="wt-title">{tile?.title ?? 'Add a trip'}</span>
-              <span className="wt-subtitle">{tile?.strap ?? "One you've taken, or one you're on"}</span>
-              <span className="wt-dates">photos · email · ai</span>
             </button>
-          </div>
+          )}
 
+          <div className="world-trips">
+          {memory && <MemoryCard memory={memory} onOpen={() => jumpToJournal(memory.slug, memory.entry_date)} />}
+
+          {leads && addTile}
 
           {/* Past and future used to sit in one undifferentiated row, in
               hand-curated order, distinguishable only by reading the dates
@@ -995,6 +1064,9 @@ export default function WorldTab() {
               })}
             </div>
           ))}
+
+          {!leads && addTile}
+          </div>
         </div>
       )}
     </div>

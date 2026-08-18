@@ -72,3 +72,17 @@ test('history still collapses into chapters, the future never does', () => {
   const up = s.find((x) => x.id === 'upcoming')
   assert.deepEqual(up.items.map((i) => i.type), ['trip'])
 })
+
+test('a trip nobody has closed is still happening', () => {
+  // end_date || start_date made an unclosed trip one day long, so it fell
+  // out of Right now on the morning of day two — while somebody was on it.
+  // An unclosed trip is the ordinary state of a trip you are having: the end
+  // date is what you fill in when you get home.
+  const open = { start_date: '2026-08-13', end_date: null }
+  assert.equal(tripPhase(open, new Date('2026-08-18T12:00:00Z')), 'live')
+  assert.equal(tripPhase(open, new Date('2026-08-14T12:00:00Z')), 'live')
+  // Prove the check can fail, and prove the other end holds: one left open
+  // in 2019 has long since stopped claiming to be happening.
+  assert.equal(tripPhase({ start_date: '2019-04-01', end_date: null }, new Date('2026-08-18T12:00:00Z')), 'past')
+  assert.equal(tripPhase(open, new Date('2026-08-12T12:00:00Z')), 'upcoming')
+})
