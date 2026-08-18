@@ -4,7 +4,7 @@ import { fetchAircraftPhoto } from '../../lib/planespotters.js'
 import TailFin from '../TailFin.jsx'
 import RouteMap from '../RouteMap.jsx'
 import FlightSpan from '../FlightSpan.jsx'
-import { dayShift, flightPhase, saysNow, spanMinutes } from '../../lib/flightSpan.js'
+import { dayShift, flightPhase, instantAt, saysNow, spanMinutes } from '../../lib/flightSpan.js'
 import { AIRPORT_COORDS } from '../../lib/airportCoords.js'
 import { distanceKm } from '../../lib/geo.js'
 
@@ -128,9 +128,26 @@ export default function PlanFlightCard({ event, onEditEvent, onSaveDetail }) {
   // strings against the event's own date. Composed into instants here so the
   // same duration, day shift and live states the flown card has can be shown
   // on the flight somebody is actually waiting for.
-  const whenIs = (t) => (event.event_date && t ? `${event.event_date}T${String(t).slice(0, 5)}:00` : null)
-  const depIso = whenIs(event.start_time)
-  const arrIso = whenIs(d.arr_time)
+  //
+  // Two corrections live here, and both were the same mistake: treating a
+  // booking's wall-clock times as though they were instants.
+  //
+  // The zone. "00:20" at Bangkok and "07:00" at Heathrow are readings on two
+  // clocks that are six hours apart, and subtracting them gave 6h 40m for a
+  // flight that is 12h 40m in the air — see instantAt.
+  //
+  // The date. arrIso was built from event_date whichever day the flight
+  // lands, so a red-eye's arrival was stamped with the departure's date. The
+  // day shift below already knew about arr_date; the duration did not, and a
+  // negative span is discarded, so the card silently showed no duration at
+  // all on exactly the flights whose length is worth saying.
+  //
+  // Null rather than a fallback where an airport has no zone: a duration we
+  // cannot compute correctly is left unsaid, which is what spanMinutes does
+  // with a negative one and for the same reason.
+  const whenIs = (date, t) => (date && t ? `${date}T${String(t).slice(0, 5)}:00` : null)
+  const depIso = instantAt(whenIs(event.event_date, event.start_time), d.dep_airport)
+  const arrIso = instantAt(whenIs(d.arr_date || event.event_date, d.arr_time), d.arr_airport)
   const mins = spanMinutes(depIso, arrIso)
   const shift = dayShift(event.event_date, d.arr_date || event.event_date)
   const phase = flightPhase({ dep_time: depIso, arr_time: arrIso })

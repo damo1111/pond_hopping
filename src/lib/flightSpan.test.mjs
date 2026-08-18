@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { dayShift, drift, flightPhase, howItWent, saidAs, saysNow, spanMinutes } from './flightSpan.js'
+import { dayShift, drift, flightPhase, howItWent, instantAt, saidAs, saysNow, spanMinutes } from './flightSpan.js'
 
 test('a flight is a span, and the span is in the data already', () => {
   assert.equal(spanMinutes('2026-05-21T22:05:00Z', '2026-05-22T09:30:00Z'), 685)
@@ -108,4 +108,33 @@ test('the phase follows what happened, not what was printed', () => {
 test('a flight with no times says nothing rather than guessing', () => {
   assert.equal(flightPhase({}).phase, 'later')
   assert.equal(saysNow({}), null)
+})
+
+test('a planned long-haul is as long as it actually is', () => {
+  // The card stores what the booking says: two wall-clock readings, on two
+  // clocks six hours apart. Subtracting them said the flight to London takes
+  // half the time it does — confidently, on the one card whose whole job is
+  // to say how long you are in the air.
+  const dep = instantAt('2026-08-18T00:20:00', 'BKK')
+  const arr = instantAt('2026-08-18T07:00:00', 'LHR')
+  assert.equal(spanMinutes(dep, arr), 760) // 12h 40m
+
+  // Prove the check can fail: this is what the card did before, from the
+  // very same two strings.
+  assert.equal(spanMinutes('2026-08-18T00:20:00', '2026-08-18T07:00:00'), 400)
+})
+
+test('and a domestic hop is unaffected, because both clocks agree', () => {
+  const dep = instantAt('2026-08-19T10:20:00', 'BKK')
+  const arr = instantAt('2026-08-19T11:45:00', 'KBV')
+  assert.equal(spanMinutes(dep, arr), 85)
+})
+
+test('an airport with no zone says nothing rather than something wrong', () => {
+  // A guessed offset is the same class of error this exists to remove, so
+  // there is no fallback. The caller shows no duration, which is honest.
+  assert.equal(instantAt('2026-08-18T07:00:00', 'ZZZ'), null)
+  assert.equal(instantAt('2026-08-18T07:00:00', null), null)
+  assert.equal(instantAt(null, 'LHR'), null)
+  assert.equal(spanMinutes(instantAt('2026-08-18T07:00:00', 'ZZZ'), 'x'), null)
 })

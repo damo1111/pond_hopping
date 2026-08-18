@@ -8,6 +8,45 @@
 // Both numbers come from what is already stored. Nothing here asks anybody
 // for anything.
 
+import { AIRPORT_TZ } from './airportTz.js'
+import { offsetOfZone } from './localTime.js'
+
+/**
+ * A local wall-clock time at an airport, as a real instant.
+ *
+ * The flown card never needed this: `flights` stores true UTC instants and
+ * renders them through airportTz, so its duration has always been right. A
+ * *planned* flight stores what the booking says — "00:20", "07:00" — which
+ * are wall-clock times at two different airports, and composing them into
+ * naive ISO strings quietly assumes both clocks agree.
+ *
+ * They rarely do, and the error is the whole point of a long-haul card:
+ * BKK 00:20 → LHR 07:00 is twelve hours and forty minutes in the air, and
+ * subtracting the strings gives six hours forty. Not a rounding error — the
+ * card would have said, confidently, that the flight to London takes half as
+ * long as it does.
+ *
+ * Returns null where the airport is not one we know a zone for, because a
+ * guessed offset produces exactly the same class of confident wrong answer.
+ * The caller then shows no duration, which is the honest state.
+ */
+export function instantAt(localIso, airportCode) {
+  if (!localIso) return null
+  const zone = AIRPORT_TZ[String(airportCode || '').toUpperCase()]
+  if (!zone) return null
+  // The offset on that date rather than a fixed one, so daylight saving is
+  // handled by asking rather than by a table of when it starts. Seeded with
+  // the naive reading, which is at most a day out and never lands on the
+  // wrong side of a transition by enough to matter.
+  const hours = offsetOfZone(zone, `${localIso}Z`)
+  if (hours == null) return null
+  const sign = hours < 0 ? '-' : '+'
+  const pad = String(Math.abs(hours)).padStart(2, '0')
+  // Written as an offset rather than arithmetic on a Date, so the string
+  // stays readable in a test failure.
+  return `${localIso}${sign}${pad}:00`
+}
+
 /** Minutes in the air, from two instants. Null when either is missing, so a
  *  flight typed in without an arrival time simply shows no duration rather
  *  than "NaNh". */
