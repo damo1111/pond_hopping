@@ -13043,3 +13043,240 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   text-transform: none;
   letter-spacing: 0;
 }
+
+/* ── The trip, from where you are standing in it ──────────────────────────
+ *
+ * TripDays. One lane anchored on today: the days behind collapsed to a row
+ * each, today open, the week ahead open, the rest a number.
+ *
+ * The visual job is that the three read as three without three colour
+ * schemes. So it is done with weight and ground instead: behind you is flat
+ * on the page, today sits on a card with the accent down its edge, ahead is
+ * a card with no edge. One accent, used once.
+ */
+.trip-days {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 4px 0 24px;
+}
+
+.td-wait {
+  padding: 28px 4px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.td-block { display: flex; flex-direction: column; gap: 8px; }
+
+.td-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.td-label--today { color: var(--accent); }
+
+.td-day { display: flex; flex-direction: column; }
+
+/* A row a day, and the whole row opens it. */
+.td-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 2px;
+  text-align: left;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.td-day--behind + .td-day--behind .td-row { border-top: 1px solid var(--border); }
+
+.td-when {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  flex: 0 0 auto;
+}
+
+/* The day number is the spine of this screen — "day six" is how somebody
+   refers to a day of a trip, far more than by its date. Tabular so a column
+   of them lines up. */
+.td-n {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  min-width: 1.6em;
+}
+
+.td-date { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+.td-said {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.td-strip { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; }
+
+.td-thumb {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  object-fit: cover;
+  display: block;
+}
+
+.td-more {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  padding-left: 2px;
+}
+
+.td-open {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px 14px;
+}
+
+/* Today, and only today, gets the edge. */
+.td-day--today {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.td-row--today { padding: 0; justify-content: space-between; cursor: default; }
+
+.td-left {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.td-day--ahead {
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.td-day--ahead + .td-day--ahead { margin-top: 8px; }
+
+.td-thing { display: flex; gap: 10px; align-items: flex-start; }
+
+.td-thing.done { opacity: 0.55; }
+
+.td-tick {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #fff;
+}
+
+.td-thing-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+
+.td-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.td-thing-title { font-size: 14px; text-wrap: pretty; }
+
+.td-note { font-size: 12px; color: var(--text-muted); text-wrap: pretty; }
+
+/* Where you are sleeping: available rather than announced. */
+.td-nights { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.td-night {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.td-sofar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.td-sofar-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* A day ahead with nothing on it is not missing data — it is the
+   interesting kind of empty on a trip somebody is still planning. */
+.td-free { font-size: 12px; color: var(--text-muted); font-style: italic; }
+
+.td-rest {
+  align-self: flex-start;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+
+/* The way in, at the top of the recap, while the trip is happening. */
+.recap-now {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: calc(100% - 32px);
+  margin: 14px 16px 0;
+  padding: 11px 14px;
+  text-align: left;
+  border: 1px solid var(--accent-dim);
+  border-radius: 14px;
+  background: var(--accent-bg);
+  color: inherit;
+  cursor: pointer;
+}
+
+.recap-now-day {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+
+.recap-now-of { opacity: 0.6; }
+
+.recap-now-go {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}

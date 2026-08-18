@@ -15,6 +15,8 @@ import { SheetContext } from '../lib/sheetContext.js'
 import { beginDrag, extendDrag, finishDrag } from '../lib/sheetDrag.js'
 import { gather } from '../lib/gather.js'
 import { record as debug, clear as clearDebug, read as readDebug, isOn as debugOn, subscribe as onDebug } from '../lib/gestureDebug.js'
+import { laidOut, todayHere } from '../lib/whereYouAre.js'
+import TripDays from './TripDays.jsx'
 import CountryFlags from './CountryFlags.jsx'
 import GmailImport from './planner/GmailImport.jsx'
 import Icon from './Icon.jsx'
@@ -39,6 +41,8 @@ const WARM = [
 ]
 
 const LAYERS = {
+  // First, because on a trip somebody is on it is the only one they came for.
+  days: { title: 'The days', View: TripDays },
   journal: { title: 'Journal', View: JournalTab },
   photos: { title: 'Photos', View: PhotosTab },
   map: { title: 'Map', View: MapTab },
@@ -518,6 +522,10 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
   if (!trip) return null
 
   const stats = recapStats({ trip, ...(data ?? {}) })
+  // Pure, so a plain const rather than a hook — and below the `if (!trip)`
+  // guard for the same reason. Only the phase and the day number are wanted
+  // here; the days themselves are the layer's job, and it fetches its own.
+  const lane = laidOut({ trip, today: todayHere() })
   const days = Object.values(weather)
 
   const summary = summaryOf(data?.story, data?.cached)
@@ -687,6 +695,25 @@ export default function TripRecap({ trip, cover, reveal = true, origin = null, o
             <div className="recap-dates">{fmtRange(trip)}</div>
           </div>
         </header>
+
+        {/* The recap is a retrospective, and on a trip somebody is *on* that
+            is the wrong page: sixteen days and a thousand photographs is
+            what you read afterwards, not what you open on the morning of
+            day six wanting to know what time dinner is.
+            Rather than two versions of this screen, the middle of the trip
+            gets the top of it. Only while the trip is live — a page that
+            says "day 6 of 10" about a holiday from 2024 would be worse than
+            not saying it. The count comes from the dates, the same way the
+            sections on Home decide, so the two can never disagree. */}
+        {lane.phase === 'live' && lane.today && (
+          <button className="recap-now" onClick={() => setLayer('days')}>
+            <span className="recap-now-day">
+              Day {lane.today.index}
+              <span className="recap-now-of"> of {lane.total}</span>
+            </span>
+            <span className="recap-now-go">Today, and what&apos;s still to come →</span>
+          </button>
+        )}
 
         {hint && stats.figures.some((f) => f.to) && (
           <div className="recap-hint">The underlined numbers open</div>
