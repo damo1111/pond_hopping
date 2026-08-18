@@ -12153,22 +12153,6 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   max-width: 42ch;
 }
 
-.pwi-hero-go {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  align-self: flex-start;
-  margin: 14px 18px 0;
-  padding: 9px 15px;
-  border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
 /* The one nobody else could offer, so it gets a shape of its own rather
    than another row. */
 .pwi-never {
@@ -12274,11 +12258,11 @@ button.ios-sheet-grip:active { cursor: grabbing; }
    this variant exists to avoid. */
 .pwi--tail .pwi-hero-body { display: none; }
 
-.pwi--tail .pwi-hero-go {
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 7px 13px;
-}
+/* Hard right, so the row reads as a list row: name on the left, the way
+   onward on the far edge. In the full card it stays beside the title
+   instead — a chevron floating at the far side of a 213px card reads as
+   detached from the words it belongs to. */
+.pwi--tail .pwi-hero-chev { margin-left: auto; }
 
 @media (prefers-reduced-motion: no-preference) {
   .pwi-in {

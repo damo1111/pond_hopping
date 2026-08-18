@@ -72,30 +72,29 @@ export default function PlanWaysIn({ onPlan, onWish, suggestion, tail = false })
           whole screen. The bound that guarantees that is on .pwi-draw, in
           numbers, and it is measured rather than judged by eye.
 
-          The Start something pill went. It was the whole card's job stated
-          twice — a card that is entirely a button does not need a button
-          drawn on it, and the card it rhymes with has never had one. The
-          chevron says the same thing for the cost of nothing.
+          The Start something pill went, from both states. It was the whole
+          card's job stated twice — a card that is entirely a button does not
+          need a button drawn on it, and the card it rhymes with has never
+          had one.
 
-          The pill stays in the tail, where the card is a row and it is the
-          only part that looks like a control. */}
+          It was kept in the tail at first, on the grounds that a row needs
+          something that looks like a control. Rendered and looked at, that
+          was wrong twice over: gold fill, uppercase and letter-spaced, it
+          shouts on the one row meant to be quiet, and it took enough width
+          that "Plan the next one" wrapped onto two lines at 390px. The
+          chevron says the same thing, fits on one line at any width, and
+          keeps the two states in one hand. */}
       <button className="pwi-hero pwi-in" style={{ '--in': 1 }} onClick={onPlan}>
         <span className="pwi-hero-art">
           <AheadOfYou />
         </span>
         <span className="pwi-hero-title">
           Plan the next one
-          {!tail && <Icon className="pwi-hero-chev" name="chevron" size={16} />}
+          <Icon className="pwi-hero-chev" name="chevron" size={16} />
         </span>
         <span className="pwi-hero-body">
           Say where and roughly when. It finds the flights, the nights and the things worth doing.
         </span>
-        {tail && (
-          <span className="pwi-hero-go">
-            <Icon name="plus" size={15} />
-            <span>Start something</span>
-          </span>
-        )}
       </button>
 
       {/* Second, and only ours.
