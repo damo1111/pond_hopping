@@ -195,3 +195,28 @@ export function worthImporting(items = []) {
  */
 export const asDated = (picked = []) =>
   picked.map((p) => ({ ...p, takenAt: p.takenAtHint ?? null }))
+
+/**
+ * What the sweep should do with one recorded session.
+ *
+ * The sweep runs with nobody watching, once a minute, over sessions that may
+ * have been finished, abandoned, or never opened. Three answers and no
+ * others, so the loop that calls this cannot invent a fourth by accident:
+ *
+ *   'collect' — Google says the pick is set. Go and read it.
+ *   'gone'    — Google no longer knows this session. Stop asking, say why.
+ *   'wait'    — nobody has finished choosing yet, or Google had a bad
+ *               moment. Both are answered by trying again in a minute.
+ *
+ * The distinction that matters is the middle one against the last. A session
+ * Google has forgotten will never become ready, and retrying it once a
+ * minute forever is how a queue fills with rows nobody will ever look at. A
+ * 500 from Google is not that, and treating it as that would throw away a
+ * pick somebody made — which is the exact loss this whole route exists to
+ * stop happening a second time.
+ */
+export function whatToDoWith(said, status = 200) {
+  if (status === 404 || status === 403 || status === 401) return 'gone'
+  if (!said || typeof said !== 'object') return 'wait'
+  return said.mediaItemsSet ? 'collect' : 'wait'
+}

@@ -410,22 +410,13 @@ export default function BringThemIn({ trip, onDone }) {
         </button>
       )}
 
-      {/* What just happened, and what to do about it.
-          Coming back from Google left somebody looking at a button whose
-          words had changed and nothing else: no confirmation that the
-          consent worked, no statement of what the next tap does, and — since
-          the picker opens on Google's side — no warning that they are about
-          to leave again. Reported as "no messaging after authenticating and
-          what I need to do".
-          Only while the picker is waiting, because that is the one moment
-          the next step is not obvious. */}
-      {pickerUri && (
-        <span className="bring-in-note bring-in-note--ready">
-          Google said yes. Tap above to pick the photographs you want — it opens on Google’s side,
-          and we bring back only what you choose.
-        </span>
-      )}
-
+      {/* Nothing said here on purpose.
+          There was a paragraph: "Google said yes. Tap above to pick the
+          photographs you want — it opens on Google's side, and we bring back
+          only what you choose." It sat directly under a button reading
+          "Choose Google Photos →", which is the same sentence in three
+          words. Two of those, plus a target line and a reassurance, stacked
+          into four lines of prose above a photo grid. */}
       {progress && (
         <div className="bring-in-progress">
           <span className="bring-in-bar">
