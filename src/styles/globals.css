@@ -13304,8 +13304,27 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .wt-front {
   position: relative;
   display: block;
-  margin: 0 12px;
-  height: 96px;
+  /* Left edge with the cards, not with the section spine.
+     Measured, the hero started at 12px and the first card at 31px — the
+     nineteen between them is the vertical Right now / Coming up label, which
+     belongs to the strip and not to this. Two left edges nineteen apart on
+     the same stack reads as a mistake, and the cards are the edge a reader
+     actually follows. The right edge stays at 12, because the strip runs off
+     that side rather than ending. */
+  margin: 0 12px 0 31px;
+  /* Taller than it was, and still shorter than a card.
+     96px made the biggest thing on the page the shortest thing on it, and
+     left the photograph as a band rather than a picture. 124 gives it room
+     to be a cover without pushing the globe — the whole bottom block goes
+     from 282px to 310px of an 844px screen, and the strip below is
+     untouched.
+
+     Clamped to the viewport rather than fixed, because 124px on a 360x640
+     phone put the whole bottom block at 48% of the screen — and the globe
+     is the app, not the furniture in front of it. Measured across three
+     sizes the block now sits between 43% and 33%, smallest screen worst,
+     which is the right way round. */
+  height: clamp(92px, 14vh, 124px);
   border-radius: 16px;
   overflow: hidden;
   border: 1px solid var(--border);

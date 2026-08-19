@@ -50,14 +50,25 @@ export function daysUntil(date, today) {
  *   2. One starting within the week, nearest first.
  *   3. Nothing — and then Home is the strip, as it always was.
  *
- * Demos are excluded on purpose. An example trip held permanently five days
- * out would otherwise be the hero of everybody's home screen for ever,
- * counting down to a holiday that is not theirs — which is the exact failure
- * the demo-visibility rules exist to prevent, and it would be worse here
- * than anywhere because this is the biggest thing on the page.
+ * The example is allowed to be the hero, but only while it is the only thing
+ * there.
+ *
+ * Excluding it outright was the first rule and it was too blunt. It is right
+ * about the case it was written for — Lisbon is held permanently five days
+ * out by a cron, so on somebody's own home screen it would be the biggest
+ * thing on the page for ever, counting down to a holiday that is not theirs.
+ * But it also made the hero unreachable by the people who most need
+ * something to look at: a cold visitor, whose entire app is the examples,
+ * and who therefore saw no hero at all on the one screen built to show what
+ * this is for.
+ *
+ * Which is exactly the distinction demoVisibility.showDemo already draws:
+ * the example is there while it is the only thing there, and steps aside the
+ * moment one real trip exists. Same rule, one place further in.
  */
 export function frontOfMind(trips = [], today) {
-  const mine = ownTrips(trips).filter((t) => t?.start_date)
+  const real = ownTrips(trips).filter((t) => t?.start_date)
+  const mine = real.length ? real : (trips ?? []).filter((t) => t?.start_date)
   const now = new Date(`${String(today).slice(0, 10)}T12:00:00Z`)
 
   const live = mine
