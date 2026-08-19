@@ -594,3 +594,63 @@ test('a token Google will not describe is still treated as usable', async () => 
     'mystery',
   )
 })
+
+test('a grant from a previous session means no consent screen', () => {
+  // The point of the whole thing. The two token sources in the browser are a
+  // live session and a sessionStorage stash, and both are gone the moment the
+  // app closes — so every new session began at Google. A grant kept on the
+  // server does not go anywhere.
+  return assert.doesNotReject(async () => {
+    let opened = false
+    await assert.rejects(
+      () =>
+        bringThemIn('trip-1', {
+          // Nothing in the browser at all: the ordinary state of a fresh
+          // launch the morning after connecting.
+          tokens: async () => [],
+          fromGrant: async () => 'ya29.from-the-grant',
+          facts: async () => ({ scopes: [PHOTOS], clientId: 'c' }),
+          open: async () => { opened = true; throw new Error('stop here') },
+        }),
+      /stop here/
+    )
+    // It got as far as opening a picker, which is the thing that used to
+    // require a trip to Google first.
+    assert.equal(opened, true)
+  })
+})
+
+test('and prove it can fail: no grant either, and it is the consent screen', async () => {
+  await assert.rejects(
+    () => bringThemIn('trip-1', { tokens: async () => [], fromGrant: async () => null }),
+    (e) => needsConsent(e) && /not connected to Google/.test(e.message)
+  )
+})
+
+test('a withdrawn grant is said, not swallowed', async () => {
+  // Revoked in somebody's Google account, or six months unused. That is a
+  // thing to tell them, and the consent path is the answer — so it has to
+  // reach the caller as a 403 rather than as "no token".
+  await assert.rejects(
+    () =>
+      bringThemIn('trip-1', {
+        tokens: async () => [],
+        fromGrant: async () => { throw new Error('403 your Google connection was withdrawn') },
+      }),
+    (e) => needsConsent(e) && /withdrawn/.test(e.message)
+  )
+})
+
+test('a grant that does not carry the Photos scope is not used', async () => {
+  // Same rule every other token here is held to. A grant is not a promise
+  // about what is in it.
+  await assert.rejects(
+    () =>
+      bringThemIn('trip-1', {
+        tokens: async () => [],
+        fromGrant: async () => 'ya29.sign-in-only',
+        facts: async () => ({ scopes: ['email', 'profile'], clientId: 'c' }),
+      }),
+    (e) => needsConsent(e)
+  )
+})

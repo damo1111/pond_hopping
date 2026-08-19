@@ -387,6 +387,70 @@ export async function freshToken({ from } = {}) {
  * Neither source is reliably the newer one, so neither wins by position.
  * The caller asks Google which of them carries the scope and uses that.
  */
+/**
+ * Hand a refresh token to the server, once, and forget it here.
+ *
+ * Called on every auth event, and almost every one of them carries nothing —
+ * worthKeeping is what stops this being a request per token refresh. The
+ * token is never written to storage on this side; see googleGrant.js for
+ * why that matters more than anything else in this file.
+ */
+export async function keepTheGrant(session, { post } = {}) {
+  const { worthKeeping } = await import('./googleGrant.js')
+  if (!worthKeeping(session)) return false
+  // Imported here rather than at the top for the reason db() is: apiBase
+  // reaches supabase.js, which reads import.meta.env at module scope, and a
+  // static import of it makes this whole file unloadable outside a browser —
+  // which is where every decision in it is tested. Caught by the suite the
+  // moment it went in.
+  const send = post ?? (await import('./apiBase.js')).callApi
+  try {
+    await send('google-grant', {
+      method: 'POST',
+      body: {
+        refresh_token: session.provider_refresh_token,
+        scopes: session.provider_scopes ?? null,
+      },
+    })
+    return true
+  } catch {
+    // Nothing on screen is waiting for this, and failing means the app
+    // behaves the way it did yesterday: another trip to Google. Saying so
+    // would be noise about a thing nobody asked for.
+    return false
+  }
+}
+
+/**
+ * An access token minted from the kept grant, or null.
+ *
+ * This is the one that turns "connect Google Photos" from something you do
+ * every session into something you did once. Null covers three different
+ * situations on purpose — never connected, not configured, Google having a
+ * bad minute — because the caller's answer to all three is the same: carry
+ * on with the tokens you have, and if there are none, the consent screen.
+ *
+ * The exception is a *withdrawn* grant, which is worth saying out loud, and
+ * is returned as a thrown 403 so the existing consent branch catches it.
+ */
+export async function tokenFromGrant({ ask } = {}) {
+  const { usable, withdrawn } = await import('./googleGrant.js')
+  const get = ask ?? (await import('./apiBase.js')).callApi
+  let said
+  try {
+    said = await get('google-grant', { method: 'GET' })
+  } catch (e) {
+    // callApi throws with the status in the message; a withdrawn grant has
+    // to reach the consent path rather than being swallowed as "no token".
+    if (/\b403\b/.test(String(e?.message ?? ''))) {
+      throw new Error('403 your Google connection was withdrawn')
+    }
+    return null
+  }
+  if (withdrawn(said)) throw new Error('403 your Google connection was withdrawn')
+  return usable(said)
+}
+
 export async function googleTokens({ from } = {}) {
   const found = []
   try {
@@ -524,6 +588,7 @@ export async function pickFromGoogle({
   rest = (ms) => new Promise((r) => setTimeout(r, ms)),
   show = openAway,
   hide = closeAway,
+  fromGrant = tokenFromGrant,
 } = {}) {
   // Whichever of the tokens we hold actually carries the Photos scope.
   //
@@ -566,6 +631,28 @@ export async function pickFromGoogle({
   if (!key) {
     await rest(1200)
     ;({ key, found: candidates } = await pick())
+  }
+
+  // Nothing in the browser carries it — so ask the server whether this
+  // person connected Google Photos at some point in the past.
+  //
+  // This is the whole point of the grant. The two sources above are a
+  // session token and a sessionStorage stash, and both are gone the moment
+  // the app is closed; the grant is not. Tried here rather than first
+  // because a token already in hand costs no round trip, and tried *before*
+  // the throw because everything below this line is the consent screen.
+  //
+  // A withdrawn grant throws its own 403 from in here, which is right: that
+  // is a thing to tell somebody, and the consent path is the answer to it.
+  if (!key) {
+    const granted = await fromGrant().catch((e) => {
+      if (/\b403\b/.test(String(e?.message ?? ''))) throw e
+      return null
+    })
+    if (granted) {
+      const facts = await askGoogle(granted)
+      if (!facts || facts.scopes.includes(PHOTOS)) key = granted
+    }
   }
 
   // Held one, and none of them carried it. Shaped as a 403 so the caller's

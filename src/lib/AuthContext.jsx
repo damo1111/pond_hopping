@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { supabase } from './supabase.js'
 import { rememberGoogleToken } from './google.js'
+import { keepTheGrant } from './photoImport.js'
 import { registerPush } from './push.js'
 import { joinUpTheJourney } from './analytics.js'
 import { catchTheReturn } from './backFromTheBrowser.js'
@@ -38,12 +39,17 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data }) => {
       if (!alive) return
       rememberGoogleToken(data.session)
+      // The half that makes connecting Google Photos a thing you do once.
+      // Fire and forget: nothing on screen waits for it, and a failure means
+      // the old round trip rather than a broken app.
+      keepTheGrant(data.session)
       tellTheLog(data.session)
       setSession(data.session)
       setAuthLoading(false)
     })
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       rememberGoogleToken(s)
+      keepTheGrant(s)
       tellTheLog(s)
       // Named events rather than a session diff, because "signed in" and
       // "the token refreshed itself" look identical from the outside and
