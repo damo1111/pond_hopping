@@ -568,9 +568,10 @@ export default function TripStory({ trip, photos = [] }) {
   return (
     <div className="story">
       <div className="story-sub">
-        {cost.looking > 0
-          ? `Working out the story of this trip. ${cost.looking} photographs still to read — the story appears first and gets better as they are.`
-          : 'Working out the story of this trip.'}
+        {/* Said in as few words as it takes. This was two clauses and a
+            promise — "the story appears first and gets better as they are" —
+            above a grid somebody was trying to look at. */}
+        {cost.looking > 0 ? `Reading ${cost.looking} photographs…` : 'Working out the story…'}
       </div>
       {trouble && (
         <>

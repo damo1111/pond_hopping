@@ -61,8 +61,6 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
     landed.current = true
     if (live) setTab('days')
   }, [trip, live])
-  // Half a screen until somebody asks for more. See the sheet below.
-  const [tall, setTall] = useState(false)
   const [cover, setCover] = useState(null)
   const [activeDay, setActiveDay] = useState(null)
   const [scrollSignal, setScrollSignal] = useState(null)
@@ -136,27 +134,20 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
   const showDaySwitch = tab === 'itinerary' || tab === 'overview'
 
   return (
-    /* Half a screen, not all of it.
-       This opened at inset: 0 — a full-screen takeover for a trip you were
-       glancing at from a lane. Sitting at half height it is a sheet over the
-       plan you came from, which stays visible behind it, and it grows to full
-       only when you ask: the grip is the ask, and height is earned rather
-       than assumed. */
+    /* A modal, sized to the trip in it.
+       Two wrong answers came before this one. It opened at inset: 0 — a
+       full-screen takeover for a trip you were glancing at from a lane —
+       and then at a fixed half, which put a seventeen-night itinerary in
+       the bottom half of the screen and an empty trip in the same box.
+       Neither height was about the trip. This one is: the sheet is as tall
+       as what is in it, up to a ceiling that keeps the plan behind it in
+       view. A trip with nothing in it opens as a card; a full one fills
+       what it needs. */
     <div className="tp-veil" onClick={onClose}>
       <div
-        className={`tp-modal tp-modal--ready${cover && tab === 'overview' ? ' tp-modal--hero' : ''}${
-          tall ? ' tp-modal--tall' : ''
-        }`}
+        className={`tp-modal tp-modal--ready${cover && tab === 'overview' ? ' tp-modal--hero' : ''}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          className="tp-grip"
-          onClick={() => setTall((v) => !v)}
-          aria-expanded={tall}
-          aria-label={tall ? 'Make this smaller' : 'Show the whole trip'}
-        >
-          <span className="tp-grip-bar" />
-        </button>
       {/* The trip photo, painted behind everything and masked so it fades out
           before it reaches the back button and title, and again into the page
           below. Sitting behind the chrome rather than under it is what stops

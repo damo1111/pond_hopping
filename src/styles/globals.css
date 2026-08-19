@@ -5234,10 +5234,17 @@ button.album-open:disabled {
   position: relative;
   width: 100%;
   max-width: 560px;
-  /* Half a screen. It opened at inset:0 — a full-screen takeover — and grows
-     to nearly full only when the grip is pressed, so height is asked for
-     rather than assumed. */
-  height: 58dvh;
+  /* As tall as the trip in it, and no taller.
+     Two wrong answers came first. It opened at inset:0 — a full-screen
+     takeover for a trip you were glancing at — and then at a fixed 58dvh,
+     which put a seventeen-night itinerary in the bottom half of the screen
+     and an empty trip in the same box. Neither height had anything to do
+     with the trip. This one does: content decides, the ceiling keeps the
+     plan behind it in view, and the floor stops a loading shell collapsing
+     to a sliver. */
+  height: auto;
+  min-height: 200px;
+  max-height: 92dvh;
   border-radius: 22px 22px 0 0;
   overflow: hidden;
   transition: height 260ms cubic-bezier(0.32, 0.72, 0, 1);
@@ -5253,26 +5260,10 @@ button.album-open:disabled {
   animation: tp-sheet-in 260ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.tp-modal--tall { height: 94dvh; }
 
-/* The ask. A real control rather than a decorative pill: this one changes
-   the height, and says which way in its label. */
-.tp-grip {
-  flex: none;
-  border: 0;
-  background: transparent;
-  padding: 9px 0 5px;
-  cursor: pointer;
-  z-index: 3;
-}
-.tp-grip-bar {
-  display: block;
-  width: 38px;
-  height: 4px;
-  border-radius: 2px;
-  margin: 0 auto;
-  background: var(--surface-2);
-}
+/* The grip and .tp-modal--tall are gone. They were the ask — half a screen
+   until somebody pulled it up — and with the sheet sized to its content
+   there is nothing to ask for: it is already as tall as it needs to be. */
 
 @keyframes tp-sheet-in {
   from { transform: translateY(14px); opacity: 0; }
@@ -5583,9 +5574,26 @@ button.album-open:disabled {
 }
 
 .tp-body {
-  flex: 1;
+  /* `flex: 1` is `flex: 1 1 0%`, and a zero basis inside a container with
+     `height: auto` collapses it — the sheet would open as a header with
+     nothing under it. Basis auto instead: the content sets the height, and
+     shrink still lets the ceiling clamp it. */
+  flex: 0 1 auto;
   min-height: 0;
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Whatever tab is showing. Each view was `position: absolute; inset: 0`,
+   which is how you fill a box of known height and exactly what stops a box
+   sizing itself. In flow they measure; past the ceiling they scroll — and
+   the scroller is still the view's own element, which ItineraryView's day
+   jumping and scrollspy both hold a ref to. */
+.tp-body > * {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .tp-fab {
@@ -5609,8 +5617,7 @@ button.album-open:disabled {
 /* ── Itinerary timeline (vertical, day sections) ─────────────────── */
 
 .tl-scroll {
-  position: absolute;
-  inset: 0;
+  /* In flow, so the sheet can measure it. See .tp-body. */
   overflow-y: auto;
   padding: 8px 14px calc(90px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
 }
@@ -5907,8 +5914,7 @@ button.album-open:disabled {
 /* ── Overview ────────────────────────────────────────────────────── */
 
 .ov-scroll {
-  position: absolute;
-  inset: 0;
+  /* In flow, so the sheet can measure it. See .tp-body. */
   overflow-y: auto;
   padding-bottom: calc(30px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
 }
@@ -6195,8 +6201,7 @@ button.album-open:disabled {
 /* ── Explore ─────────────────────────────────────────────────────── */
 
 .ex-scroll {
-  position: absolute;
-  inset: 0;
+  /* In flow, so the sheet can measure it. See .tp-body. */
   overflow-y: auto;
   padding: 16px 16px calc(30px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
 }

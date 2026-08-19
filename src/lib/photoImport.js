@@ -479,6 +479,42 @@ export async function googleTokens({ from } = {}) {
 }
 
 /** Hand the list to the queue. Returns the run's id to watch. */
+/**
+ * The pick, written down before anybody goes and makes it.
+ *
+ * Seventy photographs were chosen, Google said "Done!", and nothing arrived.
+ * Not a failure — a loss. The session id existed in exactly one place: the
+ * variable below, in the tab that opened the picker. Signing in again
+ * replaced that tab, and Google has no endpoint that lists a person's
+ * sessions, so an id nobody wrote down is a pick that cannot be recovered by
+ * anyone, ever.
+ *
+ * One row, written before the picker opens. From then on the polling in this
+ * file is an optimisation — it still finishes in seconds when the tab is
+ * alive — and the sweep on the server is the mechanism.
+ *
+ * Never throws. A recording step that could stop somebody picking has made
+ * things worse, not better; the worst case here is exactly the behaviour we
+ * had before, which is what this is insurance against.
+ *
+ * @param tripId the trip, or NEW_TRIP — recorded as null, because the trip
+ *               does not exist yet and the sweep cannot invent it. Written
+ *               down regardless: a pick nobody can name is the whole bug.
+ */
+export async function rememberSession(tripId, sessionId, token, { from } = {}) {
+  try {
+    const client = await db(from)
+    const { error } = await client.rpc('open_picker_session', {
+      p_trip: tripId && tripId !== NEW_TRIP ? tripId : null,
+      p_session: sessionId,
+      p_token: token,
+    })
+    return !error
+  } catch {
+    return false
+  }
+}
+
 export async function startImport(tripId, items, token, { from } = {}) {
   const client = await db(from)
   const { data, error } = await client.rpc('start_photo_import', {
@@ -589,6 +625,10 @@ export async function pickFromGoogle({
   show = openAway,
   hide = closeAway,
   fromGrant = tokenFromGrant,
+  // The trip this pick is for, so it can be written down before the picker
+  // opens. Optional only because a new-trip pick has no id yet.
+  intoTrip = null,
+  remember = rememberSession,
 } = {}) {
   // Whichever of the tokens we hold actually carries the Photos scope.
   //
@@ -671,6 +711,14 @@ export async function pickFromGoogle({
   onStep('asking Google')
   const session = await open(key)
 
+  // Written down before the picker is opened, not after it closes.
+  //
+  // Everything below this line assumes this tab is still here when the pick
+  // lands, and once it was not. The row is what makes that assumption
+  // optional. Awaited — it is one small insert and it must be in place
+  // before anybody can possibly finish choosing.
+  await remember(intoTrip, session.id, key)
+
   // Handed out, not opened.
   //
   // This used to open an empty window on the tap and point it at the picker
@@ -751,7 +799,10 @@ export async function sendThemIn(tripId, picked, key, { onStep = () => {} } = {}
  *  The caller supplies `onStep` so the sheet can say where it has got to
  *  without this knowing about it. */
 export async function bringThemIn(tripId, opts = {}) {
-  const { key, picked } = await pickFromGoogle(opts)
+  // The trip goes down the front half too, so the session can be recorded
+  // against it before the picker opens. It was only ever known to the back
+  // half, which is why a lost tab lost the pick.
+  const { key, picked } = await pickFromGoogle({ intoTrip: tripId, ...opts })
   return sendThemIn(tripId, picked, key, opts)
 }
 

@@ -75,20 +75,10 @@ function AddPhoto({ tripMeta, selectedTrip, onSaved }) {
           <PhotoUpload trip={target} trips={tripMeta} onDone={onSaved} />
           {target && <BringThemIn trip={target} onDone={onSaved} />}
         </div>
-        {/* Which trip these are about to join. It was implicit — whatever was
-            selected on Home, or the first trip if nothing was — and with no
-            way to delete a photo afterwards, landing forty of them on the
-            wrong trip was unrecoverable inside the app. */}
-        {target && <div className="ph-target">adding to {target.title}</div>}
-        {/* Said before the trip out rather than after it. Choosing happens on
-            Google's own page because the permission we hold cannot list a
-            library — which is the reassuring half of an otherwise abrupt
-            hand-off, and worth one line. */}
-        {target && (
-          <div className="ph-why">
-            Google Photos opens on their side to choose. We only ever see what you pick.
-          </div>
-        )}
+        {/* The trip is named in the header above this, and the sources say
+            where from. Both lines that used to sit here — "adding to China &
+            Japan" and "Google Photos opens on their side to choose. We only
+            ever see what you pick." — restated one of those two. */}
         <button className="journal-add-btn" onClick={() => setShow(true)}>
           or paste a photo url
         </button>
