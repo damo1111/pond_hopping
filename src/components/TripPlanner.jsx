@@ -8,9 +8,12 @@ import AddItemSheet from './planner/AddItemSheet.jsx'
 import EditEventModal from './planner/EditEventModal.jsx'
 import PlanChat from './PlanChat.jsx'
 import PlannerPhotos from './planner/PlannerPhotos.jsx'
+import TripDays from './TripDays.jsx'
+import { laidOut, todayHere } from '../lib/whereYouAre.js'
 import { coverUrl } from '../lib/imgTransform.js'
 
-const TABS = [
+// `days` is conditional; the rest are always here. See TABS() below.
+const ALWAYS = [
   { id: 'overview', label: 'Overview' },
   { id: 'itinerary', label: 'Itinerary' },
   { id: 'explore', label: 'Explore' },
@@ -19,13 +22,45 @@ const TABS = [
   { id: 'photos', label: 'Photos' },
 ]
 
+/**
+ * The tabs, and where Today goes.
+ *
+ * TripDays was built for a trip somebody is on and put on TripRecap, which a
+ * live trip never opens — WorldTab sends anything that is not `past` to the
+ * planner instead. So the screen built for the middle of a trip was
+ * unreachable from the middle of a trip. This is where it belongs.
+ *
+ * First, and selected, while the trip is happening: somebody on day six is
+ * asking what time dinner is, not what the trip is shaped like. Absent
+ * entirely otherwise — a tab reading "Today" on a holiday from 2024 is a
+ * heading over nothing, which is the fault the Home spines had.
+ */
+function tabsFor(live) {
+  return live ? [{ id: 'days', label: 'Today' }, ...ALWAYS] : ALWAYS
+}
+
 export default function TripPlanner({ tripId, onClose, onChanged }) {
   const [trip, setTrip] = useState(null)
   const [events, setEvents] = useState([])
   // Overview first: it's the answer to "where am I up to with this trip" —
   // the counts, what's unsorted, the map — where Itinerary is where you go
-  // once you already know.
+  // once you already know. Unless the trip is happening, in which case
+  // Today is, and the effect below moves to it once the trip has loaded.
   const [tab, setTab] = useState('overview')
+  // Whether it is being lived, said from the dates the same way Home says
+  // it, so the two can never disagree about a trip.
+  const live = trip ? laidOut({ trip, today: todayHere() }).phase === 'live' : false
+  const tabs = tabsFor(live)
+  // The trip arrives after the first render, so the opening tab cannot be
+  // decided in useState. Once only — moving somebody off a tab they chose
+  // because a background reload landed would be worse than opening on the
+  // wrong one.
+  const landed = useRef(false)
+  useEffect(() => {
+    if (!trip || landed.current) return
+    landed.current = true
+    if (live) setTab('days')
+  }, [trip, live])
   // Half a screen until somebody asks for more. See the sheet below.
   const [tall, setTall] = useState(false)
   const [cover, setCover] = useState(null)
@@ -139,7 +174,7 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
       </header>
 
       <nav className="tp-tabs">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button key={t.id} className={`tp-tab${tab === t.id ? ' active' : ''}`} onClick={() => setTab(t.id)}>
             {t.label}
           </button>
@@ -228,6 +263,8 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
             }}
           />
         )}
+
+        {tab === 'days' && <TripDays trip={trip} />}
 
         {tab === 'photos' && <PlannerPhotos trip={trip} />}
       </main>
