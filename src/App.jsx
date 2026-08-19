@@ -27,6 +27,7 @@ import { tripColor } from './lib/tripColors.js'
 import { busy, whenIdle } from './lib/busy.js'
 import { Capacitor } from '@capacitor/core'
 import { nowLooking, track } from './lib/analytics.js'
+import GroundGlobe from './components/GroundGlobe.jsx'
 import { AuthProvider, useAuth } from './lib/AuthContext.jsx'
 import { disableVisits, enableVisits, hasConsented, installVisitSync, visitStatus, visitsSupported } from './lib/visits.js'
 import { nextAction } from './lib/visitWindow.js'
@@ -123,6 +124,29 @@ const SESSION_NOTES = {
 // app mounts, like the per-trip share, so it never flashes the real UI first.
 const SHOWCASE_TOKEN = new URLSearchParams(window.location.search).get('showcase')
 
+/**
+ * How connecting Google Photos went, read once on the way back in.
+ *
+ * api/google-connect finishes with a redirect rather than a page — somebody
+ * who has just approved a consent screen must land in the app, and the one
+ * thing worse than failing is failing on a white page in a browser tab with
+ * no way home. The word it carries is the only evidence of what happened on
+ * the server, so it is recorded here and then swept out of the address bar,
+ * because a reload should not report the same outcome a second time.
+ */
+const GOOGLE_CAME_BACK = (() => {
+  const how = new URLSearchParams(window.location.search).get('google')
+  if (!how) return null
+  try {
+    const url = new URL(window.location.href)
+    url.searchParams.delete('google')
+    window.history.replaceState({}, '', url.toString())
+  } catch {
+    /* an address bar we cannot tidy is not a reason to lose the answer */
+  }
+  return how
+})()
+
 const SHARE_PARAMS = (() => {
   const q = new URLSearchParams(window.location.search)
   const slug = q.get('share')
@@ -212,6 +236,16 @@ export default function App() {
   useEffect(() => {
     listenForPushTaps()
     return onPushTap(setPushJump)
+  }, [])
+
+  // What our own connect endpoint made of it, said once.
+  //
+  // The exchange happens on the server, where nobody can see it. Without
+  // this the whole of "did connecting work" is a table that is either empty
+  // or is not, with no account of why — which is the state this feature
+  // spent a month in.
+  useEffect(() => {
+    if (GOOGLE_CAME_BACK) track('google_connect_returned', { how: GOOGLE_CAME_BACK })
   }, [])
 
   // Back from Google's consent screen, to where you were.
@@ -706,6 +740,8 @@ export default function App() {
       )}
 
       <div className="app">
+        {/* Behind everything, drawn once, never moved. See GroundGlobe. */}
+        <GroundGlobe />
         <header className={`app-header${activeTab === 'world' ? ' app-header--world' : ''}`}>
           <button
             className={`header-duck-btn${user ? ' signed-in' : ''}`}
@@ -809,6 +845,14 @@ export default function App() {
               </button>
             </div>
           )}
+          {/* One card, whatever is in it.
+              The app was four pages that replaced one another — every tab
+              change a cut, with nothing surviving it and nothing saying the
+              four places were one app. Now a card sits on the globe and its
+              contents change. Home is the exception and deliberately so: it
+              *is* the world, so it does not get a card over the ground, it
+              is the ground. Same for the map, which needs every pixel. */}
+          <div className="deck">
           {activeTab === 'world' ? (
             <Suspense fallback={<div className="tab-loading">loading the world…</div>}>
               <WorldTab />
@@ -841,6 +885,7 @@ export default function App() {
               note={SESSION_NOTES[activeTab][1]}
             />
           )}
+          </div>
         </main>
 
         <nav className="bottomnav">

@@ -395,14 +395,38 @@ export async function freshToken({ from } = {}) {
  * token is never written to storage on this side; see googleGrant.js for
  * why that matters more than anything else in this file.
  */
-export async function keepTheGrant(session, { post } = {}) {
+export async function keepTheGrant(session, { post, say } = {}) {
   const { worthKeeping } = await import('./googleGrant.js')
-  if (!worthKeeping(session)) return false
-  // Imported here rather than at the top for the reason db() is: apiBase
-  // reaches supabase.js, which reads import.meta.env at module scope, and a
-  // static import of it makes this whole file unloadable outside a browser —
-  // which is where every decision in it is tested. Caught by the suite the
-  // moment it went in.
+  // Dynamic, for the reason db() is: analytics.js imports supabase.js, which
+  // reads import.meta.env at module scope, and a static import of it makes
+  // this whole file unloadable outside a browser — which is where every
+  // decision in it is tested.
+  const tell = say ?? (await import('./analytics.js')).track
+
+  // Ordinary token refreshes carry no provider fields at all, and
+  // onAuthStateChange fires for every one of them. Recording those would
+  // bury the four that matter under a thousand that do not.
+  if (!session?.provider_token && !session?.provider_refresh_token) return false
+
+  // This is the landing.
+  //
+  // google.js has a comment describing `google_landed` as "the signature of
+  // a redirect that never took" — and the event was never implemented, so a
+  // departure to Google could not be told apart from a departure that came
+  // back empty. A session carrying provider fields IS the return: there is
+  // no other way one appears.
+  tell('google_landed', { refresh: session.provider_refresh_token ? 'yes' : 'no' })
+
+  if (!worthKeeping(session)) {
+    // Google came back without a refresh token — so the fault is upstream of
+    // us, at what was asked for, rather than in the write. That one
+    // distinction is what a week of theorising could not make, because this
+    // function returned false three different ways and said nothing about
+    // which.
+    tell('google_grant_absent')
+    return false
+  }
+
   const send = post ?? (await import('./apiBase.js')).callApi
   try {
     await send('google-grant', {
@@ -412,11 +436,15 @@ export async function keepTheGrant(session, { post } = {}) {
         scopes: session.provider_scopes ?? null,
       },
     })
+    tell('google_grant_kept')
     return true
-  } catch {
-    // Nothing on screen is waiting for this, and failing means the app
-    // behaves the way it did yesterday: another trip to Google. Saying so
-    // would be noise about a thing nobody asked for.
+  } catch (e) {
+    // Said, not swallowed. Nothing on screen is waiting for this and the app
+    // still works without it — but "we had one and could not store it" and
+    // "we were never given one" need completely different fixes, and until
+    // now they looked identical from the outside. Which is what they looked
+    // like: nothing.
+    tell('google_grant_refused', { why: String(e?.message ?? e).slice(0, 120) })
     return false
   }
 }
