@@ -103,7 +103,130 @@ button {
   display: flex;
   flex-direction: column;
   height: 100%;
+  /* The stacking context the globe sits at the bottom of. Without it the
+     globe would be positioned against the viewport and the header would need
+     a z-index of its own to escape it — which is how a backdrop ends up
+     painted over the thing it is meant to be behind. */
+  position: relative;
+  isolation: isolate;
 }
+
+/* ── The deck ────────────────────────────────────────────────────────────
+   The card every tab's contents sit in. One object on the globe, whose
+   contents change — rather than four pages replacing one another, which is
+   what made every tab change read as a cut.
+
+   Home and the map opt out through .tab-panel.full below, and that is the
+   design rather than an exemption: Home *is* the world, so it is the ground
+   itself and does not sit on a card over it. */
+.deck {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  margin: 0 10px;
+  padding: 4px 0 14px;
+  /* Short content should still look like a card and not like a strip. The
+     globe showing underneath is the point — it is what stops the app feeling
+     like it is made of pages. */
+  min-height: 240px;
+  box-shadow: 0 1px 2px rgba(20, 18, 14, 0.04), 0 12px 28px rgba(20, 18, 14, 0.06);
+  /* Its own stacking context, so a sheet opened from inside a tab cannot end
+     up behind the card it was opened from. */
+  isolation: isolate;
+}
+
+/* ── Going deeper ────────────────────────────────────────────────────────
+   The card you came from does not vanish, it recedes: scaled down a touch
+   and dimmed, its top edge still visible above the sheet that opened over
+   it. That peek is the entire depth cue, and it is the one the app was
+   missing — replacing a card's contents in place tells you *what* changed
+   and nothing about where you are.
+
+   `:has()` rather than a class, so nothing in React has to know a sheet is
+   open in order for the card underneath to react to it. Where it is not
+   supported the card simply does not move, which is exactly today. */
+.app:has(.tp-veil) .deck,
+.app:has(.lens) .deck {
+  transform: scale(0.955) translateY(-6px);
+  opacity: 0.7;
+  filter: saturate(0.9);
+}
+
+.deck {
+  transform-origin: 50% 0;
+  transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1), opacity 260ms ease,
+    filter 260ms ease;
+}
+
+/* The card behind is doing the dimming now, so the veil stops shouting.
+   Both at full strength read as a blackout rather than as a stack. */
+.app:has(.deck) .tp-veil {
+  background: rgba(20, 18, 14, 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck { transition: none; }
+  .app:has(.tp-veil) .deck,
+  .app:has(.lens) .deck {
+    /* Still says "there is something behind this", without the movement. */
+    transform: none;
+    opacity: 0.72;
+  }
+}
+
+/* Home and the map are the ground, not something on it. `display: contents`
+   rather than a class on the parent, so the card can be added or removed per
+   tab without every tab's own layout having to know about it. */
+.tab-panel.full .deck {
+  display: contents;
+}
+
+/* ── The ground ──────────────────────────────────────────────────────────
+   Behind every tab and every sheet, drawn once, never moved. The app used to
+   be four pages that replaced one another, so each tab change was a cut with
+   nothing surviving it. This is the thing that survives. */
+.ground {
+  position: fixed;
+  inset: 0;
+  /* Behind its siblings, and clamped there by `isolation` on .app — so
+     nothing else in the shell needs a z-index of its own. Positioning
+     .tab-panel to win a stacking fight would silently re-anchor WorldTab's
+     absolutely-placed hero and strip, which is a layout somebody has spent
+     days tuning. */
+  z-index: -1;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ground-globe {
+  /* Larger than the screen on purpose: a globe that fits inside the viewport
+     reads as an illustration sitting on a page. One that runs off the edges
+     reads as the ground the page is on, which is the job. */
+  width: 150vmax;
+  height: 150vmax;
+  max-width: none;
+  flex: none;
+}
+
+.ground-line {
+  stroke: var(--accent-dim, #b8ae9a);
+  stroke-width: 0.5;
+  /* Ground, not content. If it competes with a card it has failed — the test
+     is that you do not notice it until you go looking, and under a short
+     card there is a lot of it to look at. */
+  opacity: 0.13;
+}
+
+/* On a dark ground the same lines need more, not less: the sphere is drawn
+   in a warm grey that all but vanishes against ink. */
+@media (prefers-color-scheme: dark) {
+  .ground-line { opacity: 0.1; }
+}
+
+
 
 .app-header {
   display: flex;

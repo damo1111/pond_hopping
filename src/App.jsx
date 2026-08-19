@@ -27,6 +27,7 @@ import { tripColor } from './lib/tripColors.js'
 import { busy, whenIdle } from './lib/busy.js'
 import { Capacitor } from '@capacitor/core'
 import { nowLooking, track } from './lib/analytics.js'
+import GroundGlobe from './components/GroundGlobe.jsx'
 import { AuthProvider, useAuth } from './lib/AuthContext.jsx'
 import { disableVisits, enableVisits, hasConsented, installVisitSync, visitStatus, visitsSupported } from './lib/visits.js'
 import { nextAction } from './lib/visitWindow.js'
@@ -739,6 +740,8 @@ export default function App() {
       )}
 
       <div className="app">
+        {/* Behind everything, drawn once, never moved. See GroundGlobe. */}
+        <GroundGlobe />
         <header className={`app-header${activeTab === 'world' ? ' app-header--world' : ''}`}>
           <button
             className={`header-duck-btn${user ? ' signed-in' : ''}`}
@@ -842,6 +845,14 @@ export default function App() {
               </button>
             </div>
           )}
+          {/* One card, whatever is in it.
+              The app was four pages that replaced one another — every tab
+              change a cut, with nothing surviving it and nothing saying the
+              four places were one app. Now a card sits on the globe and its
+              contents change. Home is the exception and deliberately so: it
+              *is* the world, so it does not get a card over the ground, it
+              is the ground. Same for the map, which needs every pixel. */}
+          <div className="deck">
           {activeTab === 'world' ? (
             <Suspense fallback={<div className="tab-loading">loading the world…</div>}>
               <WorldTab />
@@ -874,6 +885,7 @@ export default function App() {
               note={SESSION_NOTES[activeTab][1]}
             />
           )}
+          </div>
         </main>
 
         <nav className="bottomnav">
