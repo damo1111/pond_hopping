@@ -64,14 +64,19 @@ export function sectionTrips(tripMeta, today = new Date()) {
   by.upcoming.sort((a, b) => String(a.start_date).localeCompare(String(b.start_date)))
 
   return [
-    { id: 'live', label: 'Right now', items: by.live.map((trip) => ({ type: 'trip', trip })) },
+    // Named the way somebody would say it out loud, and in the same grammar
+    // as each other: There Now, Going There, Been There. "Right now" and
+    // "Coming up" were two different kinds of phrase doing one job, and
+    // neither of them said *there* — which is the word the whole app is
+    // about.
+    { id: 'live', label: 'There Now', items: by.live.map((trip) => ({ type: 'trip', trip })) },
     {
       id: 'upcoming',
-      label: 'Coming up',
+      label: 'Going There',
       items: [...by.upcoming, ...by.someday].map((trip) => ({ type: 'trip', trip })),
     },
     // Chapters ("2024 Gap Year") only ever collapse history, so grouping
     // stays where it always was rather than being applied to all four.
-    { id: 'past', label: 'Been there', items: groupTrips(by.past) },
+    { id: 'past', label: 'Been There', items: groupTrips(by.past) },
   ].filter((s) => s.items.length)
 }

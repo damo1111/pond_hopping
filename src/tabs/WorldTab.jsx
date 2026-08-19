@@ -819,9 +819,13 @@ export default function WorldTab() {
   // tile is the whole point — and moves to the end the moment there is one
   // real trip, which is where "add another" belongs. It never disappears;
   // nobody's log is ever finished.
+  //
+  // And it carries no spine. The spines label groups of trips — There Now,
+  // Going There, Been There — and this is not a trip. Signed out it was a
+  // heading reading "Yours" over a row containing nothing of theirs, which
+  // is a label for an empty idea. The tile says what it is on its own face.
   const addTile = (
 <div className="wt-section wt-section--add">
-      <div className="wt-section-label">Yours</div>
       <button
         className="wt-card wt-card--add"
         onClick={() => {
@@ -1025,6 +1029,10 @@ export default function WorldTab() {
                 />
               )}
               <span className="wt-front-scrim" aria-hidden="true" />
+              {/* The same sash a demo trip card wears, for the same reason:
+                  this is the biggest thing on the page and, signed out, it
+                  is somebody else's holiday. Unmarked it reads as yours. */}
+              {shouldBadge(front.trip) && <span className="wt-sash wt-sash--example">Example</span>}
               <span className="wt-front-text">
                 <span className="wt-front-when">{heroWhen(front, today)}</span>
                 <span className="wt-front-title">{front.trip.title}</span>
