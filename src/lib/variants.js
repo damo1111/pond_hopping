@@ -48,12 +48,17 @@ export const TESTS = {
     },
     {
       id: 'trips-back',
-      title: 'Get your trips back',
-      // The planner is a USP and every retro-facing line quietly tells
-      // somebody with a trip *coming up* that this is not for them. The
-      // strap is where that gets fixed without losing "back", which is the
-      // word doing the work in the title.
-      strap: 'Years of them, out of photos you already have — or start the next one',
+      // "Get your trips back" asks somebody to notice they have lost
+      // something, and then sells them the recovery of it. On the first
+      // screen, from a stranger, that is a puzzle before it is an offer —
+      // and it is only true of half the people reading it, because the other
+      // half are looking at a holiday they have not taken yet.
+      //
+      // The tile does one thing: it starts a trip. So it says so, and the
+      // strap says the part that is actually surprising — that you do not
+      // have to type it in.
+      title: 'Add a trip',
+      strap: 'One you have taken, one you are on, or one you are planning',
     },
   ],
 }

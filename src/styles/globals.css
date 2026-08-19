@@ -1122,6 +1122,9 @@ button {
   opacity: 1;
 }
 
+/* The thing that makes it a flag rather than a red rectangle. */
+.boot-flag-star { fill: #FFDE00; }
+
 .boot-lab {
   fill: var(--text-muted);
   font-family: var(--font-mono);
@@ -13071,7 +13074,11 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   display: flex;
   flex-direction: column;
   gap: 18px;
-  padding: 4px 0 24px;
+  /* Inset. With no horizontal padding the day rules ran the full width of
+     the planner sheet, corner to corner, while every label and card inside
+     them was indented — so the lane read as a table bolted into a page
+     rather than as part of it. */
+  padding: 4px 14px 24px;
 }
 
 .td-wait {
@@ -13304,14 +13311,15 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .wt-front {
   position: relative;
   display: block;
-  /* Left edge with the cards, not with the section spine.
-     Measured, the hero started at 12px and the first card at 31px — the
-     nineteen between them is the vertical Right now / Coming up label, which
-     belongs to the strip and not to this. Two left edges nineteen apart on
-     the same stack reads as a mistake, and the cards are the edge a reader
-     actually follows. The right edge stays at 12, because the strip runs off
-     that side rather than ending. */
-  margin: 0 12px 0 31px;
+  /* The strip's own gutter, both sides.
+     This was moved to 31px to line up with the first card, which at the time
+     sat behind a vertical section spine. Then the spine came off the way-in
+     tile — it labelled a group of trips over a thing that is not a trip —
+     and the tile moved to 12, so the hero was inset from the card below it
+     by nineteen pixels with nothing in the gap. One gutter for the whole
+     bottom of the screen is the thing that cannot drift when the strip's
+     first item changes again. */
+  margin: 0 12px;
   /* Taller than it was, and still shorter than a card.
      96px made the biggest thing on the page the shortest thing on it, and
      left the photograph as a band rather than a picture. 124 gives it room
@@ -13396,7 +13404,15 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .lens {
   position: fixed;
   inset: 0;
-  z-index: 4000;
+  /* Above the planner's own sheet, which is 100000.
+     At 4000 the lens opened *behind* it: the photograph filled the screen,
+     the sheet was drawn on top of it, and the result read as a picture
+     loading in the background that nothing would respond to. A portal to
+     document.body puts it in the right place in the tree and says nothing
+     about which layer wins.
+     Below .crash at 200000, which renders when everything else did not and
+     must never be underneath anything. */
+  z-index: 150000;
   display: flex;
   align-items: center;
   justify-content: center;

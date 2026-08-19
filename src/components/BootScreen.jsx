@@ -302,25 +302,38 @@ export default function BootScreen({ leaving, cold = false }) {
                 somebody reads a trip in. The two flags overlap slightly so
                 they read as one mark rather than two stickers. */}
             <g className="boot-card">
-              {/* Drawn rather than emoji, for the same reason as above —
-                  but drawn to be *seen*. The first pass put a white disc
-                  with a hairline border on a cream page, which measured
-                  perfectly and was invisible: the page is #F5F2EB and the
-                  flag was #FFF. Japan's now carries the same ink outline
-                  the rest of the screen uses, and the pair overlap so they
-                  read as one mark rather than two stickers. */}
+              {/* Drawn rather than emoji, because this plays before a font
+                  can be relied on and an emoji flag is a font.
+
+                  Drawn as flags, though. They were discs — a plain red dot
+                  for China and a white dot with a red centre for Japan — and
+                  a red dot is not a flag, it is a full stop. Two of them side
+                  by side read as punctuation, which is what they looked like.
+
+                  Flags are rectangles, so these are rectangles: three by two,
+                  the ratio both of these actually use. China gets its star,
+                  which is the entire difference between a flag and a red
+                  rectangle; the four small ones ride along because at this
+                  size their absence is what you notice. Japan keeps the ink
+                  outline it was given, for the reason it was given it — the
+                  page is #F5F2EB and a white flag on it is invisible. */}
               <g className="boot-flags">
                 {/* Overlapping, and separated by the page rather than by a
-                    line. At r6 twelve apart they were exactly touching —
-                    two discs meeting at a point, which reads as a mistake
-                    rather than as a pair. Ten apart at r5 they overlap by
-                    a fifth, and the disc of --bg behind the second cuts a
-                    hairline of page between them, so they stack the way
-                    two stickers would. */}
-                <circle cx="96" cy="162" r="5" fill="#DE2910" />
-                <circle className="boot-flag-veil" cx="104" cy="162" r="6.1" />
-                <circle className="boot-flag-jp" cx="104" cy="162" r="5" fill="#FFFFFF" />
-                <circle cx="104" cy="162" r="2.1" fill="#BC002D" />
+                    line: the veil behind the second cuts a hairline of --bg
+                    between them, so they stack the way two stickers would
+                    rather than butting up like a mistake. */}
+                <rect x="88" y="157.6" width="13" height="8.7" rx="1" fill="#DE2910" />
+                <path
+                  className="boot-flag-star"
+                  d="M92.60 157.90L93.16 159.63L94.98 159.63L93.51 160.70L94.07 162.42L92.60 161.36L91.13 162.42L91.69 160.70L90.22 159.63L92.04 159.63Z"
+                />
+                <path className="boot-flag-star" d="M96.10 157.45L96.31 158.11L97.00 158.11L96.45 158.51L96.66 159.17L96.10 158.76L95.54 159.17L95.75 158.51L95.20 158.11L95.89 158.11Z" />
+                <path className="boot-flag-star" d="M97.20 159.55L97.41 160.21L98.10 160.21L97.55 160.61L97.76 161.27L97.20 160.86L96.64 161.27L96.85 160.61L96.30 160.21L96.99 160.21Z" />
+                <path className="boot-flag-star" d="M96.30 161.65L96.51 162.31L97.20 162.31L96.65 162.71L96.86 163.37L96.30 162.96L95.74 163.37L95.95 162.71L95.40 162.31L96.09 162.31Z" />
+
+                <rect className="boot-flag-veil" x="97.6" y="156.2" width="15.8" height="11.5" rx="1.6" />
+                <rect className="boot-flag-jp" x="99" y="157.6" width="13" height="8.7" rx="1" fill="#FFFFFF" />
+                <circle cx="105.5" cy="161.95" r="2.4" fill="#BC002D" />
               </g>
               <text className="boot-trip" x="100" y="178" textAnchor="middle">
                 China &amp; Japan
