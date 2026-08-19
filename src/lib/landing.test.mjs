@@ -23,7 +23,10 @@ test('nothing to land on is null, not a throw', () => {
 })
 
 test('the order is the order, and is not accidental', () => {
-  assert.deepEqual(LANDING_SPOTS, ['.wt-card--demo', '.wt-card'])
+  // The hero leads because the present is lifted out of the strip and is the
+  // arrival; the strip cards follow, unchanged, for a home screen with no
+  // present on it.
+  assert.deepEqual(LANDING_SPOTS, ['.wt-front', '.wt-card--demo', '.wt-card'])
 })
 
 test('the transform matches centres, not corners', () => {
@@ -100,4 +103,28 @@ test('the receive starts before the flight ends, so they overlap', () => {
   // Otherwise the destination reacts *after* arrival, which reads as two
   // layers rather than one object.
   assert.ok(RECEIVE_AT < FLIGHT_MS, `${RECEIVE_AT} must be inside ${FLIGHT_MS}`)
+})
+
+test('the opening lands on the hero, not on a card in the strip', () => {
+  // Home was one strip of equal cards when this list was written. The
+  // present is now lifted out of the strip into a full-width card above it —
+  // and the heroed trip leaves the strip — so aiming at .wt-card--demo flew
+  // the opening onto whatever small card was left in the row.
+  const root = {
+    querySelector: (q) =>
+      ({ '.wt-front': { it: 'hero' }, '.wt-card--demo': { it: 'rome' }, '.wt-card': { it: 'any' } })[q] ?? null,
+  }
+  assert.deepEqual(findLanding(root), { it: 'hero' })
+})
+
+test('and falls back down the strip when there is no present', () => {
+  // A home screen with nothing live and nothing within the week has no hero
+  // at all, and a card is still a better landing than mid-air.
+  const noHero = {
+    querySelector: (q) => ({ '.wt-card--demo': { it: 'rome' }, '.wt-card': { it: 'any' } })[q] ?? null,
+  }
+  assert.deepEqual(findLanding(noHero), { it: 'rome' })
+  const bare = { querySelector: (q) => (q === '.wt-card' ? { it: 'any' } : null) }
+  assert.deepEqual(findLanding(bare), { it: 'any' })
+  assert.equal(findLanding({ querySelector: () => null }), null)
 })

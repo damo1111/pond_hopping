@@ -25,9 +25,22 @@
 // Pure and injectable, so which element gets chosen can be tested without a
 // browser, a globe, or a six-second wait.
 
-/** In preference order. The demo trip's own card is the one the opening was
- *  counting up; any trip card is still a better landing than mid-air. */
-export const LANDING_SPOTS = ['.wt-card--demo', '.wt-card']
+/**
+ * In preference order.
+ *
+ * The hero first. Home used to be one strip of equal cards, so the demo's
+ * own card was the thing the opening had been counting up and the right
+ * place to put it down. Then the present was lifted out of the strip into a
+ * full-width card above it — and the heroed trip *leaves* the strip, so this
+ * list went on aiming at whatever small card was left in the row. The
+ * opening flew across the screen and landed on the third card along, which
+ * is not an arrival.
+ *
+ * A card that has just been made the biggest thing on the page is the
+ * landing. The strip cards stay as fallbacks, in the same order, for a home
+ * screen with no present on it.
+ */
+export const LANDING_SPOTS = ['.wt-front', '.wt-card--demo', '.wt-card']
 
 /** The first of those that exists, or null. */
 export function findLanding(root, spots = LANDING_SPOTS) {
