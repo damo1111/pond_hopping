@@ -13386,3 +13386,102 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 /* A trip that has not started yet is an anticipation, not a report, so its
    countdown takes the accent rather than the plain white. */
 .wt-front--soon .wt-front-when { color: var(--accent-on-dark, #f0d68a); }
+
+/* ── Opening a photograph ─────────────────────────────────────────────────
+ *
+ * A portal to document.body, so the backdrop is not trapped inside the
+ * planner's own scrolling sheet — which is what makes a "full screen" viewer
+ * scroll along with the page behind it.
+ */
+.lens {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.92);
+  /* The sheet underneath keeps its scroll position; this must not add one. */
+  overscroll-behavior: contain;
+  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+}
+
+.lens-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.lens-close,
+.lens-step {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  cursor: pointer;
+  /* Comfortably past the 44px anybody's thumb needs. */
+  width: 46px;
+  height: 46px;
+}
+
+.lens-close {
+  top: calc(12px + env(safe-area-inset-top));
+  right: 12px;
+  font-size: 17px;
+}
+
+/* Greyed at the ends rather than removed: a control that disappears under a
+   thumb already tapping it is worse than one that stops working. */
+.lens-step {
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 30px;
+  line-height: 1;
+  padding-bottom: 4px;
+}
+
+.lens-step:disabled { opacity: 0.22; cursor: default; }
+.lens-step--back { left: 10px; }
+.lens-step--on { right: 10px; }
+
+.lens-foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(14px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: center;
+  padding: 0 66px;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+}
+
+.lens-caption { font-size: 14px; text-wrap: pretty; }
+.lens-where { font-size: 12px; opacity: 0.75; }
+
+.lens-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  opacity: 0.6;
+}
+
+/* The grid cell is a button now. Stripped back to being the photograph. */
+.pp-shot {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.pp-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
