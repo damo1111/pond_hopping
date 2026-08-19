@@ -123,6 +123,29 @@ const SESSION_NOTES = {
 // app mounts, like the per-trip share, so it never flashes the real UI first.
 const SHOWCASE_TOKEN = new URLSearchParams(window.location.search).get('showcase')
 
+/**
+ * How connecting Google Photos went, read once on the way back in.
+ *
+ * api/google-connect finishes with a redirect rather than a page — somebody
+ * who has just approved a consent screen must land in the app, and the one
+ * thing worse than failing is failing on a white page in a browser tab with
+ * no way home. The word it carries is the only evidence of what happened on
+ * the server, so it is recorded here and then swept out of the address bar,
+ * because a reload should not report the same outcome a second time.
+ */
+const GOOGLE_CAME_BACK = (() => {
+  const how = new URLSearchParams(window.location.search).get('google')
+  if (!how) return null
+  try {
+    const url = new URL(window.location.href)
+    url.searchParams.delete('google')
+    window.history.replaceState({}, '', url.toString())
+  } catch {
+    /* an address bar we cannot tidy is not a reason to lose the answer */
+  }
+  return how
+})()
+
 const SHARE_PARAMS = (() => {
   const q = new URLSearchParams(window.location.search)
   const slug = q.get('share')
@@ -212,6 +235,16 @@ export default function App() {
   useEffect(() => {
     listenForPushTaps()
     return onPushTap(setPushJump)
+  }, [])
+
+  // What our own connect endpoint made of it, said once.
+  //
+  // The exchange happens on the server, where nobody can see it. Without
+  // this the whole of "did connecting work" is a table that is either empty
+  // or is not, with no account of why — which is the state this feature
+  // spent a month in.
+  useEffect(() => {
+    if (GOOGLE_CAME_BACK) track('google_connect_returned', { how: GOOGLE_CAME_BACK })
   }, [])
 
   // Back from Google's consent screen, to where you were.

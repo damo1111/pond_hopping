@@ -134,7 +134,47 @@ export async function connectGoogle() {
  * hopper picks, and then only the things they picked — Google never opens
  * the library to us at all.
  */
-export async function connectGooglePhotos() {
+export async function connectGooglePhotos({ ask } = {}) {
+  // Asked of our own server first, and of Supabase only if that is not
+  // there.
+  //
+  // The Supabase route below is deployed, correct on paper, and has never
+  // once produced a stored refresh token — because it depends on Supabase
+  // surfacing provider_refresh_token in one particular instant, on our
+  // listener being mounted in that instant, and on the tab receiving the
+  // redirect being the tab that is listening. When one of those is false
+  // nothing anywhere says so.
+  //
+  // api/google-connect has none of those dependencies: Google answers to our
+  // own endpoint, the code is exchanged there with our own client secret,
+  // and the refresh token is written to the table from the server without
+  // ever entering a browser.
+  //
+  // The fallback stays because the endpoint answers 501 until the Google
+  // client id and secret are set in Vercel, and a connect button that fails
+  // outright would be worse than one that works the old way.
+  try {
+    const callApi = ask ?? (await import('./apiBase.js')).callApi
+    const said = await callApi('google-connect', { method: 'POST' })
+    if (said?.url) {
+      track('google_leaving', { scopes: 'photos', by: 'own' })
+      try {
+        sessionStorage.setItem(ASKED, said.url)
+      } catch {
+        /* nowhere to record it is not a reason to refuse */
+      }
+      track('google_assigning')
+      if (!(await openAway(said.url))) window.location.assign(said.url)
+      return { data: { url: said.url }, error: null }
+    }
+  } catch (e) {
+    // 501 is "the Google credentials are not in Vercel yet", which is a
+    // configuration state and not a failure worth showing anybody — the
+    // fallback below is the answer to it. Recorded, so that "we fell back"
+    // is visible rather than inferred.
+    track('google_connect_fell_back', { why: String(e?.message ?? e).slice(0, 120) })
+  }
+
   return goToGoogle({
     scopes: PHOTOS_SCOPE,
     redirectTo: await backHere(),
