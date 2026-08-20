@@ -26,6 +26,15 @@ export default defineConfig({
   define: {
     __BUILD_ID__: JSON.stringify(BUILD_ID),
     __BUILT_AT__: JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' ')),
+    // Cut what Sentry ships that this app does not use.
+    //
+    // These are the SDK's own tree-shaking flags. Left unset, `Sentry.init`
+    // drags in performance tracing and the debug logger whether or not they
+    // are switched on at runtime — measured at 163KB gzipped, which is not a
+    // crash reporter, it is a second app. tracesSampleRate is already 0; this
+    // is what makes that a build-time fact rather than a runtime one.
+    __SENTRY_DEBUG__: false,
+    __SENTRY_TRACING__: false,
   },
   plugins: [
     react(),

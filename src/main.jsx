@@ -4,6 +4,7 @@ import App from './App.jsx'
 import Boundary from './components/Boundary.jsx'
 import { AuthProvider } from './lib/AuthContext.jsx'
 import { watchForTrouble } from './lib/analytics.js'
+import { watchForCrashes } from './lib/sentry.js'
 import 'leaflet/dist/leaflet.css'
 import './styles/globals.css'
 
@@ -12,6 +13,15 @@ import './styles/globals.css'
 // render. That is what white-screened the app on 11 August, and the only
 // way anybody found out was a screenshot.
 watchForTrouble()
+
+// And the same crashes, somewhere they can be read.
+//
+// After watchForTrouble, never before it: that one is a bare fetch with no
+// library underneath, so it still reports when the thing that broke is a
+// library. This one is fetched asynchronously and does nothing at all
+// without VITE_SENTRY_DSN, so it costs nothing until it is switched on.
+// Deliberately not awaited — the app must not wait for a crash reporter.
+watchForCrashes()
 
 // The service worker already skipWaiting()/clientsClaim()s on a new
 // deploy, but an already-open tab keeps running its old in-memory JS
