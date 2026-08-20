@@ -48,3 +48,19 @@ test('and every other kind of wrong is the same answer: nothing', () => {
   // Signed correctly, but carrying nobody.
   assert.equal(opened(sealed({ back: '/x' }, SECRET), SECRET), null)
 })
+
+test('the redirect uri travels inside the seal, so the exchange can echo it', () => {
+  // Google compares the authorize and exchange redirect_uri as strings. Any
+  // difference — a proxy header, an alias domain — is redirect_uri_mismatch,
+  // which reads as a credentials problem and is not one. Sealing it means
+  // the second one cannot be derived differently from the first.
+  const s = sealed({ uid: UID, uri: 'https://pond.eend.app/api/google-connect' }, SECRET)
+  assert.equal(opened(s, SECRET).uri, 'https://pond.eend.app/api/google-connect')
+})
+
+test('and a tampered uri is refused like any other edit', () => {
+  const s = sealed({ uid: UID, uri: 'https://pond.eend.app/api/google-connect' }, SECRET)
+  const [body, sig] = s.split('.')
+  const theirs = Buffer.from(JSON.stringify({ uid: UID, uri: 'https://evil.test/steal', exp: Date.now() + 60000 })).toString('base64url')
+  assert.equal(opened(`${theirs}.${sig}`, SECRET), null)
+})
