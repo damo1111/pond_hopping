@@ -465,8 +465,26 @@ export async function tokenFromGrant({ ask } = {}) {
   const { usable, withdrawn } = await import('./googleGrant.js')
   const get = ask ?? (await import('./apiBase.js')).callApi
   let said
+  let status = 0
   try {
-    said = await get('google-grant', { method: 'GET' })
+    // The path carries /api/, and the answer is read from the body.
+    //
+    // Both were wrong here, which is two bugs in one call and the reason
+    // this function has never once returned a token. Without the prefix the
+    // request went to a hostname that does not exist; and `usable()` below
+    // was handed the Response object rather than the JSON, so even a request
+    // that arrived would have produced null. Nothing about that is visible
+    // from the outside: the caller reads null as "not connected" and sends
+    // somebody to a consent screen, which is exactly what it did.
+    const res = await get('/api/google-grant', { method: 'GET' })
+    // The body is read whether or not the status was ok, because the two
+    // refusals that matter are told apart by what is *in* it: 404 with
+    // "not connected" is somebody who has never connected, and 403 with
+    // "invalid_grant" is somebody who revoked us. Reading only the status
+    // would report the second as the first and quietly ask them to connect
+    // a Google account they had deliberately disconnected.
+    status = res?.status ?? 0
+    said = (await res?.json?.().catch(() => null)) ?? { error: 'not connected' }
   } catch (e) {
     // callApi throws with the status in the message; a withdrawn grant has
     // to reach the consent path rather than being swallowed as "no token".
@@ -475,7 +493,7 @@ export async function tokenFromGrant({ ask } = {}) {
     }
     return null
   }
-  if (withdrawn(said)) throw new Error('403 your Google connection was withdrawn')
+  if (withdrawn(said, status)) throw new Error('403 your Google connection was withdrawn')
   return usable(said)
 }
 
