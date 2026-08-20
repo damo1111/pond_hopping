@@ -47,18 +47,33 @@ export const TESTS = {
       strap: 'Photos, a booking, whatever you have got',
     },
     {
-      id: 'trips-back',
-      // "Get your trips back" asks somebody to notice they have lost
-      // something, and then sells them the recovery of it. On the first
-      // screen, from a stranger, that is a puzzle before it is an offer —
-      // and it is only true of half the people reading it, because the other
-      // half are looking at a holiday they have not taken yet.
+      // A new id, not an edit of 'trips-back'.
       //
-      // The tile does one thing: it starts a trip. So it says so, and the
-      // strap says the part that is actually surprising — that you do not
-      // have to type it in.
+      // This is the same title with a different strap, and it would have been
+      // one character to change the string in place. That would have been
+      // wrong: 'trips-back' has 135 sessions of tap data against it, and
+      // rewriting the copy under the same id blends two different
+      // experiences into one label — every future read of that arm silently
+      // averages the eleven-word version with this one, and there is no way
+      // afterwards to tell which rows are which.
+      //
+      // So the old arm keeps its id and its history and stops being served.
+      // Its copy, for the record:
+      //   'Add a trip' / 'One you have taken, one you are on, or one you are
+      //   planning'
+      //
+      // Why it was replaced: eleven words to say "any trip". Three
+      // permutations of a single idea is an enumeration, and enumeration
+      // belongs in a settings screen rather than on the first card a
+      // stranger sees. Four words carry the same scope.
+      //
+      // "Get your trips back", the arm before that, asked somebody to notice
+      // they had lost something and then sold them the recovery of it — a
+      // puzzle before it is an offer, and only true of half the people
+      // reading it.
+      id: 'past-present-planned',
       title: 'Add a trip',
-      strap: 'One you have taken, one you are on, or one you are planning',
+      strap: 'Past, present or planned',
     },
   ],
 }
