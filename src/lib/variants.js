@@ -47,18 +47,15 @@ export const TESTS = {
       strap: 'Photos, a booking, whatever you have got',
     },
     {
-      // A new id, not an edit of 'trips-back'.
+      // A new id rather than an edit of 'trips-back', which is the habit
+      // rather than a judgement about this particular arm: rewriting copy
+      // under an id that has already been served blends two different
+      // experiences into one label, and nothing afterwards can tell the rows
+      // apart. Free to do here — there are no real users yet and the counts
+      // against the old arm are this team testing — and the one time it
+      // matters is the time somebody forgets.
       //
-      // This is the same title with a different strap, and it would have been
-      // one character to change the string in place. That would have been
-      // wrong: 'trips-back' has 135 sessions of tap data against it, and
-      // rewriting the copy under the same id blends two different
-      // experiences into one label — every future read of that arm silently
-      // averages the eleven-word version with this one, and there is no way
-      // afterwards to tell which rows are which.
-      //
-      // So the old arm keeps its id and its history and stops being served.
-      // Its copy, for the record:
+      // The old arm's copy, for the record:
       //   'Add a trip' / 'One you have taken, one you are on, or one you are
       //   planning'
       //
