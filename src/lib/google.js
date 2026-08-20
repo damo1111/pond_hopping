@@ -2,6 +2,7 @@ import { supabase } from './supabase.js'
 import { PHOTOS_SCOPE } from './googlePhotos.js'
 import { whereToComeBack } from './comeBackTo.js'
 import { openAway } from './awayTab.js'
+import { consentUrl } from './consentUrl.js'
 import { track } from './analytics.js'
 
 // Gmail read + Calendar write, granted in one Google consent screen.
@@ -134,7 +135,7 @@ export async function connectGoogle() {
  * hopper picks, and then only the things they picked — Google never opens
  * the library to us at all.
  */
-export async function connectGooglePhotos({ ask } = {}) {
+export async function connectGooglePhotos({ ask, go, fallback } = {}) {
   // Asked of our own server first, and of Supabase only if that is not
   // there.
   //
@@ -155,17 +156,24 @@ export async function connectGooglePhotos({ ask } = {}) {
   // outright would be worse than one that works the old way.
   try {
     const callApi = ask ?? (await import('./apiBase.js')).callApi
-    const said = await callApi('google-connect', { method: 'POST' })
-    if (said?.url) {
+    // See consentUrl: the address comes out of the body, and must be a
+    // Google address. Reading it off the Response — which carries its own
+    // `url` — is what sent the app to its own API endpoint.
+    const url = await consentUrl(await callApi('google-connect', { method: 'POST' }))
+    if (url) {
       track('google_leaving', { scopes: 'photos', by: 'own' })
       try {
-        sessionStorage.setItem(ASKED, said.url)
+        sessionStorage.setItem(ASKED, url)
       } catch {
         /* nowhere to record it is not a reason to refuse */
       }
       track('google_assigning')
-      if (!(await openAway(said.url))) window.location.assign(said.url)
-      return { data: { url: said.url }, error: null }
+      // Injected so the navigation can be asserted. The bug this exists for
+      // was that the app navigated to the wrong address, and no test could
+      // see where it went.
+      const leave = go ?? ((u) => window.location.assign(u))
+      if (!(await openAway(url))) leave(url)
+      return { data: { url }, error: null }
     }
   } catch (e) {
     // 501 is "the Google credentials are not in Vercel yet", which is a
@@ -175,6 +183,7 @@ export async function connectGooglePhotos({ ask } = {}) {
     track('google_connect_fell_back', { why: String(e?.message ?? e).slice(0, 120) })
   }
 
+  if (fallback) return fallback()
   return goToGoogle({
     scopes: PHOTOS_SCOPE,
     redirectTo: await backHere(),
