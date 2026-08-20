@@ -42,8 +42,23 @@ const CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET
 // unset variable is how this feature failed the first time.
 const STATE_KEY = process.env.PUSH_SECRET
 
-const HOME = 'https://pond.eend.app'
-const CALLBACK = `${HOME}/api/google-connect`
+/**
+ * This deployment's own address, not a hardcoded one.
+ *
+ * It was fixed at pond.eend.app, so a preview build sent Google a
+ * redirect_uri pointing at production: consent on the preview would land
+ * somebody on a different site, which reads as the app having reloaded
+ * itself for no reason.
+ *
+ * Note that a preview still cannot complete the round trip — Google only
+ * accepts redirect URIs registered against the OAuth client, and preview
+ * URLs change with every deploy. This makes the behaviour correct and
+ * legible rather than silently wrong; OAuth is tested on production.
+ */
+const homeOf = (req) => {
+  const host = req.headers['x-forwarded-host'] || req.headers.host
+  return host ? `https://${host}` : 'https://pond.eend.app'
+}
 
 /** Who the caller actually is, according to Supabase rather than to them. */
 async function whoIsAsking(req) {
@@ -88,8 +103,8 @@ async function keep(userId, refresh, scope) {
  * failing on a white page in a browser tab with no way back — which is
  * where Google's own "Done!" screen already leaves people once.
  */
-const backToApp = (res, how) => {
-  res.writeHead(302, { Location: `${HOME}/?google=${encodeURIComponent(how)}` })
+const backToApp = (req, res, how) => {
+  res.writeHead(302, { Location: `${homeOf(req)}/?google=${encodeURIComponent(how)}` })
   res.end()
 }
 
@@ -111,14 +126,14 @@ export default async function handler(req, res) {
     if (req.query.error) {
       // They said no, or Google did. Not an error to shout about — a
       // decision, and the app's answer to it is to carry on without.
-      backToApp(res, 'declined')
+      backToApp(req, res, 'declined')
       return
     }
     const who = opened(req.query.state, STATE_KEY)
     if (!who) {
       // Edited, expired, or signed with something else. One answer for all
       // of them, and nothing is written.
-      backToApp(res, 'expired')
+      backToApp(req, res, 'expired')
       return
     }
 
@@ -130,7 +145,7 @@ export default async function handler(req, res) {
         client_secret: CLIENT_SECRET,
         code: String(req.query.code),
         grant_type: 'authorization_code',
-        redirect_uri: CALLBACK,
+        redirect_uri: `${homeOf(req)}/api/google-connect`,
       }),
     })
     const said = await r.json().catch(() => ({}))
@@ -139,17 +154,17 @@ export default async function handler(req, res) {
       // was not asked for offline, or Google had already granted one to this
       // client and did not re-issue. prompt=consent below is what forces the
       // second case to hand one over anyway.
-      backToApp(res, said.refresh_token ? 'refused' : 'no-refresh-token')
+      backToApp(req, res, said.refresh_token ? 'refused' : 'no-refresh-token')
       return
     }
 
     try {
       await keep(who.uid, said.refresh_token, said.scope)
     } catch {
-      backToApp(res, 'not-stored')
+      backToApp(req, res, 'not-stored')
       return
     }
-    backToApp(res, 'connected')
+    backToApp(req, res, 'connected')
     return
   }
 
@@ -167,7 +182,7 @@ export default async function handler(req, res) {
 
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
   url.searchParams.set('client_id', CLIENT_ID)
-  url.searchParams.set('redirect_uri', CALLBACK)
+  url.searchParams.set('redirect_uri', `${homeOf(req)}/api/google-connect`)
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('scope', PHOTOS_SCOPE)
   // Offline and consent together are the whole point: offline asks for a
