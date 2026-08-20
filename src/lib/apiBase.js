@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core'
 import { apiFailed, tookMs } from './analytics.js'
+import { checkedPath } from './apiPath.js'
 
 // The web build serves /api/* same-origin, so a relative path just works.
 // Wrapped in Capacitor, the app runs from capacitor://localhost (iOS) or
@@ -45,6 +46,7 @@ export const NO_ANSWER_AFTER = 45000
  * @param path  "/api/plan-chat" — leading slash, no origin
  */
 export async function callApi(path, options) {
+  checkedPath(path)
   const at = performance.now()
   // Aborted rather than merely raced, so a dead request is dropped instead
   // of left holding a connection behind a promise nobody awaits any more.

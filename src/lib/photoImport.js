@@ -429,7 +429,7 @@ export async function keepTheGrant(session, { post, say } = {}) {
 
   const send = post ?? (await import('./apiBase.js')).callApi
   try {
-    await send('google-grant', {
+    await send('/api/google-grant', {
       method: 'POST',
       body: {
         refresh_token: session.provider_refresh_token,
