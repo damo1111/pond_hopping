@@ -58,7 +58,7 @@ test('a grant that stores says so, and is only claimed once it has', async () =>
   assert.equal(kept, true)
   assert.deepEqual(names(t), ['google_landed', 'google_grant_kept'])
   assert.deepEqual(t.said[0][1], { refresh: 'yes' })
-  assert.deepEqual(sent, [['google-grant', '1//0eXampleRefreshToken']])
+  assert.deepEqual(sent, [['/api/google-grant', '1//0eXampleRefreshToken']])
 })
 
 test('and a grant we held but could not store is a different sentence', async () => {

@@ -145,16 +145,26 @@ export default async function handler(req, res) {
         client_secret: CLIENT_SECRET,
         code: String(req.query.code),
         grant_type: 'authorization_code',
-        redirect_uri: `${homeOf(req)}/api/google-connect`,
+        // The one sealed into the state at authorize time, not one derived
+        // again here. Google compares the two as strings, and anything that
+        // makes the host resolve differently on the callback — a proxy
+        // header, an alias domain — turns into redirect_uri_mismatch, which
+        // reads as a credentials problem and is not one.
+        redirect_uri: who.uri || `${homeOf(req)}/api/google-connect`,
       }),
     })
     const said = await r.json().catch(() => ({}))
     if (!r.ok || !said.refresh_token) {
-      // No refresh token in an authorization_code exchange means the consent
-      // was not asked for offline, or Google had already granted one to this
-      // client and did not re-issue. prompt=consent below is what forces the
-      // second case to hand one over anyway.
-      backToApp(req, res, said.refresh_token ? 'refused' : 'no-refresh-token')
+      // Google's own words, carried through rather than flattened.
+      //
+      // "no-refresh-token" is a description of the symptom and says nothing
+      // about the cause — and the causes need opposite responses:
+      // redirect_uri_mismatch is a console setting, invalid_grant is a used
+      // code, and a genuinely absent refresh token means the consent was not
+      // asked for offline. Every hour lost on this feature has been lost to
+      // a message that described the symptom.
+      const why = said?.error ? `google:${said.error}` : 'no-refresh-token'
+      backToApp(req, res, why)
       return
     }
 
@@ -193,7 +203,9 @@ export default async function handler(req, res) {
   url.searchParams.set('access_type', 'offline')
   url.searchParams.set('prompt', 'consent')
   url.searchParams.set('include_granted_scopes', 'true')
-  url.searchParams.set('state', sealed({ uid: asking.id }, STATE_KEY))
+  // The redirect_uri travels inside the signed state so the exchange can
+  // send back exactly the string that was sent out.
+  url.searchParams.set('state', sealed({ uid: asking.id, uri: `${homeOf(req)}/api/google-connect` }, STATE_KEY))
 
   res.status(200).json({ url: url.toString() })
 }
