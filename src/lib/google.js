@@ -159,7 +159,7 @@ export async function connectGooglePhotos({ ask, go, fallback } = {}) {
     // See consentUrl: the address comes out of the body, and must be a
     // Google address. Reading it off the Response — which carries its own
     // `url` — is what sent the app to its own API endpoint.
-    const url = await consentUrl(await callApi('/api/google-connect', { method: 'POST' }))
+    const url = await consentUrl(await callApi('/api/google-connect', { method: 'POST', auth: true }))
     if (url) {
       track('google_leaving', { scopes: 'photos', by: 'own' })
       try {

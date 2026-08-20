@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core'
 import { apiFailed, tookMs } from './analytics.js'
-import { checkedPath } from './apiPath.js'
+import { authHeader, checkedPath } from './apiPath.js'
 
 // The web build serves /api/* same-origin, so a relative path just works.
 // Wrapped in Capacitor, the app runs from capacitor://localhost (iOS) or
@@ -45,8 +45,20 @@ export const NO_ANSWER_AFTER = 45000
  *
  * @param path  "/api/plan-chat" — leading slash, no origin
  */
+/**
+ * @param options.auth  attach the signed-in caller's token. Endpoints that
+ *                      act on somebody's behalf need it and answer 401
+ *                      without it; the rest neither need nor get it.
+ */
 export async function callApi(path, options) {
   checkedPath(path)
+  let opts = options
+  if (options?.auth) {
+    const { supabase } = await import('./supabase.js')
+    const { data } = await supabase.auth.getSession().catch(() => ({ data: null }))
+    opts = { ...options, headers: { ...(options.headers ?? {}), ...authHeader(data?.session) } }
+    delete opts.auth
+  }
   const at = performance.now()
   // Aborted rather than merely raced, so a dead request is dropped instead
   // of left holding a connection behind a promise nobody awaits any more.
@@ -55,7 +67,7 @@ export async function callApi(path, options) {
   const stop = !options?.signal && typeof AbortController === 'function' ? new AbortController() : null
   const timer = stop ? setTimeout(() => stop.abort(), NO_ANSWER_AFTER) : null
   try {
-    const res = await fetch(`${API_BASE}${path}`, stop ? { ...options, signal: stop.signal } : options)
+    const res = await fetch(`${API_BASE}${path}`, stop ? { ...opts, signal: stop.signal } : opts)
     if (!res.ok) {
       // Read the body from a clone, so the caller still gets an unread one.
       const said = await res.clone().text().catch(() => '')

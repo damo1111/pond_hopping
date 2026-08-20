@@ -431,6 +431,7 @@ export async function keepTheGrant(session, { post, say } = {}) {
   try {
     await send('/api/google-grant', {
       method: 'POST',
+      auth: true,
       body: {
         refresh_token: session.provider_refresh_token,
         scopes: session.provider_scopes ?? null,
@@ -476,7 +477,7 @@ export async function tokenFromGrant({ ask } = {}) {
     // that arrived would have produced null. Nothing about that is visible
     // from the outside: the caller reads null as "not connected" and sends
     // somebody to a consent screen, which is exactly what it did.
-    const res = await get('/api/google-grant', { method: 'GET' })
+    const res = await get('/api/google-grant', { method: 'GET', auth: true })
     // The body is read whether or not the status was ok, because the two
     // refusals that matter are told apart by what is *in* it: 404 with
     // "not connected" is somebody who has never connected, and 403 with
@@ -675,6 +676,12 @@ export async function pickFromGoogle({
   // opens. Optional only because a new-trip pick has no id yet.
   intoTrip = null,
   remember = rememberSession,
+  // The two calls to Google after the picker opens. Seams, for the same
+  // reason as the rest: without them the flow between "session opened" and
+  // "here is what they picked" cannot be run at all except by hand, with a
+  // real Google account and real photographs.
+  poll = waitForPick,
+  list = listPicked,
 } = {}) {
   // Whichever of the tokens we hold actually carries the Photos scope.
   //
@@ -786,7 +793,7 @@ export async function pickFromGoogle({
   await show(session.pickerUri)
 
   onStep('waiting for you to choose')
-  await waitForPick(key, session.id)
+  await poll(key, session.id)
 
   // Picking is over. Put the picker away and come back here.
   //
@@ -806,7 +813,7 @@ export async function pickFromGoogle({
   }
 
   onStep('reading what you picked')
-  const everything = await listPicked(key, session.id)
+  const everything = await list(key, session.id)
   const picked = worthImporting(everything)
   // Films are left where they are — see isPhoto. Counted rather than dropped
   // in silence: picking twenty videos and getting eighty photographs back,
@@ -831,13 +838,17 @@ export async function pickFromGoogle({
  *                whole splits into several trips, and only one of them is
  *                being made right now.
  */
-export async function sendThemIn(tripId, picked, key, { onStep = () => {} } = {}) {
+export async function sendThemIn(tripId, picked, key, { onStep = () => {}, from } = {}) {
   onStep('checking what is already here')
-  const { fresh, already } = await onlyTheNewOnes(tripId, picked)
+  // `from` threaded rather than dropped. Both calls below default to the
+  // real client when it is absent, and without passing it there is no way to
+  // exercise this function outside a browser — which is how every bug in
+  // this file so far reached production.
+  const { fresh, already } = await onlyTheNewOnes(tripId, picked, { from })
   if (!fresh.length) return { importId: null, sending: 0, already }
 
   onStep('handing them over')
-  const importId = await startImport(tripId, fresh, key)
+  const importId = await startImport(tripId, fresh, key, { from })
   return { importId, sending: fresh.length, already }
 }
 

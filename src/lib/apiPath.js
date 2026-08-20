@@ -35,3 +35,22 @@ export function checkedPath(path) {
   }
   return path
 }
+
+/**
+ * The header that says who is asking, or nothing.
+ *
+ * Endpoints that act on somebody's behalf — the Google grant, the connect
+ * flow — identify the caller from `Authorization`, and callApi has never
+ * attached one: every caller that needs it builds it by hand, and the three
+ * I wrote did not. So each would have answered 401 even once its path was
+ * right, which is a second invisible failure stacked on the first.
+ *
+ * Nothing rather than an empty Bearer when there is no session. An
+ * `Authorization: Bearer ` header is a malformed credential and gets a 401
+ * with a different reason attached; no header at all is the honest statement
+ * that nobody is signed in.
+ */
+export function authHeader(session) {
+  const token = session?.access_token
+  return typeof token === 'string' && token ? { Authorization: `Bearer ${token}` } : {}
+}

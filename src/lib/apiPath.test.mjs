@@ -27,3 +27,18 @@ test('and so is anything that is not a path at all', () => {
   assert.throws(() => checkedPath(null), /\/api\//)
   assert.throws(() => checkedPath(undefined), /\/api\//)
 })
+
+import { authHeader } from './apiPath.js'
+
+test('a signed-in session becomes a Bearer header', () => {
+  assert.deepEqual(authHeader({ access_token: 'eyJhbGciOi' }), { Authorization: 'Bearer eyJhbGciOi' })
+})
+
+test('and no session sends no header, rather than an empty Bearer', () => {
+  // "Bearer " with nothing after it is a malformed credential and earns a
+  // 401 for the wrong reason. No header is the honest "nobody is signed in".
+  assert.deepEqual(authHeader(null), {})
+  assert.deepEqual(authHeader({}), {})
+  assert.deepEqual(authHeader({ access_token: '' }), {})
+  assert.deepEqual(authHeader({ access_token: 7 }), {})
+})
