@@ -345,21 +345,6 @@ export default function PlanTab() {
         <WishlistForm onAdded={loadWishlist} />
       </div>
 
-      {/* And the same invitation at the end, when the lane is not empty.
-          This is the half that was missing: PlanWaysIn has carried a `tail`
-          prop and the comment above has described this exact fix since the
-          day it was written, and the two lines that render it were never
-          added — so a hopper with one example trip still ran out of page a
-          third of the way down, which is the complaint the whole component
-          was built for.
-          Last on the screen on purpose. The suggestion and the someday form
-          are both above it now, which is why the tail carries neither: what
-          is left to say at the bottom of a plan is that planning another one
-          is still the next thing. */}
-      {waysIn === 'tail' && (
-        <PlanWaysIn tail onPlan={() => (user ? setCreating(true) : openAuth())} />
-      )}
-
       {creating && (
         <PlanChat
           tripId={null}

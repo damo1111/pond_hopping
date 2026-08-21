@@ -120,7 +120,15 @@ button {
    design rather than an exemption: Home *is* the world, so it is the ground
    itself and does not sit on a card over it. */
 .deck {
-  background: var(--surface);
+  /* A card, not a wall. Solid var(--surface) painted flatly over the sky
+     .ground draws behind every tab — the same sky the strip's own cards
+     let through at rgba(255,255,255,0.94) — so the one thing meant to say
+     "this sits on the globe" was invisible the moment it had a card of its
+     own on top of it. Frosted rather than plain transparent: content still
+     needs to read clearly over a photo or a busy background. */
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: 22px;
   margin: 0 10px;
@@ -3878,6 +3886,18 @@ button.album-open:disabled {
   position: absolute;
   left: 0;
   right: 0;
+  /* Capped and centred, the way every sheet in the app already is on a
+     wide screen — this block never was, because full-bleed cost nothing
+     when the strip was the only thing in it: a scrollable row of
+     fixed-width cards just trails off into empty space past its last
+     card, and nobody notices a hero that isn't there yet. It stopped
+     being free the moment the hero was allowed to be a drawing rather
+     than a photograph: cropped to whatever the screen happens to be
+     wide, the illustration read as stretched rather than as a globe,
+     and its right edge stopped lining up with the row underneath it.
+     Below 480px — every phone this ships to — this changes nothing. */
+  max-width: 480px;
+  margin: 0 auto;
   bottom: calc(90px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   z-index: 500;
   display: flex;
