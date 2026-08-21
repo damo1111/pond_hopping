@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { SOON_DAYS, daysUntil, frontOfMind, heroWhen, tileLeads } from './frontOfMind.js'
+import { SOON_DAYS, daysUntil, frontOfMind, heroWhen } from './frontOfMind.js'
 
 const TODAY = '2026-08-18'
 const trip = (o) => ({ slug: o.slug ?? 'x', is_demo: false, ...o })
@@ -79,11 +79,4 @@ test('and says only the day when nobody has said when it ends', () => {
 test('tomorrow is tomorrow, not "in 1 days"', () => {
   const t = trip({ slug: 'tm', start_date: '2026-08-19', end_date: '2026-08-25' })
   assert.equal(heroWhen(frontOfMind([t], TODAY), TODAY), 'Tomorrow')
-})
-
-test('the way-in tile leads only while nothing on the globe is yours', () => {
-  const demo = trip({ slug: 'demo-portugal', start_date: '2026-08-23', is_demo: true })
-  assert.equal(tileLeads([]), true)
-  assert.equal(tileLeads([demo]), true)
-  assert.equal(tileLeads([demo, PAST]), false)
 })

@@ -108,15 +108,3 @@ export function heroWhen(pick, today) {
   const total = day + end
   return total > 0 ? `Day ${day} of ${total}` : `Day ${day}`
 }
-
-/**
- * Whether the way-in tile still leads the strip.
- *
- * It should, while the only thing on the globe is somebody else's example —
- * that is a screen with nothing of yours on it and the tile is the point of
- * it. The moment there is one real trip the tile is the least interesting
- * card in the row and goes to the end, where "add another" belongs.
- */
-export function tileLeads(trips = []) {
-  return ownTrips(trips).length === 0
-}

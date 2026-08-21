@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import { AHEAD_DAYS, laidOut, saidBriefly, stillToCome, todayHere } from '../lib/whereYouAre.js'
 import { KIND_META } from '../lib/planItems.js'
 import PlanFlightCard from './planner/PlanFlightCard.jsx'
+import PhotoLens from './PhotoLens.jsx'
 import { oops } from '../lib/analytics.js'
 
 // The trip, from where you are standing in it.
@@ -35,16 +36,41 @@ function said(date) {
   return `${WEEK[d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`
 }
 
-/** Up to five, so a collapsed row is a glance rather than a gallery. */
-function Strip({ photos, cap = 5 }) {
+/**
+ * Up to five, so a collapsed row is a glance rather than a gallery.
+ *
+ * `onOpen` is the way in to the full set — omitted for the preview that
+ * lives inside the day's own toggle button, since a button cannot nest
+ * another one, and that row already does something on tap. Passed for
+ * every strip that has room of its own, which is where "cannot tap into
+ * them" was reported: a row of photographs you could look at and not open,
+ * the same fault PlannerPhotos had before PhotoLens existed.
+ */
+function Strip({ photos, cap = 5, onOpen }) {
   const few = photos.slice(0, cap)
   if (!few.length) return null
+  if (!onOpen) {
+    return (
+      <span className="td-strip" aria-hidden="true">
+        {few.map((p) => (
+          <img key={p.id} className="td-thumb" src={p.thumb_url || p.url} alt="" loading="lazy" />
+        ))}
+        {photos.length > few.length && <span className="td-more">+{photos.length - few.length}</span>}
+      </span>
+    )
+  }
   return (
-    <span className="td-strip" aria-hidden="true">
-      {few.map((p) => (
-        <img key={p.id} className="td-thumb" src={p.thumb_url || p.url} alt="" loading="lazy" />
+    <span className="td-strip">
+      {few.map((p, i) => (
+        <button key={p.id} className="td-thumb-btn" onClick={() => onOpen(i)}>
+          <img className="td-thumb" src={p.thumb_url || p.url} alt="" loading="lazy" />
+        </button>
       ))}
-      {photos.length > few.length && <span className="td-more">+{photos.length - few.length}</span>}
+      {photos.length > few.length && (
+        <button className="td-more td-more-btn" onClick={() => onOpen(few.length)}>
+          +{photos.length - few.length}
+        </button>
+      )}
     </span>
   )
 }
@@ -85,6 +111,8 @@ function Nights({ stay }) {
 }
 
 function Behind({ day, open, onToggle }) {
+  // Which photograph of this day is open in the lens, or null.
+  const [lensAt, setLensAt] = useState(null)
   return (
     <div className={`td-day td-day--behind${open ? ' open' : ''}`}>
       <button className="td-row" onClick={onToggle}>
@@ -101,8 +129,11 @@ function Behind({ day, open, onToggle }) {
           {day.events.map((e) => (
             <Thing key={e.id} ev={e} />
           ))}
-          <Strip photos={day.photos.slice(0, 12)} />
+          <Strip photos={day.photos.slice(0, 12)} onOpen={setLensAt} />
         </div>
+      )}
+      {lensAt !== null && (
+        <PhotoLens photos={day.photos} at={lensAt} onClose={() => setLensAt(null)} />
       )}
     </div>
   )
@@ -165,6 +196,10 @@ export default function TripDays({ trip }) {
     [trip, today, events, photos, showRest]
   )
 
+  // Which of today's photographs is open in the lens, or null. Its own
+  // state — Behind's lens is per-day and lives inside Behind itself.
+  const [todayLensAt, setTodayLensAt] = useState(null)
+
   if (!events || !photos) return <div className="td-wait">Reading the days…</div>
 
   const left = stillToCome(lane.today)
@@ -214,10 +249,13 @@ export default function TripDays({ trip }) {
             {lane.today.photos.length > 0 && (
               <div className="td-sofar">
                 <span className="td-sofar-label">So far today</span>
-                <Strip photos={lane.today.photos} />
+                <Strip photos={lane.today.photos} onOpen={setTodayLensAt} />
               </div>
             )}
           </div>
+          {todayLensAt !== null && (
+            <PhotoLens photos={lane.today.photos} at={todayLensAt} onClose={() => setTodayLensAt(null)} />
+          )}
         </div>
       )}
 

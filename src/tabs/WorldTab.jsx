@@ -22,7 +22,7 @@ import { pickVariant } from '../lib/variants.js'
 import { oops, track, whoAmI } from '../lib/analytics.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
 import { NEW_TRIP, comingBackTo } from '../lib/photoImport.js'
-import { frontOfMind, heroWhen, tileLeads } from '../lib/frontOfMind.js'
+import { frontOfMind, heroWhen } from '../lib/frontOfMind.js'
 import { todayHere } from '../lib/whereYouAre.js'
 
 // Default framing for the "all trips" overview — centred on the
@@ -183,7 +183,6 @@ export default function WorldTab() {
     return () => clearInterval(tick)
   }, [])
   const front = useMemo(() => frontOfMind(tripMeta, today), [tripMeta, today])
-  const leads = useMemo(() => tileLeads(tripMeta), [tripMeta])
 
   // Promoted out of the strip, not copied above it.
   //
@@ -1043,7 +1042,7 @@ export default function WorldTab() {
           <div className="world-trips">
           {memory && <MemoryCard memory={memory} onOpen={() => jumpToJournal(memory.slug, memory.entry_date)} />}
 
-          {leads && addTile}
+          {addTile}
 
           {/* Past and future used to sit in one undifferentiated row, in
               hand-curated order, distinguishable only by reading the dates
@@ -1072,8 +1071,6 @@ export default function WorldTab() {
               })}
             </div>
           ))}
-
-          {!leads && addTile}
           </div>
         </div>
       )}
