@@ -14096,3 +14096,43 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 @media (max-width: 359px) {
   .co-stage { transform: scale(0.88); }
 }
+
+/* ── The way in, promoted to the hero slot ────────────────────────────────
+   This card used to appear only when the globe was completely empty, where
+   it floated over the map as the single thing on screen — hence the absolute
+   positioning above. It now also stands in for the hero whenever nothing on
+   the globe is *yours*, which is the common case for anybody signed out, and
+   in that slot it is an ordinary block with a strip of examples beneath it. */
+.world-bottom .world-empty {
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  margin: 0 12px 14px;
+}
+
+/* Paper, not white. Over the blue of the globe a white card reads as a
+   dialog — something that has interrupted you — where warm paper reads as
+   part of the app. Still translucent, so the globe carries through it and
+   the card sits *on* the world rather than over it. */
+.world-empty {
+  background: linear-gradient(rgba(245, 242, 235, 0.96), rgba(237, 233, 223, 0.96));
+  border-color: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 4px 18px rgba(26, 22, 17, 0.16);
+}
+
+/* Boxes, not pills, and full width.
+   "im thinking fingers on a phone" — a 46px rectangle spanning the card is a
+   much easier target than a centred capsule, and two of them stacked read as
+   a choice rather than as a button with an afterthought under it. The pill
+   stays everywhere else; this is the one place somebody is being asked to
+   commit with a thumb. */
+.world-empty-btns {
+  align-items: stretch;
+}
+
+.world-empty-btn {
+  border-radius: 12px;
+  padding: 14px 15px;
+  text-align: center;
+}

@@ -1032,20 +1032,31 @@ export default function WorldTab() {
               </span>
             </button>
           ) : nothingReal ? (
-            <button
-              className="wt-front wt-front--add"
-              onClick={() => {
+            /* The card, not the tile.
+               "Tip it in" over the drawing was the hero here, and it was the
+               weakest thing on the screen: a picture of a duck and a plus
+               sign, saying nothing, at the size of the most important object
+               on the page. David, seeing it signed out: "this looks naff —
+               I preferred the one we had when there were no demos."
+
+               That one was EmptyHome, and until now it was unreachable
+               whenever an example loaded, because it stood in for the entire
+               screen rather than for the hero. It only ever appeared when
+               nothing at all came back — which is why the one time he saw it
+               was during an outage.
+
+               It is the better hero for a reason worth keeping: it is the
+               only one of the two that says *whose* trips those are, which is
+               the whole job the tour tooltips were invented to do, without an
+               overlay and with nothing to dismiss. */
+            <EmptyHome
+              onPlan={() => goToTab('plan')}
+              onGetIn={() => {
                 track('tile_tapped', { test: 'add_tile', variant: tile?.id, where: 'hero' })
                 setRoutesOpen(true)
               }}
-            >
-              <AddIllustration className="wt-front-add-cover wt-add-cover" />
-              <span className="wt-front-scrim" aria-hidden="true" />
-              <span className="wt-front-text">
-                <span className="wt-front-when">Start here</span>
-                <span className="wt-front-title">{tile?.title ?? 'Add a trip'}</span>
-              </span>
-            </button>
+              examples={tripMeta.length}
+            />
           ) : null}
 
           <div className="world-trips">
@@ -1131,13 +1142,42 @@ function useBounce() {
 // What Home said before this was nothing at all: an empty div under a
 // slowly rotating, arc-less globe. Someone with no trips got no heading, no
 // prompt and no way in.
-function EmptyHome({ onPlan, onGetIn }) {
+// Spelled out, because "The 3 below are ours" is a sentence written by a
+// database. Past five it stops being worth spelling and the digit is fine —
+// nobody reads "the seventeen below" as English either.
+const WORDS = ['no', 'one', 'two', 'three', 'four', 'five']
+const howMany = (n) => WORDS[n] ?? String(n)
+
+/**
+ * The way in, whenever nothing on the globe is yours.
+ *
+ * Two jobs, and the second one is why it replaced the hero tile: it says
+ * whose trips those are. A stranger's holiday sitting on your globe with
+ * nothing to explain it is the thing the tour tooltips existed to fix, and a
+ * sentence that is simply there beats an overlay that has to be dismissed.
+ *
+ * `examples` is how many trips are on the globe, which is not always the same
+ * question as whether any are. It is zero when the app is genuinely empty —
+ * signed in, nothing added yet — and the copy has to work both ways round
+ * without a second component.
+ */
+function EmptyHome({ onPlan, onGetIn, examples = 0 }) {
   return (
     <div className="world-empty">
       <div className="world-empty-title">Nothing on the globe yet</div>
       <div className="world-empty-body">
-        Every trip you take lands here — the flights, the photos, the day you got lost. Start with
-        one you've already booked, or just somewhere you fancy.
+        {examples ? (
+          <>
+            {examples === 1 ? 'The one below is ours' : `The ${howMany(examples)} below are ours`}, so
+            you can see how it works. Yours will land here — the flights, the photos, the day you got
+            lost.
+          </>
+        ) : (
+          <>
+            Every trip you take lands here — the flights, the photos, the day you got lost. Start
+            with one you&apos;ve already booked, or just somewhere you fancy.
+          </>
+        )}
       </div>
       <div className="world-empty-btns">
         <button className="world-empty-btn" onClick={onGetIn}>
