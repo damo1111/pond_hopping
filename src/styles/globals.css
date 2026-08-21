@@ -13853,14 +13853,14 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .co-stage {
   position: relative;
   width: 340px;
-  height: 350px;
+  height: 372px;
 }
 .co-draw {
   position: absolute;
   left: 20px;
   top: 0;
   width: 300px;
-  height: 350px;
+  height: 372px;
   overflow: visible;
 }
 
@@ -13880,19 +13880,67 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .co-pin  { transform-box: fill-box; transform-origin: center; transform: scale(0); opacity: 0;
            animation: co-pop 380ms cubic-bezier(0.3, 1.4, 0.5, 1) var(--d) forwards; }
 
-/* The duck flies the long hop, sampled off that curve at six points — see
-   samplePath(). offset-path would say it in one line and is exactly the kind
-   of thing an old WebView does not have. */
-@keyframes co-fly {
-  0%   { opacity: 0; transform: translate(89px, 112px) }
-  12%  { opacity: 1 }
-  20%  { transform: translate(115.2px, 107.2px) }
-  40%  { transform: translate(140.4px, 107.1px) }
-  60%  { transform: translate(164.8px, 111.7px) }
-  80%  { transform: translate(188.4px, 121px) }
-  100% { opacity: 1; transform: translate(211px, 135px) }
+/* The duck is animated from JS — see duckFrames(). This is only where he ends
+   up if element.animate is missing, so the last frame is still correct and the
+   screen simply does not move. */
+.co-duck { transform: translate(197px, 99px); }
+
+/* His trail: dotted, like a planned route everywhere else in the app, and drawn
+   leg by leg as he flies each one rather than laid out in front of him. */
+.co-trail {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  opacity: 0.34;
+  stroke-dasharray: 0.014 0.02;
+  stroke-dashoffset: 0;
+  clip-path: inset(0 100% 0 0);
+  animation: co-trail var(--dur) linear var(--d) forwards;
 }
-.co-duck { opacity: 0; animation: co-fly 900ms cubic-bezier(0.35, 0, 0.5, 1) 3060ms forwards; }
+@keyframes co-trail { to { clip-path: inset(0 0 0 0) } }
+
+/* ── The turn ──
+   A meridian at longitude θ projects to an ellipse of width r·|cos θ|, so
+   animating width IS the rotation rather than an impression of one. Written
+   translate-then-scale for the same reason the swell is: transform-box on SVG
+   is unreliable in the WebViews both wrappers use. tx = cx(1 − s) each step. */
+@keyframes co-turn {
+  0%    { transform: translate(0, 0)       scale(1, 1) }
+  12.5% { transform: translate(11.4px, 0)  scale(0.924, 1) }
+  25%   { transform: translate(44px, 0)    scale(0.707, 1) }
+  37.5% { transform: translate(92.6px, 0)  scale(0.383, 1) }
+  50%   { transform: translate(150px, 0)   scale(0.001, 1) }
+  62.5% { transform: translate(92.6px, 0)  scale(0.383, 1) }
+  75%   { transform: translate(44px, 0)    scale(0.707, 1) }
+  87.5% { transform: translate(11.4px, 0)  scale(0.924, 1) }
+  100%  { transform: translate(0, 0)       scale(1, 1) }
+}
+/* .42 is the wireframe's own weight, so the meridians settle at exactly the
+   same value the circle and the latitudes were drawn at. */
+@keyframes co-wire-in { to { opacity: 0.42 } }
+.co-meridian {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  opacity: 0;
+  animation: co-wire-in 900ms ease-out 500ms forwards,
+             co-turn 10s linear var(--phase) infinite;
+}
+
+/* ── What the pins were holding ──
+   Each pops onto the globe as the line that names it is said. The disc is page
+   colour so the routes underneath do not run through the mark. */
+.co-mark-at { opacity: 0; animation: co-pop-mark 520ms cubic-bezier(0.3, 1.35, 0.5, 1) var(--d) forwards; }
+@keyframes co-pop-mark {
+  0%   { opacity: 0; transform: translateY(-7px) scale(0.5) }
+  60%  { opacity: 1 }
+  100% { opacity: 1; transform: translateY(0) scale(1) }
+}
+.co-mark-disc { fill: var(--bg); }
+.co-mark-box,
+.co-mark-line { fill: none; stroke: var(--accent); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.co-mark-fill { fill: var(--accent); }
 
 /* The globe takes the frame at the end, growing into the space the sentence
    vacates. translate-then-scale rather than transform-origin, because older
@@ -13900,7 +13948,7 @@ button.ios-sheet-grip:active { cursor: grabbing; }
    WebViews — see swellTo(), which is where these two numbers come from. */
 @keyframes co-swell {
   from { transform: translate(0, 0) scale(1) }
-  to   { transform: translate(-93px, -80.6px) scale(1.62) }
+  to   { transform: translate(-45px, -41.4px) scale(1.3) }
 }
 .co-globe { animation: co-swell 1500ms cubic-bezier(0.22, 1, 0.36, 1) 8100ms forwards; }
 
@@ -13953,7 +14001,7 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .co-year {
   position: absolute;
   left: 0; right: 0;
-  top: 217px;
+  top: 244px;
   text-align: center;
   opacity: 0;
   font-family: var(--font-mono);
@@ -13982,7 +14030,7 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .co-open {
   position: absolute;
   left: 6px; right: 6px;
-  top: 222px;
+  top: 250px;
   text-align: center;
   opacity: 0;
   color: var(--text);
@@ -13993,7 +14041,7 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .co-rest {
   position: absolute;
   left: 6px; right: 6px;
-  top: 222px;
+  top: 250px;
   text-align: center;
   opacity: 0;
   animation: co-fade-in 420ms ease-out 3500ms forwards,
@@ -14023,7 +14071,7 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .co-mark {
   position: absolute;
   left: 0; right: 0;
-  top: 255px;
+  top: 282px;
   text-align: center;
   opacity: 0;
   font-family: var(--font-brand);
@@ -14037,9 +14085,11 @@ button.ios-sheet-grip:active { cursor: grabbing; }
    still gets the whole argument — they just get it without the choreography. */
 @media (prefers-reduced-motion: reduce) {
   .co-wire, .co-arc { stroke-dashoffset: 0; animation: none; }
-  .co-pin, .co-duck, .co-open, .co-rest, .co-mark, .co-globe { animation: none; opacity: 1; transform: none; }
+  .co-pin, .co-duck, .co-open, .co-rest, .co-mark, .co-globe, .co-mark-at { animation: none; opacity: 1; transform: none; }
+  .co-meridian { animation: none; opacity: 0.42; }
+
   .co-pin { transform: scale(1); }
-  .co-duck { transform: translate(211px, 135px); }
+  .co-duck { transform: translate(230px, 145px); }
   .co-chip, .co-year, .co-open { display: none; }
   .co-swap { animation: none; opacity: 0; }
   .co-swap--last { opacity: 1; }

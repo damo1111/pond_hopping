@@ -43,17 +43,137 @@ export function arcUp(a, b, bow = 0.24) {
 
 const round = (n) => Math.round(n * 10) / 10
 
+/** How long the whole thing runs, so the screen holding it agrees. */
+export const COLD_OPEN_MS = 9600
+
 /** Where the routes meet. One hub, so the map reads as a hub. */
-export const HUB = [117, 158]
+export const HUB = [107, 175]
 
 /** And where they go. */
 export const SPOKES = [
-  [89, 112],
-  [137, 87],
-  [186, 100],
-  [211, 135],
-  [170, 173],
+  [71, 115],
+  [133, 82],
+  [197, 99],
+  [230, 145],
+  [176, 194],
 ]
+
+/**
+ * What each pin turns out to be holding.
+ *
+ * These land on cue with the line that names them — a photograph as "a photo
+ * you already have" is said, footprints on "a walk your phone remembers", a
+ * roof on "a booking in your inbox" — so the globe is answering the sentence
+ * rather than decorating it, and the four seconds the drawing used to sit
+ * still are the four seconds it now does its half of the talking.
+ *
+ * They accumulate rather than replacing one another. By the last frame the
+ * globe is holding all three at once, which is the actual claim.
+ */
+export const MARKS = [
+  { kind: 'photo', at: SPOKES[1], from: 4250 },
+  { kind: 'walk', at: SPOKES[4], from: 5750 },
+  { kind: 'stay', at: SPOKES[2], from: 7250 },
+]
+
+/**
+ * Where the duck goes, and when.
+ *
+ * He does not land and then sit there. Each line of the sentence names a thing,
+ * and he goes and finds it — arriving at the photograph as "a photo you already
+ * have" is said, at the footprints on "a walk your phone remembers", at the roof
+ * on "a booking in your inbox". The mark pops as he arrives, so it reads as him
+ * turning something up rather than as an icon fading in beside him.
+ *
+ * Arriving just after each line rather than on it is deliberate: the word first,
+ * then the thing. The other way round and the picture spoils its own caption.
+ *
+ * It also fixes the hole this all started from — the drawing used to finish at
+ * 4.0s and hold still until the swell at 8.1s, four seconds of nothing moving
+ * under text that was still talking.
+ */
+export const JOURNEY = [
+  { to: SPOKES[3], arrive: 3600 }, // the long hop, flown
+  { to: SPOKES[1], leave: 3800, arrive: 4300 },
+  { to: SPOKES[4], leave: 5300, arrive: 5800 },
+  { to: SPOKES[2], leave: 6800, arrive: 7300 },
+]
+
+/** When he sets off, and how long the whole journey lasts. */
+export const JOURNEY_FROM = 2900
+export const JOURNEY_MS = COLD_OPEN_MS - JOURNEY_FROM
+
+/**
+ * The journey as keyframes, built from the same geometry the arcs are.
+ *
+ * Handed to element.animate() rather than written into the stylesheet, because
+ * the alternative is thirty hand-computed coordinates in CSS that silently stop
+ * agreeing with this file the first time the globe is resized — which is exactly
+ * what happened to the duck's flight path when the globe grew.
+ */
+export function duckFrames(from = LONG_HOP[0], journey = JOURNEY, start = JOURNEY_FROM, total = JOURNEY_MS) {
+  const at = (ms) => Math.min(1, Math.max(0, (ms - start) / total))
+  const frames = []
+  let here = from
+  let clock = start
+
+  journey.forEach((leg, i) => {
+    const leaves = leg.leave ?? clock
+    // Standing still counts: without a frame at the moment he sets off, the
+    // browser interpolates the whole pause into a slow drift.
+    if (leaves > clock) frames.push({ offset: at(clock), transform: xy(here) })
+    const pts = samplePath(here, leg.to, i === 0 ? 0.24 : 0.34, 6)
+    pts.forEach((pt, j) => {
+      frames.push({
+        offset: at(leaves + ((leg.arrive - leaves) * j) / (pts.length - 1)),
+        transform: xy(pt),
+      })
+    })
+    here = leg.to
+    clock = leg.arrive
+  })
+
+  frames.push({ offset: 1, transform: xy(here) })
+  // Fades in over the first hop rather than appearing at full strength on a pin.
+  frames[0].opacity = 0
+  if (frames[1]) frames[1].opacity = 1
+  return dedupe(frames)
+}
+
+const xy = ([x, y]) => `translate(${x}px, ${y}px)`
+
+// Two frames at one offset is a hard error in Web Animations, and the pauses
+// make them easy to produce by accident.
+function dedupe(frames) {
+  const out = []
+  for (const f of frames) {
+    if (out.length && Math.abs(out[out.length - 1].offset - f.offset) < 1e-6) out.pop()
+    out.push(f)
+  }
+  return out
+}
+
+/** Each hop as a path, so a dotted trail can be drawn along it behind him. */
+export function trails(from = LONG_HOP[0], journey = JOURNEY) {
+  let here = from
+  return journey.map((leg, i) => {
+    const d = arcUp(here, leg.to, i === 0 ? 0.24 : 0.34)
+    here = leg.to
+    return { d, leave: leg.leave ?? 0, arrive: leg.arrive }
+  })
+}
+
+/**
+ * How many meridians sweep, and how long one turn takes.
+ *
+ * A wireframe globe cannot cheaply rotate, but it does not have to: a meridian
+ * at longitude θ projects to an ellipse whose width is r·|cos θ|, so animating
+ * the width of several evenly-spaced meridians *is* the rotation, exactly. Four
+ * is enough to read as a turning sphere and cheap enough to be free — it is
+ * four transforms on the compositor and nothing else.
+ */
+export const MERIDIANS = 4
+export const TURN_MS = 10000
 
 /**
  * Which pairs get a line.
@@ -145,7 +265,7 @@ export const PILE = [
  * ever resized again — change GLOBE below and the pile follows.
  */
 const DRAWN_FOR = { cx: 150, cy: 112, r: 52 }
-export const GLOBE = { cx: 150, cy: 130, r: 66 }
+export const GLOBE = { cx: 150, cy: 138, r: 86 }
 
 export function regrow([x, y]) {
   const s = GLOBE.r / DRAWN_FOR.r
@@ -171,5 +291,3 @@ export function swellTo(scale, globe = GLOBE) {
   }
 }
 
-/** How long the whole thing runs, so the screen holding it agrees. */
-export const COLD_OPEN_MS = 9600
