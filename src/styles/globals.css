@@ -13826,3 +13826,227 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 }
 
 .pp-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ══ The cold open ═══════════════════════════════════════════════════════════
+   ColdOpen.jsx. Ten seconds, once per device, and the only thing on screen
+   while it runs. Everything is transform and opacity so it holds sixty frames
+   in an eight-year-old WebView — no canvas, no WebGL, nothing that lays out.
+
+   Named co- rather than boot- because it lives alongside the short opening
+   every later launch gets, which keeps the boot- names. */
+.co {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100005;
+  transition: opacity 0.5s ease;
+  cursor: pointer;
+}
+.co.leaving { opacity: 0; pointer-events: none; }
+
+/* Fixed size, centred, the way .boot-stage already is: every coordinate in
+   coldOpen.js is in this space, so scaling the box would mean re-deriving all
+   of them. 340 fits the narrowest phone this ships to with room either side. */
+.co-stage {
+  position: relative;
+  width: 340px;
+  height: 350px;
+}
+.co-draw {
+  position: absolute;
+  left: 20px;
+  top: 0;
+  width: 300px;
+  height: 350px;
+  overflow: visible;
+}
+
+.co-wire { fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0.42; stroke-linecap: round; }
+.co-arc  { fill: none; stroke: var(--accent); stroke-width: 1.7; stroke-linecap: round; }
+.co-pin  { fill: var(--accent); }
+
+@keyframes co-draw { to { stroke-dashoffset: 0 } }
+@keyframes co-pop  { 0% { transform: scale(0); opacity: 0 } 70% { transform: scale(1.5) } 100% { transform: scale(1); opacity: 1 } }
+@keyframes co-fade-in  { to { opacity: 1 } }
+@keyframes co-fade-out { to { opacity: 0 } }
+@keyframes co-rise { from { opacity: 0; transform: translateY(9px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes co-leave { to { opacity: 0; transform: translateY(-9px) } }
+
+.co-wire { stroke-dasharray: 1; stroke-dashoffset: 1; animation: co-draw 1000ms ease-out 400ms forwards; }
+.co-arc  { stroke-dasharray: 1; stroke-dashoffset: 1; animation: co-draw 620ms ease-out var(--d) forwards; }
+.co-pin  { transform-box: fill-box; transform-origin: center; transform: scale(0); opacity: 0;
+           animation: co-pop 380ms cubic-bezier(0.3, 1.4, 0.5, 1) var(--d) forwards; }
+
+/* The duck flies the long hop, sampled off that curve at six points — see
+   samplePath(). offset-path would say it in one line and is exactly the kind
+   of thing an old WebView does not have. */
+@keyframes co-fly {
+  0%   { opacity: 0; transform: translate(89px, 112px) }
+  12%  { opacity: 1 }
+  20%  { transform: translate(115.2px, 107.2px) }
+  40%  { transform: translate(140.4px, 107.1px) }
+  60%  { transform: translate(164.8px, 111.7px) }
+  80%  { transform: translate(188.4px, 121px) }
+  100% { opacity: 1; transform: translate(211px, 135px) }
+}
+.co-duck { opacity: 0; animation: co-fly 900ms cubic-bezier(0.35, 0, 0.5, 1) 3060ms forwards; }
+
+/* The globe takes the frame at the end, growing into the space the sentence
+   vacates. translate-then-scale rather than transform-origin, because older
+   WebViews get transform-box wrong on SVG groups and both wrappers are
+   WebViews — see swellTo(), which is where these two numbers come from. */
+@keyframes co-swell {
+  from { transform: translate(0, 0) scale(1) }
+  to   { transform: translate(-93px, -80.6px) scale(1.62) }
+}
+.co-globe { animation: co-swell 1500ms cubic-bezier(0.22, 1, 0.36, 1) 8100ms forwards; }
+
+/* ── The heap ── */
+.co-chip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 30px;
+  height: 23px;
+  margin-left: -15px;
+  margin-top: -11px;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(26, 22, 17, 0.22);
+  opacity: 0;
+  animation: co-chip 7500ms cubic-bezier(0.4, 0, 0.3, 1) var(--d) both;
+}
+@keyframes co-chip {
+  0%   { transform: translate(var(--sx), var(--sy)) rotate(var(--sr)) scale(1); opacity: 0 }
+  3%   { opacity: 1 }
+  15%  { transform: translate(var(--px), var(--py)) rotate(var(--pr)) scale(1); opacity: 1 }
+  24%  { transform: translate(var(--px), var(--py)) rotate(var(--pr)) scale(1); opacity: 1 }
+  35%  { transform: translate(var(--tx), var(--ty)) rotate(0deg) scale(0.1); opacity: 0 }
+  100% { transform: translate(var(--tx), var(--ty)) rotate(0deg) scale(0.1); opacity: 0 }
+}
+/* Desaturated on purpose — these read as photographs at a glance and must not
+   compete with the one accent colour the rest of the screen is made of. */
+.co-chip--1 { background: linear-gradient(150deg, #9DC3DC, #6E9DBD) }
+.co-chip--2 { background: linear-gradient(150deg, #D9B48A, #B98A57) }
+.co-chip--3 { background: linear-gradient(150deg, #A9C4A2, #6F9268) }
+.co-chip--4 { background: linear-gradient(150deg, #C8A9C4, #94718F) }
+.co-chip--5 { background: linear-gradient(150deg, #E0C48D, #C29A4E) }
+.co-chip--6 { background: linear-gradient(150deg, #8FA9B8, #5D7A8B) }
+.co-chip--7 { background: linear-gradient(150deg, #D89A8E, #B26A5C) }
+.co-chip--paper { background: #FFFDF8; border: 1px solid var(--border); }
+.co-chip--paper::after {
+  content: "";
+  position: absolute;
+  left: 4px; right: 4px; top: 5px;
+  height: 1px;
+  background: #DED6C4;
+  box-shadow: 0 4px 0 #DED6C4, 0 8px 0 #DED6C4;
+}
+
+/* ── The words ──
+   One zone, directly under the globe, and every beat takes its turn in it:
+   the opening line, then the year, then the sentence, then the wordmark. An
+   element with a slot of its own leaves a hole in it when it goes, which is
+   what the year and then the wordmark each did before this. */
+.co-year {
+  position: absolute;
+  left: 0; right: 0;
+  top: 217px;
+  text-align: center;
+  opacity: 0;
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  animation: co-fade-in 380ms ease-out 1900ms forwards, co-fade-out 460ms ease-in 3000ms forwards;
+}
+
+/* One type treatment across the whole sentence. Size, weight and colour used
+   to change all at once between its halves, which reads as two unrelated
+   screens rather than one sentence continuing. Colour is the only difference:
+   ink for the claim, muted for the connective, gold for the payload. */
+.co-open,
+.co-stem,
+.co-swap {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.co-open {
+  position: absolute;
+  left: 6px; right: 6px;
+  top: 222px;
+  text-align: center;
+  opacity: 0;
+  color: var(--text);
+  animation: co-rise 620ms cubic-bezier(0.22, 1, 0.36, 1) 500ms both,
+             co-leave 420ms ease-in 1700ms forwards;
+}
+
+.co-rest {
+  position: absolute;
+  left: 6px; right: 6px;
+  top: 222px;
+  text-align: center;
+  opacity: 0;
+  animation: co-fade-in 420ms ease-out 3500ms forwards,
+             co-fade-out 480ms ease-in 8200ms forwards;
+}
+.co-stem { display: block; color: var(--text-muted); }
+
+/* Fixed box with each line centred in it, so one that wraps on a narrow phone
+   sits where one that doesn't sits, and the block never jumps as they cycle. */
+.co-swaps { position: relative; display: block; height: 40px; margin-top: 12px; }
+.co-swap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  color: var(--accent);
+  animation: co-rise 400ms ease-out var(--in) both, co-leave 340ms ease-in var(--out) forwards;
+}
+.co-swap--last { animation: co-rise 400ms ease-out var(--in) both; }
+
+/* Centred in the space under the globe rather than parked on the gold line's
+   row: sitting there looked continuous mid-sequence but left the stem's
+   vacated row as a hole above it on the last frame, which is the one that
+   hands over to the app. */
+.co-mark {
+  position: absolute;
+  left: 0; right: 0;
+  top: 255px;
+  text-align: center;
+  opacity: 0;
+  font-family: var(--font-brand);
+  font-size: 28px;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  animation: co-rise 760ms cubic-bezier(0.22, 1, 0.36, 1) 8500ms forwards;
+}
+
+/* Everything arrives at once and holds. Somebody who has asked for less motion
+   still gets the whole argument — they just get it without the choreography. */
+@media (prefers-reduced-motion: reduce) {
+  .co-wire, .co-arc { stroke-dashoffset: 0; animation: none; }
+  .co-pin, .co-duck, .co-open, .co-rest, .co-mark, .co-globe { animation: none; opacity: 1; transform: none; }
+  .co-pin { transform: scale(1); }
+  .co-duck { transform: translate(211px, 135px); }
+  .co-chip, .co-year, .co-open { display: none; }
+  .co-swap { animation: none; opacity: 0; }
+  .co-swap--last { opacity: 1; }
+}
+
+/* Below 360px the stage would touch both edges. Scaled rather than reflowed,
+   because every number in coldOpen.js is in the 340-wide space. */
+@media (max-width: 359px) {
+  .co-stage { transform: scale(0.88); }
+}

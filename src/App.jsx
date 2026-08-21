@@ -19,6 +19,7 @@ import TripPicker from './components/TripPicker.jsx'
 import Icon from './components/Icon.jsx'
 import AuthSheet from './components/AuthSheet.jsx'
 import BootScreen from './components/BootScreen.jsx'
+import { COLD_OPEN_MS } from './lib/coldOpen.js'
 import { comingBackTo } from './lib/photoImport.js'
 import DayLookBack from './components/DayLookBack.jsx'
 import { ONCE, bringOldFlagsOver, forget, markSeen, nextUp } from './lib/firstRun.js'
@@ -305,13 +306,10 @@ export default function App() {
     // first paint, so the CSS clock runs a frame or two behind it — measured
     // at ~120ms in Chromium.
     //
-    // 6300 rather than 7000. The last seven hundred milliseconds used to
-    // hold a line — "You already have the first piece" — arriving straight
-    // after two seconds of a real trip counting itself up. That trip is the
-    // argument; saying it again afterwards is not part of it, and a phone
-    // held still to read a restatement is exactly the beat somebody notices.
-    // The screen now ends on the photograph everything collapsed into.
-    const minBoot = meetsColdOpen ? 6300 : 500
+    // The opening is its own clock now — COLD_OPEN_MS is exported from the
+    // file that draws it, so retiming a beat cannot leave this number behind.
+    // It used to be 6300, hand-kept in step with a stylesheet, and drifted.
+    const minBoot = meetsColdOpen ? COLD_OPEN_MS : 500
     const leave = setTimeout(() => {
       if (cancelled) return
       if (meetsColdOpen) {
@@ -319,11 +317,7 @@ export default function App() {
         setOwed(nextUp())
       }
       setBootLeaving(true)
-      // 700, not 550. The card does not fade out of this screen any more —
-      // it travels to where the same trip sits on the World tab, and that
-      // flight is 620ms. Unmounting at 550 cut it off two thirds of the way
-      // across, which is a card vanishing in mid-air.
-      setTimeout(() => !cancelled && setBooting(false), 700)
+      setTimeout(() => !cancelled && setBooting(false), 550)
     }, minBoot)
 
     return () => {
@@ -335,6 +329,21 @@ export default function App() {
     // replayColdOpen sets it in the same batch as this counter, so the
     // re-run sees the new value.
   }, [replay])
+
+  // Ending the opening early.
+  //
+  // Same three steps the timer takes, because skipping is not a different
+  // outcome — somebody who taps has decided they have seen enough of it, and
+  // an opening that replayed next launch because you cut it short would be
+  // the most irritating possible reading of "plays once".
+  const skipOpening = useCallback(() => {
+    if (meetsColdOpen) {
+      markSeen(ONCE.cold_open)
+      setOwed(nextUp())
+    }
+    setBootLeaving(true)
+    setTimeout(() => setBooting(false), 550)
+  }, [meetsColdOpen])
 
   // Load the trips, and load them again when the session arrives.
   //
@@ -733,7 +742,17 @@ export default function App() {
           that came up after the opening and had to be dismissed; it is now
           the second half of the opening itself, so nobody has to agree to
           be told. */}
-      {booting && <BootScreen leaving={bootLeaving} cold={meetsColdOpen} />}
+      {booting && (
+        <BootScreen
+          leaving={bootLeaving}
+          cold={meetsColdOpen}
+          // Ten seconds is the whole pitch and it earns the length; it does
+          // not earn the right to trap anybody in it. A tap ends it, and the
+          // flag is marked seen either way — somebody who skipped has still
+          // decided they have seen enough of it.
+          onSkip={skipOpening}
+        />
+      )}
 
       {/* What the nine o'clock notification opens. Over everything, because
           it was arrived at from outside the app and belongs to no tab. */}
