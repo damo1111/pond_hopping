@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   alreadyConnected,
+  alreadyTold,
   asProgress,
   bringThemIn,
   cameFromConsent,
@@ -85,6 +86,15 @@ export default function BringThemIn({ trip, onDone }) {
 
   useEffect(() => () => { alive.current = false }, [])
 
+  // Which import this watcher has already announced as finished — across
+  // remounts, not just within one. See alreadyTold: onDone is a fresh
+  // function on every render at one of this component's call sites, which
+  // sits in this effect's own dependency array below, which means the
+  // effect itself remounts on every render. A plain "have I already told
+  // anybody" flag reset by that remount would just watch itself fail; a ref
+  // is the one thing here that survives it.
+  const toldAbout = useRef(null)
+
   // Watching, rather than doing. The work is happening on the server whether
   // or not this screen is open — which is the whole reason it is a queue —
   // so closing the app mid-import loses the progress bar and nothing else.
@@ -107,8 +117,12 @@ export default function BringThemIn({ trip, onDone }) {
           onDone?.(p)
         }
         if (p.finished) {
-          track('photos_imported', { done: p.done, skipped: p.skipped, failed: p.failed })
-          onDone?.(p)
+          // Told once per import, not once per remount of this effect.
+          if (!alreadyTold(importId, toldAbout.current)) {
+            toldAbout.current = importId
+            track('photos_imported', { done: p.done, skipped: p.skipped, failed: p.failed })
+            onDone?.(p)
+          }
           return
         }
       } catch {
