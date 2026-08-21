@@ -36,7 +36,7 @@ test('and a page of only past trips has no hero at all', () => {
   assert.equal(frontOfMind([], TODAY), null)
 })
 
-test('an example steps aside the moment one trip is yours', () => {
+test('an example never becomes the hero, trip alongside it or not', () => {
   // The Lisbon example is held permanently five days out by a cron. Left in
   // the running it would be the biggest thing on somebody's own home screen
   // for ever, counting down to a holiday that is not theirs.
@@ -45,14 +45,14 @@ test('an example steps aside the moment one trip is yours', () => {
   assert.equal(frontOfMind([demo, PAST], TODAY), null)
 })
 
-test('but it is the hero while it is the only thing there', () => {
-  // Excluding it outright made the hero unreachable by the people who most
-  // need something to look at: a cold visitor, whose whole app is the
-  // examples, saw no hero at all on the screen built to show what this is
-  // for. Same rule demoVisibility.showDemo already draws.
+test('not even while it is the only thing there', () => {
+  // Tried the other way once: the example was allowed to be the hero while
+  // nothing real existed, on the theory that a cold visitor otherwise saw no
+  // hero at all. In practice that sold a stranger's holiday as the biggest
+  // thing on the page to exactly the person who has added nothing of their
+  // own — the hero slot is the way in for them, not somebody else's trip.
   const live = trip({ slug: 'demo-thailand-now', start_date: '2026-08-13', end_date: '2026-08-22', is_demo: true })
-  assert.equal(frontOfMind([live], TODAY).trip.slug, 'demo-thailand-now')
-  assert.equal(heroWhen(frontOfMind([live], TODAY), TODAY), 'Day 6 of 10')
+  assert.equal(frontOfMind([live], TODAY), null)
 })
 
 test('two trips running at once: the one that ends first', () => {

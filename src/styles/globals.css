@@ -13582,6 +13582,31 @@ button.ios-sheet-grip:active { cursor: grabbing; }
    countdown takes the accent rather than the plain white. */
 .wt-front--soon .wt-front-when { color: var(--accent-on-dark, #f0d68a); }
 
+/* The way in, at hero size — shown instead of a photograph while nothing on
+   the globe is yours (see frontOfMind.js: an example is never this slot's
+   trip). Same illustration as the small card in the strip, filling the
+   hero the way .wt-front-img fills it for a real trip. */
+.wt-front-add-cover {
+  position: absolute;
+  inset: 0;
+}
+.wt-front-add-cover svg { width: 100%; height: 100%; display: block; }
+/* Sized and placed for the hero rather than the 78px-tall card — the small
+   card's own left:11px/bottom:5px/width:30px put the duck in a corner too
+   small to read at this size. */
+.wt-front-add-cover .wt-add-duck {
+  position: absolute;
+  left: 16px;
+  bottom: 8px;
+  width: 44px;
+  height: auto;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.18));
+  animation: intro-bob 3.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wt-front-add-cover .wt-add-duck { animation: none }
+}
+
 /* ── Opening a photograph ─────────────────────────────────────────────────
  *
  * A portal to document.body, so the backdrop is not trapped inside the
