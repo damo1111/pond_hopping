@@ -612,6 +612,33 @@ export function asProgress(row) {
 }
 
 /**
+ * Whether a finished import is one this watcher has already told anybody
+ * about.
+ *
+ * The poller's own guard against announcing twice is `if (p.finished)
+ * return` — one path in, and it stops itself. What it cannot guard against
+ * is a *new* poller starting from scratch on an import that finished a
+ * while ago: `onDone` recreated with a new identity every render, followed
+ * on its next tick by "checking with Google…" repeating, is exactly that —
+ * a second watcher, mounted where the first one already was.
+ *
+ * Reported live: the button that triggers this reads `onDone={() =>
+ * setReload(r => r + 1)}`, a fresh function on every render. That function
+ * sits in the polling effect's dependency array, so the effect tears down
+ * and remounts on every render — and the callback it calls is the same one
+ * that caused the render. Finished, tell, setReload, render, remount,
+ * finished, tell… two hundred and twenty-four times in forty-seven seconds
+ * on one real import, which was reported as the app hanging before the next
+ * picker would open. It was not hanging; it was doing this instead.
+ *
+ * @param importId    the run being watched
+ * @param reportedFor the run this watcher already told somebody about
+ */
+export function alreadyTold(importId, reportedFor) {
+  return importId != null && importId === reportedFor
+}
+
+/**
  * What to say about it, in a sentence.
  *
  * The old version listed counters — "1 in · 0 already here" — which is a
