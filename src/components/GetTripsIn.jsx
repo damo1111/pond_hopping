@@ -191,7 +191,7 @@ export default function GetTripsIn({ onClose, onCreated, mcpUrl, openAt = null }
             one whose name doesn't say what it does — and it is the one that
             can bring back years in a single go. */}
         <div className="gti-rest gti-in" style={{ '--in': 3 }}>
-          <button className="gti-quiet" onClick={() => copy('inbox', INBOX)}>
+          <button className="gti-quiet" onClick={gate('inbox', () => copy('inbox', INBOX))}>
             <span className="gti-quiet-name">Forward a booking</span>
             <span className="gti-quiet-hint">{copied === 'inbox' ? 'Copied' : INBOX}</span>
           </button>
