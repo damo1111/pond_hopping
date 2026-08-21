@@ -269,7 +269,7 @@ function InviteForm({ onInvited }) {
         </div>
         <div className="invite-message">{message(invited)}</div>
         <button className={`account-btn${emailed ? ' ghost' : ''}`} onClick={share}>
-          {copied ? 'Copied' : emailed ? 'Send it anyway' : 'Share this'}
+          {copied ? 'Copied' : emailed ? 'Share this' : 'Send it anyway'}
         </button>
         <button className="account-btn ghost" onClick={() => setInvited(null)}>
           Add someone else
@@ -846,9 +846,17 @@ function SomethingWrongCard() {
   )
 }
 
+// Admin only. Replaying the cold open is for whoever is checking it still
+// lands right, not something a hopper has a reason to reach for.
 function OpeningCard() {
   const { replayColdOpen } = useContext(TripContext)
-  if (!replayColdOpen) return null
+  const [admin, setAdmin] = useState(false)
+
+  useEffect(() => {
+    supabase.rpc('is_admin').then(({ data }) => setAdmin(data === true))
+  }, [])
+
+  if (!replayColdOpen || !admin) return null
   return (
     <div className="account-card">
       <div className="account-card-title">The opening</div>
@@ -870,17 +878,22 @@ function OpeningCard() {
 function DemoCard() {
   const { allTrips, demoPref, setDemoPref } = useContext(TripContext)
   const trips = allTrips ?? []
-  if (!trips.some((t) => t.is_demo)) return null
+  const examples = trips.filter((t) => t.is_demo)
+  if (!examples.length) return null
 
   const real = ownTrips(trips).length
   const on = demoPref === 'show' || (demoPref === 'auto' && real === 0)
+  const plural = examples.length > 1
+  const names = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' }).format(
+    examples.map((t) => t.title)
+  )
 
   return (
     <div className="account-card">
-      <div className="account-card-title">The example trip</div>
+      <div className="account-card-title">The example trip{plural ? 's' : ''}</div>
       <div className="account-card-body">
-        Hong Kong &amp; South Korea is a real log left here so the app has something to show before
-        you've added anything. It isn't yours, and it can't be edited.
+        {names} {plural ? 'are real logs' : 'is a real log'} left here so the app has something to
+        show before you've added anything. {plural ? "They aren't yours, and they can't" : "It isn't yours, and it can't"} be edited.
       </div>
 
       <button
@@ -980,11 +993,16 @@ function OriginalsCard() {
 // question put to an API, and the answer printed.
 function FlightSourceCard() {
   const { user } = useAuth()
+  const [admin, setAdmin] = useState(false)
   // Which source is being asked, rather than merely whether one is.
   const [busy, setBusy] = useState(null)
   const [said, setSaid] = useState(null)
   const [filling, setFilling] = useState(false)
   const [progress, setProgress] = useState(null)
+
+  useEffect(() => {
+    supabase.rpc('is_admin').then(({ data }) => setAdmin(data === true))
+  }, [])
 
   /** Every flight the source can see, one at a time, once ever. */
   async function fill() {
@@ -1109,7 +1127,7 @@ function FlightSourceCard() {
     }
   }
 
-  if (!user) return null
+  if (!user || !admin) return null
 
   return (
     <div className="account-card">

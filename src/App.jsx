@@ -813,12 +813,12 @@ export default function App() {
           <TripPicker tripMeta={shownTrips} selectedTrip={selectedTrip} setSelectedTrip={setSelectedTrip} />
         ) : null}
 
-        {/* On Account too, which it used to hide. Account is reached from the
-            duck rather than from this row, so nothing in the row lights up —
-            but a screen with no visible way off it is worse than a row with
-            nothing selected, and "what is actually in here" should be
-            answerable by looking. */}
-        {activeTab === 'useful' && (
+        {/* Not on Account. It's reached from the duck rather than from this
+            row, so nothing in it would ever light up, and it read as four
+            unrelated shortcuts sitting above your own settings. The bottom
+            nav is the way off — tapping Useful already lands back on Costs
+            rather than trapping you on Account (see the reset below). */}
+        {activeTab === 'useful' && usefulTab !== 'account' && (
           <nav className="subnav">
             {USEFUL_TABS.map((tab) => (
               <button
@@ -833,7 +833,9 @@ export default function App() {
           </nav>
         )}
 
-        <main className={`tab-panel${activeTab === 'world' || activeTab === 'map' ? ' full' : ''}`}>
+        <main
+          className={`tab-panel${activeTab === 'world' || activeTab === 'map' ? ' full' : ''}${activeTab === 'plan' ? ' plan' : ''}`}
+        >
           {/* "supabase: TypeError: Failed to fetch" tells the reader nothing
               they can act on, and there was no way to try again short of
               killing the app. */}

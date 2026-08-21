@@ -809,24 +809,24 @@ button {
   padding-bottom: calc(86px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
 }
 
-/* Bottom-anchored, not centred.
-   A short deck — signed out, nothing planned yet — used to sit in the
-   middle of the tab with roughly equal ground above and below it, which
+/* Bottom-anchored, not centred — Plan only.
+   A short deck on Plan — signed out, nothing planned yet — used to sit in
+   the middle of the tab with roughly equal ground above and below it, which
    read as an accident rather than a choice. Pushing it to the end means the
    ground is what you see first, above the card, and the card's own bottom
    sits close to the nav rather than floating in the middle of the screen.
 
-   Excluded on .full (Home, the map): those tabs are the ground themselves —
-   see .tab-panel.full .deck's display:contents — and flexing their content
-   to the bottom would fight the absolutely-positioned layouts WorldTab has
-   already spent days tuning.
+   Scoped to .plan rather than every non-.full tab: applied broadly it also
+   bottom-anchored Account, Currency, Costs and the rest, which nobody asked
+   for and which read as extra empty space above a short settings screen
+   instead of the top-anchored list a settings screen should be.
 
    overflow-y: auto plus justify-content: flex-end resolves to "safe"
    end-alignment in every engine this ships to — a deck taller than the tab
    still starts at its own top and scrolls normally; nothing is pushed off
    the scrollable start the way an unsafe flex-end would. Measured both
    ways before shipping rather than assumed. */
-.tab-panel:not(.full) {
+.tab-panel.plan {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -12827,7 +12827,10 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .swb-veil {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  /* Above .bottomnav (9000) and every other floating chrome — this sheet is
+     reachable from Account, where the bottom nav sits in the same stacking
+     context and, at the old z-index of 90, drew over the send button. */
+  z-index: 100000;
   display: flex;
   align-items: flex-end;
   justify-content: center;
