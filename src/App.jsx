@@ -22,7 +22,7 @@ import BootScreen from './components/BootScreen.jsx'
 import { COLD_OPEN_MS } from './lib/coldOpen.js'
 import { comingBackTo } from './lib/photoImport.js'
 import DayLookBack from './components/DayLookBack.jsx'
-import { ONCE, bringOldFlagsOver, forget, markSeen, nextUp } from './lib/firstRun.js'
+import { ONCE, bringOldFlagsOver, forceFirstRun, forget, markSeen, nextUp } from './lib/firstRun.js'
 import { readPreference, visibleTrips, writePreference } from './lib/demoVisibility.js'
 import { tripColor } from './lib/tripColors.js'
 import { busy, whenIdle } from './lib/busy.js'
@@ -170,6 +170,9 @@ export default function App() {
   // eight seconds, which is what four uncoordinated flags used to do.
   const [owed, setOwed] = useState(() => {
     bringOldFlagsOver()
+    // `?first=opening|tour|all|none` — before nextUp(), because it decides
+    // what nextUp() has left to answer. See firstRun.js.
+    forceFirstRun()
     return nextUp()
   })
   // Fixed for the life of this launch rather than read live.

@@ -18,6 +18,7 @@ import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
 import { sectionTrips } from '../lib/tripPhase.js'
 import { overviewOf, homeCoords } from '../lib/homePov.js'
 import { shouldBadge, ownTrips } from '../lib/demoTour.js'
+import { ONCE, forcing } from '../lib/firstRun.js'
 import { pickVariant } from '../lib/variants.js'
 import { oops, track, whoAmI } from '../lib/analytics.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
@@ -191,6 +192,7 @@ export default function WorldTab() {
   // shows a trip at all or the way in instead; see frontOfMind.js for why
   // an example is never the trip in that slot.
   const nothingReal = useMemo(() => ownTrips(tripMeta).length === 0, [tripMeta])
+  const forcedTour = useMemo(() => forcing().has(ONCE.demo_tour), [])
 
   // Promoted out of the strip, not copied above it.
   //
@@ -992,7 +994,11 @@ export default function WorldTab() {
         <EmptyHome onPlan={() => goToTab('plan')} onGetIn={() => setRoutesOpen(true)} />
       ) : (
         <div className="world-bottom">
-          <DemoTour active={nothingReal && !booting} />
+          {/* Normally only while there is nothing of yours to point at
+              instead. `?first=tour` overrides that, because the case worth
+              checking is what a stranger sees, and the person checking it
+              always has trips. See firstRun.js. */}
+          <DemoTour active={(nothingReal || forcedTour) && !booting} />
           {/* The present, at the size of the present.
               Above the strip rather than in it, because the strip is a
               horizontal list and a list has no way to say that one of its
