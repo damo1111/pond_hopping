@@ -5,16 +5,15 @@ import {
   LEGS,
   JOURNEY_FROM,
   JOURNEY_MS,
-  MARKS,
   MERIDIANS,
   PILE,
   SPOKES,
   TARGETS,
   TURN_MS,
   arcUp,
+  droppings,
   duckFrames,
   regrow,
-  trails,
 } from '../lib/coldOpen.js'
 
 // What somebody sees in the first ten seconds, once, ever.
@@ -60,35 +59,41 @@ import {
 const TINTS = { a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7 }
 
 /**
- * The three things a pin turns out to be holding, drawn rather than lettered.
+ * What he leaves behind him, drawn rather than lettered.
  *
- * Deliberately not emoji: this plays before a font can be relied on, and an
+ * Deliberately not emoji: this plays before a font can be relied on and an
  * emoji is a font — the same reason the old opening drew its flags by hand.
- * Each sits on a disc of page colour so the routes behind do not run through
- * it, which at fourteen pixels is the difference between a mark and a mess.
+ * Small, because these are footsteps: fifteen of them cross the globe, and at
+ * badge size that is not a trail, it is a rash.
  */
-function Mark({ kind }) {
+function Dropped({ kind }) {
   if (kind === 'photo')
+    // Solid with the picture knocked out of it, rather than an outlined box
+    // with a line inside. Outlined, at nine pixels, it was indistinguishable
+    // from the envelope two legs later — checked side by side, and they were
+    // the same mark twice. Solid also rhymes with the heap of photographs this
+    // opened on, which is what they are.
     return (
       <>
-        <rect className="co-mark-box" x="-7" y="-5.5" width="14" height="11" rx="2" />
-        <circle className="co-mark-fill" cx="-3.2" cy="-2" r="1.3" />
-        <path className="co-mark-line" d="M-7 3.2 L-2.2 -1.4 L1.6 2 L4.2 -0.2 L7 2.4" />
+        <rect className="co-drop-solid" x="-4.6" y="-3.6" width="9.2" height="7.2" rx="1.4" />
+        <circle className="co-drop-knock" cx="-2.1" cy="-1.3" r="1" />
+        <path className="co-drop-knock" d="M-4.6 3.6 L-1.2 0 L1.6 2.2 L3 1 L4.6 3.6 Z" />
       </>
     )
-  if (kind === 'walk')
+  if (kind === 'step')
+    // One foot, not a pair — he is leaving them one at a time, and the caller
+    // alternates which side each lands on.
     return (
       <>
-        <ellipse className="co-mark-fill" cx="-5.4" cy="3.4" rx="1.5" ry="2.3" transform="rotate(-22 -5.4 3.4)" />
-        <ellipse className="co-mark-fill" cx="-0.6" cy="0.2" rx="1.5" ry="2.3" transform="rotate(-14 -0.6 0.2)" />
-        <ellipse className="co-mark-fill" cx="4.2" cy="-2.8" rx="1.5" ry="2.3" transform="rotate(-6 4.2 -2.8)" />
+        <ellipse className="co-drop-fill" cx="0" cy="0.6" rx="2" ry="3.1" />
+        <ellipse className="co-drop-fill" cx="0.4" cy="-3.6" rx="1.4" ry="1.1" />
       </>
     )
-  // stay — a roof over four walls, which reads at this size where a bed does not
+  // mail — a booking sitting in an inbox
   return (
     <>
-      <path className="co-mark-line" d="M-7 -0.6 L0 -6.2 L7 -0.6" />
-      <rect className="co-mark-box" x="-4.6" y="-0.6" width="9.2" height="6.8" rx="1" />
+      <rect className="co-drop-box" x="-4.8" y="-3.4" width="9.6" height="6.8" rx="1.2" />
+      <path className="co-drop-line" d="M-4.8 -2.6 L0 0.8 L4.8 -2.6" />
     </>
   )
 }
@@ -152,6 +157,7 @@ export default function ColdOpen({ leaving, onSkip }) {
   }, [])
 
   const legs = useMemo(() => LEGS.map(([a, b]) => arcUp(a, b)), [])
+  const drops = useMemo(() => droppings(), [])
   const pins = useMemo(() => [[HUB, 3.6], ...SPOKES.map((s) => [s, 2.8])], [])
   const chips = useMemo(
     () =>
@@ -223,37 +229,17 @@ export default function ColdOpen({ leaving, onSkip }) {
               ))}
             </g>
 
-            {/* Where he has been. Dotted, like a planned route everywhere else
-                in the app, and drawn as he flies each leg rather than laid out
-                in front of him. */}
+            {/* What he leaves behind him — see droppings(). Each one lands as
+                he passes it, so the trail writes itself under the words that
+                name it rather than arriving as three finished badges. */}
             <g>
-              {trails().map((t, i) => (
-                <path
-                  key={t.d}
-                  className="co-trail"
-                  pathLength="1"
-                  d={t.d}
-                  style={{ '--d': `${t.leave}ms`, '--dur': `${t.arrive - t.leave}ms` }}
-                />
-              ))}
-            </g>
-
-            {/* What each pin was holding all along, arriving as the duck does
-                and as the line that names it is said — see MARKS and JOURNEY. */}
-            <g>
-              {/* Two groups, not one: a CSS transform beats a transform
-                  attribute on the same element, so an animated mark would
-                  animate from wherever the keyframes said and forget its
-                  position entirely — all three piled up at 0,0. The outer
-                  group holds where it is, the inner one holds what it does. */}
-              {MARKS.map((m) => (
-                // Seventeen above the pin, because the duck lands *on* the pin
-                // and is drawn over everything — sat right on it, each mark was
-                // completely hidden by the bird that had just gone to find it.
-                <g key={m.kind} transform={`translate(${m.at[0]} ${m.at[1] - 17})`}>
-                  <g className="co-mark-at" style={{ '--d': `${m.from}ms` }}>
-                    <circle className="co-mark-disc" r="10.5" />
-                    <Mark kind={m.kind} />
+              {drops.map((d, i) => (
+                <g key={`${d.kind}-${i}`} transform={`translate(${d.at[0]} ${d.at[1]})`}>
+                  <g
+                    className="co-drop"
+                    style={{ '--d': `${d.when}ms`, '--tilt': `${d.flip ? 13 : -11}deg` }}
+                  >
+                    <Dropped kind={d.kind} />
                   </g>
                 </g>
               ))}
@@ -292,11 +278,14 @@ export default function ColdOpen({ leaving, onSkip }) {
 
         <div className="co-rest">
           <span className="co-stem">and it all starts with</span>
+          {/* Each leaves 250ms before the next arrives. Fading one out as the
+              other faded in put both at full strength for a third of a second,
+              which reads as a double exposure rather than a change of line. */}
           <span className="co-swaps">
-            <span className="co-swap" style={{ '--in': '3700ms', '--out': '5200ms' }}>
+            <span className="co-swap" style={{ '--in': '3700ms', '--out': '4950ms' }}>
               a photo you already have
             </span>
-            <span className="co-swap" style={{ '--in': '5200ms', '--out': '6700ms' }}>
+            <span className="co-swap" style={{ '--in': '5200ms', '--out': '6450ms' }}>
               a walk your phone remembers
             </span>
             <span className="co-swap co-swap--last" style={{ '--in': '6700ms' }}>

@@ -70,33 +70,67 @@ export const SPOKES = [
  * They accumulate rather than replacing one another. By the last frame the
  * globe is holding all three at once, which is the actual claim.
  */
-export const MARKS = [
-  { kind: 'photo', at: SPOKES[1], from: 4250 },
-  { kind: 'walk', at: SPOKES[4], from: 5750 },
-  { kind: 'stay', at: SPOKES[2], from: 7250 },
-]
+export const BOW_WALK = 0.18
 
 /**
- * Where the duck goes, and when.
+ * Where he walks, and what he drops behind him while he does.
  *
- * He does not land and then sit there. Each line of the sentence names a thing,
- * and he goes and finds it — arriving at the photograph as "a photo you already
- * have" is said, at the footprints on "a walk your phone remembers", at the roof
- * on "a booking in your inbox". The mark pops as he arrives, so it reads as him
- * turning something up rather than as an icon fading in beside him.
+ * This is the whole idea, and the version before it missed it: the marks used
+ * to arrive as three finished icons on three pins with a dotted line joining
+ * them. What was asked for is that his footsteps *are* the thing the words are
+ * naming — so while the line reads "a photo you already have" he leaves
+ * photographs behind him, footprints while it reads "a walk your phone
+ * remembers", envelopes while it reads "a booking in your inbox".
  *
- * Arriving just after each line rather than on it is deliberate: the word first,
- * then the thing. The other way round and the picture spoils its own caption.
- *
- * It also fixes the hole this all started from — the drawing used to finish at
- * 4.0s and hold still until the swell at 8.1s, four seconds of nothing moving
- * under text that was still talking.
+ * By the last frame his path across the globe is made of the three things the
+ * app is built out of, in the order they were claimed, and nothing is said
+ * twice. One leg per line, each lasting exactly as long as its line is on
+ * screen — so he is moving the entire time there are words, which is the four
+ * seconds of held-still picture this all started from.
  */
+export const WALK = [
+  { kind: 'photo', to: SPOKES[1], from: 3700, until: 5200 },
+  { kind: 'step', to: SPOKES[4], from: 5200, until: 6700 },
+  { kind: 'mail', to: SPOKES[2], from: 6700, until: 8100 },
+]
+
+/** How many he leaves on each leg. Five reads as a trail; ten reads as litter. */
+export const PER_LEG = 5
+
+/**
+ * Every mark he drops, with where and when.
+ *
+ * Sampled off the same curve duckFrames() walks, so a mark cannot land beside
+ * the path instead of on it — which is exactly what happens the moment these
+ * two are worked out separately.
+ */
+export function droppings(start = SPOKES[3], legs = WALK, per = PER_LEG) {
+  let here = start
+  const out = []
+  legs.forEach((leg) => {
+    const pts = samplePath(here, leg.to, BOW_WALK, per)
+    pts.slice(1).forEach((at, i) => {
+      out.push({
+        kind: leg.kind,
+        at,
+        when: Math.round(leg.from + ((leg.until - leg.from) * (i + 1)) / per),
+        // Left, right, left. Only the footprints read as a pair of feet, but
+        // the alternation stops the photographs and envelopes looking stamped.
+        flip: i % 2 === 1,
+      })
+    })
+    here = leg.to
+  })
+  return out
+}
+
+// He never stops. The version before this hopped in 500ms bursts with a second
+// of standing about between them, which read as a bird on speed.
 export const JOURNEY = [
-  { to: SPOKES[3], arrive: 3600 }, // the long hop, flown
-  { to: SPOKES[1], leave: 3800, arrive: 4300 },
-  { to: SPOKES[4], leave: 5300, arrive: 5800 },
-  { to: SPOKES[2], leave: 6800, arrive: 7300 },
+  { to: SPOKES[3], arrive: 3700 }, // the long hop, flown
+  { to: SPOKES[1], leave: 3700, arrive: 5200 },
+  { to: SPOKES[4], leave: 5200, arrive: 6700 },
+  { to: SPOKES[2], leave: 6700, arrive: 8100 },
 ]
 
 /** When he sets off, and how long the whole journey lasts. */
@@ -122,7 +156,7 @@ export function duckFrames(from = LONG_HOP[0], journey = JOURNEY, start = JOURNE
     // Standing still counts: without a frame at the moment he sets off, the
     // browser interpolates the whole pause into a slow drift.
     if (leaves > clock) frames.push({ offset: at(clock), transform: xy(here) })
-    const pts = samplePath(here, leg.to, i === 0 ? 0.24 : 0.34, 6)
+    const pts = samplePath(here, leg.to, i === 0 ? 0.24 : BOW_WALK, 8)
     pts.forEach((pt, j) => {
       frames.push({
         offset: at(leaves + ((leg.arrive - leaves) * j) / (pts.length - 1)),
@@ -151,16 +185,6 @@ function dedupe(frames) {
     out.push(f)
   }
   return out
-}
-
-/** Each hop as a path, so a dotted trail can be drawn along it behind him. */
-export function trails(from = LONG_HOP[0], journey = JOURNEY) {
-  let here = from
-  return journey.map((leg, i) => {
-    const d = arcUp(here, leg.to, i === 0 ? 0.24 : 0.34)
-    here = leg.to
-    return { d, leave: leg.leave ?? 0, arrive: leg.arrive }
-  })
 }
 
 /**

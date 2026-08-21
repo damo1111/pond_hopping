@@ -13885,20 +13885,26 @@ button.ios-sheet-grip:active { cursor: grabbing; }
    screen simply does not move. */
 .co-duck { transform: translate(197px, 99px); }
 
-/* His trail: dotted, like a planned route everywhere else in the app, and drawn
-   leg by leg as he flies each one rather than laid out in front of him. */
-.co-trail {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 1.4;
-  stroke-linecap: round;
-  opacity: 0.34;
-  stroke-dasharray: 0.014 0.02;
-  stroke-dashoffset: 0;
-  clip-path: inset(0 100% 0 0);
-  animation: co-trail var(--dur) linear var(--d) forwards;
+/* ── What he leaves behind ──
+   Fifteen small marks, each landing as he passes it. Two nested groups again:
+   the outer one holds where it is, the inner one what it does, because a CSS
+   transform beats a transform attribute on the same element and they would
+   otherwise all animate from the top-left corner. */
+.co-drop {
+  opacity: 0;
+  animation: co-drop 420ms cubic-bezier(0.3, 1.3, 0.5, 1) var(--d) forwards;
 }
-@keyframes co-trail { to { clip-path: inset(0 0 0 0) } }
+@keyframes co-drop {
+  0%   { opacity: 0; transform: rotate(var(--tilt)) scale(0.4) }
+  100% { opacity: 0.9; transform: rotate(var(--tilt)) scale(1) }
+}
+.co-drop-box,
+.co-drop-line { fill: none; stroke: var(--accent); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+.co-drop-fill,
+.co-drop-solid { fill: var(--accent); }
+/* Knocked out of the solid mark in the page colour, so a photograph reads as a
+   photograph at nine pixels instead of as a small box. */
+.co-drop-knock { fill: var(--bg); }
 
 /* ── The turn ──
    A meridian at longitude θ projects to an ellipse of width r·|cos θ|, so
@@ -13927,30 +13933,6 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   animation: co-wire-in 900ms ease-out 500ms forwards,
              co-turn 10s linear var(--phase) infinite;
 }
-
-/* ── What the pins were holding ──
-   Each pops onto the globe as the line that names it is said. The disc is page
-   colour so the routes underneath do not run through the mark. */
-.co-mark-at { opacity: 0; animation: co-pop-mark 520ms cubic-bezier(0.3, 1.35, 0.5, 1) var(--d) forwards; }
-@keyframes co-pop-mark {
-  0%   { opacity: 0; transform: translateY(-7px) scale(0.5) }
-  60%  { opacity: 1 }
-  100% { opacity: 1; transform: translateY(0) scale(1) }
-}
-.co-mark-disc { fill: var(--bg); }
-.co-mark-box,
-.co-mark-line { fill: none; stroke: var(--accent); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
-.co-mark-fill { fill: var(--accent); }
-
-/* The globe takes the frame at the end, growing into the space the sentence
-   vacates. translate-then-scale rather than transform-origin, because older
-   WebViews get transform-box wrong on SVG groups and both wrappers are
-   WebViews — see swellTo(), which is where these two numbers come from. */
-@keyframes co-swell {
-  from { transform: translate(0, 0) scale(1) }
-  to   { transform: translate(-45px, -41.4px) scale(1.3) }
-}
-.co-globe { animation: co-swell 1500ms cubic-bezier(0.22, 1, 0.36, 1) 8100ms forwards; }
 
 /* ── The heap ── */
 .co-chip {
@@ -14085,7 +14067,8 @@ button.ios-sheet-grip:active { cursor: grabbing; }
    still gets the whole argument — they just get it without the choreography. */
 @media (prefers-reduced-motion: reduce) {
   .co-wire, .co-arc { stroke-dashoffset: 0; animation: none; }
-  .co-pin, .co-duck, .co-open, .co-rest, .co-mark, .co-globe, .co-mark-at { animation: none; opacity: 1; transform: none; }
+  .co-pin, .co-duck, .co-open, .co-rest, .co-mark, .co-globe { animation: none; opacity: 1; transform: none; }
+  .co-drop { animation: none; opacity: 0.9; transform: rotate(var(--tilt)); }
   .co-meridian { animation: none; opacity: 0.42; }
 
   .co-pin { transform: scale(1); }

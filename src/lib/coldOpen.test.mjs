@@ -1,6 +1,20 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { GLOBE, LEGS, PILE, TARGETS, arcUp, regrow, samplePath, swellTo } from './coldOpen.js'
+import {
+  GLOBE,
+  JOURNEY,
+  LEGS,
+  PER_LEG,
+  PILE,
+  TARGETS,
+  WALK,
+  arcUp,
+  droppings,
+  duckFrames,
+  regrow,
+  samplePath,
+  swellTo,
+} from './coldOpen.js'
 
 // The control point of `M a Q c b` — the whole thing this file exists to get right.
 const control = (d) => d.match(/Q([\d.-]+) ([\d.-]+)/).slice(1, 3).map(Number)
@@ -75,4 +89,51 @@ test('the swell keeps the globe centred while it grows', () => {
 
 test('and a swell of 1 moves nothing at all', () => {
   assert.deepEqual(swellTo(1), { x: 0, y: 0, scale: 1 })
+})
+
+test('he drops one kind of thing per line, in the order they are said', () => {
+  const kinds = droppings().map((d) => d.kind)
+  assert.deepEqual(
+    [...new Set(kinds)],
+    WALK.map((w) => w.kind),
+    'the trail must follow the sentence, not some other order'
+  )
+  assert.equal(kinds.length, WALK.length * PER_LEG)
+})
+
+test('and every one of them lands while its own line is on screen', () => {
+  // The whole point: the footsteps are the thing the words are naming. A mark
+  // arriving after its line has gone is illustrating the wrong sentence.
+  const byKind = Object.fromEntries(WALK.map((w) => [w.kind, w]))
+  for (const d of droppings()) {
+    const leg = byKind[d.kind]
+    assert.ok(d.when > leg.from && d.when <= leg.until, `${d.kind} at ${d.when} is outside its line`)
+  }
+})
+
+test('the marks sit on the path the duck actually walks', () => {
+  // Worked out separately these drift apart and the trail runs beside the bird
+  // instead of behind it. Both come off samplePath with the same bow.
+  const drops = droppings()
+  const last = drops[drops.length - 1]
+  assert.deepEqual(last.at, JOURNEY[JOURNEY.length - 1].to)
+})
+
+test('the duck never stands still while there are words on screen', () => {
+  // The fault this replaced: 500ms hops with a second of nothing between them,
+  // which read as a bird on speed and left the picture dead for four seconds.
+  JOURNEY.slice(1).forEach((leg, i) => {
+    assert.equal(leg.leave, JOURNEY[i].arrive, 'a gap opened up between two legs')
+    assert.ok(leg.arrive - leg.leave >= 1200, 'that leg is too quick to read')
+  })
+})
+
+test('his keyframes stay in order and end where the journey does', () => {
+  const frames = duckFrames()
+  frames.forEach((f, i) => {
+    if (i) assert.ok(f.offset >= frames[i - 1].offset, 'offsets went backwards')
+    assert.ok(f.offset >= 0 && f.offset <= 1)
+  })
+  const [x, y] = JOURNEY[JOURNEY.length - 1].to
+  assert.equal(frames[frames.length - 1].transform, `translate(${x}px, ${y}px)`)
 })
