@@ -134,6 +134,7 @@ export default function WorldTab() {
     refreshTrips,
     jumpToJournal,
     openPlanner,
+    booting,
   } = useContext(TripContext)
   // The one thing worth opening the app for when nothing is planned.
   const [memory, setMemory] = useState(null)
@@ -991,7 +992,7 @@ export default function WorldTab() {
         <EmptyHome onPlan={() => goToTab('plan')} onGetIn={() => setRoutesOpen(true)} />
       ) : (
         <div className="world-bottom">
-          <DemoTour active={nothingReal} />
+          <DemoTour active={nothingReal && !booting} />
           {/* The present, at the size of the present.
               Above the strip rather than in it, because the strip is a
               horizontal list and a list has no way to say that one of its

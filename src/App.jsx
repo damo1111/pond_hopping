@@ -621,6 +621,13 @@ export default function App() {
     () => ({
       tripMeta: shownTrips,
       allTrips: tripMeta,
+      // Whether the cold open is still on screen, covering everything
+      // underneath it. Home mounts and starts working the moment the app
+      // does — DemoTour used that as "go", measured a ring around the
+      // example card while the boot animation was still playing over it,
+      // and revealed the whole tour the instant the opening ended instead
+      // of the settle beat it was supposed to have.
+      booting,
       // Who is asking, for tabs to put in a dependency array. Restoring a
       // session is asynchronous, so any read fired at mount goes out before
       // the token exists and comes back answered as an anonymous request —
@@ -709,7 +716,7 @@ export default function App() {
         }
       },
     }),
-    [tripMeta, shownTrips, demoPref, tripsLoaded, selectedTrip, journalJump, plannerJump, lookBackJump, user?.id, photosChanged]
+    [tripMeta, shownTrips, demoPref, tripsLoaded, selectedTrip, journalJump, plannerJump, lookBackJump, user?.id, photosChanged, booting]
   )
 
   // Public read-only share page — no nav, no forms.

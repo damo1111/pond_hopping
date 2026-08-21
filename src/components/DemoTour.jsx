@@ -14,27 +14,31 @@ import { cardSide } from '../lib/tourPlacement.js'
 // better than any paragraph does, so this is a pointer, not a pitch.
 //
 // Runs once, on Home, only while there's nothing real to point at instead
-// (WorldTab passes `active` for that; nothingReal in frontOfMind's terms).
+// (WorldTab passes `active` for that; nothingReal in frontOfMind's terms,
+// and not before the cold open has actually finished — see the boot check
+// in that `active` expression, added after this ran the moment Home
+// mounted and revealed itself, ring and all, the instant the opening
+// ended rather than after it).
 // The moment a real trip exists none of the three things below are true any
 // more, so it isn't shown at all rather than shown wrong.
 const STEPS = [
   {
     selector: '.wt-card--demo',
     eyebrow: 'Example',
-    title: 'This is an example trip',
-    body: "A real one, left here so the globe isn't empty. Have a look round — it clears off on its own once you've added your own.",
+    title: "Someone else's pond",
+    body: "A real trip, parked here so the place isn't empty. Have a paddle round — it clears off the moment you add one of your own.",
   },
   {
     selector: '.world-trips',
     eyebrow: 'Your trips',
-    title: 'This is how your trips will look',
-    body: 'Upload photos or forward a booking and they line up here — the ones you’re going on, and the ones you’ve already taken.',
+    title: 'Where yours will line up',
+    body: 'Photos in, a booking forwarded, a Timeline export dropped in — whatever lands, it queues up here: what’s ahead of you, and what’s behind.',
   },
   {
     selector: '.wt-front--add',
     eyebrow: 'Start here',
-    title: 'This is where to start',
-    body: "Drop in photos, a Timeline export, or a booking you forward without reading. I'll work the trip out from there.",
+    title: 'Where to start',
+    body: "Drop in photos, a booking you forward without reading, or years of Google Timeline. I'll work out the trip.",
   },
 ]
 
