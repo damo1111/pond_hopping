@@ -43,22 +43,25 @@ const CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET
 const STATE_KEY = process.env.PUSH_SECRET
 
 /**
- * This deployment's own address, not a hardcoded one.
+ * This deployment's home. A fixed address, on purpose.
  *
- * It was fixed at pond.eend.app, so a preview build sent Google a
- * redirect_uri pointing at production: consent on the preview would land
- * somebody on a different site, which reads as the app having reloaded
- * itself for no reason.
+ * Was briefly read from x-forwarded-host, on the reasoning that a preview
+ * build should not send Google a redirect_uri pointing at production. That
+ * reasoning was right and the fix was wrong: Google compares redirect_uri
+ * byte-for-byte against exactly one string registered against the OAuth
+ * client, https://pond.eend.app/api/google-connect, and a header is not
+ * guaranteed to reproduce it — Vercel's own infrastructure can set
+ * x-forwarded-host to something other than the public domain depending on
+ * how a request was routed internally. The result was Error 400:
+ * redirect_uri_mismatch on production itself, which is worse than the
+ * preview problem this was meant to solve.
  *
- * Note that a preview still cannot complete the round trip — Google only
- * accepts redirect URIs registered against the OAuth client, and preview
- * URLs change with every deploy. This makes the behaviour correct and
- * legible rather than silently wrong; OAuth is tested on production.
+ * A preview still cannot complete the round trip either way — Google only
+ * accepts registered redirect URIs and preview URLs change every deploy —
+ * so there was nothing to gain from computing this. OAuth is tested on
+ * production; a fixed constant is what production is.
  */
-const homeOf = (req) => {
-  const host = req.headers['x-forwarded-host'] || req.headers.host
-  return host ? `https://${host}` : 'https://pond.eend.app'
-}
+const homeOf = () => 'https://pond.eend.app'
 
 /** Who the caller actually is, according to Supabase rather than to them. */
 async function whoIsAsking(req) {
@@ -104,7 +107,7 @@ async function keep(userId, refresh, scope) {
  * where Google's own "Done!" screen already leaves people once.
  */
 const backToApp = (req, res, how) => {
-  res.writeHead(302, { Location: `${homeOf(req)}/?google=${encodeURIComponent(how)}` })
+  res.writeHead(302, { Location: `${homeOf()}/?google=${encodeURIComponent(how)}` })
   res.end()
 }
 
@@ -150,7 +153,7 @@ export default async function handler(req, res) {
         // makes the host resolve differently on the callback — a proxy
         // header, an alias domain — turns into redirect_uri_mismatch, which
         // reads as a credentials problem and is not one.
-        redirect_uri: who.uri || `${homeOf(req)}/api/google-connect`,
+        redirect_uri: who.uri || `${homeOf()}/api/google-connect`,
       }),
     })
     const said = await r.json().catch(() => ({}))
@@ -192,7 +195,7 @@ export default async function handler(req, res) {
 
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
   url.searchParams.set('client_id', CLIENT_ID)
-  url.searchParams.set('redirect_uri', `${homeOf(req)}/api/google-connect`)
+  url.searchParams.set('redirect_uri', `${homeOf()}/api/google-connect`)
   url.searchParams.set('response_type', 'code')
   url.searchParams.set('scope', PHOTOS_SCOPE)
   // Offline and consent together are the whole point: offline asks for a
@@ -205,7 +208,7 @@ export default async function handler(req, res) {
   url.searchParams.set('include_granted_scopes', 'true')
   // The redirect_uri travels inside the signed state so the exchange can
   // send back exactly the string that was sent out.
-  url.searchParams.set('state', sealed({ uid: asking.id, uri: `${homeOf(req)}/api/google-connect` }, STATE_KEY))
+  url.searchParams.set('state', sealed({ uid: asking.id, uri: `${homeOf()}/api/google-connect` }, STATE_KEY))
 
   res.status(200).json({ url: url.toString() })
 }

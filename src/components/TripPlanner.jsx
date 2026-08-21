@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase.js'
 import { tripDays } from '../lib/planItems.js'
 import ItineraryView from './planner/ItineraryView.jsx'
@@ -124,16 +125,17 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
   // entrance a moment later, instead of the whole planner snapping into
   // existence half-built the way it used to.
   if (!trip) {
-    return (
+    return createPortal(
       <div className="tp-veil">
         <div className="tp-modal"><div className="tp-loading">loading trip…</div></div>
-      </div>
+      </div>,
+      document.body
     )
   }
 
   const showDaySwitch = tab === 'itinerary' || tab === 'overview'
 
-  return (
+  return createPortal(
     /* A modal, sized to the trip in it.
        Two wrong answers came before this one. It opened at inset: 0 — a
        full-screen takeover for a trip you were glancing at from a lane —
@@ -294,6 +296,7 @@ export default function TripPlanner({ tripId, onClose, onChanged }) {
         />
       )}
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
