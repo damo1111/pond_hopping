@@ -17,12 +17,13 @@ import { tripPhase } from '../lib/tripPhase.js'
 import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
 import { sectionTrips } from '../lib/tripPhase.js'
 import { overviewOf, homeCoords } from '../lib/homePov.js'
-import { shouldBadge } from '../lib/demoTour.js'
+import { shouldBadge, ownTrips } from '../lib/demoTour.js'
 import { pickVariant } from '../lib/variants.js'
 import { oops, track, whoAmI } from '../lib/analytics.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
+import DemoTour from '../components/DemoTour.jsx'
 import { NEW_TRIP, comingBackTo } from '../lib/photoImport.js'
-import { frontOfMind, heroWhen, tileLeads } from '../lib/frontOfMind.js'
+import { frontOfMind, heroWhen } from '../lib/frontOfMind.js'
 import { todayHere } from '../lib/whereYouAre.js'
 
 // Default framing for the "all trips" overview — centred on the
@@ -183,7 +184,12 @@ export default function WorldTab() {
     return () => clearInterval(tick)
   }, [])
   const front = useMemo(() => frontOfMind(tripMeta, today), [tripMeta, today])
-  const leads = useMemo(() => tileLeads(tripMeta), [tripMeta])
+
+  // Nothing of the visitor's own on the globe — everything there, if
+  // anything, is an example. This is what decides whether the hero slot
+  // shows a trip at all or the way in instead; see frontOfMind.js for why
+  // an example is never the trip in that slot.
+  const nothingReal = useMemo(() => ownTrips(tripMeta).length === 0, [tripMeta])
 
   // Promoted out of the strip, not copied above it.
   //
@@ -838,28 +844,7 @@ export default function WorldTab() {
             why it read as broken rather than empty. So it gets a cover
             of its own, in the same box: the globe the app is built
             around, a hop not yet taken, and the duck waiting on it. */}
-        <span className="wt-cover wt-add-cover" aria-hidden="true">
-          <svg viewBox="0 0 172 78" preserveAspectRatio="xMidYMid slice" role="img">
-            <g className="wt-add-globe" fill="none" strokeLinecap="round">
-              <circle cx="86" cy="60" r="44" />
-              <ellipse cx="86" cy="60" rx="17" ry="44" />
-              <ellipse cx="86" cy="60" rx="32" ry="44" />
-              <path d="M42 60h88M47 44h78M47 76h78" />
-            </g>
-            <path
-              className="wt-add-arc"
-              d="M36 44C56 14 116 12 138 34"
-              fill="none"
-              strokeLinecap="round"
-            />
-            <circle className="wt-add-from" cx="36" cy="44" r="3.2" />
-            <g className="wt-add-to">
-              <circle cx="139" cy="34" r="7" />
-              <path d="M139 30.2v7.6M135.2 34h7.6" strokeLinecap="round" />
-            </g>
-          </svg>
-          <img className="wt-add-duck" src="/duck.png" alt="" />
-        </span>
+        <AddIllustration className="wt-cover wt-add-cover" />
         <span className="wt-title">{tile?.title ?? 'Add a trip'}</span>
         <span className="wt-subtitle">{tile?.strap ?? "One you've taken, or one you're on"}</span>
         <span className="wt-dates">photos · email · ai</span>
@@ -1006,14 +991,19 @@ export default function WorldTab() {
         <EmptyHome onPlan={() => goToTab('plan')} onGetIn={() => setRoutesOpen(true)} />
       ) : (
         <div className="world-bottom">
+          <DemoTour active={nothingReal} />
           {/* The present, at the size of the present.
               Above the strip rather than in it, because the strip is a
               horizontal list and a list has no way to say that one of its
               rows is the reason somebody opened the app. One at a time,
               always: two of these is a dashboard, and the point is that
               there is one obvious thing. Which trip, and never an example,
-              is decided in frontOfMind.js and tested there. */}
-          {front && (
+              is decided in frontOfMind.js and tested there.
+
+              When there is nothing of yours to be that one thing, the way
+              in takes the slot instead — not a photograph of a trip you
+              didn't take at the size of the biggest thing on the page. */}
+          {front ? (
             <button
               className={`wt-front wt-front--${front.when}`}
               onClick={() => {
@@ -1029,21 +1019,32 @@ export default function WorldTab() {
                 />
               )}
               <span className="wt-front-scrim" aria-hidden="true" />
-              {/* The same sash a demo trip card wears, for the same reason:
-                  this is the biggest thing on the page and, signed out, it
-                  is somebody else's holiday. Unmarked it reads as yours. */}
-              {shouldBadge(front.trip) && <span className="wt-sash wt-sash--example">Example</span>}
               <span className="wt-front-text">
                 <span className="wt-front-when">{heroWhen(front, today)}</span>
                 <span className="wt-front-title">{front.trip.title}</span>
               </span>
             </button>
-          )}
+          ) : nothingReal ? (
+            <button
+              className="wt-front wt-front--add"
+              onClick={() => {
+                track('tile_tapped', { test: 'add_tile', variant: tile?.id, where: 'hero' })
+                setRoutesOpen(true)
+              }}
+            >
+              <AddIllustration className="wt-front-add-cover wt-add-cover" />
+              <span className="wt-front-scrim" aria-hidden="true" />
+              <span className="wt-front-text">
+                <span className="wt-front-when">Start here</span>
+                <span className="wt-front-title">{tile?.title ?? 'Add a trip'}</span>
+              </span>
+            </button>
+          ) : null}
 
           <div className="world-trips">
           {memory && <MemoryCard memory={memory} onOpen={() => jumpToJournal(memory.slug, memory.entry_date)} />}
 
-          {leads && addTile}
+          {!nothingReal && addTile}
 
           {/* Past and future used to sit in one undifferentiated row, in
               hand-curated order, distinguishable only by reading the dates
@@ -1072,12 +1073,36 @@ export default function WorldTab() {
               })}
             </div>
           ))}
-
-          {!leads && addTile}
           </div>
         </div>
       )}
     </div>
+  )
+}
+
+// The way-in tile's cover: the globe the app is built around, a hop not
+// yet taken, and the duck waiting on it. Shared between the small card in
+// the strip and the hero it takes over when there is nothing real to be
+// the hero instead — one drawing, not two copies of the same markup.
+function AddIllustration({ className }) {
+  return (
+    <span className={className} aria-hidden="true">
+      <svg viewBox="0 0 172 78" preserveAspectRatio="xMidYMid slice" role="img">
+        <g className="wt-add-globe" fill="none" strokeLinecap="round">
+          <circle cx="86" cy="60" r="44" />
+          <ellipse cx="86" cy="60" rx="17" ry="44" />
+          <ellipse cx="86" cy="60" rx="32" ry="44" />
+          <path d="M42 60h88M47 44h78M47 76h78" />
+        </g>
+        <path className="wt-add-arc" d="M36 44C56 14 116 12 138 34" fill="none" strokeLinecap="round" />
+        <circle className="wt-add-from" cx="36" cy="44" r="3.2" />
+        <g className="wt-add-to">
+          <circle cx="139" cy="34" r="7" />
+          <path d="M139 30.2v7.6M135.2 34h7.6" strokeLinecap="round" />
+        </g>
+      </svg>
+      <img className="wt-add-duck" src="/duck.png" alt="" />
+    </span>
   )
 }
 

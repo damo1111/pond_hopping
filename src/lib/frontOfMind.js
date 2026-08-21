@@ -50,25 +50,17 @@ export function daysUntil(date, today) {
  *   2. One starting within the week, nearest first.
  *   3. Nothing — and then Home is the strip, as it always was.
  *
- * The example is allowed to be the hero, but only while it is the only thing
- * there.
- *
- * Excluding it outright was the first rule and it was too blunt. It is right
- * about the case it was written for — Lisbon is held permanently five days
- * out by a cron, so on somebody's own home screen it would be the biggest
- * thing on the page for ever, counting down to a holiday that is not theirs.
- * But it also made the hero unreachable by the people who most need
- * something to look at: a cold visitor, whose entire app is the examples,
- * and who therefore saw no hero at all on the one screen built to show what
- * this is for.
- *
- * Which is exactly the distinction demoVisibility.showDemo already draws:
- * the example is there while it is the only thing there, and steps aside the
- * moment one real trip exists. Same rule, one place further in.
+ * Never the example, even while it is the only thing there. That was tried:
+ * the reasoning was that a cold visitor, whose whole app is the examples,
+ * would otherwise see no hero at all on the one screen built to show what
+ * this is for. In practice it sold a stranger's holiday as the biggest thing
+ * on the page to somebody who has not added anything of their own yet — the
+ * hero slot is where the way in belongs for them, not a photograph of a trip
+ * they didn't take. See WorldTab, which puts the add-trip tile in the hero
+ * slot whenever this returns null and nothing real is on the globe yet.
  */
 export function frontOfMind(trips = [], today) {
-  const real = ownTrips(trips).filter((t) => t?.start_date)
-  const mine = real.length ? real : (trips ?? []).filter((t) => t?.start_date)
+  const mine = ownTrips(trips).filter((t) => t?.start_date)
   const now = new Date(`${String(today).slice(0, 10)}T12:00:00Z`)
 
   const live = mine
@@ -107,16 +99,4 @@ export function heroWhen(pick, today) {
   if (end == null) return `Day ${day}`
   const total = day + end
   return total > 0 ? `Day ${day} of ${total}` : `Day ${day}`
-}
-
-/**
- * Whether the way-in tile still leads the strip.
- *
- * It should, while the only thing on the globe is somebody else's example —
- * that is a screen with nothing of yours on it and the tile is the point of
- * it. The moment there is one real trip the tile is the least interesting
- * card in the row and goes to the end, where "add another" belongs.
- */
-export function tileLeads(trips = []) {
-  return ownTrips(trips).length === 0
 }

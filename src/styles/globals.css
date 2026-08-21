@@ -194,6 +194,15 @@ button {
      absolutely-placed hero and strip, which is a layout somebody has spent
      days tuning. */
   z-index: -1;
+  /* Home's own sky, so a card floating on the ground is recognisably the
+     same ground Home stands on rather than a second, unrelated app. Home
+     paints .globe-wrap over the top of this with the identical gradient, so
+     nothing there changes; this is what every other tab stands on. Fades
+     into the page colour at the bottom exactly as Home's does, which is
+     what stops a saturated band sitting under the nav. */
+  background:
+    linear-gradient(to bottom, transparent 78%, var(--bg) 96%),
+    radial-gradient(ellipse at 50% 30%, #eaf4fb 0%, #cfe6f5 55%, #a9cfe8 100%);
   pointer-events: none;
   display: flex;
   align-items: center;
@@ -212,18 +221,24 @@ button {
 }
 
 .ground-line {
-  stroke: var(--accent-dim, #b8ae9a);
-  stroke-width: 0.5;
+  /* White, not the warm grey the boot screen uses — that vanishes against
+     blue, measured by looking at it. White meridians on sky read as the
+     same sphere Home draws, just out of frame. */
+  stroke: #fff;
+  stroke-width: 0.7;
   /* Ground, not content. If it competes with a card it has failed — the test
      is that you do not notice it until you go looking, and under a short
      card there is a lot of it to look at. */
-  opacity: 0.13;
+  opacity: 0.42;
 }
 
 /* On a dark ground the same lines need more, not less: the sphere is drawn
    in a warm grey that all but vanishes against ink. */
 @media (prefers-color-scheme: dark) {
-  .ground-line { opacity: 0.1; }
+  /* The sky is a light gradient either way — it is daylight, not a theme —
+     so the lines keep their weight rather than being dimmed for a dark UI
+     that is not behind them. */
+  .ground-line { opacity: 0.38; }
 }
 
 
@@ -792,6 +807,29 @@ button {
   overflow-y: auto;
   /* clear the floating bottom nav */
   padding-bottom: calc(86px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
+}
+
+/* Bottom-anchored, not centred — Plan only.
+   A short deck on Plan — signed out, nothing planned yet — used to sit in
+   the middle of the tab with roughly equal ground above and below it, which
+   read as an accident rather than a choice. Pushing it to the end means the
+   ground is what you see first, above the card, and the card's own bottom
+   sits close to the nav rather than floating in the middle of the screen.
+
+   Scoped to .plan rather than every non-.full tab: applied broadly it also
+   bottom-anchored Account, Currency, Costs and the rest, which nobody asked
+   for and which read as extra empty space above a short settings screen
+   instead of the top-anchored list a settings screen should be.
+
+   overflow-y: auto plus justify-content: flex-end resolves to "safe"
+   end-alignment in every engine this ships to — a deck taller than the tab
+   still starts at its own top and scrolls normally; nothing is pushed off
+   the scrollable start the way an unsafe flex-end would. Measured both
+   ways before shipping rather than assumed. */
+.tab-panel.plan {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 /* ── Bottom nav: floating glass capsule, not an edge-to-edge bar ── */
@@ -12789,7 +12827,10 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 .swb-veil {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  /* Above .bottomnav (9000) and every other floating chrome — this sheet is
+     reachable from Account, where the bottom nav sits in the same stacking
+     context and, at the old z-index of 90, drew over the send button. */
+  z-index: 100000;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -13291,6 +13332,24 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   padding-left: 2px;
 }
 
+/* The tappable versions. A bare <img> here was reported as "cannot tap into
+   them or scroll through them" — the same fault PlannerPhotos had before
+   PhotoLens existed, in a different component this time. Button-reset only;
+   the thumbnail itself keeps .td-thumb's sizing untouched. */
+.td-thumb-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  border-radius: 5px;
+  flex: none;
+}
+
+.td-more-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
 .td-open {
   display: flex;
   flex-direction: column;
@@ -13522,6 +13581,124 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 /* A trip that has not started yet is an anticipation, not a report, so its
    countdown takes the accent rather than the plain white. */
 .wt-front--soon .wt-front-when { color: var(--accent-on-dark, #f0d68a); }
+
+/* The way in, at hero size — shown instead of a photograph while nothing on
+   the globe is yours (see frontOfMind.js: an example is never this slot's
+   trip). Same illustration as the small card in the strip, filling the
+   hero the way .wt-front-img fills it for a real trip. */
+.wt-front-add-cover {
+  position: absolute;
+  inset: 0;
+}
+.wt-front-add-cover svg { width: 100%; height: 100%; display: block; }
+/* Sized and placed for the hero rather than the 78px-tall card — the small
+   card's own left:11px/bottom:5px/width:30px put the duck in a corner too
+   small to read at this size. */
+.wt-front-add-cover .wt-add-duck {
+  position: absolute;
+  left: 16px;
+  bottom: 8px;
+  width: 44px;
+  height: auto;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.18));
+  animation: intro-bob 3.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wt-front-add-cover .wt-add-duck { animation: none }
+}
+
+/* ── The three-step tooltip tour ──────────────────────────────────────────
+ * DemoTour.jsx. Portaled to document.body like every other overlay, so
+ * nothing in .deck's stacking context — including the "going deeper" recede
+ * transform that once broke TripPlanner the same way — can touch it.
+ *
+ * The ring is a fixed-position box whose own shadow does the dimming: a
+ * 9999px spread paints everywhere outside its rect, which only works
+ * because the ring is *not* nested inside .world-trips' scrolling overflow
+ * box — it is a sibling of it in document.body, positioned from a measured
+ * getBoundingClientRect(), so nothing clips the spread. */
+.dtour-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 100010;
+  background: transparent;
+}
+
+.dtour-ring {
+  position: fixed;
+  z-index: 100020;
+  border-radius: 16px;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 9999px rgba(20, 16, 10, 0.62);
+  pointer-events: none;
+  transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+}
+
+/* Above the bottom nav's own floating capsule (9000) rather than behind it —
+   the exact bug the bug-reporter sheet had, not repeated here. Docked above
+   it rather than overlapping, so both read at once. */
+.dtour-card {
+  position: fixed;
+  z-index: 100030;
+  left: 12px;
+  right: 12px;
+  bottom: calc(90px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
+  max-width: 420px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+}
+
+.dtour-progress { display: flex; gap: 5px; margin-bottom: 10px; }
+.dtour-dot { width: 14px; height: 3px; border-radius: 999px; background: var(--border); }
+.dtour-dot.on { background: var(--accent); }
+.dtour-dot.done { background: var(--accent-dim, var(--accent)); opacity: 0.55; }
+
+.dtour-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.dtour-title { font-family: var(--font-display); font-size: 19px; line-height: 1.2; }
+.dtour-body { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin-top: 6px; }
+
+.dtour-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.dtour-skip {
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 8px 4px;
+  cursor: pointer;
+}
+
+.dtour-next {
+  border: 0;
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dtour-ring { transition: none; }
+}
 
 /* ── Opening a photograph ─────────────────────────────────────────────────
  *
