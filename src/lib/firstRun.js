@@ -43,6 +43,14 @@ export const ONCE = {
    *  itself now, so there is nothing left to gate. Anybody carrying a
    *  `pitch` in their record keeps it — it is simply never asked about. */
   cold_open: 'cold_open',
+
+  /** Three tooltips on Home, pointing at the example trip, the strip it
+   *  sits in, and the way to start a real one. Not in IN_ORDER below: that
+   *  queue is boot interruptions, gating what somebody meets before the app
+   *  is even on screen. This runs after, on Home, and only while there is
+   *  nothing real to point at instead — WorldTab decides that half, this
+   *  only remembers whether it has already run. */
+  demo_tour: 'demo_tour',
 }
 
 // `pitch` and `whose_trip` were both here and both gone now, for the same

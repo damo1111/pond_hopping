@@ -13607,6 +13607,99 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   .wt-front-add-cover .wt-add-duck { animation: none }
 }
 
+/* ── The three-step tooltip tour ──────────────────────────────────────────
+ * DemoTour.jsx. Portaled to document.body like every other overlay, so
+ * nothing in .deck's stacking context — including the "going deeper" recede
+ * transform that once broke TripPlanner the same way — can touch it.
+ *
+ * The ring is a fixed-position box whose own shadow does the dimming: a
+ * 9999px spread paints everywhere outside its rect, which only works
+ * because the ring is *not* nested inside .world-trips' scrolling overflow
+ * box — it is a sibling of it in document.body, positioned from a measured
+ * getBoundingClientRect(), so nothing clips the spread. */
+.dtour-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 100010;
+  background: transparent;
+}
+
+.dtour-ring {
+  position: fixed;
+  z-index: 100020;
+  border-radius: 16px;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 9999px rgba(20, 16, 10, 0.62);
+  pointer-events: none;
+  transition: top 0.25s ease, left 0.25s ease, width 0.25s ease, height 0.25s ease;
+}
+
+/* Above the bottom nav's own floating capsule (9000) rather than behind it —
+   the exact bug the bug-reporter sheet had, not repeated here. Docked above
+   it rather than overlapping, so both read at once. */
+.dtour-card {
+  position: fixed;
+  z-index: 100030;
+  left: 12px;
+  right: 12px;
+  bottom: calc(90px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
+  max-width: 420px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 16px 18px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.28);
+}
+
+.dtour-progress { display: flex; gap: 5px; margin-bottom: 10px; }
+.dtour-dot { width: 14px; height: 3px; border-radius: 999px; background: var(--border); }
+.dtour-dot.on { background: var(--accent); }
+.dtour-dot.done { background: var(--accent-dim, var(--accent)); opacity: 0.55; }
+
+.dtour-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.dtour-title { font-family: var(--font-display); font-size: 19px; line-height: 1.2; }
+.dtour-body { color: var(--text-muted); font-size: 14px; line-height: 1.5; margin-top: 6px; }
+
+.dtour-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.dtour-skip {
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 8px 4px;
+  cursor: pointer;
+}
+
+.dtour-next {
+  border: 0;
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dtour-ring { transition: none; }
+}
+
 /* ── Opening a photograph ─────────────────────────────────────────────────
  *
  * A portal to document.body, so the backdrop is not trapped inside the

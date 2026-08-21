@@ -21,6 +21,7 @@ import { shouldBadge, ownTrips } from '../lib/demoTour.js'
 import { pickVariant } from '../lib/variants.js'
 import { oops, track, whoAmI } from '../lib/analytics.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
+import DemoTour from '../components/DemoTour.jsx'
 import { NEW_TRIP, comingBackTo } from '../lib/photoImport.js'
 import { frontOfMind, heroWhen } from '../lib/frontOfMind.js'
 import { todayHere } from '../lib/whereYouAre.js'
@@ -990,6 +991,7 @@ export default function WorldTab() {
         <EmptyHome onPlan={() => goToTab('plan')} onGetIn={() => setRoutesOpen(true)} />
       ) : (
         <div className="world-bottom">
+          <DemoTour active={nothingReal} />
           {/* The present, at the size of the present.
               Above the strip rather than in it, because the strip is a
               horizontal list and a list has no way to say that one of its
