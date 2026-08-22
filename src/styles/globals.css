@@ -14470,3 +14470,14 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 @media (prefers-reduced-motion: reduce) {
   .wt-front-bar-fill { transition: none; }
 }
+
+/* "Six days in. 59 photos." Under the trip's name on the hero, quieter than
+   it — the title is what you are looking at, this is what it has come to. */
+.wt-front-sofar {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 300;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.82);
+  margin-top: 3px;
+}

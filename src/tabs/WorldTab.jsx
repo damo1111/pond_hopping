@@ -25,6 +25,7 @@ import GetTripsIn from '../components/GetTripsIn.jsx'
 import DemoTour from '../components/DemoTour.jsx'
 import { NEW_TRIP, comingBackTo } from '../lib/photoImport.js'
 import { frontOfMind, heroWhen, tripProgress } from '../lib/frontOfMind.js'
+import { tripSoFar } from '../lib/tripSoFar.js'
 import { todayHere } from '../lib/whereYouAre.js'
 
 // Default framing for the "all trips" overview — centred on the
@@ -1049,6 +1050,11 @@ export default function WorldTab() {
                     a bar filling towards a length nobody has said. */}
                 <HeroProgress pick={front} today={today} />
                 <span className="wt-front-title">{front.trip.title}</span>
+                {/* What the trip has amounted to, while it is still going on.
+                    Composed from the counts trip_meta already carries rather
+                    than written, because the written version is the story
+                    engine's job and needs the days to exist first. */}
+                <HeroSoFar pick={front} today={today} />
               </span>
             </button>
           ) : nothingReal ? (
@@ -1218,6 +1224,25 @@ function EmptyHome({ onPlan, onGetIn, examples = 0 }) {
  * length, so it is one bar with a filled part — the caption above already
  * says which day of how many, and this is the glance version of it.
  */
+/**
+ * "Six days in. 59 photos." — between the bar and the day list.
+ *
+ * Says nothing at all on a trip's first morning rather than reporting zeroes,
+ * which would make the app sound disappointed in somebody who has just
+ * arrived. See tripSoFar.js.
+ */
+function HeroSoFar({ pick, today }) {
+  const { day } = tripProgress(pick, today)
+  const line = tripSoFar({
+    day,
+    photos: pick?.trip?.photo_count ?? 0,
+    flights: pick?.trip?.flight_count ?? 0,
+    countries: pick?.trip?.countries?.length ?? 0,
+  })
+  if (!line) return null
+  return <span className="wt-front-sofar">{line}</span>
+}
+
 function HeroProgress({ pick, today }) {
   const { part } = tripProgress(pick, today)
   if (part == null) return null
