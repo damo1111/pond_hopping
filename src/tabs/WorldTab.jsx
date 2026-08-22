@@ -24,7 +24,7 @@ import { oops, track, whoAmI } from '../lib/analytics.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
 import DemoTour from '../components/DemoTour.jsx'
 import { NEW_TRIP, comingBackTo } from '../lib/photoImport.js'
-import { frontOfMind, heroWhen } from '../lib/frontOfMind.js'
+import { frontOfMind, heroWhen, tripProgress } from '../lib/frontOfMind.js'
 import { todayHere } from '../lib/whereYouAre.js'
 
 // Default framing for the "all trips" overview — centred on the
@@ -1042,6 +1042,12 @@ export default function WorldTab() {
               <span className="wt-front-scrim" aria-hidden="true" />
               <span className="wt-front-text">
                 <span className="wt-front-when">{heroWhen(front, today)}</span>
+                {/* The same two numbers the line above is made of, drawn.
+                    "Day 6 of 10" is a fact you have to read; a bar two-thirds
+                    filled is one you see. Only when there is a real end date
+                    — an open-ended trip gets the words and no bar rather than
+                    a bar filling towards a length nobody has said. */}
+                <HeroProgress pick={front} today={today} />
                 <span className="wt-front-title">{front.trip.title}</span>
               </span>
             </button>
@@ -1202,6 +1208,23 @@ function EmptyHome({ onPlan, onGetIn, examples = 0 }) {
         </button>
       </div>
     </div>
+  )
+}
+
+/**
+ * How far through the trip you are, as a bar rather than a sentence.
+ *
+ * Ten segments would be truer for a ten-day trip and unreadable at any other
+ * length, so it is one bar with a filled part — the caption above already
+ * says which day of how many, and this is the glance version of it.
+ */
+function HeroProgress({ pick, today }) {
+  const { part } = tripProgress(pick, today)
+  if (part == null) return null
+  return (
+    <span className="wt-front-bar" aria-hidden="true">
+      <span className="wt-front-bar-fill" style={{ transform: `scaleX(${part})` }} />
+    </span>
   )
 }
 

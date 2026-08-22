@@ -93,10 +93,35 @@ export function heroWhen(pick, today) {
   if (pick.when === 'soon') {
     return pick.days === 1 ? 'Tomorrow' : `In ${pick.days} days`
   }
+  const { day, total } = tripProgress(pick, today)
+  return total ? `Day ${day} of ${total}` : `Day ${day}`
+}
+
+/**
+ * How far through a trip somebody is, as numbers rather than as a sentence.
+ *
+ * heroWhen() has said "Day 6 of 10" for a while, and worked it out inside the
+ * string — so nothing else could draw it. The arithmetic lives here now and
+ * heroWhen reads it, which means the bar and the words cannot disagree: they
+ * are the same two numbers rendered twice.
+ *
+ * `total` is null rather than a guess when there is no end date. A trip with
+ * an open end is a real thing — "I'm off now" makes one — and inventing a
+ * length so the bar has something to fill would be drawing a fact nobody has.
+ *
+ * @returns { day, total, part } — part is 0…1, or null with no total.
+ */
+export function tripProgress(pick, today) {
+  if (!pick?.trip) return { day: 0, total: null, part: null }
   const started = daysUntil(pick.trip.start_date, today)
+  // A trip with no start date has no day one. Without this, daysUntil's null
+  // fell through Math.abs(null) + 1 and the card said "Day 1" — a made-up
+  // fact stated as confidently as a real one.
+  if (started == null) return { day: 0, total: null, part: null }
   const day = Math.abs(started) + 1
   const end = daysUntil(pick.trip.end_date, today)
-  if (end == null) return `Day ${day}`
+  if (end == null) return { day, total: null, part: null }
   const total = day + end
-  return total > 0 ? `Day ${day} of ${total}` : `Day ${day}`
+  if (total <= 0) return { day, total: null, part: null }
+  return { day, total, part: Math.max(0, Math.min(1, day / total)) }
 }
