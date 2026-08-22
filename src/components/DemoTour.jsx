@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { seen, markSeen, ONCE } from '../lib/firstRun.js'
 import { track } from '../lib/analytics.js'
 import { cardSide } from '../lib/tourPlacement.js'
@@ -45,14 +45,20 @@ const STEPS = [
 export default function DemoTour({ active }) {
   const [step, setStep] = useState(-1)
   const [rect, setRect] = useState(null)
+  // Whether this run has already begun. `active` goes false and true again
+  // whenever a sheet opens over Home, and without this each return would
+  // restart the tour from step one — three steps is short enough that being
+  // sent back to the beginning is more irritating than the tour is useful.
+  const started = useRef(false)
 
   useEffect(() => {
-    if (!active || seen(ONCE.demo_tour)) return
+    if (!active || started.current || seen(ONCE.demo_tour)) return
     // Lets the hero and the strip finish laying out — images decoding,
     // fonts swapping in — before anything is measured. Starting on the
     // render that makes `active` true would as often as not point a ring
     // at where the target is about to be, not where it is.
     const t = setTimeout(() => {
+      started.current = true
       setStep(0)
       track('demo_tour_started', {})
     }, 700)
@@ -75,7 +81,12 @@ export default function DemoTour({ active }) {
     }
   }, [step])
 
-  if (step < 0 || !STEPS[step]) return null
+  // Not while something is over Home. `active` covers starting; this covers
+  // carrying on — a tour already at step two would otherwise keep drawing
+  // its ring and its card straight over a sheet that opened on top of it.
+  // Held rather than ended, so closing the sheet puts it back where it was
+  // rather than at the beginning or nowhere.
+  if (!active || step < 0 || !STEPS[step]) return null
   const s = STEPS[step]
   const last = step === STEPS.length - 1
   // See tourPlacement.js: docks the card to whichever side of the target has
@@ -94,6 +105,7 @@ export default function DemoTour({ active }) {
 
   function finish(how) {
     markSeen(ONCE.demo_tour)
+    started.current = false
     track('demo_tour_done', { steps: step + 1, of: STEPS.length, how })
     setStep(-1)
   }

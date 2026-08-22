@@ -1071,8 +1071,19 @@ export default function WorldTab() {
               over it. David: "the tooltips overlaid the new cards (where is
               home)." The queue is the thing to ask, not one member of it:
               anything added to IN_ORDER after this is covered without
-              remembering to come back here. */}
-          <DemoTour active={(nothingReal || forcedTour) && !booting && !nextUp()} />
+              remembering to come back here.
+
+              Nor under a sheet. Answering "Where's home?" with "Add photos
+              from a trip" opens the routes sheet on the very next frame, and
+              the question the tour was waiting on has just been answered — so
+              it would come up behind the sheet and start measuring rings
+              around cards nobody can see. Same for a trip's story card. One
+              thing at a time, and the tour is the last of the things. */}
+          <DemoTour
+            active={
+              (nothingReal || forcedTour) && !booting && !nextUp() && !routesOpen && !recapTrip
+            }
+          />
           {/* The present, at the size of the present.
               Above the strip rather than in it, because the strip is a
               horizontal list and a list has no way to say that one of its
