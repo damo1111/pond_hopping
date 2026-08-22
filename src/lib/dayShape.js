@@ -83,10 +83,15 @@ function middle(seg) {
  * said "The evening at La Cenatio Rotunda". The best fact about the day
  * was already in the database and nothing looked.
  */
-export function knownOn(date, { runs = [], flights = [] } = {}) {
+export function knownOn(date, { runs = [], flights = [], weather = [] } = {}) {
   return {
     runs: runs.filter((r) => r?.run_date === date),
     flights: flights.filter((f) => String(f?.dep_time ?? '').slice(0, 10) === date),
+    // The whole trip's weather, not just this day's, because whether a day
+    // is worth mentioning is a question about the trip it sits in — eighteen
+    // degrees is a cold day in Bangkok and a good one in Reykjavik. tellDay
+    // picks its own day out of it by date. See weatherStory.js.
+    weather,
   }
 }
 

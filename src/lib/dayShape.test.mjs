@@ -95,7 +95,7 @@ test('what the app already knows about a day', () => {
 })
 
 test('a day with nothing known about it is not an error', () => {
-  assert.deepEqual(knownOn('2024-01-23', {}), { runs: [], flights: [] })
+  assert.deepEqual(knownOn('2024-01-23', {}), { runs: [], flights: [], weather: [] })
   assert.deepEqual(segment([]), [])
   assert.deepEqual(worthNaming([]), [])
 })

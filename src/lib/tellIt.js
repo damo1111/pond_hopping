@@ -13,6 +13,7 @@
 // you actually stayed, in the order they happened. Everything else was
 // walking, and walking is a gap between things, not a thing.
 
+import { severity, weatherLine } from './weatherStory.js'
 import { clockIn, hourIn } from './localTime.js'
 import { words } from './sport.js'
 import { onFootIn } from './walkFills.js'
@@ -73,11 +74,29 @@ export function tellFlight(f, zone) {
  *
  * @param day       { date, from, to, segments }
  * @param names     segment index → place name, where one is known
- * @param known     { runs, flights } from dayShape.knownOn
+ * @param known     { runs, flights, weather } from dayShape.knownOn
  * @param zone      the trip's timezone
  */
 export function tellDay(day, names = {}, known = {}, zone = null) {
   const said = []
+
+  // The weather, on the days it was the day.
+  //
+  // Almost never: a story that mentions the weather every day is a weather
+  // report, and the symbol beside the entry already covers an ordinary one.
+  // weatherStory.js decides, and it only says yes for a named-force wind, a
+  // soaking, snow, or a day a long way from what the rest of the trip did.
+  //
+  // Placed by how big it was. At the top when it is the fact of the day —
+  // "there was a typhoon on my last day" is the sentence somebody leads
+  // with, four years later, and burying it under the morning's coffee stop
+  // would be telling the day in the wrong order. Otherwise after the
+  // flights and runs, where it sets the scene for the walking about.
+  const forecast = known.weather ?? []
+  const today = forecast.find((w) => String(w?.on_date).slice(0, 10) === day?.date) ?? null
+  const weather = weatherLine(today, forecast)
+  const led = Boolean(weather) && severity(today, forecast) >= 3
+  if (led) said.push(weather)
 
   for (const f of known.flights ?? []) {
     const line = tellFlight(f, zone)
@@ -88,6 +107,8 @@ export function tellDay(day, names = {}, known = {}, zone = null) {
     const line = tellRun(r)
     if (line) said.push(line)
   }
+
+  if (weather && !led) said.push(weather)
 
   const stayed = (day?.segments ?? [])
     .map((s, i) => ({ ...s, name: names[i] || null, i }))
