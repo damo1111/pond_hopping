@@ -16,6 +16,7 @@ import {
 } from '../lib/tripFromPhotos.js'
 import SheetGrip from './SheetGrip.jsx'
 import UploadGrid from './UploadGrid.jsx'
+import EveningNote from './EveningNote.jsx'
 import { oops, track } from '../lib/analytics.js'
 import { farAway, spotDays, spotTrip } from '../lib/spotTrip.js'
 import { homeIs } from '../lib/homeIs.js'
@@ -784,6 +785,12 @@ export default function StartFromPhotos({ onDone, onClose }) {
             {/* If this is the trip they're on, the rest of it can log itself.
                 Nothing to track when there is no trip. */}
             {!keptLoose && <TrackPlaces compact />}
+            {/* And for anybody who declined that: the evening note needs
+                five photographs or two kilometres, and they have just
+                supplied the photographs. Renders nothing unless the
+                question is still open. Not on the loose path — there is no
+                trip for a day to belong to. */}
+            {!keptLoose && <EveningNote />}
             <button className="ios-sheet-done" onClick={onClose}>
               Have a look
             </button>

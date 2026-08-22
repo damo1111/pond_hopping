@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import UploadGrid from './UploadGrid.jsx'
+import EveningNote from './EveningNote.jsx'
 import { ingest, runTotals } from '../lib/photoIngest.js'
 import { savingsLabel } from '../lib/photoResize.js'
 import { oops, track } from '../lib/analytics.js'
@@ -93,6 +94,13 @@ export default function FirstPhotos({ trip, onDone }) {
             {totals.failed} wouldn&apos;t go up. Choosing them again only sends what&apos;s missing.
           </div>
         )}
+        {/* The other side of the fork. TrackPlaces asks for notifications
+            right after location; somebody who said "not this trip" to that
+            was never asked at all, and five photographs is enough for an
+            evening note on its own. Renders nothing unless there is a
+            question left to ask. */}
+        <EveningNote />
+
         <button className="ios-sheet-done" onClick={onDone}>
           Have a look
         </button>
