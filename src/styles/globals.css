@@ -14136,3 +14136,154 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   padding: 14px 15px;
   text-align: center;
 }
+
+/* ── Where's home ─────────────────────────────────────────────────────────
+   The first question, on its own screen, with nothing else on it. One ask at
+   a time is the rule the whole opening minute is built on, and this is the
+   only one that cannot be worked out from the photographs. */
+.wh {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 22px;
+  padding-bottom: calc(28px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
+  animation: wh-in 420ms ease-out both;
+}
+@keyframes wh-in { from { opacity: 0 } }
+
+.wh-inner { width: 100%; max-width: 420px; margin: 0 auto; }
+
+.wh-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 6px;
+}
+
+.wh-ask {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 30px;
+  line-height: 1.1;
+  margin: 0 0 8px;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+.wh-say {
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: 0 0 18px;
+}
+
+.wh-search {
+  width: 100%;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 13px 14px;
+  margin: 4px 0 14px;
+}
+.wh-search:focus { outline: none; border-color: var(--accent); }
+
+/* Capped and scrollable, because searching turns three rows into forty and a
+   list that pushes its own search box off the top is unusable one-handed. */
+.wh-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: 46vh;
+  overflow-y: auto;
+  margin-bottom: 14px;
+}
+
+/* Boxes, not pills — the same reason as the hero card. Fingers on a phone. */
+.wh-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  box-shadow: 0 1px 3px rgba(26, 22, 17, 0.06);
+}
+.wh-choice.is-hinted {
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px rgba(168, 132, 44, 0.22);
+}
+.wh-choice-name { flex: 1 1 auto; }
+.wh-choice-sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.wh-none {
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--text-muted);
+  padding: 8px 2px;
+  margin: 0;
+}
+
+.wh-else {
+  display: block;
+  margin: 0 auto;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 8px;
+}
+
+/* The reply. This screen is the definition of the word — saying "your pond is
+   Australia" is what makes "pond" mean anything — so it gets the whole frame
+   and a beat of its own before the next question. */
+.wh-inner--landed { text-align: center; }
+.wh-globe {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+  animation: wh-land 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes wh-land {
+  from { transform: scale(0.72); opacity: 0 }
+}
+.wh-ask--landed {
+  font-size: 26px;
+  animation: wh-land 700ms cubic-bezier(0.22, 1, 0.36, 1) 140ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wh, .wh-globe, .wh-ask--landed { animation: none; }
+}
+
+/* The flag and the way to change it, on one line in Settings. */
+.account-card-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}

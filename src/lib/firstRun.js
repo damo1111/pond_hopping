@@ -44,6 +44,15 @@ export const ONCE = {
    *  `pitch` in their record keeps it — it is simply never asked about. */
   cold_open: 'cold_open',
 
+  /** Where they live. The only question in the opening minute, and the only
+   *  thing about a trip the app cannot work out for itself — dates, places
+   *  and distances all fall out of the photographs, and home does not.
+   *  Without it "you've been away five days" cannot be written.
+   *
+   *  In IN_ORDER, unlike the tour: it is a boot interruption and it has to
+   *  come after the opening rather than on top of it. */
+  home_country: 'home_country',
+
   /** Three tooltips on Home, pointing at the example trip, the strip it
    *  sits in, and the way to start a real one. Not in IN_ORDER below: that
    *  queue is boot interruptions, gating what somebody meets before the app
@@ -146,8 +155,9 @@ export function forget(what, store = globalThis.localStorage) {
  * what could not be done before.
  *
  *   ?first=opening   the cold open
+ *   ?first=home      the where's-home question (also `pond`, `country`)
  *   ?first=tour      the three tooltips on Home
- *   ?first=all       both, in their proper order
+ *   ?first=all       all of them, in their proper order
  *   ?first=none      mark everything seen — the returning-hopper case, which
  *                    is otherwise just as hard to get back to
  *
@@ -163,6 +173,10 @@ const ALIASES = {
   intro: ONCE.cold_open,
   cold: ONCE.cold_open,
   cold_open: ONCE.cold_open,
+  home: ONCE.home_country,
+  pond: ONCE.home_country,
+  country: ONCE.home_country,
+  home_country: ONCE.home_country,
   tour: ONCE.demo_tour,
   tips: ONCE.demo_tour,
   tooltips: ONCE.demo_tour,
@@ -220,7 +234,7 @@ export function forceFirstRun(search = globalThis.location?.search ?? '', store 
  * which is the rule the four old flags had no way of expressing, and the
  * whole reason a new hopper could meet three things in eight seconds.
  */
-export const IN_ORDER = [ONCE.cold_open]
+export const IN_ORDER = [ONCE.cold_open, ONCE.home_country]
 
 export function nextUp(store = globalThis.localStorage, order = IN_ORDER) {
   return order.find((what) => !seen(what, store)) ?? null

@@ -26,10 +26,15 @@ test('nothing seen means the first thing in the order is owed', () => {
   assert.equal(nextUp(s), ONCE.cold_open)
 })
 
-test('and once it has been met, nothing is owed', () => {
+test('and once it has been met, the next thing is', () => {
+  // The opening, then where home is, then nothing. One at a time is the whole
+  // point of the queue: both of these are full-screen and arriving together
+  // is the exact failure it was built after.
   const s = store()
   assert.equal(nextUp(s), ONCE.cold_open)
   markSeen(ONCE.cold_open, s)
+  assert.equal(nextUp(s), ONCE.home_country)
+  markSeen(ONCE.home_country, s)
   assert.equal(nextUp(s), null)
 })
 
@@ -66,14 +71,16 @@ test('somebody who already sat through the old carousel is not shown it again', 
   const s = store({ 'pond:intro': '1' })
   bringOldFlagsOver(s)
   assert.equal(seen(ONCE.cold_open, s), true)
-  assert.equal(nextUp(s), null)
+  // But they are still asked where home is, because nobody has ever been —
+  // it is a new question and every existing hopper owes an answer to it.
+  assert.equal(nextUp(s), ONCE.home_country)
 })
 
 test('and neither is somebody who finished the old tour', () => {
   const s = store({ 'pond:tourdone': '1' })
   bringOldFlagsOver(s)
   assert.equal(seen(ONCE.cold_open, s), true)
-  assert.equal(nextUp(s), null)
+  assert.equal(nextUp(s), ONCE.home_country)
 })
 
 test('carrying over is safe to run twice and leaves the old keys alone', () => {
@@ -85,7 +92,7 @@ test('carrying over is safe to run twice and leaves the old keys alone', () => {
   // Left where the old code would look for them, so a revert still works.
   assert.equal(s.box['pond:intro'], '1')
   assert.equal(s.box['pond:tourdone'], '1')
-  assert.equal(nextUp(s), null)
+  assert.equal(nextUp(s), ONCE.home_country)
 })
 
 // The card it used to gate is gone: the opening says what the app is for
@@ -101,7 +108,9 @@ test('the retired cards are not owed to anybody', () => {
 })
 
 test('the order is the order somebody should meet them', () => {
-  assert.deepEqual(IN_ORDER, [ONCE.cold_open])
+  // The pitch, then the one question. Reversed, somebody is asked where they
+  // live by an app they have not yet seen do anything.
+  assert.deepEqual(IN_ORDER, [ONCE.cold_open, ONCE.home_country])
 })
 
 // The record was write-only until somebody wanted to watch the opening a
@@ -112,8 +121,9 @@ test('the order is the order somebody should meet them', () => {
 test('what has been seen can be unseen, so the opening can play again', () => {
   const s = store()
   markSeen(ONCE.cold_open, s)
+  markSeen(ONCE.home_country, s)
   assert.equal(seen(ONCE.cold_open, s), true)
-  assert.equal(nextUp(s), null, 'nothing owed while it is stamped')
+  assert.equal(nextUp(s), null, 'nothing owed while both are stamped')
 
   forget(ONCE.cold_open, s)
 

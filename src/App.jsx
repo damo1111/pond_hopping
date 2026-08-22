@@ -19,8 +19,10 @@ import TripPicker from './components/TripPicker.jsx'
 import Icon from './components/Icon.jsx'
 import AuthSheet from './components/AuthSheet.jsx'
 import BootScreen from './components/BootScreen.jsx'
+import WheresHome from './components/WheresHome.jsx'
 import { COLD_OPEN_MS } from './lib/coldOpen.js'
 import { comingBackTo } from './lib/photoImport.js'
+import { adoptHome, readHome } from './lib/home.js'
 import DayLookBack from './components/DayLookBack.jsx'
 import { ONCE, bringOldFlagsOver, forceFirstRun, forget, markSeen, nextUp } from './lib/firstRun.js'
 import { readPreference, visibleTrips, writePreference } from './lib/demoVisibility.js'
@@ -170,9 +172,15 @@ export default function App() {
   // eight seconds, which is what four uncoordinated flags used to do.
   const [owed, setOwed] = useState(() => {
     bringOldFlagsOver()
-    // `?first=opening|tour|all|none` — before nextUp(), because it decides
-    // what nextUp() has left to answer. See firstRun.js.
-    forceFirstRun()
+    // `?first=opening|home|tour|all|none` — before nextUp(), because it
+    // decides what nextUp() has left to answer. See firstRun.js.
+    const forced = forceFirstRun()
+    // Somebody who has already said where home is must not be asked twice —
+    // a second phone adopts the answer from their profile, and this device
+    // may simply have been asked on an earlier launch. Skipped when the URL
+    // asked for it on purpose, or the debugging parameter could never reach
+    // this screen at all.
+    if (!forced.has(ONCE.home_country) && readHome()) markSeen(ONCE.home_country)
     return nextUp()
   })
   // Fixed for the life of this launch rather than read live.
@@ -237,6 +245,18 @@ export default function App() {
   // destination until this asks for it, so arriving late is fine — but
   // attaching late is not, which is why this is its own effect at mount
   // rather than something registerPush does once somebody is signed in.
+  // The second-phone case. Somebody who said "Australia" last year on another
+  // handset should not be asked again here, so once there is a session the
+  // profile's answer fills a device that has none. Only ever fills a gap —
+  // where this device already has an answer that one wins, because it is the
+  // more recent thing the person in front of us actually said.
+  useEffect(() => {
+    if (!user) return
+    adoptHome().then((code) => {
+      if (code) markSeen(ONCE.home_country)
+    })
+  }, [user])
+
   useEffect(() => {
     listenForPushTaps()
     return onPushTap(setPushJump)
@@ -754,6 +774,21 @@ export default function App() {
           // flag is marked seen either way — somebody who skipped has still
           // decided they have seen enough of it.
           onSkip={skipOpening}
+        />
+      )}
+
+      {/* The first question, once the opening is out of the way.
+          Over everything and outside the tabs, because it is not a place in
+          the app — it is the one thing the app cannot work out for itself,
+          and until it is answered "away" has no meaning. `booting` guards it
+          so it cannot arrive on top of the opening, which is the exact
+          failure the first-run queue was built after. */}
+      {!booting && owed === ONCE.home_country && (
+        <WheresHome
+          onDone={() => {
+            markSeen(ONCE.home_country)
+            setOwed(nextUp())
+          }}
         />
       )}
 

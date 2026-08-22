@@ -64,7 +64,36 @@ export default defineConfig({
       // a broken-image glyph, permanently, because <img> does not retry.
       // Precached, it is there before it is asked for and survives being
       // offline entirely.
-      includeAssets: ['icon.svg', 'duck.png'],
+      // The sixteen flags that were here before the country picker existed —
+      // the ones on trip cards, which have to be there on a cold offline
+      // start like the duck is. The other two hundred and fifty-five arrived
+      // with the picker and are excluded from the precache below: they are
+      // 2.7MB, they are only ever seen while somebody is actively searching a
+      // list, and nobody searches for a country offline.
+      includeAssets: [
+        'icon.svg',
+        'duck.png',
+        'flags/gb.svg',
+        'flags/au.svg',
+        'flags/us.svg',
+        'flags/th.svg',
+        'flags/jp.svg',
+        'flags/cn.svg',
+        'flags/nz.svg',
+        'flags/sg.svg',
+        'flags/hk.svg',
+        'flags/kr.svg',
+        'flags/it.svg',
+        'flags/de.svg',
+        'flags/nl.svg',
+        'flags/my.svg',
+        'flags/lk.svg',
+        'flags/gb-sct.svg',
+      ],
+      workbox: {
+        // Without this the picker's flags would nearly double the precache.
+        globIgnores: ['**/flags/*.svg'],
+      },
       manifest: {
         name: 'Pond Hopping',
         short_name: 'Pond Hopping',
