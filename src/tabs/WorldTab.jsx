@@ -18,7 +18,7 @@ import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
 import { sectionTrips } from '../lib/tripPhase.js'
 import { overviewOf, homeCoords } from '../lib/homePov.js'
 import { shouldBadge, ownTrips } from '../lib/demoTour.js'
-import { ONCE, forcing } from '../lib/firstRun.js'
+import { ONCE, forcing, nextUp } from '../lib/firstRun.js'
 import { pickVariant } from '../lib/variants.js'
 import { oops, track, whoAmI } from '../lib/analytics.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
@@ -1019,8 +1019,17 @@ export default function WorldTab() {
           {/* Normally only while there is nothing of yours to point at
               instead. `?first=tour` overrides that, because the case worth
               checking is what a stranger sees, and the person checking it
-              always has trips. See firstRun.js. */}
-          <DemoTour active={(nothingReal || forcedTour) && !booting} />
+              always has trips. See firstRun.js.
+
+              Never while a first-run question is still owed. `!booting` was
+              written for the opening and stops being true the moment the
+              opening ends — which is the moment "Where's home?" arrives, so
+              the tour started measuring rings and drawing tooltips straight
+              over it. David: "the tooltips overlaid the new cards (where is
+              home)." The queue is the thing to ask, not one member of it:
+              anything added to IN_ORDER after this is covered without
+              remembering to come back here. */}
+          <DemoTour active={(nothingReal || forcedTour) && !booting && !nextUp()} />
           {/* The present, at the size of the present.
               Above the strip rather than in it, because the strip is a
               horizontal list and a list has no way to say that one of its

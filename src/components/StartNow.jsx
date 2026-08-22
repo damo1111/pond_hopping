@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import TrackPlaces, { offersTracking } from './TrackPlaces.jsx'
+import FirstPhotos from './FirstPhotos.jsx'
 import SheetGrip from './SheetGrip.jsx'
 import { today } from '../lib/goingSoon.js'
 
@@ -51,6 +52,11 @@ export default function StartNow({ onDone, onClose }) {
   const [busy, setBusy] = useState(false)
   const [trip, setTrip] = useState(null)
   const [error, setError] = useState(null)
+  // Which of the two cards is showing. Location first because it is the only
+  // one with a deadline — the days nobody records are simply gone — and
+  // photographs second because they are the half that produces something to
+  // look at within about four seconds.
+  const [card, setCard] = useState('track')
 
   async function begin(e) {
     e?.preventDefault()
@@ -108,19 +114,31 @@ export default function StartNow({ onDone, onClose }) {
           <Underway />
           <div className="started-title">{trip.title} is on.</div>
           <div className="started-sub">It&apos;s in Plan. Rename it whenever.</div>
-          {offersTracking() ? (
-            <TrackPlaces onDone={onClose} />
-          ) : (
+
+          {/* Two cards, in the order they are worth.
+              David: "when they say im on one right now, we need cards again
+              to tell them what to do i think? give us your location and we
+              will build as you plod? then give us pics of what youve done so
+              far — could even just be the airport/plane etc?"
+              One at a time rather than both at once: stacked, they are a wall
+              of text at the exact moment somebody wants to have started. */}
+          {card === 'track' && offersTracking() && (
+            <TrackPlaces onDone={() => setCard('photos')} />
+          )}
+
+          {card === 'track' && !offersTracking() && (
             <>
               <div className="started-note">
                 On your phone I can note where you stop, and each day draws its own map. A
                 browser tab can&apos;t.
               </div>
-              <button className="account-btn ghost" onClick={onClose}>
-                Done
+              <button className="ios-sheet-done" onClick={() => setCard('photos')}>
+                Next
               </button>
             </>
           )}
+
+          {card === 'photos' && <FirstPhotos trip={trip} onDone={onClose} />}
         </div>
       </div>
     )
