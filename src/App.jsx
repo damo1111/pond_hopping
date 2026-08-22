@@ -56,6 +56,8 @@ export const TripContext = createContext({
   goToTab: () => {},
   lookBackJump: null,
   clearLookBackJump: () => {},
+  waysIn: null,
+  clearWaysIn: () => {},
 })
 
 // Every screen here is either about *all* your travel or about *one* trip,
@@ -197,6 +199,9 @@ export default function App() {
   // component does rather than something a fresh page load does for it.
   const [replay, setReplay] = useState(0)
   const [bootLeaving, setBootLeaving] = useState(false)
+  // Which way in the opening's last question asked for, if any. Held here
+  // rather than in WorldTab because it is answered before WorldTab mounts.
+  const [waysIn, setWaysIn] = useState(null)
   const [activeTab, setActiveTab] = useState('world')
   const [usefulTab, setUsefulTab] = useState('costs')
   const [tripMeta, setTripMeta] = useState([])
@@ -728,6 +733,11 @@ export default function App() {
       // reads it is three levels below the tab that mounts it.
       lookBackJump,
       clearLookBackJump: () => setLookBackJump(null),
+      // Which way in the opening's last question asked for, if any. On the
+      // context because the question is answered before WorldTab has mounted,
+      // and WorldTab is where the sheet that answers it lives.
+      waysIn,
+      clearWaysIn: () => setWaysIn(null),
       // Called by PlanTab when the planner shuts. Puts you back where the
       // trip was tapped, so "back" means back.
       closePlanner: () => {
@@ -748,7 +758,7 @@ export default function App() {
         }
       },
     }),
-    [tripMeta, shownTrips, demoPref, tripsLoaded, selectedTrip, journalJump, plannerJump, lookBackJump, user?.id, photosChanged, booting]
+    [tripMeta, shownTrips, demoPref, tripsLoaded, selectedTrip, journalJump, plannerJump, lookBackJump, waysIn, user?.id, photosChanged, booting]
   )
 
   // Public read-only share page — no nav, no forms.
@@ -785,9 +795,17 @@ export default function App() {
           failure the first-run queue was built after. */}
       {!booting && owed === ONCE.home_country && (
         <WheresHome
-          onDone={() => {
+          thenAsk
+          onDone={(code, intent) => {
             markSeen(ONCE.home_country)
             setOwed(nextUp())
+            // "Add photos from a trip" and "I'm on one right now" are the two
+            // route ids GetTripsIn has had all along, so this opens a door
+            // that already exists rather than building a third way in.
+            if (intent) {
+              setActiveTab('world')
+              setWaysIn(intent)
+            }
           }}
         />
       )}

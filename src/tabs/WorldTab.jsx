@@ -136,6 +136,8 @@ export default function WorldTab() {
     jumpToJournal,
     openPlanner,
     booting,
+    waysIn,
+    clearWaysIn,
   } = useContext(TripContext)
   // The one thing worth opening the app for when nothing is planned.
   const [memory, setMemory] = useState(null)
@@ -271,6 +273,18 @@ export default function WorldTab() {
     setRoutesAt('photos')
     setRoutesOpen(true)
   }, [])
+
+  // The last question of the opening — "anything you've already done?" —
+  // names one of these routes, and it is answered before this tab exists, so
+  // the answer arrives on the context rather than as a prop. Cleared as it is
+  // spent: leaving it set reopens the sheet every time somebody comes back to
+  // Home, which is a trap rather than a way in.
+  useEffect(() => {
+    if (!waysIn) return
+    setRoutesAt(waysIn)
+    setRoutesOpen(true)
+    clearWaysIn()
+  }, [waysIn, clearWaysIn])
 
   const home = useMemo(() => homeCoords(), [])
   const idleSpin = isEmpty ? 0.9 : 0.35

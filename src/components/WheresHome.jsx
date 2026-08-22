@@ -38,8 +38,18 @@ import { isoToEmojiFlag } from '../lib/flags.js'
 /** How long the globe takes to find the country, and the reply to land. */
 const TURN_MS = 900
 
-export default function WheresHome({ onDone }) {
+/**
+ * @param onDone   called with (countryCode, intent). `intent` is what they
+ *                 said they wanted to do next — 'photos', 'now', or null for
+ *                 skip — and matches the route ids GetTripsIn already has.
+ * @param thenAsk  whether to follow the answer with "anything you've already
+ *                 done?". True on first run, false in Settings, where somebody
+ *                 has come to change one field and being asked about photos
+ *                 afterwards would be baffling.
+ */
+export default function WheresHome({ onDone, thenAsk = false }) {
   const [picked, setPicked] = useState(null)
+  const [asking, setAsking] = useState(false)
   const [looking, setLooking] = useState(false)
   const [query, setQuery] = useState('')
   const box = useRef(null)
@@ -58,10 +68,13 @@ export default function WheresHome({ onDone }) {
     if (!picked) return undefined
     writeHome(picked)
     syncHome(picked)
-    const t = setTimeout(() => onDone?.(picked), TURN_MS + 1400)
+    // The reply holds for a beat before moving on — it is the screen that
+    // defines the word "pond" and reading it is the whole point of it.
+    const t = setTimeout(() => (thenAsk ? setAsking(true) : onDone?.(picked, null)), TURN_MS + 1400)
     return () => clearTimeout(t)
-  }, [picked, onDone])
+  }, [picked, thenAsk, onDone])
 
+  if (picked && asking) return <WhatNow code={picked} onPick={(intent) => onDone?.(picked, intent)} />
   if (picked) return <Landed code={picked} />
 
   return (
@@ -120,6 +133,51 @@ export default function WheresHome({ onDone }) {
             Back to the usual three
           </button>
         )}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * The second question, and the last one for a while.
+ *
+ * Three doors, and the order is the order they are worth. Photographs first
+ * because they produce something visible in about four seconds — a place, a
+ * date, a trip on the globe — where anything else produces a promise. Being
+ * on a trip right now is the rarer case but the better one when it is true,
+ * so it gets its own door rather than hiding inside the first.
+ *
+ * Skip is a link rather than a button, on purpose. It is a real option and it
+ * must not look like one of the two answers: somebody who has just told us
+ * where they live has already done enough for one minute.
+ *
+ * The two intents match the route ids GetTripsIn has had all along, so this
+ * screen opens a door that already exists rather than building a third way in.
+ */
+function WhatNow({ code, onPick }) {
+  return (
+    <div className="wh">
+      <div className="wh-inner">
+        <p className="wh-label">Your pond is {nameOf(code)}</p>
+        <h1 className="wh-ask">Anything you&apos;ve already done?</h1>
+        <p className="wh-say">
+          A trip builds itself out of what you already have. Nothing needs typing.
+        </p>
+
+        <div className="wh-doors">
+          <button className="wh-door" onClick={() => onPick('photos')}>
+            <span className="wh-door-name">Add photos from a trip</span>
+            <span className="wh-door-say">Where you were and when comes out of them</span>
+          </button>
+          <button className="wh-door" onClick={() => onPick('now')}>
+            <span className="wh-door-name">I&apos;m on one right now</span>
+            <span className="wh-door-say">One photo will do — even the plane window</span>
+          </button>
+        </div>
+
+        <button className="wh-else" onClick={() => onPick(null)}>
+          Skip for now
+        </button>
       </div>
     </div>
   )
