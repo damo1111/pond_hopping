@@ -19,9 +19,12 @@ import TripPicker from './components/TripPicker.jsx'
 import Icon from './components/Icon.jsx'
 import AuthSheet from './components/AuthSheet.jsx'
 import BootScreen from './components/BootScreen.jsx'
+import WheresHome from './components/WheresHome.jsx'
+import { COLD_OPEN_MS } from './lib/coldOpen.js'
 import { comingBackTo } from './lib/photoImport.js'
+import { adoptHome, readHome } from './lib/home.js'
 import DayLookBack from './components/DayLookBack.jsx'
-import { ONCE, bringOldFlagsOver, forget, markSeen, nextUp } from './lib/firstRun.js'
+import { ONCE, bringOldFlagsOver, forceFirstRun, forget, markSeen, nextUp } from './lib/firstRun.js'
 import { readPreference, visibleTrips, writePreference } from './lib/demoVisibility.js'
 import { tripColor } from './lib/tripColors.js'
 import { busy, whenIdle } from './lib/busy.js'
@@ -53,6 +56,8 @@ export const TripContext = createContext({
   goToTab: () => {},
   lookBackJump: null,
   clearLookBackJump: () => {},
+  waysIn: null,
+  clearWaysIn: () => {},
 })
 
 // Every screen here is either about *all* your travel or about *one* trip,
@@ -169,6 +174,15 @@ export default function App() {
   // eight seconds, which is what four uncoordinated flags used to do.
   const [owed, setOwed] = useState(() => {
     bringOldFlagsOver()
+    // `?first=opening|home|tour|all|none` — before nextUp(), because it
+    // decides what nextUp() has left to answer. See firstRun.js.
+    const forced = forceFirstRun()
+    // Somebody who has already said where home is must not be asked twice —
+    // a second phone adopts the answer from their profile, and this device
+    // may simply have been asked on an earlier launch. Skipped when the URL
+    // asked for it on purpose, or the debugging parameter could never reach
+    // this screen at all.
+    if (!forced.has(ONCE.home_country) && readHome()) markSeen(ONCE.home_country)
     return nextUp()
   })
   // Fixed for the life of this launch rather than read live.
@@ -185,6 +199,9 @@ export default function App() {
   // component does rather than something a fresh page load does for it.
   const [replay, setReplay] = useState(0)
   const [bootLeaving, setBootLeaving] = useState(false)
+  // Which way in the opening's last question asked for, if any. Held here
+  // rather than in WorldTab because it is answered before WorldTab mounts.
+  const [waysIn, setWaysIn] = useState(null)
   const [activeTab, setActiveTab] = useState('world')
   const [usefulTab, setUsefulTab] = useState('costs')
   const [tripMeta, setTripMeta] = useState([])
@@ -233,6 +250,18 @@ export default function App() {
   // destination until this asks for it, so arriving late is fine — but
   // attaching late is not, which is why this is its own effect at mount
   // rather than something registerPush does once somebody is signed in.
+  // The second-phone case. Somebody who said "Australia" last year on another
+  // handset should not be asked again here, so once there is a session the
+  // profile's answer fills a device that has none. Only ever fills a gap —
+  // where this device already has an answer that one wins, because it is the
+  // more recent thing the person in front of us actually said.
+  useEffect(() => {
+    if (!user) return
+    adoptHome().then((code) => {
+      if (code) markSeen(ONCE.home_country)
+    })
+  }, [user])
+
   useEffect(() => {
     listenForPushTaps()
     return onPushTap(setPushJump)
@@ -305,13 +334,10 @@ export default function App() {
     // first paint, so the CSS clock runs a frame or two behind it — measured
     // at ~120ms in Chromium.
     //
-    // 6300 rather than 7000. The last seven hundred milliseconds used to
-    // hold a line — "You already have the first piece" — arriving straight
-    // after two seconds of a real trip counting itself up. That trip is the
-    // argument; saying it again afterwards is not part of it, and a phone
-    // held still to read a restatement is exactly the beat somebody notices.
-    // The screen now ends on the photograph everything collapsed into.
-    const minBoot = meetsColdOpen ? 6300 : 500
+    // The opening is its own clock now — COLD_OPEN_MS is exported from the
+    // file that draws it, so retiming a beat cannot leave this number behind.
+    // It used to be 6300, hand-kept in step with a stylesheet, and drifted.
+    const minBoot = meetsColdOpen ? COLD_OPEN_MS : 500
     const leave = setTimeout(() => {
       if (cancelled) return
       if (meetsColdOpen) {
@@ -319,11 +345,7 @@ export default function App() {
         setOwed(nextUp())
       }
       setBootLeaving(true)
-      // 700, not 550. The card does not fade out of this screen any more —
-      // it travels to where the same trip sits on the World tab, and that
-      // flight is 620ms. Unmounting at 550 cut it off two thirds of the way
-      // across, which is a card vanishing in mid-air.
-      setTimeout(() => !cancelled && setBooting(false), 700)
+      setTimeout(() => !cancelled && setBooting(false), 550)
     }, minBoot)
 
     return () => {
@@ -335,6 +357,21 @@ export default function App() {
     // replayColdOpen sets it in the same batch as this counter, so the
     // re-run sees the new value.
   }, [replay])
+
+  // Ending the opening early.
+  //
+  // Same three steps the timer takes, because skipping is not a different
+  // outcome — somebody who taps has decided they have seen enough of it, and
+  // an opening that replayed next launch because you cut it short would be
+  // the most irritating possible reading of "plays once".
+  const skipOpening = useCallback(() => {
+    if (meetsColdOpen) {
+      markSeen(ONCE.cold_open)
+      setOwed(nextUp())
+    }
+    setBootLeaving(true)
+    setTimeout(() => setBooting(false), 550)
+  }, [meetsColdOpen])
 
   // Load the trips, and load them again when the session arrives.
   //
@@ -696,6 +733,11 @@ export default function App() {
       // reads it is three levels below the tab that mounts it.
       lookBackJump,
       clearLookBackJump: () => setLookBackJump(null),
+      // Which way in the opening's last question asked for, if any. On the
+      // context because the question is answered before WorldTab has mounted,
+      // and WorldTab is where the sheet that answers it lives.
+      waysIn,
+      clearWaysIn: () => setWaysIn(null),
       // Called by PlanTab when the planner shuts. Puts you back where the
       // trip was tapped, so "back" means back.
       closePlanner: () => {
@@ -716,7 +758,7 @@ export default function App() {
         }
       },
     }),
-    [tripMeta, shownTrips, demoPref, tripsLoaded, selectedTrip, journalJump, plannerJump, lookBackJump, user?.id, photosChanged, booting]
+    [tripMeta, shownTrips, demoPref, tripsLoaded, selectedTrip, journalJump, plannerJump, lookBackJump, waysIn, user?.id, photosChanged, booting]
   )
 
   // Public read-only share page — no nav, no forms.
@@ -733,7 +775,40 @@ export default function App() {
           that came up after the opening and had to be dismissed; it is now
           the second half of the opening itself, so nobody has to agree to
           be told. */}
-      {booting && <BootScreen leaving={bootLeaving} cold={meetsColdOpen} />}
+      {booting && (
+        <BootScreen
+          leaving={bootLeaving}
+          cold={meetsColdOpen}
+          // Ten seconds is the whole pitch and it earns the length; it does
+          // not earn the right to trap anybody in it. A tap ends it, and the
+          // flag is marked seen either way — somebody who skipped has still
+          // decided they have seen enough of it.
+          onSkip={skipOpening}
+        />
+      )}
+
+      {/* The first question, once the opening is out of the way.
+          Over everything and outside the tabs, because it is not a place in
+          the app — it is the one thing the app cannot work out for itself,
+          and until it is answered "away" has no meaning. `booting` guards it
+          so it cannot arrive on top of the opening, which is the exact
+          failure the first-run queue was built after. */}
+      {!booting && owed === ONCE.home_country && (
+        <WheresHome
+          thenAsk
+          onDone={(code, intent) => {
+            markSeen(ONCE.home_country)
+            setOwed(nextUp())
+            // "Add photos from a trip" and "I'm on one right now" are the two
+            // route ids GetTripsIn has had all along, so this opens a door
+            // that already exists rather than building a third way in.
+            if (intent) {
+              setActiveTab('world')
+              setWaysIn(intent)
+            }
+          }}
+        />
+      )}
 
       {/* What the nine o'clock notification opens. Over everything, because
           it was arrived at from outside the app and belongs to no tab. */}

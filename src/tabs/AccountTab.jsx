@@ -8,6 +8,11 @@ import { queued, sendOriginal } from '../lib/photoIngest.js'
 import { summarise } from '../lib/originals.js'
 import { callApi } from '../lib/apiBase.js'
 import { useAuth } from '../lib/AuthContext.jsx'
+import CountryFlags from '../components/CountryFlags.jsx'
+import WheresHome from '../components/WheresHome.jsx'
+import { adoptHome, readHome } from '../lib/home.js'
+import { nameOf } from '../lib/homePond.js'
+import { isoToEmojiFlag } from '../lib/flags.js'
 import {
   visitStatus,
   enableVisits,
@@ -846,6 +851,61 @@ function SomethingWrongCard() {
   )
 }
 
+/**
+ * Where home is, changeable.
+ *
+ * Asked once on first run and then never again, which is fine right up until
+ * somebody moves — or answers it on the plane, which for this app is a real
+ * fraction of people. The picker is the same component the first-run screen
+ * uses, so there is one place where this question is asked and one place it
+ * can be got wrong.
+ *
+ * Not admin-gated. This is the opposite of the opening replay above: it is a
+ * thing about *them*, and it belongs with their name rather than with the
+ * debugging tools.
+ */
+function HomeCard() {
+  const [code, setCode] = useState(() => readHome())
+  const [picking, setPicking] = useState(false)
+
+  useEffect(() => {
+    adoptHome().then((found) => found && setCode(found))
+  }, [])
+
+  if (picking) {
+    return (
+      <WheresHome
+        onDone={(picked) => {
+          setCode(picked)
+          setPicking(false)
+        }}
+      />
+    )
+  }
+
+  return (
+    <div className="account-card">
+      <div className="account-card-title">Your pond</div>
+      <div className="account-card-body">
+        {code ? (
+          <>
+            Home is <strong>{nameOf(code)}</strong>. Everything is measured from here — how far
+            you went, how long you were away, and whether you are away at all.
+          </>
+        ) : (
+          <>Nowhere yet. Until home is set, the app cannot tell a trip from a Tuesday.</>
+        )}
+      </div>
+      <div className="account-card-row">
+        {code && <CountryFlags countries={[isoToEmojiFlag(code)]} size={26} unknown />}
+        <button className="account-btn ghost" onClick={() => setPicking(true)}>
+          {code ? 'Somewhere else' : 'Say where'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // Admin only. Replaying the cold open is for whoever is checking it still
 // lands right, not something a hopper has a reason to reach for.
 function OpeningCard() {
@@ -1400,6 +1460,7 @@ function SignedIn() {
     <>
       <div className="account-group">You</div>
       <NameCard />
+      <HomeCard />
       <DegreesCard />
 
       <div className="account-group">Your trips</div>

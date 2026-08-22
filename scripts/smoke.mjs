@@ -88,39 +88,64 @@ try {
 
   // Watch the cold open all the way out.
   //
-  // Act two — the photographs folding into a route, and the one sentence
-  // that says what the app is for — is the whole of what a new arrival is
-  // told, and it is rendered conditionally. Tying that condition to state
-  // that the ending timer also changes pulled it out of the DOM on exactly
-  // the frame the screen began to fade: the pitch vanished and an empty
-  // globe faded out after it. Every screenshot of that looks fine. Only the
-  // frames in between are wrong, which is why this samples rather than
-  // looks.
+  // Two things about it that a screenshot cannot see, and both have already
+  // been wrong in a shipped build.
   //
-  // The rule is the narrow one that cannot misfire on a slow machine: if
-  // the opening was ever seen leaving, its sentence was still there when it
-  // went. Nothing is asserted about a load too slow to have got that far.
+  // The sentence. The line that says what the app is for is rendered
+  // conditionally, and tying that condition to state the ending timer also
+  // changes pulled it out of the DOM on exactly the frame the screen began
+  // to fade: the pitch vanished and an empty globe faded out after it. Every
+  // still of that looks fine. Only the frames in between are wrong.
+  //
+  // The swell. The globe grows to fill the frame at the end, which is the
+  // whole join into Home — Home is a big globe, so the cut is between two
+  // versions of one object. One rule in the stylesheet does it, that rule sat
+  // next to a block deleted wholesale in an unrelated change, and it went
+  // with it. Nothing failed. Nothing looked broken. The opening simply ended
+  // on a small globe, and it took measuring the element to notice.
+  //
+  // This samples rather than looks, and both rules are the narrow ones that
+  // cannot misfire on a slow machine: if the opening was ever seen leaving,
+  // its sentence was still there when it went; and if the globe was ever
+  // drawn at all, it was bigger at the end than at the start. Nothing is
+  // asserted about a load too slow to have got that far.
   await page.evaluate(() => {
-    window.__coldOpen = { everLeft: false, leftWithout: false }
+    window.__coldOpen = { everLeft: false, leftWithout: false, first: 0, widest: 0 }
     const tick = () => {
-      const boot = document.querySelector('.boot')
-      if (boot?.classList.contains('leaving')) {
-        window.__coldOpen.everLeft = true
-        if (!document.querySelector('.boot-say')) window.__coldOpen.leftWithout = true
+      const co = document.querySelector('.co')
+      const globe = document.querySelector('.co-globe')
+      if (globe) {
+        const w = globe.getBoundingClientRect().width
+        if (w > 0) {
+          if (!window.__coldOpen.first) window.__coldOpen.first = w
+          window.__coldOpen.widest = Math.max(window.__coldOpen.widest, w)
+        }
       }
-      if (boot) requestAnimationFrame(tick)
+      if (co?.classList.contains('leaving')) {
+        window.__coldOpen.everLeft = true
+        if (!document.querySelector('.co-rest')) window.__coldOpen.leftWithout = true
+      }
+      if (co) requestAnimationFrame(tick)
     }
     tick()
   })
 
   // Long enough for the lazy chunks to arrive and the first render to
-  // happen. Not waiting on the network: a signed-out load talks to Supabase
-  // and this must not depend on that answering.
-  await page.waitForTimeout(6000)
+  // happen, and — since COLD_OPEN_MS is 9.6s and the swell is the last beat
+  // of it — long enough to have seen the end. Not waiting on the network: a
+  // signed-out load talks to Supabase and this must not depend on that
+  // answering.
+  await page.waitForTimeout(10500)
 
   const opening = await page.evaluate(() => window.__coldOpen)
   if (opening?.everLeft && opening.leftWithout) {
     problems.push('the cold open faded out with its own sentence already gone')
+  }
+  // 1.3x is what the rule asks for; 1.15 is the floor that still means it ran.
+  if (opening?.first && opening.widest < opening.first * 1.15) {
+    problems.push(
+      `the globe never swelled — ${Math.round(opening.first)}px to ${Math.round(opening.widest)}px`
+    )
   }
 
   // Boundary.jsx, by class rather than by its words. The first version of

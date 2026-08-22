@@ -18,12 +18,14 @@ import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
 import { sectionTrips } from '../lib/tripPhase.js'
 import { overviewOf, homeCoords } from '../lib/homePov.js'
 import { shouldBadge, ownTrips } from '../lib/demoTour.js'
+import { ONCE, forcing } from '../lib/firstRun.js'
 import { pickVariant } from '../lib/variants.js'
 import { oops, track, whoAmI } from '../lib/analytics.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
 import DemoTour from '../components/DemoTour.jsx'
 import { NEW_TRIP, comingBackTo } from '../lib/photoImport.js'
-import { frontOfMind, heroWhen } from '../lib/frontOfMind.js'
+import { frontOfMind, heroWhen, tripProgress } from '../lib/frontOfMind.js'
+import { tripSoFar } from '../lib/tripSoFar.js'
 import { todayHere } from '../lib/whereYouAre.js'
 
 // Default framing for the "all trips" overview — centred on the
@@ -135,6 +137,8 @@ export default function WorldTab() {
     jumpToJournal,
     openPlanner,
     booting,
+    waysIn,
+    clearWaysIn,
   } = useContext(TripContext)
   // The one thing worth opening the app for when nothing is planned.
   const [memory, setMemory] = useState(null)
@@ -191,6 +195,7 @@ export default function WorldTab() {
   // shows a trip at all or the way in instead; see frontOfMind.js for why
   // an example is never the trip in that slot.
   const nothingReal = useMemo(() => ownTrips(tripMeta).length === 0, [tripMeta])
+  const forcedTour = useMemo(() => forcing().has(ONCE.demo_tour), [])
 
   // Promoted out of the strip, not copied above it.
   //
@@ -269,6 +274,18 @@ export default function WorldTab() {
     setRoutesAt('photos')
     setRoutesOpen(true)
   }, [])
+
+  // The last question of the opening — "anything you've already done?" —
+  // names one of these routes, and it is answered before this tab exists, so
+  // the answer arrives on the context rather than as a prop. Cleared as it is
+  // spent: leaving it set reopens the sheet every time somebody comes back to
+  // Home, which is a trap rather than a way in.
+  useEffect(() => {
+    if (!waysIn) return
+    setRoutesAt(waysIn)
+    setRoutesOpen(true)
+    clearWaysIn()
+  }, [waysIn, clearWaysIn])
 
   const home = useMemo(() => homeCoords(), [])
   const idleSpin = isEmpty ? 0.9 : 0.35
@@ -992,7 +1009,11 @@ export default function WorldTab() {
         <EmptyHome onPlan={() => goToTab('plan')} onGetIn={() => setRoutesOpen(true)} />
       ) : (
         <div className="world-bottom">
-          <DemoTour active={nothingReal && !booting} />
+          {/* Normally only while there is nothing of yours to point at
+              instead. `?first=tour` overrides that, because the case worth
+              checking is what a stranger sees, and the person checking it
+              always has trips. See firstRun.js. */}
+          <DemoTour active={(nothingReal || forcedTour) && !booting} />
           {/* The present, at the size of the present.
               Above the strip rather than in it, because the strip is a
               horizontal list and a list has no way to say that one of its
@@ -1022,24 +1043,46 @@ export default function WorldTab() {
               <span className="wt-front-scrim" aria-hidden="true" />
               <span className="wt-front-text">
                 <span className="wt-front-when">{heroWhen(front, today)}</span>
+                {/* The same two numbers the line above is made of, drawn.
+                    "Day 6 of 10" is a fact you have to read; a bar two-thirds
+                    filled is one you see. Only when there is a real end date
+                    — an open-ended trip gets the words and no bar rather than
+                    a bar filling towards a length nobody has said. */}
+                <HeroProgress pick={front} today={today} />
                 <span className="wt-front-title">{front.trip.title}</span>
+                {/* What the trip has amounted to, while it is still going on.
+                    Composed from the counts trip_meta already carries rather
+                    than written, because the written version is the story
+                    engine's job and needs the days to exist first. */}
+                <HeroSoFar pick={front} today={today} />
               </span>
             </button>
           ) : nothingReal ? (
-            <button
-              className="wt-front wt-front--add"
-              onClick={() => {
+            /* The card, not the tile.
+               "Tip it in" over the drawing was the hero here, and it was the
+               weakest thing on the screen: a picture of a duck and a plus
+               sign, saying nothing, at the size of the most important object
+               on the page. David, seeing it signed out: "this looks naff —
+               I preferred the one we had when there were no demos."
+
+               That one was EmptyHome, and until now it was unreachable
+               whenever an example loaded, because it stood in for the entire
+               screen rather than for the hero. It only ever appeared when
+               nothing at all came back — which is why the one time he saw it
+               was during an outage.
+
+               It is the better hero for a reason worth keeping: it is the
+               only one of the two that says *whose* trips those are, which is
+               the whole job the tour tooltips were invented to do, without an
+               overlay and with nothing to dismiss. */
+            <EmptyHome
+              onPlan={() => goToTab('plan')}
+              onGetIn={() => {
                 track('tile_tapped', { test: 'add_tile', variant: tile?.id, where: 'hero' })
                 setRoutesOpen(true)
               }}
-            >
-              <AddIllustration className="wt-front-add-cover wt-add-cover" />
-              <span className="wt-front-scrim" aria-hidden="true" />
-              <span className="wt-front-text">
-                <span className="wt-front-when">Start here</span>
-                <span className="wt-front-title">{tile?.title ?? 'Add a trip'}</span>
-              </span>
-            </button>
+              examples={tripMeta.length}
+            />
           ) : null}
 
           <div className="world-trips">
@@ -1125,13 +1168,42 @@ function useBounce() {
 // What Home said before this was nothing at all: an empty div under a
 // slowly rotating, arc-less globe. Someone with no trips got no heading, no
 // prompt and no way in.
-function EmptyHome({ onPlan, onGetIn }) {
+// Spelled out, because "The 3 below are ours" is a sentence written by a
+// database. Past five it stops being worth spelling and the digit is fine —
+// nobody reads "the seventeen below" as English either.
+const WORDS = ['no', 'one', 'two', 'three', 'four', 'five']
+const howMany = (n) => WORDS[n] ?? String(n)
+
+/**
+ * The way in, whenever nothing on the globe is yours.
+ *
+ * Two jobs, and the second one is why it replaced the hero tile: it says
+ * whose trips those are. A stranger's holiday sitting on your globe with
+ * nothing to explain it is the thing the tour tooltips existed to fix, and a
+ * sentence that is simply there beats an overlay that has to be dismissed.
+ *
+ * `examples` is how many trips are on the globe, which is not always the same
+ * question as whether any are. It is zero when the app is genuinely empty —
+ * signed in, nothing added yet — and the copy has to work both ways round
+ * without a second component.
+ */
+function EmptyHome({ onPlan, onGetIn, examples = 0 }) {
   return (
     <div className="world-empty">
       <div className="world-empty-title">Nothing on the globe yet</div>
       <div className="world-empty-body">
-        Every trip you take lands here — the flights, the photos, the day you got lost. Start with
-        one you've already booked, or just somewhere you fancy.
+        {examples ? (
+          <>
+            {examples === 1 ? 'The one below is ours' : `The ${howMany(examples)} below are ours`}, so
+            you can see how it works. Yours will land here — the flights, the photos, the day you got
+            lost.
+          </>
+        ) : (
+          <>
+            Every trip you take lands here — the flights, the photos, the day you got lost. Start
+            with one you&apos;ve already booked, or just somewhere you fancy.
+          </>
+        )}
       </div>
       <div className="world-empty-btns">
         <button className="world-empty-btn" onClick={onGetIn}>
@@ -1142,6 +1214,42 @@ function EmptyHome({ onPlan, onGetIn }) {
         </button>
       </div>
     </div>
+  )
+}
+
+/**
+ * How far through the trip you are, as a bar rather than a sentence.
+ *
+ * Ten segments would be truer for a ten-day trip and unreadable at any other
+ * length, so it is one bar with a filled part — the caption above already
+ * says which day of how many, and this is the glance version of it.
+ */
+/**
+ * "Six days in. 59 photos." — between the bar and the day list.
+ *
+ * Says nothing at all on a trip's first morning rather than reporting zeroes,
+ * which would make the app sound disappointed in somebody who has just
+ * arrived. See tripSoFar.js.
+ */
+function HeroSoFar({ pick, today }) {
+  const { day } = tripProgress(pick, today)
+  const line = tripSoFar({
+    day,
+    photos: pick?.trip?.photo_count ?? 0,
+    flights: pick?.trip?.flight_count ?? 0,
+    countries: pick?.trip?.countries?.length ?? 0,
+  })
+  if (!line) return null
+  return <span className="wt-front-sofar">{line}</span>
+}
+
+function HeroProgress({ pick, today }) {
+  const { part } = tripProgress(pick, today)
+  if (part == null) return null
+  return (
+    <span className="wt-front-bar" aria-hidden="true">
+      <span className="wt-front-bar-fill" style={{ transform: `scaleX(${part})` }} />
+    </span>
   )
 }
 

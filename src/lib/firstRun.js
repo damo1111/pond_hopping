@@ -44,6 +44,15 @@ export const ONCE = {
    *  `pitch` in their record keeps it — it is simply never asked about. */
   cold_open: 'cold_open',
 
+  /** Where they live. The only question in the opening minute, and the only
+   *  thing about a trip the app cannot work out for itself — dates, places
+   *  and distances all fall out of the photographs, and home does not.
+   *  Without it "you've been away five days" cannot be written.
+   *
+   *  In IN_ORDER, unlike the tour: it is a boot interruption and it has to
+   *  come after the opening rather than on top of it. */
+  home_country: 'home_country',
+
   /** Three tooltips on Home, pointing at the example trip, the strip it
    *  sits in, and the way to start a real one. Not in IN_ORDER below: that
    *  queue is boot interruptions, gating what somebody meets before the app
@@ -132,6 +141,92 @@ export function forget(what, store = globalThis.localStorage) {
 }
 
 /**
+ * Force a first-run thing to happen again, from the URL. `?first=…`
+ *
+ * Because "does this look right to somebody who has never seen it" is a
+ * question that can only be asked once per device, and the honest answer to
+ * how it used to be asked is: clear the site data, or find another phone.
+ * Neither survives being asked to check one wording change.
+ *
+ * Everything here lives in one localStorage key, which is what makes this
+ * work at all — the record is per *device*, not per account. So the same
+ * link forces the same state whether nobody is signed in, David is, or a
+ * tester is, which is exactly the three cases worth checking and exactly
+ * what could not be done before.
+ *
+ *   ?first=opening   the cold open
+ *   ?first=home      the where's-home question (also `pond`, `country`)
+ *   ?first=tour      the three tooltips on Home
+ *   ?first=all       all of them, in their proper order
+ *   ?first=none      mark everything seen — the returning-hopper case, which
+ *                    is otherwise just as hard to get back to
+ *
+ * Comma-separate to combine. Unknown words are ignored rather than throwing:
+ * this is a debugging aid and it must never be the reason the app fails to
+ * boot. `intro`, `cold`, `tips` and `tooltips` are accepted because they are
+ * what people type.
+ */
+export const FORCE_PARAM = 'first'
+
+const ALIASES = {
+  opening: ONCE.cold_open,
+  intro: ONCE.cold_open,
+  cold: ONCE.cold_open,
+  cold_open: ONCE.cold_open,
+  home: ONCE.home_country,
+  pond: ONCE.home_country,
+  country: ONCE.home_country,
+  home_country: ONCE.home_country,
+  tour: ONCE.demo_tour,
+  tips: ONCE.demo_tour,
+  tooltips: ONCE.demo_tour,
+  demo_tour: ONCE.demo_tour,
+}
+
+/** What the URL is asking for, as a Set of ONCE values. Never throws. */
+export function forcing(search = globalThis.location?.search ?? '') {
+  let raw = null
+  try {
+    raw = new URLSearchParams(search).get(FORCE_PARAM)
+  } catch {
+    return new Set()
+  }
+  if (!raw) return new Set()
+  const asked = raw
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+  if (asked.includes('none')) return new Set()
+  if (asked.includes('all')) return new Set(Object.values(ONCE))
+  return new Set(asked.map((w) => ALIASES[w]).filter(Boolean))
+}
+
+/**
+ * Apply what the URL asked for. Call once, before nextUp().
+ *
+ * `?first=none` is the one that writes rather than deletes — it is how you
+ * get back to being a returning hopper without clearing anything by hand.
+ */
+export function forceFirstRun(search = globalThis.location?.search ?? '', store = globalThis.localStorage) {
+  let asked = null
+  try {
+    asked = new URLSearchParams(search).get(FORCE_PARAM)
+  } catch {
+    return new Set()
+  }
+  if (!asked) return new Set()
+
+  if (asked.split(',').some((w) => w.trim().toLowerCase() === 'none')) {
+    Object.values(ONCE).forEach((what) => markSeen(what, store))
+    return new Set()
+  }
+
+  const wanted = forcing(search)
+  wanted.forEach((what) => forget(what, store))
+  return wanted
+}
+
+/**
  * Only one interruption at a time, ever.
  *
  * The order is the order somebody should meet them, and this hands back the
@@ -139,7 +234,7 @@ export function forget(what, store = globalThis.localStorage) {
  * which is the rule the four old flags had no way of expressing, and the
  * whole reason a new hopper could meet three things in eight seconds.
  */
-export const IN_ORDER = [ONCE.cold_open]
+export const IN_ORDER = [ONCE.cold_open, ONCE.home_country]
 
 export function nextUp(store = globalThis.localStorage, order = IN_ORDER) {
   return order.find((what) => !seen(what, store)) ?? null

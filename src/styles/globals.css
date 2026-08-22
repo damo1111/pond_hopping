@@ -3886,18 +3886,12 @@ button.album-open:disabled {
   position: absolute;
   left: 0;
   right: 0;
-  /* Capped and centred, the way every sheet in the app already is on a
-     wide screen — this block never was, because full-bleed cost nothing
-     when the strip was the only thing in it: a scrollable row of
-     fixed-width cards just trails off into empty space past its last
-     card, and nobody notices a hero that isn't there yet. It stopped
-     being free the moment the hero was allowed to be a drawing rather
-     than a photograph: cropped to whatever the screen happens to be
-     wide, the illustration read as stretched rather than as a globe,
-     and its right edge stopped lining up with the row underneath it.
-     Below 480px — every phone this ships to — this changes nothing. */
-  max-width: 480px;
-  margin: 0 auto;
+  /* Full width, and deliberately. Capping this block was the wrong fix for
+     a real problem: the hero is a single element and stretched badly on a
+     wide screen, but the strip beneath it is a horizontal scroller, and a
+     scroller squeezed into 480px in the middle of a 1400px window clips its
+     cards mid-card at both edges and reads as broken. The cap belongs on the
+     one element that needed it — see .wt-front — not on both. */
   bottom: calc(90px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
   z-index: 500;
   display: flex;
@@ -13527,6 +13521,10 @@ button.ios-sheet-grip:active { cursor: grabbing; }
      bottom of the screen is the thing that cannot drift when the strip's
      first item changes again. */
   margin: 0 12px;
+  /* Capped, but left-aligned rather than centred, so its left edge stays on
+     the same 12px gutter the strip's first card sits on. Centring it would
+     line it up with nothing once the strip runs full width. */
+  max-width: 480px;
   /* Taller than it was, and still shorter than a card.
      96px made the biggest thing on the page the shortest thing on it, and
      left the photograph as a band rather than a picture. 124 gives it room
@@ -13826,3 +13824,660 @@ button.ios-sheet-grip:active { cursor: grabbing; }
 }
 
 .pp-shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ══ The cold open ═══════════════════════════════════════════════════════════
+   ColdOpen.jsx. Ten seconds, once per device, and the only thing on screen
+   while it runs. Everything is transform and opacity so it holds sixty frames
+   in an eight-year-old WebView — no canvas, no WebGL, nothing that lays out.
+
+   Named co- rather than boot- because it lives alongside the short opening
+   every later launch gets, which keeps the boot- names. */
+.co {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100005;
+  transition: opacity 0.5s ease;
+  cursor: pointer;
+}
+.co.leaving { opacity: 0; pointer-events: none; }
+
+/* Fixed size, centred, the way .boot-stage already is: every coordinate in
+   coldOpen.js is in this space, so scaling the box would mean re-deriving all
+   of them. 340 fits the narrowest phone this ships to with room either side. */
+.co-stage {
+  position: relative;
+  width: 340px;
+  height: 372px;
+}
+.co-draw {
+  position: absolute;
+  left: 20px;
+  top: 0;
+  width: 300px;
+  height: 372px;
+  overflow: visible;
+}
+
+.co-wire { fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0.42; stroke-linecap: round; }
+.co-arc  { fill: none; stroke: var(--accent); stroke-width: 1.7; stroke-linecap: round; }
+.co-pin  { fill: var(--accent); }
+
+@keyframes co-draw { to { stroke-dashoffset: 0 } }
+@keyframes co-pop  { 0% { transform: scale(0); opacity: 0 } 70% { transform: scale(1.5) } 100% { transform: scale(1); opacity: 1 } }
+@keyframes co-fade-in  { to { opacity: 1 } }
+@keyframes co-fade-out { to { opacity: 0 } }
+@keyframes co-rise { from { opacity: 0; transform: translateY(9px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes co-leave { to { opacity: 0; transform: translateY(-9px) } }
+
+.co-wire { stroke-dasharray: 1; stroke-dashoffset: 1; animation: co-draw 1000ms ease-out 400ms forwards; }
+.co-arc  { stroke-dasharray: 1; stroke-dashoffset: 1; animation: co-draw 620ms ease-out var(--d) forwards; }
+.co-pin  { transform-box: fill-box; transform-origin: center; transform: scale(0); opacity: 0;
+           animation: co-pop 380ms cubic-bezier(0.3, 1.4, 0.5, 1) var(--d) forwards; }
+
+/* The duck is animated from JS — see duckFrames(). This is only where he ends
+   up if element.animate is missing, so the last frame is still correct and the
+   screen simply does not move. */
+.co-duck { transform: translate(197px, 99px); }
+
+/* ── What he leaves behind ──
+   Fifteen small marks, each landing as he passes it. Two nested groups again:
+   the outer one holds where it is, the inner one what it does, because a CSS
+   transform beats a transform attribute on the same element and they would
+   otherwise all animate from the top-left corner. */
+.co-drop {
+  opacity: 0;
+  animation: co-drop 420ms cubic-bezier(0.3, 1.3, 0.5, 1) var(--d) forwards;
+}
+@keyframes co-drop {
+  0%   { opacity: 0; transform: rotate(var(--tilt)) scale(0.4) }
+  100% { opacity: 0.9; transform: rotate(var(--tilt)) scale(1) }
+}
+.co-drop-box,
+.co-drop-line { fill: none; stroke: var(--accent); stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+.co-drop-fill,
+.co-drop-solid { fill: var(--accent); }
+/* Knocked out of the solid mark in the page colour, so a photograph reads as a
+   photograph at nine pixels instead of as a small box. */
+.co-drop-knock { fill: var(--bg); }
+
+/* ── The turn ──
+   A meridian at longitude θ projects to an ellipse of width r·|cos θ|, so
+   animating width IS the rotation rather than an impression of one. Written
+   translate-then-scale for the same reason the swell is: transform-box on SVG
+   is unreliable in the WebViews both wrappers use. tx = cx(1 − s) each step. */
+@keyframes co-turn {
+  0%    { transform: translate(0, 0)       scale(1, 1) }
+  12.5% { transform: translate(11.4px, 0)  scale(0.924, 1) }
+  25%   { transform: translate(44px, 0)    scale(0.707, 1) }
+  37.5% { transform: translate(92.6px, 0)  scale(0.383, 1) }
+  50%   { transform: translate(150px, 0)   scale(0.001, 1) }
+  62.5% { transform: translate(92.6px, 0)  scale(0.383, 1) }
+  75%   { transform: translate(44px, 0)    scale(0.707, 1) }
+  87.5% { transform: translate(11.4px, 0)  scale(0.924, 1) }
+  100%  { transform: translate(0, 0)       scale(1, 1) }
+}
+/* .42 is the wireframe's own weight, so the meridians settle at exactly the
+   same value the circle and the latitudes were drawn at. */
+@keyframes co-wire-in { to { opacity: 0.42 } }
+.co-meridian {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  opacity: 0;
+  animation: co-wire-in 900ms ease-out 500ms forwards,
+             co-turn 10s linear var(--phase) infinite;
+}
+
+/* The globe takes the frame at the end, growing into the space the sentence
+   vacates. translate-then-scale rather than transform-origin, because older
+   WebViews get transform-box wrong on SVG groups and both wrappers are
+   WebViews — see swellTo(), which is where these two numbers come from.
+
+   This rule went missing once already: it sat next to a block that was deleted
+   wholesale when the pin-marks were replaced by the duck's droppings, and its
+   absence is invisible in every still — the opening simply ends on a small
+   globe instead of a big one. Hence the measurement in the smoke test. */
+@keyframes co-swell {
+  from { transform: translate(0, 0) scale(1) }
+  to   { transform: translate(-45px, -41.4px) scale(1.3) }
+}
+.co-globe { animation: co-swell 1500ms cubic-bezier(0.22, 1, 0.36, 1) 8100ms forwards; }
+
+/* ── The heap ── */
+.co-chip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 30px;
+  height: 23px;
+  margin-left: -15px;
+  margin-top: -11px;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(26, 22, 17, 0.22);
+  opacity: 0;
+  animation: co-chip 7500ms cubic-bezier(0.4, 0, 0.3, 1) var(--d) both;
+}
+@keyframes co-chip {
+  0%   { transform: translate(var(--sx), var(--sy)) rotate(var(--sr)) scale(1); opacity: 0 }
+  3%   { opacity: 1 }
+  15%  { transform: translate(var(--px), var(--py)) rotate(var(--pr)) scale(1); opacity: 1 }
+  24%  { transform: translate(var(--px), var(--py)) rotate(var(--pr)) scale(1); opacity: 1 }
+  35%  { transform: translate(var(--tx), var(--ty)) rotate(0deg) scale(0.1); opacity: 0 }
+  100% { transform: translate(var(--tx), var(--ty)) rotate(0deg) scale(0.1); opacity: 0 }
+}
+/* Desaturated on purpose — these read as photographs at a glance and must not
+   compete with the one accent colour the rest of the screen is made of. */
+.co-chip--1 { background: linear-gradient(150deg, #9DC3DC, #6E9DBD) }
+.co-chip--2 { background: linear-gradient(150deg, #D9B48A, #B98A57) }
+.co-chip--3 { background: linear-gradient(150deg, #A9C4A2, #6F9268) }
+.co-chip--4 { background: linear-gradient(150deg, #C8A9C4, #94718F) }
+.co-chip--5 { background: linear-gradient(150deg, #E0C48D, #C29A4E) }
+.co-chip--6 { background: linear-gradient(150deg, #8FA9B8, #5D7A8B) }
+.co-chip--7 { background: linear-gradient(150deg, #D89A8E, #B26A5C) }
+.co-chip--paper { background: #FFFDF8; border: 1px solid var(--border); }
+.co-chip--paper::after {
+  content: "";
+  position: absolute;
+  left: 4px; right: 4px; top: 5px;
+  height: 1px;
+  background: #DED6C4;
+  box-shadow: 0 4px 0 #DED6C4, 0 8px 0 #DED6C4;
+}
+
+/* ── The words ──
+   One zone, directly under the globe, and every beat takes its turn in it:
+   the opening line, then the year, then the sentence, then the wordmark. An
+   element with a slot of its own leaves a hole in it when it goes, which is
+   what the year and then the wordmark each did before this. */
+.co-year {
+  position: absolute;
+  left: 0; right: 0;
+  top: 244px;
+  text-align: center;
+  opacity: 0;
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  animation: co-fade-in 380ms ease-out 1900ms forwards, co-fade-out 460ms ease-in 3000ms forwards;
+}
+
+/* One type treatment across the whole sentence. Size, weight and colour used
+   to change all at once between its halves, which reads as two unrelated
+   screens rather than one sentence continuing. Colour is the only difference:
+   ink for the claim, muted for the connective, gold for the payload. */
+.co-open,
+.co-stem,
+.co-swap {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.co-open {
+  position: absolute;
+  left: 6px; right: 6px;
+  top: 250px;
+  text-align: center;
+  opacity: 0;
+  color: var(--text);
+  animation: co-rise 620ms cubic-bezier(0.22, 1, 0.36, 1) 500ms both,
+             co-leave 420ms ease-in 1700ms forwards;
+}
+
+.co-rest {
+  position: absolute;
+  left: 6px; right: 6px;
+  top: 250px;
+  text-align: center;
+  opacity: 0;
+  animation: co-fade-in 420ms ease-out 3500ms forwards,
+             co-fade-out 480ms ease-in 8200ms forwards;
+}
+.co-stem { display: block; color: var(--text-muted); }
+
+/* Fixed box with each line centred in it, so one that wraps on a narrow phone
+   sits where one that doesn't sits, and the block never jumps as they cycle. */
+.co-swaps { position: relative; display: block; height: 40px; margin-top: 12px; }
+.co-swap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  color: var(--accent);
+  animation: co-rise 400ms ease-out var(--in) both, co-leave 340ms ease-in var(--out) forwards;
+}
+.co-swap--last { animation: co-rise 400ms ease-out var(--in) both; }
+
+/* Centred in the space under the globe rather than parked on the gold line's
+   row: sitting there looked continuous mid-sequence but left the stem's
+   vacated row as a hole above it on the last frame, which is the one that
+   hands over to the app. */
+.co-mark {
+  position: absolute;
+  left: 0; right: 0;
+  top: 282px;
+  text-align: center;
+  opacity: 0;
+  font-family: var(--font-brand);
+  font-size: 28px;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  animation: co-rise 760ms cubic-bezier(0.22, 1, 0.36, 1) 8500ms forwards;
+}
+
+/* Everything arrives at once and holds. Somebody who has asked for less motion
+   still gets the whole argument — they just get it without the choreography. */
+@media (prefers-reduced-motion: reduce) {
+  .co-wire, .co-arc { stroke-dashoffset: 0; animation: none; }
+  .co-pin, .co-duck, .co-open, .co-rest, .co-mark, .co-globe { animation: none; opacity: 1; transform: none; }
+  .co-drop { animation: none; opacity: 0.9; transform: rotate(var(--tilt)); }
+  .co-meridian { animation: none; opacity: 0.42; }
+
+  .co-pin { transform: scale(1); }
+  .co-duck { transform: translate(230px, 145px); }
+  .co-chip, .co-year, .co-open { display: none; }
+  .co-swap { animation: none; opacity: 0; }
+  .co-swap--last { opacity: 1; }
+}
+
+/* Below 360px the stage would touch both edges. Scaled rather than reflowed,
+   because every number in coldOpen.js is in the 340-wide space. */
+@media (max-width: 359px) {
+  .co-stage { transform: scale(0.88); }
+}
+
+/* ── The way in, promoted to the hero slot ────────────────────────────────
+   This card used to appear only when the globe was completely empty, where
+   it floated over the map as the single thing on screen — hence the absolute
+   positioning above. It now also stands in for the hero whenever nothing on
+   the globe is *yours*, which is the common case for anybody signed out, and
+   in that slot it is an ordinary block with a strip of examples beneath it. */
+.world-bottom .world-empty {
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  margin: 0 12px 14px;
+}
+
+/* Paper, not white. Over the blue of the globe a white card reads as a
+   dialog — something that has interrupted you — where warm paper reads as
+   part of the app. Still translucent, so the globe carries through it and
+   the card sits *on* the world rather than over it. */
+.world-empty {
+  background: linear-gradient(rgba(245, 242, 235, 0.96), rgba(237, 233, 223, 0.96));
+  border-color: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 4px 18px rgba(26, 22, 17, 0.16);
+}
+
+/* Boxes, not pills, and full width.
+   "im thinking fingers on a phone" — a 46px rectangle spanning the card is a
+   much easier target than a centred capsule, and two of them stacked read as
+   a choice rather than as a button with an afterthought under it. The pill
+   stays everywhere else; this is the one place somebody is being asked to
+   commit with a thumb. */
+.world-empty-btns {
+  align-items: stretch;
+}
+
+.world-empty-btn {
+  border-radius: 12px;
+  padding: 14px 15px;
+  text-align: center;
+}
+
+/* ── Where's home ─────────────────────────────────────────────────────────
+   The first question, on its own screen, with nothing else on it. One ask at
+   a time is the rule the whole opening minute is built on, and this is the
+   only one that cannot be worked out from the photographs. */
+.wh {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 22px;
+  padding-bottom: calc(28px + var(--safe-area-inset-bottom, env(safe-area-inset-bottom)));
+}
+@keyframes wh-in { from { opacity: 0; transform: translateY(6px) } }
+
+/* The fade is on the content, not on the screen.
+   It was on .wh, and each step of the question replaces that element — so the
+   whole ground faded up again between the answer and the next question, and
+   for a fifth of a second the app showed through behind it. Fading the words
+   instead means the paper never lifts and only what is written on it
+   changes. */
+.wh-inner {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  animation: wh-in 380ms ease-out both;
+}
+
+.wh-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 6px;
+}
+
+.wh-ask {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 30px;
+  line-height: 1.1;
+  margin: 0 0 8px;
+  color: var(--text);
+  text-wrap: balance;
+}
+
+.wh-say {
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin: 0 0 18px;
+}
+
+.wh-search {
+  width: 100%;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 13px 14px;
+  margin: 4px 0 14px;
+}
+.wh-search:focus { outline: none; border-color: var(--accent); }
+
+/* Capped and scrollable, because searching turns three rows into forty and a
+   list that pushes its own search box off the top is unusable one-handed. */
+.wh-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: 46vh;
+  overflow-y: auto;
+  margin-bottom: 14px;
+}
+
+/* Boxes, not pills — the same reason as the hero card. Fingers on a phone. */
+.wh-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 11px 14px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 15px;
+  box-shadow: 0 1px 3px rgba(26, 22, 17, 0.06);
+}
+.wh-choice.is-hinted {
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px rgba(168, 132, 44, 0.22);
+}
+.wh-choice-name { flex: 1 1 auto; }
+.wh-choice-sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.wh-none {
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--text-muted);
+  padding: 8px 2px;
+  margin: 0;
+}
+
+.wh-else {
+  display: block;
+  margin: 0 auto;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 8px;
+}
+
+/* The reply. This screen is the definition of the word — saying "your pond is
+   Australia" is what makes "pond" mean anything — so it gets the whole frame
+   and a beat of its own before the next question. */
+.wh-inner--landed { text-align: center; }
+.wh-globe {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+  animation: wh-land 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes wh-land {
+  from { transform: scale(0.72); opacity: 0 }
+}
+.wh-ask--landed {
+  font-size: 26px;
+  animation: wh-land 700ms cubic-bezier(0.22, 1, 0.36, 1) 140ms both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wh-inner, .wh-globe, .wh-ask--landed { animation: none; }
+}
+
+/* The flag and the way to change it, on one line in Settings. */
+.account-card-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+/* ── Ideas ────────────────────────────────────────────────────────────────
+   The Plan tab ran out of things to say a third of the way down and the rest
+   was white. A tab about what happens next should always have something to
+   suggest, so this fills the space under the last card. */
+.plan-ideas { margin: 22px 0 4px; }
+
+.pi-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 8px;
+}
+
+/* Full-bleed within the tab's padding, so cards run off both edges rather
+   than stopping short — a strip with a visible end reads as a short list. */
+.pi-clip {
+  position: relative;
+  overflow: hidden;
+  margin: 0 -16px;
+}
+.pi-clip::before,
+.pi-clip::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 26px;
+  z-index: 2;
+  pointer-events: none;
+}
+.pi-clip::before { left: 0; background: linear-gradient(90deg, var(--bg), transparent); }
+.pi-clip::after { right: 0; background: linear-gradient(270deg, var(--bg), transparent); }
+
+/* Drifts rather than slides: a full lap is half a minute, which is nearer a
+   clock hand than a carousel. Travels exactly half its width because the list
+   is doubled — any other distance and it visibly jumps once a lap. */
+.pi-track {
+  display: flex;
+  gap: 10px;
+  padding: 3px 16px;
+  width: max-content;
+  animation: pi-drift 32s linear infinite;
+}
+.pi-clip:hover .pi-track,
+.pi-clip:focus-within .pi-track { animation-play-state: paused; }
+@keyframes pi-drift { to { transform: translateX(calc(-50% - 5px)); } }
+
+.pi-card {
+  flex: 0 0 auto;
+  width: 128px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 11px 11px 12px;
+  color: var(--accent);
+  font-family: inherit;
+  box-shadow: 0 2px 8px rgba(26, 22, 17, 0.06);
+}
+.pi-art { width: 100%; height: 46px; display: block; }
+.pi-name { font-size: 13.5px; font-weight: 500; color: var(--text); line-height: 1.25; }
+.pi-why { font-size: 10.5px; color: var(--text-muted); font-weight: 300; line-height: 1.35; }
+
+/* One sentence, no card. A third boxed thing on a screen that already has a
+   lane and a strip is where "too much" starts. */
+.pi-season {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 300;
+  color: var(--accent);
+  margin: 13px 0 0;
+}
+.pi-season::before {
+  content: '';
+  width: 14px;
+  height: 1px;
+  background: var(--accent);
+  opacity: 0.55;
+  flex: none;
+}
+
+/* At the foot now, not the second thing on the page. */
+.plan-signin { margin-top: 20px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pi-track { animation: none; }
+  /* Still reachable: without the drift the second copy is unreachable dead
+     weight, so the strip becomes an ordinary scroller. */
+  .pi-clip { overflow-x: auto; }
+}
+
+/* ── The pond, behind everything ──────────────────────────────────────────
+   "i like 'fill it with the pond'" — the Plan tab was the only screen in the
+   app with no globe on it, which is most of why it felt unmoored.
+
+   A background image rather than a positioned element, deliberately: a
+   background always paints behind its own content, so there is no stacking
+   context to fight and no z-index on any child to keep in step.
+
+   Bleeding off the bottom so it reads as depth rather than as a picture of a
+   globe, and at 17% so it never competes with a card. "dont make it too much
+   or too jarring." */
+.plan-tab {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cg fill='none' stroke='%23A8842C' stroke-width='1.6' opacity='0.17'%3E%3Ccircle cx='200' cy='200' r='150'/%3E%3Cellipse cx='200' cy='200' rx='58' ry='150'/%3E%3Cellipse cx='200' cy='200' rx='110' ry='150'/%3E%3Cpath d='M62 152H338'/%3E%3Cpath d='M50 200H350'/%3E%3Cpath d='M62 248H338'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  /* Wider than the screen and hanging below it: the point is that the pond
+     continues past the frame, not that it fits inside it. */
+  background-position: center calc(100% + 130px);
+  background-size: 420px 420px;
+  background-attachment: local;
+}
+
+/* The two doors after "your pond is —". Boxes with a line of explanation
+   under each, because "I'm on one right now" is a different kind of answer
+   from "add photos" and a bare pair of buttons makes them look alike. */
+.wh-doors {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 4px 0 14px;
+}
+
+.wh-door {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--accent);
+  border-radius: 14px;
+  padding: 14px 16px;
+  font-family: inherit;
+  box-shadow: 0 2px 10px rgba(168, 132, 44, 0.14);
+}
+
+.wh-door-name { font-size: 15.5px; font-weight: 600; color: var(--accent); }
+.wh-door-say { font-size: 12px; font-weight: 300; color: var(--text-muted); line-height: 1.4; }
+
+/* How far through the trip, under the "Day 6 of 10" line on the hero.
+   Sits over a photograph, so the track is a white wash rather than a grey:
+   a grey bar disappears on a dark cover and glares on a pale one. */
+.wt-front-bar {
+  display: block;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.32);
+  overflow: hidden;
+  margin: 6px 0 5px;
+  max-width: 190px;
+}
+
+/* Scaled rather than width-animated: a transform is a compositor job and a
+   width is a layout one, and this sits on a card that is already animating. */
+.wt-front-bar-fill {
+  display: block;
+  height: 100%;
+  background: #fff;
+  transform-origin: left center;
+  transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-front-bar-fill { transition: none; }
+}
+
+/* "Six days in. 59 photos." Under the trip's name on the hero, quieter than
+   it — the title is what you are looking at, this is what it has come to. */
+.wt-front-sofar {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 300;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.82);
+  margin-top: 3px;
+}

@@ -1,6 +1,16 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { IN_ORDER, ONCE, bringOldFlagsOver, forget, markSeen, nextUp, seen } from './firstRun.js'
+import {
+  IN_ORDER,
+  ONCE,
+  bringOldFlagsOver,
+  forceFirstRun,
+  forcing,
+  forget,
+  markSeen,
+  nextUp,
+  seen,
+} from './firstRun.js'
 
 const store = (start = {}) => {
   const box = { ...start }
@@ -16,10 +26,15 @@ test('nothing seen means the first thing in the order is owed', () => {
   assert.equal(nextUp(s), ONCE.cold_open)
 })
 
-test('and once it has been met, nothing is owed', () => {
+test('and once it has been met, the next thing is', () => {
+  // The opening, then where home is, then nothing. One at a time is the whole
+  // point of the queue: both of these are full-screen and arriving together
+  // is the exact failure it was built after.
   const s = store()
   assert.equal(nextUp(s), ONCE.cold_open)
   markSeen(ONCE.cold_open, s)
+  assert.equal(nextUp(s), ONCE.home_country)
+  markSeen(ONCE.home_country, s)
   assert.equal(nextUp(s), null)
 })
 
@@ -56,14 +71,16 @@ test('somebody who already sat through the old carousel is not shown it again', 
   const s = store({ 'pond:intro': '1' })
   bringOldFlagsOver(s)
   assert.equal(seen(ONCE.cold_open, s), true)
-  assert.equal(nextUp(s), null)
+  // But they are still asked where home is, because nobody has ever been —
+  // it is a new question and every existing hopper owes an answer to it.
+  assert.equal(nextUp(s), ONCE.home_country)
 })
 
 test('and neither is somebody who finished the old tour', () => {
   const s = store({ 'pond:tourdone': '1' })
   bringOldFlagsOver(s)
   assert.equal(seen(ONCE.cold_open, s), true)
-  assert.equal(nextUp(s), null)
+  assert.equal(nextUp(s), ONCE.home_country)
 })
 
 test('carrying over is safe to run twice and leaves the old keys alone', () => {
@@ -75,7 +92,7 @@ test('carrying over is safe to run twice and leaves the old keys alone', () => {
   // Left where the old code would look for them, so a revert still works.
   assert.equal(s.box['pond:intro'], '1')
   assert.equal(s.box['pond:tourdone'], '1')
-  assert.equal(nextUp(s), null)
+  assert.equal(nextUp(s), ONCE.home_country)
 })
 
 // The card it used to gate is gone: the opening says what the app is for
@@ -91,7 +108,9 @@ test('the retired cards are not owed to anybody', () => {
 })
 
 test('the order is the order somebody should meet them', () => {
-  assert.deepEqual(IN_ORDER, [ONCE.cold_open])
+  // The pitch, then the one question. Reversed, somebody is asked where they
+  // live by an app they have not yet seen do anything.
+  assert.deepEqual(IN_ORDER, [ONCE.cold_open, ONCE.home_country])
 })
 
 // The record was write-only until somebody wanted to watch the opening a
@@ -102,8 +121,9 @@ test('the order is the order somebody should meet them', () => {
 test('what has been seen can be unseen, so the opening can play again', () => {
   const s = store()
   markSeen(ONCE.cold_open, s)
+  markSeen(ONCE.home_country, s)
   assert.equal(seen(ONCE.cold_open, s), true)
-  assert.equal(nextUp(s), null, 'nothing owed while it is stamped')
+  assert.equal(nextUp(s), null, 'nothing owed while both are stamped')
 
   forget(ONCE.cold_open, s)
 
@@ -128,4 +148,66 @@ test('and storage that refuses the write does not take the app down', () => {
   }
   assert.doesNotThrow(() => forget(ONCE.cold_open, refuses))
   assert.doesNotThrow(() => forget(ONCE.cold_open, undefined))
+})
+
+// ── ?first=… ──────────────────────────────────────────────────────────────
+
+test('the URL can ask for the opening again', () => {
+  const s = store({ 'pond:seen': JSON.stringify({ cold_open: 'x', demo_tour: 'x' }) })
+  forceFirstRun('?first=opening', s)
+  assert.equal(seen(ONCE.cold_open, s), false)
+  assert.equal(seen(ONCE.demo_tour, s), true, 'only what was asked for')
+  assert.equal(nextUp(s), ONCE.cold_open)
+})
+
+test('or the tour, or both', () => {
+  const s = store({ 'pond:seen': JSON.stringify({ cold_open: 'x', demo_tour: 'x' }) })
+  forceFirstRun('?first=all', s)
+  assert.equal(seen(ONCE.cold_open, s), false)
+  assert.equal(seen(ONCE.demo_tour, s), false)
+})
+
+test('and the words people actually type all work', () => {
+  // intro/cold/tips/tooltips exist because they are what gets typed at 11pm.
+  for (const w of ['opening', 'intro', 'cold', 'cold_open']) {
+    assert.ok(forcing(`?first=${w}`).has(ONCE.cold_open), `${w} should mean the opening`)
+  }
+  for (const w of ['tour', 'tips', 'tooltips', 'demo_tour']) {
+    assert.ok(forcing(`?first=${w}`).has(ONCE.demo_tour), `${w} should mean the tour`)
+  }
+})
+
+test('a comma-separated pair asks for both', () => {
+  const got = forcing('?first=opening,tour')
+  assert.deepEqual([...got].sort(), [ONCE.cold_open, ONCE.demo_tour].sort())
+})
+
+test('none puts you back to being a returning hopper', () => {
+  // The other half of the problem: having seen the opening once, there was
+  // no way back to the ordinary launch either.
+  const s = store()
+  forceFirstRun('?first=none', s)
+  assert.equal(seen(ONCE.cold_open, s), true)
+  assert.equal(seen(ONCE.demo_tour, s), true)
+  assert.equal(nextUp(s), null)
+})
+
+test('nonsense in the parameter is ignored, never thrown', () => {
+  // Prove the check can fail: if unknown words fell through to forget(),
+  // `?first=banana` would clear the record and replay the opening for real
+  // hoppers who followed a mangled link.
+  const s = store({ 'pond:seen': JSON.stringify({ cold_open: 'x' }) })
+  assert.doesNotThrow(() => forceFirstRun('?first=banana', s))
+  assert.equal(seen(ONCE.cold_open, s), true, 'an unknown word must change nothing')
+  assert.equal(forcing('?first=').size, 0)
+  assert.equal(forcing('').size, 0)
+  assert.equal(forcing('?other=1').size, 0)
+})
+
+test('and no parameter at all touches nothing', () => {
+  // The overwhelmingly common case: this runs on every single boot.
+  const s = store({ 'pond:seen': JSON.stringify({ cold_open: 'x' }) })
+  const before = s.box['pond:seen']
+  forceFirstRun('', s)
+  assert.equal(s.box['pond:seen'], before, 'an ordinary launch must not write')
 })
