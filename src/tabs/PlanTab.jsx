@@ -9,6 +9,7 @@ import EmailImportsReview from '../components/planner/EmailImportsReview.jsx'
 import Icon from '../components/Icon.jsx'
 import PlanCard from '../components/plan/PlanCard.jsx'
 import PlanWaysIn from '../components/plan/PlanWaysIn.jsx'
+import PlanIdeas from '../components/plan/PlanIdeas.jsx'
 import TripStarting from '../components/TripStarting.jsx'
 import { planLane, waysInMode } from '../lib/planLane.js'
 import { neverBeen } from '../lib/neverBeen.js'
@@ -276,23 +277,6 @@ export default function PlanTab() {
         </button>
       </header>
 
-      {/* This used to be a sentence pointing at another tab three taps away,
-          which is not a prompt, it is a shrug. Sign-in is now a button, next
-          to the reason you would want it. One line above the button, because
-          two lines of preamble is a paragraph nobody reads before tapping. */}
-      {!user && (
-        <div className="plan-signin">
-          <div className="plan-signin-body">Sign in to start your own</div>
-          {/* "Sign in or create an account" is the heading on the sheet this
-              opens, where it is doing real work — telling somebody there is
-              one box for both. On a button it is a sentence, and it took the
-              full width of the screen to say it. */}
-          <button className="plan-signin-btn" onClick={openAuth}>
-            Sign in
-          </button>
-        </div>
-      )}
-
       {/* Above the lane rather than in it: somebody leaving on Friday should
           meet this before they start rearranging what they are doing on
           Friday. Renders nothing at all unless there is a trip within ten
@@ -341,9 +325,33 @@ export default function PlanTab() {
         </button>
       )}
 
+      {/* The space under the last card, which used to be the end of the page.
+          Above the someday form rather than below it, because the form is a
+          thing you use and these are things you read — and reading stops at
+          the first control. */}
+      <PlanIdeas flights={flownLegs} onPick={() => (user ? setCreating(true) : openAuth())} />
+
       <div className="plan-foot" ref={wishRef}>
         <WishlistForm onAdded={loadWishlist} />
       </div>
+
+      {/* Moved down here from directly under "What's next", where it was the
+          second thing on the page: a grey slab above everything real, and the
+          least interesting element on the screen holding the best seat. At the
+          foot it is where somebody arrives having read the rest and found a
+          reason. */}
+      {!user && (
+        <div className="plan-signin">
+          <div className="plan-signin-body">Sign in to start your own</div>
+          {/* "Sign in or create an account" is the heading on the sheet this
+              opens, where it is doing real work — telling somebody there is
+              one box for both. On a button it is a sentence, and it took the
+              full width of the screen to say it. */}
+          <button className="plan-signin-btn" onClick={openAuth}>
+            Sign in
+          </button>
+        </div>
+      )}
 
       {creating && (
         <PlanChat

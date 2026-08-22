@@ -14287,3 +14287,122 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   gap: 12px;
   margin-top: 10px;
 }
+
+/* ── Ideas ────────────────────────────────────────────────────────────────
+   The Plan tab ran out of things to say a third of the way down and the rest
+   was white. A tab about what happens next should always have something to
+   suggest, so this fills the space under the last card. */
+.plan-ideas { margin: 22px 0 4px; }
+
+.pi-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 8px;
+}
+
+/* Full-bleed within the tab's padding, so cards run off both edges rather
+   than stopping short — a strip with a visible end reads as a short list. */
+.pi-clip {
+  position: relative;
+  overflow: hidden;
+  margin: 0 -16px;
+}
+.pi-clip::before,
+.pi-clip::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 26px;
+  z-index: 2;
+  pointer-events: none;
+}
+.pi-clip::before { left: 0; background: linear-gradient(90deg, var(--bg), transparent); }
+.pi-clip::after { right: 0; background: linear-gradient(270deg, var(--bg), transparent); }
+
+/* Drifts rather than slides: a full lap is half a minute, which is nearer a
+   clock hand than a carousel. Travels exactly half its width because the list
+   is doubled — any other distance and it visibly jumps once a lap. */
+.pi-track {
+  display: flex;
+  gap: 10px;
+  padding: 3px 16px;
+  width: max-content;
+  animation: pi-drift 32s linear infinite;
+}
+.pi-clip:hover .pi-track,
+.pi-clip:focus-within .pi-track { animation-play-state: paused; }
+@keyframes pi-drift { to { transform: translateX(calc(-50% - 5px)); } }
+
+.pi-card {
+  flex: 0 0 auto;
+  width: 128px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 11px 11px 12px;
+  color: var(--accent);
+  font-family: inherit;
+  box-shadow: 0 2px 8px rgba(26, 22, 17, 0.06);
+}
+.pi-art { width: 100%; height: 46px; display: block; }
+.pi-name { font-size: 13.5px; font-weight: 500; color: var(--text); line-height: 1.25; }
+.pi-why { font-size: 10.5px; color: var(--text-muted); font-weight: 300; line-height: 1.35; }
+
+/* One sentence, no card. A third boxed thing on a screen that already has a
+   lane and a strip is where "too much" starts. */
+.pi-season {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  font-weight: 300;
+  color: var(--accent);
+  margin: 13px 0 0;
+}
+.pi-season::before {
+  content: '';
+  width: 14px;
+  height: 1px;
+  background: var(--accent);
+  opacity: 0.55;
+  flex: none;
+}
+
+/* At the foot now, not the second thing on the page. */
+.plan-signin { margin-top: 20px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pi-track { animation: none; }
+  /* Still reachable: without the drift the second copy is unreachable dead
+     weight, so the strip becomes an ordinary scroller. */
+  .pi-clip { overflow-x: auto; }
+}
+
+/* ── The pond, behind everything ──────────────────────────────────────────
+   "i like 'fill it with the pond'" — the Plan tab was the only screen in the
+   app with no globe on it, which is most of why it felt unmoored.
+
+   A background image rather than a positioned element, deliberately: a
+   background always paints behind its own content, so there is no stacking
+   context to fight and no z-index on any child to keep in step.
+
+   Bleeding off the bottom so it reads as depth rather than as a picture of a
+   globe, and at 17% so it never competes with a card. "dont make it too much
+   or too jarring." */
+.plan-tab {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cg fill='none' stroke='%23A8842C' stroke-width='1.6' opacity='0.17'%3E%3Ccircle cx='200' cy='200' r='150'/%3E%3Cellipse cx='200' cy='200' rx='58' ry='150'/%3E%3Cellipse cx='200' cy='200' rx='110' ry='150'/%3E%3Cpath d='M62 152H338'/%3E%3Cpath d='M50 200H350'/%3E%3Cpath d='M62 248H338'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  /* Wider than the screen and hanging below it: the point is that the pond
+     continues past the frame, not that it fits inside it. */
+  background-position: center calc(100% + 130px);
+  background-size: 420px 420px;
+  background-attachment: local;
+}
