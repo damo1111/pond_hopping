@@ -697,6 +697,49 @@ export default function WorldTab() {
   // state was unreachable — a network that drops rather than refuses left the
   // request pending forever, so "loading the world…" was the whole experience
   // and there was nothing to retry and nothing written down.
+  // Lining the signed-out hero up with the cards under it.
+  //
+  // David: "it doesn't align with the left edge of the first card and right
+  // edge of second card below." It could not: the hero was pinned to the
+  // viewport and the strip is built out of card widths, so the two were only
+  // ever going to agree by coincidence.
+  //
+  // Arithmetic gets close and not closer — the strip groups cards into
+  // sections, each with a vertical label and a divider, and how many of those
+  // fall before the second card depends entirely on which trips exist. So the
+  // real cards are measured and the answer handed to CSS. The fallbacks in
+  // globals.css cover the first paint and the case with fewer than two cards.
+  const bottomRef = useRef(null)
+  const stripRef = useRef(null)
+  useEffect(() => {
+    const measure = () => {
+      const strip = stripRef.current
+      const host = bottomRef.current
+      if (!strip || !host) return
+      const cards = strip.querySelectorAll('.wt-card')
+      if (cards.length < 2) {
+        host.style.removeProperty('--wt-hero-l')
+        host.style.removeProperty('--wt-hero-w')
+        return
+      }
+      const box = strip.getBoundingClientRect()
+      const first = cards[0].getBoundingClientRect()
+      const second = cards[1].getBoundingClientRect()
+      // Relative to the strip, not the page, so the scroll-hint animation
+      // sliding the whole row cannot poison the measurement.
+      host.style.setProperty('--wt-hero-l', `${Math.round(first.left - box.left)}px`)
+      host.style.setProperty('--wt-hero-w', `${Math.round(second.right - first.left)}px`)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    if (stripRef.current) ro.observe(stripRef.current)
+    window.addEventListener('resize', measure)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  })
+
   if (worldFailed) {
     return (
       <div className="tab-loading">
@@ -1015,7 +1058,7 @@ export default function WorldTab() {
       {tripsLoaded && !tripMeta.length ? (
         <EmptyHome onPlan={() => goToTab('plan')} onGetIn={() => setRoutesOpen(true)} />
       ) : (
-        <div className="world-bottom">
+        <div className="world-bottom" ref={bottomRef}>
           {/* Normally only while there is nothing of yours to point at
               instead. `?first=tour` overrides that, because the case worth
               checking is what a stranger sees, and the person checking it
@@ -1101,7 +1144,7 @@ export default function WorldTab() {
             />
           ) : null}
 
-          <div className="world-trips">
+          <div className="world-trips" ref={stripRef}>
           {memory && <MemoryCard memory={memory} onOpen={() => jumpToJournal(memory.slug, memory.entry_date)} />}
 
           {!nothingReal && addTile}
