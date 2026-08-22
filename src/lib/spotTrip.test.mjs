@@ -116,3 +116,36 @@ test('distance is rounded to something a person would say', () => {
   assert.equal(farAway(null), 'a long way')
   assert.equal(farAway(NaN), 'a long way')
 })
+
+test('somewhere already declined is never offered again', () => {
+  // The Glasgow case. Everybody in Great Britain is measured from London, so
+  // two days of Glasgow reads as 550 km from "home" and gets offered. Once.
+  const GLASGOW = { lat: 55.86, lon: -4.25 }
+  const clusters = [run('2026-08-20', '2026-08-22', GLASGOW)]
+
+  const first = spotTrip({ clusters, home: LONDON })
+  assert.ok(first, 'asked the first time, which is the point')
+
+  const again = spotTrip({ clusters, home: LONDON, notAway: [GLASGOW] })
+  assert.equal(again, null, 'and never again')
+})
+
+test('declining one place does not silence the rest of the world', () => {
+  const GLASGOW = { lat: 55.86, lon: -4.25 }
+  const got = spotTrip({
+    clusters: [run('2026-08-17', '2026-08-21', BANFF)],
+    home: LONDON,
+    notAway: [GLASGOW],
+  })
+  assert.ok(got, 'Canada is still Canada')
+  assert.equal(got.start, '2026-08-17')
+})
+
+test('a declined place with no coordinates cannot silence anything', () => {
+  const got = spotTrip({
+    clusters: [run('2026-08-17', '2026-08-21', BANFF)],
+    home: LONDON,
+    notAway: [{ lat: null, lon: null }, {}, null],
+  })
+  assert.ok(got)
+})

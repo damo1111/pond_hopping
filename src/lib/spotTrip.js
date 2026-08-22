@@ -33,11 +33,18 @@
 // Glasgow is five hundred and fifty kilometres from "home" by that reckoning
 // and will be asked whether it was a trip. It wasn't.
 //
-// Left as it is, knowingly. The wrong question here costs one tap on "No,
-// keep them loose" and the photographs are kept either way — nothing is
-// deleted, published or moved by getting this wrong. The real fix is to
-// learn home from where somebody's own photographs actually cluster, which
-// needs a history this is specifically for the people who have none of.
+// Asked once, and then never again about that place. Tapping "No, keep them
+// loose" says something true and specific — *wherever that was, it is not
+// away for me* — and notAway.js keeps it, so the Glaswegian is asked once,
+// says no once, and is never asked about Glasgow again.
+//
+// Better than never asking, because the first offer is still right for
+// everybody who has just come back from Canada. And the fix that looks
+// obvious — learn home from where their own photographs cluster — is a bad
+// one: it needs photographs taken at home, and this app's corpus is
+// precisely the away ones, because people upload holidays.
+
+import { isNotAway } from './notAway.js'
 
 /** How far from home stops being your own city. */
 export const AWAY_KM = 250
@@ -75,13 +82,21 @@ export function spanDays(cluster) {
  * @param clusters  from clusterPhotos()
  * @param home      from homeIs() — { lat, lng, known }
  * @param already   trips that already exist, so we never offer one twice
+ * @param notAway   places already declined — see notAway.js
  *
  * Returns the *most recent* qualifying cluster rather than the largest. The
  * offer is about what somebody is doing now — a fortnight in Peru two years
  * ago is a fine thing to import and a strange thing to be asked about on the
  * way out of an airport.
  */
-export function spotTrip({ clusters = [], home, already = [], minDays = MIN_DAYS, awayKm = AWAY_KM } = {}) {
+export function spotTrip({
+  clusters = [],
+  home,
+  already = [],
+  notAway = [],
+  minDays = MIN_DAYS,
+  awayKm = AWAY_KM,
+} = {}) {
   // Not knowing where home is, everything is equally far from it. Saying
   // nothing is the only honest option, and it is one tap to add a trip.
   if (!home?.known || !Number.isFinite(home.lat) || !Number.isFinite(home.lng)) return null
@@ -99,6 +114,11 @@ export function spotTrip({ clusters = [], home, already = [], minDays = MIN_DAYS
       if (days < minDays) return false
       if (km == null) return false // nothing located: no idea where, so no offer
       if (km < awayKm) return false
+      // Somewhere they have already said is not away. One tap of real signal
+      // about their own geography, and the only fix there is for the fact
+      // that everybody in Great Britain is measured from London — see
+      // notAway.js.
+      if (isNotAway(cluster?.centre, notAway)) return false
       // A trip already starting on that day is this trip, imported already.
       return !taken.has(cluster.start)
     })

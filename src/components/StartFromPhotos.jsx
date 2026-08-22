@@ -21,6 +21,7 @@ import { oops, track } from '../lib/analytics.js'
 import { farAway, spotDays, spotTrip } from '../lib/spotTrip.js'
 import { homeIs } from '../lib/homeIs.js'
 import { readHome } from '../lib/home.js'
+import { readNotAway, rememberNotAway } from '../lib/notAway.js'
 import { withDeadline, ONE_PHOTO_MS } from '../lib/deadline.js'
 import { whatIsNew, fingerprintOf } from '../lib/alreadyHere.js'
 import {
@@ -310,7 +311,7 @@ export default function StartFromPhotos({ onDone, onClose }) {
   // once is two questions where one would do.
   const spotted =
     source === 'device' && !joinable.length
-      ? spotTrip({ clusters: read?.clusters ?? [], home: homeIs(readHome()), already: tripMeta })
+      ? spotTrip({ clusters: read?.clusters ?? [], home: homeIs(readHome()), already: tripMeta, notAway: readNotAway() })
       : null
   const offering = Boolean(spotted && cluster && spotted.start === cluster.start && !asked)
 
@@ -617,6 +618,12 @@ export default function StartFromPhotos({ onDone, onClose }) {
                   className="account-btn ghost"
                   onClick={() => {
                     setAsked(true)
+                    // Not just a refusal — a fact about their own geography.
+                    // "Wherever that was, it is not away for me" is the only
+                    // signal there is about the difference between somebody
+                    // in London and somebody in Glasgow, both of whom the
+                    // timezone puts in London. See notAway.js.
+                    rememberNotAway(spotted?.centre)
                     create(null, { loose: true })
                   }}
                 >
