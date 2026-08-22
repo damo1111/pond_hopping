@@ -14539,3 +14539,74 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   color: rgba(255, 255, 255, 0.82);
   margin-top: 3px;
 }
+
+/* ── Photographs with no trip ─────────────────────────────────────────────
+   The band on All photos for a pile somebody kept without making a trip of
+   it. Quieter than a trip's own hero and louder than a row of thumbnails,
+   because it is neither: it is a shelf with an offer on it. */
+.loose-pile {
+  margin: 0 var(--wt-pad) 14px;
+  padding: 13px 14px;
+  border: 1px dashed var(--accent-dim);
+  border-radius: 14px;
+  background: linear-gradient(165deg, rgba(168, 132, 44, 0.10), rgba(168, 132, 44, 0.03));
+}
+
+.loose-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.loose-count { font-size: 14px; color: var(--text); }
+
+/* A link rather than a button: it changes what is on screen and changes
+   nothing in the world, and the two buttons below it do the opposite. */
+.loose-only {
+  flex: none;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.loose-say {
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-wrap: pretty;
+}
+
+.loose-make {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px 13px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.loose-make:disabled { opacity: 0.6; }
+.loose-make-what { font-size: 13px; line-height: 1.35; color: var(--text); }
+
+.loose-make-do {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.loose-undated { margin-top: 10px; }
