@@ -16,7 +16,12 @@ import {
 } from '../lib/tripFromPhotos.js'
 import SheetGrip from './SheetGrip.jsx'
 import UploadGrid from './UploadGrid.jsx'
+import EveningNote from './EveningNote.jsx'
 import { oops, track } from '../lib/analytics.js'
+import { farAway, spotDays, spotTrip } from '../lib/spotTrip.js'
+import { homeIs } from '../lib/homeIs.js'
+import { readHome } from '../lib/home.js'
+import { readNotAway, rememberNotAway } from '../lib/notAway.js'
 import { withDeadline, ONE_PHOTO_MS } from '../lib/deadline.js'
 import { whatIsNew, fingerprintOf } from '../lib/alreadyHere.js'
 import {
@@ -86,6 +91,14 @@ export default function StartFromPhotos({ onDone, onClose }) {
   const [files, setFiles] = useState(null)
   const [read, setRead] = useState(null) // { clusters, undated }
   const [pick, setPick] = useState(0)
+  // Set once the offer has been answered — either way — so the form appears
+  // and the question is not asked twice about the same pile.
+  const [asked, setAsked] = useState(false)
+  // Set when the run went up without a trip, so the last screen can say what
+  // actually happened. "That's on the globe now" is a lie about a loose pile:
+  // there is no card on the globe, and telling somebody to go and look at one
+  // is how they conclude the app lost their photographs.
+  const [keptLoose, setKeptLoose] = useState(false)
   const [title, setTitle] = useState('')
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
@@ -287,10 +300,36 @@ export default function StartFromPhotos({ onDone, onClose }) {
   // somebody's photographs.
   const joinable = cluster ? candidates(cluster, tripMeta).map((c) => c.trip) : []
 
+  // Does this pile look like a trip on its own?
+  //
+  // See spotTrip.js for the rule and for everything it refuses to guess at.
+  // Only for the phone's pile, because Google's cannot be kept loose — the
+  // server queue fetches into a trip by id and there is no id.
+  //
+  // Not offered when an existing trip already covers these days: "add to HK &
+  // South Korea" is a better answer than "is this a trip?", and asking both at
+  // once is two questions where one would do.
+  const spotted =
+    source === 'device' && !joinable.length
+      ? spotTrip({ clusters: read?.clusters ?? [], home: homeIs(readHome()), already: tripMeta, notAway: readNotAway() })
+      : null
+  const offering = Boolean(spotted && cluster && spotted.start === cluster.start && !asked)
+
   // `into` is an existing trip to add to; without one, a trip is made.
-  async function create(into = null) {
-    if (!into && !start) return setError('Give it a start date and I can make the trip.')
-    track('trip_from_photos', { into: Boolean(into) })
+  /**
+   * @param into   an existing trip to add to; without one, a trip is made
+   * @param loose  keep the photographs without making a trip at all
+   *
+   * `loose` is the answer to "no, these aren't a trip". They are still the
+   * person's photographs and they are still worth keeping — binning somebody's
+   * pictures because they declined a suggestion would be indefensible, and it
+   * teaches them never to tap No again. So the same upload runs with no trip
+   * on the other end, and Photos can still show them.
+   */
+  async function create(into = null, { loose = false } = {}) {
+    if (!loose && !into && !start) return setError('Give it a start date and I can make the trip.')
+    track('trip_from_photos', { into: Boolean(into), loose })
+    setKeptLoose(loose)
     setPhase('saving')
     setError(null)
     // Same reason as ingest(): making a trip and uploading forty photographs
@@ -298,7 +337,7 @@ export default function StartFromPhotos({ onDone, onClose }) {
     const working = begin()
     try {
       let trip = into
-      if (!trip) {
+      if (!trip && !loose) {
         const row = {
           title: title.trim() || suggestTitle(cluster),
           start_date: start,
@@ -338,6 +377,10 @@ export default function StartFromPhotos({ onDone, onClose }) {
       // is shrunk here, and closing this sheet does not stop it — which is
       // the whole point of a queue, and why this branch watches rather than
       // works.
+      // Google's pile cannot go loose: the server queue fetches into a trip
+      // by id, and there is no id. Offering the choice and then ignoring it
+      // would be worse than not offering it, so the offer is only shown for
+      // the phone's pile — see `offering` below.
       if (source === 'google') {
         const { importId, sending, already: had } = await sendThemIn(
           trip.id,
@@ -418,7 +461,7 @@ export default function StartFromPhotos({ onDone, onClose }) {
               preview: URL.createObjectURL(prepared.thumb.blob),
               located: prepared.exif.lat != null,
             })
-            await store(prepared, { tripId: trip.id, isHighlight: !into && done === 0 })
+            await store(prepared, { tripId: loose ? null : trip.id, isHighlight: !loose && !into && done === 0 })
             bytes += prepared.display.blob.size + prepared.thumb.blob.size
             original += prepared.originalBytes
             if (prepared.exif.lat != null) placed += 1
@@ -441,7 +484,7 @@ export default function StartFromPhotos({ onDone, onClose }) {
       // Only when nothing landed, and only for a trip this run created. The
       // loop has already stopped by here, so nothing is racing to write into
       // what is about to be deleted.
-      if (abandoned.current && !into && done === 0) {
+      if (abandoned.current && !into && !loose && done === 0) {
         await supabase.from('trips').delete().eq('id', trip.id)
         return
       }
@@ -451,7 +494,9 @@ export default function StartFromPhotos({ onDone, onClose }) {
       setMissed(skipped)
       notePhotosChanged?.()
       setPhase('done')
-      onDone?.(trip)
+      // Nothing to open when they are loose — there is no trip to land on,
+      // which is exactly what was asked for.
+      onDone?.(loose ? null : trip)
     } catch (e) {
       setError(e?.message || 'Something went wrong making the trip.')
       setPhase('confirm')
@@ -547,6 +592,51 @@ export default function StartFromPhotos({ onDone, onClose }) {
 
         {phase === 'confirm' && (
           <>
+            {/* The offer, before the form.
+                Somebody who has just landed and uploaded five days of
+                photographs should be asked a question they can answer, not
+                handed three fields. The form is still here — it is one tap
+                below, and it is what anybody who wants to name it themselves
+                gets. See spotTrip.js for when this is allowed to appear. */}
+            {offering ? (
+              <>
+                <div className="ios-sheet-title">This looks like a trip</div>
+                <div className="ios-sheet-sub">
+                  {spotDays(spotted)} of photographs, {farAway(spotted.km)} from home.
+                </div>
+
+                <button
+                  className="ios-sheet-done"
+                  onClick={() => {
+                    setAsked(true)
+                    create()
+                  }}
+                >
+                  Yes, make it a trip
+                </button>
+                <button
+                  className="account-btn ghost"
+                  onClick={() => {
+                    setAsked(true)
+                    // Not just a refusal — a fact about their own geography.
+                    // "Wherever that was, it is not away for me" is the only
+                    // signal there is about the difference between somebody
+                    // in London and somebody in Glasgow, both of whom the
+                    // timezone puts in London. See notAway.js.
+                    rememberNotAway(spotted?.centre)
+                    create(null, { loose: true })
+                  }}
+                >
+                  No, keep them loose
+                </button>
+                {/* Quieter than both, because it is the rarer answer and it
+                    leads to work rather than away from it. */}
+                <button className="route-name-it" onClick={() => setAsked(true)}>
+                  I&apos;ll name it myself
+                </button>
+              </>
+            ) : (
+              <>
             <div className="ios-sheet-title">
               {cluster ? 'Does this look right?' : 'When was this trip?'}
             </div>
@@ -629,6 +719,8 @@ export default function StartFromPhotos({ onDone, onClose }) {
             <button className="ios-sheet-done" onClick={() => create()}>
               Make the trip · {toUpload.length} photo{toUpload.length === 1 ? '' : 's'}
             </button>
+              </>
+            )}
           </>
         )}
 
@@ -672,11 +764,19 @@ export default function StartFromPhotos({ onDone, onClose }) {
 
         {phase === 'done' && (
           <>
-            <div className="ios-sheet-title">That's on the globe now</div>
+            <div className="ios-sheet-title">
+              {keptLoose ? 'Kept for you' : "That's on the globe now"}
+            </div>
             <div className="ios-sheet-sub">
               {progress.total - missed} photos ·{' '}
               {savingsLabel(progress.original, progress.bytes) || 'uploaded'}
             </div>
+            {keptLoose && (
+              <div className="ios-sheet-sub">
+                No trip made. They&apos;re in Photos, and they can be turned into one whenever
+                you like.
+              </div>
+            )}
             {already > 0 && (
               <div className="ios-sheet-sub">
                 {already} {already === 1 ? 'was' : 'were'} already here, so {already === 1 ? 'it' : 'they'}{' '}
@@ -689,8 +789,15 @@ export default function StartFromPhotos({ onDone, onClose }) {
                 again will only send the ones that are missing.
               </div>
             )}
-            {/* If this is the trip they're on, the rest of it can log itself. */}
-            <TrackPlaces compact />
+            {/* If this is the trip they're on, the rest of it can log itself.
+                Nothing to track when there is no trip. */}
+            {!keptLoose && <TrackPlaces compact />}
+            {/* And for anybody who declined that: the evening note needs
+                five photographs or two kilometres, and they have just
+                supplied the photographs. Renders nothing unless the
+                question is still open. Not on the loose path — there is no
+                trip for a day to belong to. */}
+            {!keptLoose && <EveningNote />}
             <button className="ios-sheet-done" onClick={onClose}>
               Have a look
             </button>

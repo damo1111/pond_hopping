@@ -127,3 +127,55 @@ test('"nowhere named" is not said when nothing at all was named', () => {
   ] }
   assert.doesNotMatch(tellDay(day, {}, {}, ROME), /no name for/)
 })
+
+// ── The weather, on the days it was the day ──────────────────────────────
+
+const MILD = ['2024-01-21', '2024-01-22', '2024-01-23', '2024-01-24'].map((on_date) => ({
+  on_date, high_c: 12, low_c: 5, code: 1, wind_kmh: 14, rain_mm: 0,
+}))
+
+test('an ordinary day says nothing about the weather', () => {
+  // The symbol beside the entry already covers it. A story that mentions the
+  // weather every day is a weather report.
+  const day = { date: '2024-01-23', segments: [seg(8, 6, 44), seg(14, 16, 114)] }
+  const said = tellDay(day, { 1: 'the Pantheon' }, { runs: [RUN], weather: MILD }, ROME)
+  assert.ok(!/wind|rain|degrees|typhoon|storm|snow/i.test(said), said)
+})
+
+test('the day of the typhoon leads with the typhoon', () => {
+  // "There was a typhoon on my last day." It is the sentence somebody leads
+  // with four years later, so it leads here — burying it under the morning's
+  // coffee stop would be telling the day in the wrong order.
+  const day = { date: '2024-01-23', segments: [seg(8, 6, 44), seg(14, 16, 114)] }
+  const storm = { on_date: '2024-01-23', lat: 35.7, lon: 139.7, high_c: 24, low_c: 20, code: 95, wind_kmh: 131, rain_mm: 96 }
+  const forecast = [...MILD.filter((d) => d.on_date !== '2024-01-23'), storm]
+  const said = tellDay(day, { 1: 'the Pantheon' }, { runs: [RUN], weather: forecast }, ROME)
+  assert.match(said, /^The edge of a typhoon — 131 km\/h of wind\./)
+  // And the rest of the day is still there, under it.
+  assert.match(said, /21\.4 km run/)
+  assert.match(said, /the Pantheon/)
+})
+
+test('a smaller weather day sets the scene rather than leading', () => {
+  const day = { date: '2024-01-23', segments: [seg(8, 6, 44)] }
+  const wet = { on_date: '2024-01-23', lat: 41.9, lon: 12.5, high_c: 11, code: 63, wind_kmh: 20, rain_mm: 31 }
+  const forecast = [...MILD.filter((d) => d.on_date !== '2024-01-23'), wet]
+  const said = tellDay(day, { 0: 'the Pantheon' }, { runs: [RUN], weather: forecast }, ROME)
+  assert.match(said, /^A 21\.4 km run/)
+  assert.match(said, /31mm of rain/)
+})
+
+test('a day with no weather recorded is unchanged', () => {
+  // Every trip before this shipped has rows with no wind reading at all.
+  const day = { date: '2024-01-23', segments: [seg(8, 6, 44)] }
+  const bare = tellDay(day, { 0: 'the Pantheon' }, { runs: [RUN] }, ROME)
+  const empty = tellDay(day, { 0: 'the Pantheon' }, { runs: [RUN], weather: [] }, ROME)
+  const halfway = tellDay(
+    day,
+    { 0: 'the Pantheon' },
+    { runs: [RUN], weather: [{ on_date: '2024-01-23', high_c: 12, code: 1 }] },
+    ROME
+  )
+  assert.equal(bare, empty)
+  assert.equal(bare, halfway)
+})

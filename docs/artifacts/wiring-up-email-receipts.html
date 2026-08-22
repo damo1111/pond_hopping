@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!--
+  Wiring up email receipts
+
+  Published as a Claude artifact on 2026-07-15:
+  https://claude.ai/code/artifact/e7ceb012-1715-46bf-af2c-d606f6307d43
+
+  Saved here as it was written. The hosted version is wrapped in the
+  artifact viewer's own shell; this is the page itself, so it opens in a
+  browser on its own. Web fonts still come from Google, so it wants a
+  connection to look exactly right.
+-->
+</head>
+<body>
+<title>Wiring up email receipts</title>
+<style>
+:root{
+  --bg:#f7f6fb; --surface:#ffffff; --surface-2:#f0eef8;
+  --ink:#1a1825; --mut:#6b6578; --line:#e3e0ee;
+  --accent:#5b4fdb; --accent-ink:#ffffff;
+  --code-bg:#efedf7; --code-ink:#3d3568;
+  --ok-bg:#e8f5ed; --ok-ink:#1a7a44;
+  --warn-bg:#fdf1e2; --warn-ink:#9a5b0a;
+  --shadow: 0 1px 2px rgba(26,24,37,.04), 0 8px 24px -12px rgba(26,24,37,.12);
+  --serif: "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono: ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#141320; --surface:#1c1a29; --surface-2:#242232;
+    --ink:#eeecf5; --mut:#a29cb3; --line:#322f42;
+    --accent:#8f84ff; --accent-ink:#141320;
+    --code-bg:#211f30; --code-ink:#c9c2ee;
+    --ok-bg:#123322; --ok-ink:#5fd996;
+    --warn-bg:#3a2a10; --warn-ink:#eab767;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#141320; --surface:#1c1a29; --surface-2:#242232;
+  --ink:#eeecf5; --mut:#a29cb3; --line:#322f42;
+  --accent:#8f84ff; --accent-ink:#141320;
+  --code-bg:#211f30; --code-ink:#c9c2ee;
+  --ok-bg:#123322; --ok-ink:#5fd996;
+  --warn-bg:#3a2a10; --warn-ink:#eab767;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -12px rgba(0,0,0,.5);
+}
+:root[data-theme="light"]{
+  --bg:#f7f6fb; --surface:#ffffff; --surface-2:#f0eef8;
+  --ink:#1a1825; --mut:#6b6578; --line:#e3e0ee;
+  --accent:#5b4fdb; --accent-ink:#ffffff;
+  --code-bg:#efedf7; --code-ink:#3d3568;
+  --ok-bg:#e8f5ed; --ok-ink:#1a7a44;
+  --warn-bg:#fdf1e2; --warn-ink:#9a5b0a;
+  --shadow: 0 1px 2px rgba(26,24,37,.04), 0 8px 24px -12px rgba(26,24,37,.12);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:720px;margin:0 auto;padding:40px 20px 80px}
+header{margin-bottom:36px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);font-weight:600}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(28px,4.5vw,38px);margin:8px 0 10px;text-wrap:balance;letter-spacing:-.01em}
+.lede{color:var(--mut);font-size:16px;max-width:56ch;margin:0}
+
+.status{display:flex;gap:10px;margin:24px 0 8px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:6px 12px;border-radius:99px}
+.pill.ok{background:var(--ok-bg);color:var(--ok-ink)}
+.pill.warn{background:var(--warn-bg);color:var(--warn-ink)}
+
+.status-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:18px 0 40px;box-shadow:var(--shadow)}
+.status-card p{margin:0 0 8px;font-size:14.5px}
+.status-card p:last-child{margin-bottom:0}
+.status-card b{color:var(--ink)}
+
+h2.step-title{font-family:var(--serif);font-weight:400;font-size:15px;margin:0}
+.step{display:grid;grid-template-columns:32px 1fr;gap:16px;position:relative}
+.step + .step{margin-top:6px}
+.step::before{content:'';position:absolute;left:15px;top:34px;bottom:-6px;width:1px;background:var(--line)}
+.step:last-of-type::before{display:none}
+.num{width:32px;height:32px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent);flex:none}
+.step-body{padding-bottom:34px}
+.where{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin:2px 0 6px}
+.step-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.step-card p{margin:0 0 10px;font-size:14.5px}
+.step-card p:last-child{margin-bottom:0}
+.step-card ul{margin:8px 0;padding-left:20px;font-size:14.5px}
+.step-card li{margin:4px 0}
+
+.code-row{display:flex;align-items:center;gap:8px;margin:10px 0}
+.code{flex:1;min-width:0;font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-ink);padding:9px 12px;border-radius:8px;overflow-x:auto;white-space:pre}
+.copy-btn{flex:none;font-family:var(--sans);font-size:12.5px;font-weight:600;background:var(--surface-2);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px 12px;cursor:pointer;transition:background .12s}
+.copy-btn:hover{background:var(--code-bg)}
+.copy-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.copy-btn.copied{background:var(--ok-bg);color:var(--ok-ink);border-color:transparent}
+
+.note{font-size:13px;color:var(--mut);margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.gotcha{background:var(--warn-bg);color:var(--warn-ink);border-radius:10px;padding:10px 14px;font-size:13.5px;margin-top:12px}
+.gotcha b{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+
+footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--mut)}
+a{color:var(--accent)}
+
+@media (max-width:480px){
+  .step{grid-template-columns:26px 1fr;gap:12px}
+  .num{width:26px;height:26px;font-size:11.5px}
+  .step::before{left:12.5px}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Duckworth · Infrastructure</div>
+    <h1>Wiring up email receipts</h1>
+    <p class="lede">The code side has been done since it merged — nothing has ever reached it. This is the real-world plumbing: an inbox, a DNS record, and two secrets.</p>
+  </header>
+
+  <div class="status">
+    <span class="pill ok">✓ Code merged &amp; deployed</span>
+    <span class="pill warn">Infra not configured</span>
+    <span class="pill warn">Zero emails received</span>
+  </div>
+
+  <div class="status-card">
+    <p>When it's live, sending a receipt is just: <b>type an email address into the card terminal.</b> Square, Zeller, and Tyro will all email a receipt on request — this catches it, reads it the same way a photo does, and drops it straight into Approve.</p>
+    <p>Confirmed via Vercel's runtime logs: <b>api/receipt-email</b> has had zero requests in the last 7 days. The five steps below are what's missing.</p>
+  </div>
+
+  <div class="steps">
+
+    <div class="step">
+      <div class="num">1</div>
+      <div class="step-body">
+        <h2 class="step-title">Create an inbound stream in Postmark</h2>
+        <div class="where">postmarkapp.com</div>
+        <div class="step-card">
+          <p>Sign up if you don't already have an account, then create a <b>Server</b> — Postmark's container for a stream of mail. Inside it, open <b>Settings → Inbound</b> and enable inbound processing.</p>
+          <div class="note">Free tier is fine here — this is a handful of emails a month, not a marketing list.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">2</div>
+      <div class="step-body">
+        <h2 class="step-title">Point a subdomain at it</h2>
+        <div class="where">Postmark → same Inbound settings</div>
+        <div class="step-card">
+          <p>Still on the Inbound settings page, choose <b>custom inbound domain</b> (not Postmark's generic hash address — the code needs plus-addressing, e.g. <code>receipts+ds@…</code>, which only a custom domain preserves reliably). Use something like:</p>
+          <div class="code-row"><span class="code">parse.duckworth.eend.app</span><button class="copy-btn" data-copy="parse.duckworth.eend.app">Copy</button></div>
+          <p>Postmark will hand you an MX record to add — typically <code>inbound.postmarkapp.com</code> at priority 10.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">3</div>
+      <div class="step-body">
+        <h2 class="step-title">Add the MX record</h2>
+        <div class="where">wherever eend.app's DNS is managed</div>
+        <div class="step-card">
+          <p>Add the MX record Postmark just gave you, on the subdomain from step 2. It'll look like this (use the exact value Postmark shows you — this is the typical shape):</p>
+          <div class="code-row"><span class="code">parse  MX  10  inbound.postmarkapp.com</span><button class="copy-btn" data-copy="parse  MX  10  inbound.postmarkapp.com">Copy</button></div>
+          <div class="note">DNS can take a few minutes to an hour to propagate. Postmark's inbound settings page will show a green check once it sees the record.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">4</div>
+      <div class="step-body">
+        <h2 class="step-title">Generate a secret, set the webhook URL</h2>
+        <div class="where">Postmark → Inbound → Webhook URL</div>
+        <div class="step-card">
+          <p>Pick a long random string — this is the shared secret the endpoint checks, since Postmark can't cryptographically sign inbound webhooks. Anything from a password generator works:</p>
+          <div class="code-row"><span class="code">openssl rand -hex 24</span><button class="copy-btn" data-copy="openssl rand -hex 24">Copy</button></div>
+          <p>Then set Postmark's inbound webhook URL to:</p>
+          <div class="code-row"><span class="code">https://duckworth.eend.app/api/receipt-email?secret=YOUR_SECRET_HERE</span><button class="copy-btn" data-copy="https://duckworth.eend.app/api/receipt-email?secret=YOUR_SECRET_HERE">Copy</button></div>
+          <p>Swap <code>YOUR_SECRET_HERE</code> for the value you just generated — same value goes in Vercel next.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">5</div>
+      <div class="step-body">
+        <h2 class="step-title">Add the secret to Vercel</h2>
+        <div class="where">Vercel → moritzsmith → Settings → Environment Variables</div>
+        <div class="step-card">
+          <p>Add one new variable (Production environment):</p>
+          <div class="code-row"><span class="code">RECEIPT_EMAIL_SECRET = &lt;the same value from step 4&gt;</span><button class="copy-btn" data-copy="RECEIPT_EMAIL_SECRET">Copy name</button></div>
+          <p>While you're there, worth a quick check that these two already exist (the endpoint depends on both, and they should already be set from other features):</p>
+          <ul>
+            <li><code>SUPABASE_SERVICE_ROLE_KEY</code> — writes the receipt row</li>
+            <li><code>ANTHROPIC_API_KEY</code> — reads the receipt out of the email text</li>
+          </ul>
+          <div class="note">Redeploy (or just wait for the next push) so the new env var takes effect.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="num">6</div>
+      <div class="step-body">
+        <h2 class="step-title">Test it</h2>
+        <div class="where">any inbox</div>
+        <div class="step-card">
+          <p>Send a plain-text email with a receipt-looking body to either address below, then check the Approve tab a few seconds later.</p>
+          <div class="code-row"><span class="code">receipts+dm@parse.duckworth.eend.app</span><button class="copy-btn" data-copy="receipts+dm@parse.duckworth.eend.app">Copy</button></div>
+          <div class="code-row"><span class="code">receipts+ds@parse.duckworth.eend.app</span><button class="copy-btn" data-copy="receipts+ds@parse.duckworth.eend.app">Copy</button></div>
+          <p>Once it's confirmed working, this is the address to type into a Square, Zeller, or Tyro terminal at checkout — or set as an auto-forward rule in an inbox for anything from <code>squareup.com</code> / <code>myzeller.com</code> / <code>tyro.com</code>.</p>
+          <div class="gotcha"><b>Worth knowing</b>Any address tag other than <code>+dm</code> or <code>+ds</code> is silently dropped — no error, no bounce, it just never appears. A typo in the address fails silently. And every email gets read the same generic way a photo receipt does — it isn't tuned to any one terminal's format, so a receipt with no itemised lines (many terminal receipts) comes through as a total only, same as it would from a photo.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    Reference: <code>api/receipt-email.js</code>. Every request gets a 200 response regardless of outcome — by design, so Postmark never retries — so a silent failure only shows up in Vercel's runtime logs, not in Postmark's dashboard.
+  </footer>
+</div>
+
+<script>
+document.querySelectorAll('.copy-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var text = btn.getAttribute('data-copy');
+    navigator.clipboard.writeText(text).then(function(){
+      var original = btn.textContent;
+      btn.textContent = 'Copied';
+      btn.classList.add('copied');
+      setTimeout(function(){ btn.textContent = original; btn.classList.remove('copied'); }, 1400);
+    });
+  });
+});
+</script>
+</body>
+</html>

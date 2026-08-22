@@ -7,6 +7,18 @@
   --accent:     #A8842C;   /* CΛNΛRD gold — primary brand colour */
   --accent-dim: #D3BC77;
   --accent-bg:  rgba(168, 132, 44, 0.10);
+
+  /* The strip's geometry, in one place.
+     The signed-out hero sits above the strip and has to line up with it —
+     David: "it doesn't align with the left edge of the first card and right
+     edge of second card below." It could not, because the two were written
+     apart: the strip in card widths and the hero in viewport insets, so any
+     change to one silently moved the other. Now both are measured from
+     these, and the hero's left edge is arithmetic rather than a guess. */
+  --wt-card:  172px;   /* one trip card */
+  --wt-gap:   9px;     /* between cards */
+  --wt-pad:   12px;    /* the strip's own left inset */
+  --wt-spine: 13px;    /* the vertical RIGHT NOW / BEEN THERE label */
   --text:       #1A1611;
   --text-muted: #8B8375;
   --green:      #3E7D54;
@@ -3901,8 +3913,8 @@ button.album-open:disabled {
 
 .world-trips {
   display: flex;
-  gap: 9px;
-  padding: 6px 12px;
+  gap: var(--wt-gap);
+  padding: 6px var(--wt-pad);
   overflow-x: auto;
   scrollbar-width: none;
   animation: trips-scroll-hint 2.6s ease-out 0.8s 1;
@@ -3927,7 +3939,7 @@ button.album-open:disabled {
   flex: 0 0 auto;
   display: flex;
   align-items: stretch;
-  gap: 9px;
+  gap: var(--wt-gap);
 }
 
 .wt-section + .wt-section {
@@ -3946,6 +3958,8 @@ button.album-open:disabled {
   color: var(--text-muted);
   padding: 2px 0;
   align-self: center;
+  width: var(--wt-spine);
+  text-align: center;
 }
 
 /* A trip happening today is the only thing anyone wants from this screen
@@ -3956,7 +3970,7 @@ button.album-open:disabled {
 
 .wt-memory {
   flex: 0 0 auto;
-  width: 172px;
+  width: var(--wt-card);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -4219,7 +4233,7 @@ button.album-open:disabled {
 
 .wt-card {
   flex: 0 0 auto;
-  width: 172px;
+  width: var(--wt-card);
   text-align: left;
   display: flex;
   flex-direction: column;
@@ -9759,6 +9773,24 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   padding-top: 2px;
 }
 
+/* The third answer to "this looks like a trip".
+   Deliberately the quietest thing on the sheet: it is the rarest answer and
+   the only one that leads to typing. Yes is the filled button, No is the
+   ghost, and this is a line of text — three weights for three answers, so
+   the order they should be read in is visible before any of them is read. */
+.route-name-it {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 8px;
+  background: none;
+  border: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* The second pile. A row rather than a second full-width button, because the
    photographs on the phone are the quicker road for the trip somebody took
    last week and this is the one for the trip they took in 2019 — equal
@@ -14103,22 +14135,48 @@ button.ios-sheet-grip:active { cursor: grabbing; }
    positioning above. It now also stands in for the hero whenever nothing on
    the globe is *yours*, which is the common case for anybody signed out, and
    in that slot it is an ordinary block with a strip of examples beneath it. */
+/* Above the strip, so it lines up with the strip.
+   --wt-hero-l and --wt-hero-w are measured off the real cards at runtime —
+   see WorldTab — because the strip groups its cards into sections with a
+   label spine and a divider between them, and how many of those fall before
+   the second card depends on which trips exist. The fallbacks are the
+   arithmetic for one section, which is right often enough to be the value
+   the first paint uses. */
 .world-bottom .world-empty {
   position: static;
   left: auto;
   right: auto;
   bottom: auto;
-  margin: 0 12px 14px;
+  margin: 0 var(--wt-pad) 14px
+    var(--wt-hero-l, calc(var(--wt-pad) + var(--wt-spine) + var(--wt-gap)));
+  max-width: var(--wt-hero-w, calc(var(--wt-card) * 2 + var(--wt-gap)));
 }
 
 /* Paper, not white. Over the blue of the globe a white card reads as a
    dialog — something that has interrupted you — where warm paper reads as
    part of the app. Still translucent, so the globe carries through it and
    the card sits *on* the world rather than over it. */
+/* The signed-out hero, sized and coloured against the strip beneath it.
+   It was pinned left: 12px right: 12px, which on a phone looks deliberate
+   and on an iPad is a thousand-pixel slab of cream above two small cards —
+   "the tip it in card is too big", and it was, by about three cards' worth.
+
+   Left edge starts where the first card starts: the strip's inset, plus the
+   vertical section label, plus one gap. Right edge stops at two cards and a
+   gap, so it finishes flush with the second one. `right` stays as the
+   fallback for a narrow phone, where two cards is wider than the screen and
+   the old full-bleed behaviour is still the right answer. */
 .world-empty {
-  background: linear-gradient(rgba(245, 242, 235, 0.96), rgba(237, 233, 223, 0.96));
-  border-color: rgba(255, 255, 255, 0.55);
+  /* Pond wash rather than white. A gold film over the cream, the same idea
+     as the add tile's own drawing, so the card belongs to the app rather
+     than sitting on it — and so the accent on the buttons reads as coming
+     from somewhere rather than arriving alone. */
+  background:
+    linear-gradient(165deg, rgba(168, 132, 44, 0.16), rgba(168, 132, 44, 0.04)),
+    linear-gradient(rgba(245, 242, 235, 0.97), rgba(237, 233, 223, 0.97));
+  border-color: var(--accent-dim);
   box-shadow: 0 4px 18px rgba(26, 22, 17, 0.16);
+  padding: 14px 15px;
 }
 
 /* Boxes, not pills, and full width.
@@ -14481,3 +14539,74 @@ button.ios-sheet-grip:active { cursor: grabbing; }
   color: rgba(255, 255, 255, 0.82);
   margin-top: 3px;
 }
+
+/* ── Photographs with no trip ─────────────────────────────────────────────
+   The band on All photos for a pile somebody kept without making a trip of
+   it. Quieter than a trip's own hero and louder than a row of thumbnails,
+   because it is neither: it is a shelf with an offer on it. */
+.loose-pile {
+  margin: 0 var(--wt-pad) 14px;
+  padding: 13px 14px;
+  border: 1px dashed var(--accent-dim);
+  border-radius: 14px;
+  background: linear-gradient(165deg, rgba(168, 132, 44, 0.10), rgba(168, 132, 44, 0.03));
+}
+
+.loose-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.loose-count { font-size: 14px; color: var(--text); }
+
+/* A link rather than a button: it changes what is on screen and changes
+   nothing in the world, and the two buttons below it do the opposite. */
+.loose-only {
+  flex: none;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.loose-say {
+  font-size: 12px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-wrap: pretty;
+}
+
+.loose-make {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px 13px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.loose-make:disabled { opacity: 0.6; }
+.loose-make-what { font-size: 13px; line-height: 1.35; color: var(--text); }
+
+.loose-make-do {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.loose-undated { margin-top: 10px; }

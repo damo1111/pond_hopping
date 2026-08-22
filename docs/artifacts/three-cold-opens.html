@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!--
+  Three Cold Opens
+
+  Published as a Claude artifact on 2026-08-21:
+  https://claude.ai/code/artifact/c53097b9-d4d9-4821-b442-90194f3c51c6
+
+  Saved here as it was written. The hosted version is wrapped in the
+  artifact viewer's own shell; this is the page itself, so it opens in a
+  browser on its own. Web fonts still come from Google, so it wants a
+  connection to look exactly right.
+-->
+</head>
+<body>
+<title>Three Cold Opens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600&family=Space+Grotesk:wght@300;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#F5F2EB; --surface:#FFFFFF; --surface-2:#EDE9DF; --border:#E4DED1;
+    --accent:#A8842C; --accent-dim:#D3BC77; --text:#1A1611; --muted:#8B8375;
+    --display:'Raleway',sans-serif; --mono:'Space Mono',monospace; --brand:'Space Grotesk',sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:var(--display); font-weight:400; line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:34px 18px 80px}
+
+  .eyebrow{
+    font-family:var(--mono); font-size:10px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 10px;
+  }
+  h1{
+    font-family:var(--brand); font-weight:700; font-size:clamp(26px,6vw,38px);
+    line-height:1.1; margin:0 0 14px; text-wrap:balance; letter-spacing:-.01em;
+  }
+  .lede{color:var(--muted); font-size:15px; margin:0 0 6px; max-width:56ch}
+  .lede b{color:var(--text); font-weight:600}
+
+  hr.rule{border:0;border-top:1px solid var(--border);margin:30px 0}
+
+  .concept{margin:0 0 8px}
+  .concept-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+  .concept-id{
+    font-family:var(--mono); font-size:11px; letter-spacing:.16em;
+    color:var(--accent); text-transform:uppercase;
+  }
+  .concept-name{font-family:var(--brand);font-weight:700;font-size:20px;margin:0;letter-spacing:-.01em}
+  .concept-arg{color:var(--muted);font-size:14px;margin:0 0 16px;max-width:52ch}
+  .concept-arg em{color:var(--text);font-style:normal;font-weight:600}
+
+  /* ── the stage ─────────────────────────────────────── */
+  .frame{
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:14px;
+    display:flex; flex-direction:column; align-items:center;
+    box-shadow:0 1px 2px rgba(26,22,17,.03), 0 12px 28px -18px rgba(26,22,17,.18);
+  }
+  .stage{position:relative;width:280px;height:330px;overflow:hidden}
+  .stage svg{position:absolute;inset:0;width:280px;height:330px;overflow:visible}
+
+  .replay{
+    margin-top:10px; align-self:center;
+    font-family:var(--mono); font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent); background:transparent; border:1px solid var(--accent-dim);
+    border-radius:999px; padding:8px 16px; cursor:pointer;
+  }
+  .replay:hover{background:rgba(168,132,44,.10)}
+  .replay:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* shared furniture inside every stage */
+  .sphere-line{fill:none;stroke:var(--accent);stroke-width:1;opacity:.42;stroke-linecap:round}
+  .arc{fill:none;stroke:var(--accent);stroke-width:1.7;stroke-linecap:round}
+  .dot{fill:var(--accent)}
+
+  .payoff{
+    position:absolute;left:0;right:0;bottom:56px;text-align:center;opacity:0;
+  }
+  .payoff-line{
+    font-family:var(--display); font-weight:500; font-size:15px; color:var(--text);
+    display:block; margin-bottom:12px;
+  }
+  .mark{font-family:var(--brand);font-size:21px;letter-spacing:.01em;text-transform:uppercase;display:block}
+  .mark .thin{font-weight:300;color:var(--text)}
+  .mark .bold{font-weight:700;color:var(--accent)}
+
+  /* photo chips (HTML, not SVG — transforms are saner) */
+  .chip{
+    position:absolute; width:30px; height:23px; border-radius:3px;
+    left:0; top:0; margin-left:-15px; margin-top:-11px;
+    box-shadow:0 1px 3px rgba(26,22,17,.22);
+    opacity:0;
+  }
+  .p1{background:linear-gradient(150deg,#9DC3DC,#6E9DBD)}
+  .p2{background:linear-gradient(150deg,#D9B48A,#B98A57)}
+  .p3{background:linear-gradient(150deg,#A9C4A2,#6F9268)}
+  .p4{background:linear-gradient(150deg,#C8A9C4,#94718F)}
+  .p5{background:linear-gradient(150deg,#E0C48D,#C29A4E)}
+  .p6{background:linear-gradient(150deg,#8FA9B8,#5D7A8B)}
+  .p7{background:linear-gradient(150deg,#D89A8E,#B26A5C)}
+  .paper{background:#FFFDF8;border:1px solid #E4DED1}
+  .paper::after{
+    content:"";position:absolute;left:4px;right:4px;top:5px;height:1px;
+    background:#DED6C4;box-shadow:0 4px 0 #DED6C4,0 8px 0 #DED6C4;
+  }
+
+  /* ══ D — the hybrid ══ */
+  /* 340 rather than 280: on a real phone this plays full-bleed at ~390px, so the
+     narrower demo stage was inventing line-wraps that would never happen in the app.
+     The globe keeps its own 300-wide coordinate space, inset 20px, so none of its
+     geometry had to move. */
+  .stage--tall{width:340px;height:350px}
+  .stage--tall svg{left:20px;right:auto;width:300px;height:350px}
+
+  @keyframes d-chip{
+    0%   {transform:translate(var(--sx),var(--sy)) rotate(var(--sr)) scale(1); opacity:0}
+    3%   {opacity:1}
+    15%  {transform:translate(var(--px),var(--py)) rotate(var(--pr)) scale(1); opacity:1}
+    24%  {transform:translate(var(--px),var(--py)) rotate(var(--pr)) scale(1); opacity:1}
+    35%  {transform:translate(var(--tx),var(--ty)) rotate(0deg) scale(.10); opacity:0}
+    100% {transform:translate(var(--tx),var(--ty)) rotate(0deg) scale(.10); opacity:0}
+  }
+  .playing .d-chip{animation:d-chip 7500ms cubic-bezier(.4,0,.3,1) var(--d) both}
+  .playing .d-sphere{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1000ms ease-out 400ms forwards}
+  .playing .d-dot{transform-box:fill-box;transform-origin:center;transform:scale(0);opacity:0;
+    animation:pop 380ms cubic-bezier(.3,1.4,.5,1) var(--d) forwards}
+  .playing .d-arc{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 620ms ease-out var(--d) forwards}
+
+  /* The globe is the centrepiece, so it takes the frame at the end — swelling into
+     the space the sentence vacates just as the wordmark lands. It also answers the
+     handover: this now finishes on a big globe, and Home *is* a big globe, so the
+     cut into the app is between two versions of the same object.
+
+     Written as translate+scale rather than transform-origin so it does not depend
+     on transform-box, which older WebViews get wrong on SVG groups. Scaling about
+     (0,0) by 1.62 sends the globe's centre (150,130) to (243,210.6); the translate
+     is exactly what puts it back. */
+  @keyframes d-swell{
+    from{transform:translate(0px,0px) scale(1)}
+    to  {transform:translate(-93px,-80.6px) scale(1.62)}
+  }
+  /* The duck flies the long hop — the one arc that goes right over the top — and
+     lands on its far pin. Sampled off that curve at six points rather than using
+     offset-path, which is the one thing here an older WebView might not have; it is
+     the same trick the old opening used. It sits inside #dGlobe, so the swell at the
+     end carries it up with everything else instead of stranding it mid-air. */
+  @keyframes d-fly{
+    0%   {opacity:0; transform:translate(89px,112px)}
+    12%  {opacity:1}
+    20%  {transform:translate(115px,107px)}
+    40%  {transform:translate(140px,107px)}
+    60%  {transform:translate(165px,112px)}
+    80%  {transform:translate(188px,121px)}
+    100% {opacity:1; transform:translate(211px,135px)}
+  }
+  .d-duck{opacity:0}
+  .playing .d-duck{animation:d-fly 900ms cubic-bezier(.35,0,.5,1) 3060ms forwards}
+
+  .playing #dGlobe{animation:d-swell 1500ms cubic-bezier(.22,1,.36,1) 8100ms forwards}
+
+  .d-year{
+    position:absolute;left:0;right:0;top:217px;text-align:center;opacity:0;
+    font-family:var(--mono);font-size:30px;font-weight:700;color:var(--accent);letter-spacing:.02em;
+  }
+  .playing .d-year{animation:fadein 380ms ease-out 1900ms forwards, fadeout 460ms ease-in 3000ms forwards}
+
+  @keyframes t-in{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes t-out{to{opacity:0;transform:translateY(-9px)}}
+
+  /* One type treatment across both halves of the sentence. They used to differ in
+     size AND weight AND colour at once, so the cut from the black line to the gold
+     one read as two unrelated screens rather than one sentence continuing. Same
+     face, same size, same weight — colour is the only thing that changes. */
+  .d-line{
+    /* One text zone, directly under the globe, and every beat takes its turn in it:
+       this line, then the year, then the sentence, then the wordmark. The year used
+       to have a slot of its own above the sentence — which meant that once it faded
+       there was a dead 54px band between the globe and the words. */
+    position:absolute;left:6px;right:6px;top:222px;text-align:center;opacity:0;
+    font-family:var(--display);font-weight:600;font-size:22px;line-height:1.25;color:var(--text);
+    text-wrap:balance;
+  }
+  .playing .d-l1{animation:t-in 620ms cubic-bezier(.22,1,.36,1) 500ms both, t-out 420ms ease-in 1700ms forwards}
+
+  .d-l3{position:absolute;left:6px;right:6px;top:222px;text-align:center;opacity:0}
+  .playing .d-l3{animation:fadein 420ms ease-out 3500ms forwards, fadeout 480ms ease-in 8200ms forwards}
+  /* Same size and weight as everything else in the sentence — 15px here was the
+     exact fault already fixed one line up, left in place a second time. Colour is
+     the only thing that separates the three voices: ink for the opening claim,
+     muted for the connective, gold for the payload. */
+  .d-stem{
+    display:block;font-family:var(--display);font-weight:600;font-size:22px;
+    line-height:1.25;color:var(--muted);
+  }
+  /* Fixed box, and each line vertically centred inside it — without this a line that
+     wraps would sit differently from one that doesn't, and the block would jump as
+     they cycle. */
+  .d-tails{position:relative;display:block;height:40px;margin-top:12px}
+  .d-tail{
+    position:absolute;inset:0;opacity:0;
+    display:flex;align-items:center;justify-content:center;text-align:center;
+    font-family:var(--display);font-weight:600;font-size:22px;line-height:1.25;color:var(--accent);
+    text-wrap:balance;
+  }
+  .playing .d-tail{animation:t-in 400ms ease-out var(--in) both, t-out 340ms ease-in var(--out) forwards}
+  .playing .d-tail--last{animation:t-in 400ms ease-out var(--in) both}
+
+  .d-mark{
+    /* Centred in the space under the globe rather than parked on the gold line's
+       row. Sitting on that row looked continuous mid-sequence but left the stem's
+       vacated row as a 72px hole above it on the final frame — the last thing
+       anybody sees, and the frame that hands over to the app. 54px above, 54 below. */
+    position:absolute;left:0;right:0;top:255px;text-align:center;opacity:0;
+    font-family:var(--brand);font-size:28px;letter-spacing:.01em;text-transform:uppercase;
+  }
+  .d-mark .thin{font-weight:300;color:var(--text)}
+  .d-mark .bold{font-weight:700;color:var(--accent)}
+  .playing .d-mark{animation:t-in 760ms cubic-bezier(.22,1,.36,1) 8500ms forwards}
+
+  .rec{
+    display:inline-block;font-family:var(--mono);font-size:9px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--bg);background:var(--accent);
+    padding:4px 9px;border-radius:999px;
+  }
+  h2.sub{
+    font-family:var(--brand);font-weight:700;font-size:15px;letter-spacing:.02em;
+    text-transform:uppercase;color:var(--muted);margin:0 0 4px;
+  }
+
+  /* ══ A — the pile becomes the map ══ */
+  @keyframes a-chip{
+    0%   {transform:translate(var(--sx),var(--sy)) rotate(var(--sr)) scale(1); opacity:0}
+    4%   {opacity:1}
+    25%  {transform:translate(var(--px),var(--py)) rotate(var(--pr)) scale(1); opacity:1}
+    46%  {transform:translate(var(--px),var(--py)) rotate(var(--pr)) scale(1); opacity:1}
+    64%  {transform:translate(var(--tx),var(--ty)) rotate(0deg) scale(.10); opacity:0}
+    100% {transform:translate(var(--tx),var(--ty)) rotate(0deg) scale(.10); opacity:0}
+  }
+  .playing .a-chip{animation:a-chip 5200ms cubic-bezier(.4,0,.3,1) var(--d) both}
+
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .playing .a-sphere{
+    stroke-dasharray:1;stroke-dashoffset:1;
+    animation:draw 1000ms ease-out 1600ms forwards;
+  }
+  @keyframes pop{0%{transform:scale(0);opacity:0}70%{transform:scale(1.5)}100%{transform:scale(1);opacity:1}}
+  .playing .a-dot{transform-box:fill-box;transform-origin:center;transform:scale(0);opacity:0;
+    animation:pop 380ms cubic-bezier(.3,1.4,.5,1) var(--d) forwards}
+  .playing .a-arc{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 620ms ease-out var(--d) forwards}
+  @keyframes rise{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+  .playing .a-payoff{animation:rise 760ms cubic-bezier(.22,1,.36,1) 4400ms forwards}
+
+  /* ══ B — a lifetime of lines ══ */
+  .playing .b-sphere{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 900ms ease-out 200ms forwards}
+  .playing .b-arc{stroke-dasharray:1;stroke-dashoffset:1;animation:draw var(--dur) ease-out var(--d) forwards}
+  .b-year{
+    position:absolute;left:0;right:0;top:238px;text-align:center;
+    font-family:var(--mono);font-size:26px;font-weight:700;color:var(--accent);opacity:0;
+  }
+  .b-yearlab{
+    position:absolute;left:0;right:0;top:270px;text-align:center;
+    font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--muted);
+    text-transform:uppercase;opacity:0;
+  }
+  @keyframes fadein{to{opacity:1}}
+  @keyframes fadeout{to{opacity:0}}
+  .playing .b-year{animation:fadein 400ms ease-out 700ms forwards, fadeout 500ms ease-in 4300ms forwards}
+  .playing .b-yearlab{animation:fadein 400ms ease-out 700ms forwards, fadeout 500ms ease-in 4300ms forwards}
+  .playing .b-payoff{animation:rise 760ms cubic-bezier(.22,1,.36,1) 4600ms forwards}
+
+  /* ══ C — one photo is a day ══ */
+  .c-hero{
+    position:absolute;left:140px;top:120px;width:84px;height:63px;
+    margin-left:-42px;margin-top:-32px;border-radius:5px;
+    background:linear-gradient(150deg,#9DC3DC,#5E8FB0);
+    box-shadow:0 3px 12px rgba(26,22,17,.2);
+    opacity:0;transform:scale(.8);
+  }
+  @keyframes c-hero{
+    0%{opacity:0;transform:scale(.75)}
+    10%{opacity:1;transform:scale(1)}
+    42%{opacity:1;transform:scale(1) translate(0,0)}
+    58%{opacity:1;transform:scale(.357) translate(-152px,64px)}
+    100%{opacity:1;transform:scale(.357) translate(-152px,64px)}
+  }
+  .playing .c-hero{animation:c-hero 5400ms cubic-bezier(.4,0,.25,1) 200ms both}
+
+  .c-cap{
+    position:absolute;left:0;right:0;top:172px;text-align:center;opacity:0;
+    font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--accent);
+    text-transform:uppercase;
+  }
+  .playing .c-cap{animation:fadein 400ms ease-out 1500ms forwards, fadeout 350ms ease-in 2500ms forwards}
+
+  .c-pin{opacity:0}
+  @keyframes c-pin{0%{opacity:0;transform:translateY(-14px)}60%{opacity:1}100%{opacity:1;transform:translateY(0)}}
+  .playing .c-pin{animation:c-pin 520ms cubic-bezier(.3,1.3,.5,1) 1250ms forwards}
+
+  .c-more{
+    position:absolute;width:30px;height:23px;border-radius:3px;top:184px;
+    margin-top:-11px;box-shadow:0 1px 3px rgba(26,22,17,.2);
+    opacity:0;transform:translateX(40px);
+  }
+  @keyframes c-more{to{opacity:1;transform:translateX(0)}}
+  .playing .c-more{animation:c-more 500ms cubic-bezier(.22,1,.36,1) var(--d) forwards}
+
+  .c-rule{opacity:0}
+  .playing .c-rule{stroke-dasharray:1;stroke-dashoffset:1;opacity:1;
+    animation:draw 600ms ease-out 3500ms forwards}
+  .c-daylab{
+    position:absolute;left:22px;top:203px;opacity:0;
+    font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;
+  }
+  .playing .c-daylab{animation:fadein 400ms ease-out 3700ms forwards}
+
+  .c-ghost{position:absolute;opacity:0}
+  .playing .c-ghost{animation:c-ghost 600ms ease-out var(--d) forwards}
+  @keyframes c-ghost{to{opacity:.34}}
+  .playing .c-payoff{animation:rise 760ms cubic-bezier(.22,1,.36,1) 4700ms forwards}
+
+  @media (prefers-reduced-motion:reduce){
+    .playing *{animation-duration:1ms !important;animation-delay:0ms !important}
+  }
+
+  @media (max-width:430px){
+    .wrap{padding-left:10px;padding-right:10px}
+    .frame{padding:9px}
+  }
+
+  .foot{margin-top:34px;padding-top:22px;border-top:1px solid var(--border);color:var(--muted);font-size:14px}
+  .foot b{color:var(--text);font-weight:600}
+  .foot ul{padding-left:19px;margin:10px 0 0}
+  .foot li{margin-bottom:7px}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Pond Hopping · the first five seconds</p>
+  <h1>Three cold opens</h1>
+  <p class="lede">
+    The one on production shows <b>16 days, 5 flights, 18,169&nbsp;km</b> — a trophy case for a trip
+    the viewer didn't take. Nothing below shows a date, a distance or anybody's holiday.
+  </p>
+  <p class="lede">
+    <b>D is the one to watch.</b> The three underneath it are where it came from, kept for
+    comparison.
+  </p>
+
+  <hr class="rule">
+
+  <!-- ══════════ D ══════════ -->
+  <div class="concept">
+    <div class="concept-head">
+      <span class="rec">The one to build</span>
+    </div>
+    <div class="concept-head" style="margin-top:10px">
+      <span class="concept-id">D</span>
+      <h2 class="concept-name">Every trip you've ever taken</h2>
+    </div>
+    <p class="concept-arg">The blocks from A, the count-up from B, and the words doing the
+      explaining. One sentence, split across the sequence, landing on
+      <em>a photo you already have</em> — which is the whole pitch: the material exists, you
+      don't have to make anything.</p>
+  </div>
+  <div class="frame">
+    <div class="stage stage--tall" id="stageD">
+      <svg viewBox="0 0 300 350" aria-hidden="true">
+       <g id="dGlobe">
+        <g>
+          <circle class="sphere-line d-sphere" pathLength="1" cx="150" cy="130" r="66"/>
+          <ellipse class="sphere-line d-sphere" pathLength="1" cx="150" cy="130" rx="23" ry="66"/>
+          <ellipse class="sphere-line d-sphere" pathLength="1" cx="150" cy="130" rx="46" ry="66"/>
+          <path class="sphere-line d-sphere" pathLength="1" d="M84 130 H216"/>
+          <path class="sphere-line d-sphere" pathLength="1" d="M94 100 H206"/>
+          <path class="sphere-line d-sphere" pathLength="1" d="M94 160 H206"/>
+        </g>
+        <!-- Routes fan out from two hubs rather than chaining end-to-end. Chained,
+             they closed into a ring and read as a cloud sitting on the globe; radiating,
+             they read as what they are. Geometry is generated — see arcPath(). -->
+        <g id="dArcs"></g>
+        <g id="dDots"></g>
+        <image class="d-duck" href="data:image/png;base64,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"
+               x="-13" y="-15" width="26" height="28"/>
+       </g>
+      </svg>
+
+      <div class="d-year" id="dYear">2009</div>
+
+      <div class="d-line d-l1">Every trip you've ever taken</div>
+
+      <div class="d-l3">
+        <span class="d-stem">and it all starts with</span>
+        <span class="d-tails">
+          <span class="d-tail" style="--in:3700ms;--out:5200ms">a photo you already have</span>
+          <span class="d-tail" style="--in:5200ms;--out:6700ms">a walk your phone remembers</span>
+          <span class="d-tail d-tail--last" style="--in:6700ms">a booking in your inbox</span>
+        </span>
+      </div>
+
+      <div class="d-mark"><span class="thin">Pond</span> <span class="bold">Hopping</span></div>
+    </div>
+    <button class="replay" data-for="stageD">Replay</button>
+  </div>
+
+  <hr class="rule">
+
+  <h2 class="sub">Where it came from</h2>
+  <p class="lede" style="margin-bottom:26px">The three it's built out of. Kept so you can see what
+    was traded away — and the globes here still have the old flat arcs, which is the thing
+    D fixes.</p>
+
+  <!-- ══════════ A ══════════ -->
+  <div class="concept">
+    <div class="concept-head">
+      <span class="concept-id">A</span>
+      <h2 class="concept-name">The pile becomes the map</h2>
+    </div>
+    <p class="concept-arg"><em>You already have everything you need.</em> The mess on your phone is
+      the raw material — it just hasn't been sorted yet.</p>
+  </div>
+  <div class="frame">
+    <div class="stage" id="stageA">
+      <svg viewBox="0 0 280 330" aria-hidden="true">
+        <g>
+          <circle class="sphere-line a-sphere" pathLength="1" cx="140" cy="150" r="62"/>
+          <ellipse class="sphere-line a-sphere" pathLength="1" cx="140" cy="150" rx="22" ry="62"/>
+          <ellipse class="sphere-line a-sphere" pathLength="1" cx="140" cy="150" rx="43" ry="62"/>
+          <path class="sphere-line a-sphere" pathLength="1" d="M78 150 H202"/>
+          <path class="sphere-line a-sphere" pathLength="1" d="M87 121 H193"/>
+          <path class="sphere-line a-sphere" pathLength="1" d="M87 179 H193"/>
+        </g>
+        <g>
+          <path class="arc a-arc" pathLength="1" style="--d:3400ms" d="M104 132 Q106 108 136 118"/>
+          <path class="arc a-arc" pathLength="1" style="--d:3560ms" d="M136 118 Q163 109 168 138"/>
+          <path class="arc a-arc" pathLength="1" style="--d:3720ms" d="M96 158 Q80 143 104 132"/>
+          <path class="arc a-arc" pathLength="1" style="--d:3880ms" d="M120 167 Q137 191 157 172"/>
+          <path class="arc a-arc" pathLength="1" style="--d:4040ms" d="M168 138 Q196 147 187 158"/>
+        </g>
+        <g>
+          <circle class="dot a-dot" style="--d:2800ms" cx="104" cy="132" r="3.1"/>
+          <circle class="dot a-dot" style="--d:2880ms" cx="136" cy="118" r="3.1"/>
+          <circle class="dot a-dot" style="--d:2960ms" cx="168" cy="138" r="3.1"/>
+          <circle class="dot a-dot" style="--d:3040ms" cx="120" cy="167" r="3.1"/>
+          <circle class="dot a-dot" style="--d:3120ms" cx="157" cy="172" r="3.1"/>
+          <circle class="dot a-dot" style="--d:3200ms" cx="187" cy="158" r="3.1"/>
+          <circle class="dot a-dot" style="--d:3280ms" cx="96"  cy="158" r="3.1"/>
+        </g>
+      </svg>
+      <div class="payoff a-payoff">
+        <span class="payoff-line">It's all already there.</span>
+        <span class="mark"><span class="thin">Pond</span> <span class="bold">Hopping</span></span>
+      </div>
+    </div>
+    <button class="replay" data-for="stageA">Replay</button>
+  </div>
+
+  <hr class="rule">
+
+  <!-- ══════════ B ══════════ -->
+  <div class="concept">
+    <div class="concept-head">
+      <span class="concept-id">B</span>
+      <h2 class="concept-name">A lifetime of lines</h2>
+    </div>
+    <p class="concept-arg"><em>Scale.</em> Not one trip — every trip, going back further than you'd
+      bother to reconstruct by hand.</p>
+  </div>
+  <div class="frame">
+    <div class="stage" id="stageB">
+      <svg viewBox="0 0 280 330" aria-hidden="true">
+        <g>
+          <circle class="sphere-line b-sphere" pathLength="1" cx="140" cy="140" r="66"/>
+          <ellipse class="sphere-line b-sphere" pathLength="1" cx="140" cy="140" rx="23" ry="66"/>
+          <ellipse class="sphere-line b-sphere" pathLength="1" cx="140" cy="140" rx="46" ry="66"/>
+          <path class="sphere-line b-sphere" pathLength="1" d="M74 140 H206"/>
+          <path class="sphere-line b-sphere" pathLength="1" d="M84 109 H196"/>
+          <path class="sphere-line b-sphere" pathLength="1" d="M84 171 H196"/>
+        </g>
+        <g id="bArcs"></g>
+      </svg>
+      <div class="b-year" id="bYear">2009</div>
+      <div class="b-yearlab">and counting</div>
+      <div class="payoff b-payoff">
+        <span class="payoff-line">Every trip you've ever taken.</span>
+        <span class="mark"><span class="thin">Pond</span> <span class="bold">Hopping</span></span>
+      </div>
+    </div>
+    <button class="replay" data-for="stageB">Replay</button>
+  </div>
+
+  <hr class="rule">
+
+  <!-- ══════════ C ══════════ -->
+  <div class="concept">
+    <div class="concept-head">
+      <span class="concept-id">C</span>
+      <h2 class="concept-name">One photo is a day</h2>
+    </div>
+    <p class="concept-arg"><em>The mechanism, close up.</em> Shows how little it needs from you —
+      one picture already carries a date and a place.</p>
+  </div>
+  <div class="frame">
+    <div class="stage" id="stageC">
+      <svg viewBox="0 0 280 330" aria-hidden="true">
+        <g class="c-pin">
+          <path d="M140 74 v16" stroke="#A8842C" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+          <circle cx="140" cy="72" r="4.6" fill="#A8842C"/>
+        </g>
+        <path class="arc c-rule" pathLength="1" stroke-width="1.4" d="M24 196 H256"/>
+        <path class="arc c-rule" pathLength="1" stroke-width="1.4" style="opacity:.3" d="M24 240 H256"/>
+        <path class="arc c-rule" pathLength="1" stroke-width="1.4" style="opacity:.3" d="M24 284 H256"/>
+      </svg>
+
+      <div class="c-hero"></div>
+      <div class="c-cap">14 May · Osaka</div>
+
+      <div class="c-more p2" style="left:60px;--d:2900ms"></div>
+      <div class="c-more p5" style="left:98px;--d:3020ms"></div>
+      <div class="c-more p3" style="left:136px;--d:3140ms"></div>
+      <div class="c-more p7" style="left:174px;--d:3260ms"></div>
+      <div class="c-more paper" style="left:212px;--d:3380ms"></div>
+
+      <div class="c-daylab">Day 3 · Osaka</div>
+
+      <div class="c-ghost" style="--d:4000ms;left:22px;top:217px">
+        <div class="chip p6" style="opacity:1;position:relative;margin:0;display:inline-block"></div>
+        <div class="chip p1" style="opacity:1;position:relative;margin:0 0 0 8px;display:inline-block"></div>
+        <div class="chip p4" style="opacity:1;position:relative;margin:0 0 0 8px;display:inline-block"></div>
+        <div class="chip p5" style="opacity:1;position:relative;margin:0 0 0 8px;display:inline-block"></div>
+      </div>
+      <div class="c-ghost" style="--d:4180ms;left:22px;top:261px">
+        <div class="chip p3" style="opacity:1;position:relative;margin:0;display:inline-block"></div>
+        <div class="chip p7" style="opacity:1;position:relative;margin:0 0 0 8px;display:inline-block"></div>
+        <div class="chip p2" style="opacity:1;position:relative;margin:0 0 0 8px;display:inline-block"></div>
+      </div>
+
+      <div class="payoff c-payoff" style="bottom:14px">
+        <span class="payoff-line">One photo is a day.<br>Enough of them is a trip.</span>
+        <span class="mark"><span class="thin">Pond</span> <span class="bold">Hopping</span></span>
+      </div>
+    </div>
+    <button class="replay" data-for="stageC">Replay</button>
+  </div>
+
+  <div class="foot">
+    <p><b>What each would cost.</b> All three are hand-written SVG and CSS — the same technique
+      that's on production now, so no new dependency, nothing to install, and they weigh about as
+      much as this paragraph. A day's work each, give or take.</p>
+    <ul>
+      <li><b>None of them show a real trip.</b> No dates, no distances, nobody's holiday. That's the
+        point — but it does mean losing the card-morphs-into-the-Home-screen handover, unless we
+        land on the "Tip it in" tile instead, which is now the hero for anyone with an empty globe.</li>
+      <li><b>Mix and match is fine.</b> A's opening pile with B's accelerating arcs is probably the
+        strongest single thing here, and it's a sentence to say so.</li>
+      <li><b>These are rough.</b> Timing, easing and the drawing itself all get another pass once
+        there's a direction to polish toward.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  // A's chips: start above the frame, heap in the middle, then get pulled onto the sphere.
+  // Positions are written out rather than random so the pile looks composed and replays identically.
+  const A_CHIPS = [
+    // sx, sy, sr | px, py, pr | tx, ty | class | delay
+    [ 40,-60,-18,  92,118,-14, 104,132,'p1',   0],
+    [130,-80,  9, 132,104,  7, 136,118,'p2',  60],
+    [220,-64, 22, 176,124, 17, 168,138,'p3', 120],
+    [ 66,-96,-27, 106,150,-21, 120,167,'p4', 180],
+    [196,-88, 15, 164,158, 12, 157,172,'p5', 240],
+    [104,-52, -6, 140,132, -4, 187,158,'p6', 300],
+    [166,-72, 30, 152,182, 24,  96,158,'p7', 360],
+    [ 78,-110,-13, 88,178,-10, 104,132,'paper',420],
+    [148,-58, 20, 118,166, 16, 136,118,'p1', 480],
+    [ 52,-78,  6, 172,146,  5, 168,138,'p3', 540],
+    [208,-104,-21,124,138,-17, 120,167,'p5', 600],
+    [116,-92, 27, 158,118, 21, 157,172,'paper',660],
+    [ 88,-66,-9, 100,134, -7, 187,158,'p6', 720],
+    [178,-56, 12, 146,152, 10,  96,158,'p2', 780],
+    [ 60,-88, 24, 178,170, 19, 136,118,'p4', 840],
+    [232,-76,-16, 112,190,-13, 168,138,'p7', 900],
+    [140,-118, 3, 168,104,  2, 104,132,'p1', 960],
+    [ 96,-46,-24, 134,196,-19, 157,172,'p3',1020],
+  ];
+
+  const stageA = document.getElementById('stageA');
+  A_CHIPS.forEach(([sx,sy,sr,px,py,pr,tx,ty,cls,d])=>{
+    const el = document.createElement('div');
+    el.className = 'chip a-chip ' + cls;
+    el.style.cssText =
+      `--sx:${sx}px;--sy:${sy}px;--sr:${sr}deg;`+
+      `--px:${px}px;--py:${py}px;--pr:${pr}deg;`+
+      `--tx:${tx}px;--ty:${ty}px;--d:${d}ms`;
+    stageA.insertBefore(el, stageA.querySelector('.payoff'));
+  });
+
+  // D's route map: two hubs, everything else hanging off them. The first version
+  // chained arcs end-to-end (A to B, B to C, C back round) which closed into a ring
+  // and read as a cloud pasted on the globe rather than as flights.
+  // Every arc bows the SAME way — perpendicular to its own chord, always toward the
+  // top of the frame, by a fixed fraction of its length. That is what an airline
+  // route map looks like and why it reads instantly.
+  //
+  // The previous two attempts both pushed the control point radially out from the
+  // sphere's centre, which sounds right and isn't: when an anchor sits near the
+  // middle, that direction is tiny and unstable, so neighbouring arcs bowed by wildly
+  // different amounts in unrelated directions. Consistency is the whole effect.
+  function arcUp(a, b, bow){
+    const dx = b[0]-a[0], dy = b[1]-a[1];
+    const len = Math.hypot(dx, dy) || 1;
+    let px = -dy/len, py = dx/len;
+    if (py > 0) { px = -px; py = -py; }        // always the up-screen normal
+    const k = len * bow;
+    return `M${a[0]} ${a[1]} Q${(a[0]+dx/2+px*k).toFixed(1)} ${(a[1]+dy/2+py*k).toFixed(1)} ${b[0]} ${b[1]}`;
+  }
+
+  const D_HUB = [117,158];
+  const D_SPOKES = [[89,112],[137,87],[186,100],[211,135],[170,173]];
+  const D_LEGS = [
+    [D_HUB, D_SPOKES[1]], [D_HUB, D_SPOKES[0]], [D_HUB, D_SPOKES[2]],
+    [D_HUB, D_SPOKES[4]], [D_HUB, D_SPOKES[3]],
+    [D_SPOKES[0], D_SPOKES[3]],                 // one long hop right over the top
+  ];
+  const dArcs = document.getElementById('dArcs');
+  D_LEGS.forEach(([a,b],i)=>{
+    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('class','arc d-arc');
+    p.setAttribute('pathLength','1');
+    p.setAttribute('d', arcUp(a, b, 0.24));
+    p.style.cssText = `--d:${2300 + i*160}ms`;
+    dArcs.appendChild(p);
+  });
+
+  const dDots = document.getElementById('dDots');
+  [[D_HUB,3.6],...D_SPOKES.map(s=>[s,2.8])].forEach(([pt,r],i)=>{
+    const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('class','dot d-dot');
+    c.setAttribute('cx',pt[0]); c.setAttribute('cy',pt[1]); c.setAttribute('r',r);
+    c.style.cssText = `--d:${2000 + i*70}ms`;
+    dDots.appendChild(c);
+  });
+
+  // D's chips — denser than A's, and they land on the route map's anchor points.
+  const D_TARGETS = [D_HUB, ...D_SPOKES];
+  const D_PILE = [
+    // sx, sy, sr | px, py, pr | class
+    [ 46,-62,-19, 104, 88,-15,'p1'],[142,-84,  8, 146, 74,  6,'p2'],
+    [238,-66, 23, 190, 96, 18,'p3'],[ 74,-98,-28, 116,120,-22,'p4'],
+    [212,-90, 16, 176,128, 13,'p5'],[112,-54, -7, 150,102, -5,'p6'],
+    [180,-74, 31, 162,152, 25,'p7'],[ 86,-112,-14, 98,148,-11,'paper'],
+    [160,-60, 21, 128,136, 17,'p1'],[ 58,-80,  7, 184,118,  6,'p3'],
+    [224,-106,-22,134,108,-18,'p5'],[126,-94, 28, 170, 88, 22,'paper'],
+    [ 96,-68,-10, 110,104, -8,'p6'],[192,-58, 13, 156,122, 11,'p2'],
+    [ 66,-90, 25, 192,140, 20,'p4'],[248,-78,-17, 122,160,-14,'p7'],
+    [152,-120, 4, 180,110,  3,'p1'],[104,-48,-25, 144,166,-20,'p3'],
+    [200,-118, 11,  96,124,  9,'p6'],[ 78,-56, 18, 166,110, 15,'p5'],
+    [170,-102,-12,138, 90,-10,'p4'],[132,-70, 29, 108,138, 23,'paper'],
+  ];
+  // The chips are HTML in the 340-wide stage; the globe is SVG in a 300-wide box
+  // inset 20px. OX puts the two coordinate systems back on top of each other.
+  const OX = 20;
+  // The heap was composed around the globe at its old size and centre; this puts it
+  // back over the bigger one rather than re-typing 22 hand-placed coordinates.
+  const GS = 66/52, GCX = 150, GCY = 112, NCY = 130;
+  const regrow = (x,y) => [GCX + (x-GCX)*GS, NCY + (y-GCY)*GS];
+  const stageD = document.getElementById('stageD');
+  D_PILE.forEach(([sx0,sy0,sr,px0,py0,pr,cls],i)=>{
+    const [tx,ty] = D_TARGETS[i % D_TARGETS.length];
+    const [sx,sy] = regrow(sx0,sy0), [px,py] = regrow(px0,py0);
+    const el = document.createElement('div');
+    el.className = 'chip d-chip ' + cls;
+    el.style.cssText =
+      `--sx:${sx+OX}px;--sy:${sy}px;--sr:${sr}deg;`+
+      `--px:${px+OX}px;--py:${py}px;--pr:${pr}deg;`+
+      `--tx:${tx+OX}px;--ty:${ty}px;--d:${i*52}ms`;
+    stageD.insertBefore(el, stageD.querySelector('.d-year'));
+  });
+
+  // B's arcs: one slow line, then the whole web arriving faster and faster.
+  // An arc between two points on a sphere is not a squiggle across its face — it
+  // lifts off the surface. So the control point is the midpoint of the two anchors
+  // pushed radially away from the centre, and the further apart they are the higher
+  // it bows. Longer hops therefore cross the silhouette, exactly as they do on the
+  // real globe on Home.
+  function arcPath(a, b, cx, cy){
+    const mx = (a[0]+b[0])/2, my = (a[1]+b[1])/2;
+    const vx = mx-cx, vy = my-cy;
+    const len = Math.hypot(vx, vy) || 1;
+    const lift = 11 + Math.hypot(b[0]-a[0], b[1]-a[1]) * 0.30;
+    return `M${a[0]} ${a[1]} Q${(mx + vx/len*lift).toFixed(1)} ${(my + vy/len*lift).toFixed(1)} ${b[0]} ${b[1]}`;
+  }
+
+  const B_PTS = [[104,112],[140,96],[176,114],[114,150],[152,148],
+                 [190,140],[98,136],[132,178],[168,180],[156,120]];
+  const B_PAIRS = [[0,1],[1,2],[6,0],[3,4],[2,5],[4,8],[7,8],[6,3],[9,2],
+                   [0,9],[3,7],[5,8],[1,9],[4,5],[0,3],[9,4],[2,8],[6,7]];
+  const B_ARCS = B_PAIRS.map(([i,j]) => arcPath(B_PTS[i], B_PTS[j], 140, 140));
+  const bArcs = document.getElementById('bArcs');
+  B_ARCS.forEach((d,i)=>{
+    // Each one starts sooner after the last, and draws quicker than the last.
+    const start = 900 + Math.round(1900 * (1 - Math.pow(1 - i/B_ARCS.length, 1.8)));
+    const dur   = Math.max(150, 780 - i*36);
+    const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('class','arc b-arc');
+    p.setAttribute('pathLength','1');
+    p.setAttribute('d',d);
+    p.style.cssText = `--d:${start}ms;--dur:${dur}ms;opacity:${0.55 + 0.45*(i/B_ARCS.length)}`;
+    bArcs.appendChild(p);
+  });
+
+  // The year counter, on the same clock as the arcs it runs beside.
+  const timers = {};
+  function runYear(id, from, ms){
+    const el = document.getElementById(id);
+    const START = 2009, END = 2026;
+    const t0 = performance.now();
+    cancelAnimationFrame(timers[id]);
+    const tick = () => {
+      const gone = performance.now() - t0;
+      const part = Math.max(0, Math.min(1, (gone - from) / ms));
+      el.textContent = String(Math.round(START + (END - START) * (1 - Math.pow(1 - part, 2))));
+      if (part < 1) timers[id] = requestAnimationFrame(tick);
+    };
+    timers[id] = requestAnimationFrame(tick);
+  }
+
+  function play(stage){
+    stage.classList.remove('playing');
+    void stage.offsetWidth;           // force reflow so the keyframes restart
+    stage.classList.add('playing');
+    if (stage.id === 'stageB') runYear('bYear', 900, 2900);
+    if (stage.id === 'stageD') runYear('dYear', 1900, 1200);
+  }
+
+  document.querySelectorAll('.replay').forEach(b=>{
+    b.addEventListener('click',()=>play(document.getElementById(b.dataset.for)));
+  });
+
+  // Play each one the first time it comes into view, so scrolling the page is the demo.
+  const seen = new WeakSet();
+  const io = new IntersectionObserver(es=>{
+    es.forEach(e=>{
+      if(e.isIntersecting && !seen.has(e.target)){ seen.add(e.target); play(e.target); }
+    });
+  },{threshold:.45});
+  document.querySelectorAll('.stage').forEach(s=>io.observe(s));
+</script>
+</body>
+</html>

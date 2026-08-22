@@ -15,6 +15,7 @@ import {
 import { applied } from '../lib/applied.js'
 import { afterTap, standing } from '../lib/recapPhotos.js'
 import { spanOf } from '../lib/dateRange.js'
+import LoosePile from '../components/LoosePile.jsx'
 import CountryFlags from '../components/CountryFlags.jsx'
 import PhotoUpload from '../components/PhotoUpload.jsx'
 import TripTools from '../components/TripTools.jsx'
@@ -225,6 +226,8 @@ export default function PhotosTab({ openPhotoId = null }) {
   // ── Choosing many ───────────────────────────────────────────────────────
   const [picking, setPicking] = useState(false)
   const [chosen, setChosen] = useState(() => new Set())
+  // Narrowed to the photographs with no trip, from the band that offers it.
+  const [onlyLoose, setOnlyLoose] = useState(false)
   const held = useRef(null)
 
   // What is actually on screen, computed above every early return.
@@ -243,8 +246,15 @@ export default function PhotosTab({ openPhotoId = null }) {
   // `photos` is null until the first read lands, hence the ?? — this now
   // runs on renders that previously bailed out above it.
   const visible = useMemo(
-    () => (photos ?? []).filter((p) => !selectedTrip || tripsById.get(p.trip_id)?.slug === selectedTrip),
-    [photos, selectedTrip, tripsById]
+    () =>
+      (photos ?? []).filter((p) => {
+        if (selectedTrip) return tripsById.get(p.trip_id)?.slug === selectedTrip
+        // "Show only these", from the loose band. Never inside a trip, where
+        // by definition nothing is loose.
+        if (onlyLoose) return p.trip_id == null
+        return true
+      }),
+    [photos, selectedTrip, tripsById, onlyLoose]
   )
 
   // A selection cannot outlive the things it points at. Switch from Tuesday
@@ -432,6 +442,22 @@ export default function PhotosTab({ openPhotoId = null }) {
           notePhotosChanged?.()
         }}
       />
+
+      {/* Only outside a trip, where "no trip" is a thing a photograph can be.
+          Renders nothing at all when there are none, because a permanent
+          empty shelf here would be worse than the problem it fixes. */}
+      {!selectedTrip && (
+        <LoosePile
+          rows={photos ?? []}
+          only={onlyLoose}
+          onOnly={setOnlyLoose}
+          onChanged={() => {
+            setOnlyLoose(false)
+            setReload((r) => r + 1)
+            notePhotosChanged?.()
+          }}
+        />
+      )}
 
       {/* Only inside a trip. "Find the receipts across everything you have
           ever photographed" is a bill, not a feature. */}

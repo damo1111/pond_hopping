@@ -1,0 +1,1389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!--
+  Where's Home
+
+  Published as a Claude artifact on 2026-08-22:
+  https://claude.ai/code/artifact/8baf0d19-a340-4024-8fe4-d28b3d202bbe
+
+  Saved here as it was written. The hosted version is wrapped in the
+  artifact viewer's own shell; this is the page itself, so it opens in a
+  browser on its own. Web fonts still come from Google, so it wants a
+  connection to look exactly right.
+-->
+</head>
+<body>
+<title>Where's Home</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Raleway:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap">
+
+<style>
+  /* Deliberately one visual world: a fixed studio wall. The phone screens use
+     the app's real tokens, and judging those against a ground that moved with
+     the viewer's theme would be judging them wrong. */
+  :root {
+    --wall:    #221E17;
+    --wall-up: #2C2720;
+    --chalk:   #E8E2D6;
+    --chalk-2: #9A9184;
+    --rule:    #3A342B;
+
+    /* Straight out of globals.css — these must not drift. */
+    --bg:      #F5F2EB;
+    --accent:  #A8842C;
+    --ink:     #1A1611;
+    --muted:   #8C8479;
+    --card:    #FFFFFF;
+
+    --screen-w: 300px;
+    --screen-h: 640px;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--wall);
+    color: var(--chalk);
+    font-family: 'Raleway', system-ui, sans-serif;
+    font-weight: 400;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 44px 28px 96px; }
+
+  /* ── Page furniture ───────────────────────────────────────────────── */
+
+  header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  h1 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(34px, 5vw, 52px);
+    line-height: 1.05;
+    margin: 0;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  h1 em { font-style: italic; color: var(--accent); }
+  .standfirst { color: var(--chalk-2); font-size: 17px; max-width: 62ch; margin: 0; }
+
+  .label {
+    font-family: 'Space Mono', ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  section { margin-top: 72px; }
+  .sec-head { border-top: 1px solid var(--rule); padding-top: 18px; margin-bottom: 26px; }
+  .sec-head h2 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-weight: 400;
+    font-size: 32px;
+    margin: 8px 0 6px;
+    line-height: 1.1;
+  }
+  .sec-head p { margin: 0; color: var(--chalk-2); max-width: 66ch; }
+
+  /* ── A route: screens in a row, reasoning in the margin ───────────── */
+
+  .route { display: grid; grid-template-columns: minmax(0, 1fr); gap: 26px; margin-bottom: 46px; }
+  @media (min-width: 900px) { .route { grid-template-columns: 1fr 268px; gap: 34px; } }
+
+  .screens {
+    display: flex;
+    gap: 22px;
+    overflow-x: auto;
+    padding: 6px 4px 18px;
+    scrollbar-width: thin;
+  }
+
+  .aside {
+    background: var(--wall-up);
+    border: 1px solid var(--rule);
+    border-radius: 12px;
+    padding: 18px 18px 20px;
+    align-self: start;
+    font-size: 14.5px;
+  }
+  .aside h3 {
+    font-family: 'Space Mono', ui-monospace, monospace;
+    font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 10px; font-weight: 700;
+  }
+  .aside p { margin: 0 0 11px; color: var(--chalk-2); }
+  .aside p:last-child { margin-bottom: 0; }
+  .aside strong { color: var(--chalk); font-weight: 600; }
+
+  .verdict {
+    display: inline-block;
+    font-family: 'Space Mono', ui-monospace, monospace;
+    font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 4px 9px; border-radius: 999px; margin-bottom: 12px;
+  }
+  .verdict.yes { background: rgba(168,132,44,0.18); color: #D6AF52; border: 1px solid rgba(168,132,44,0.45); }
+  .verdict.no  { background: rgba(154,145,132,0.12); color: var(--chalk-2); border: 1px solid var(--rule); }
+
+  /* ── The phone ────────────────────────────────────────────────────── */
+
+  .phone { flex: 0 0 auto; width: var(--screen-w); }
+  .caption {
+    font-family: 'Space Mono', ui-monospace, monospace;
+    font-size: 10.5px; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--chalk-2); margin: 11px 2px 0; line-height: 1.5;
+  }
+  .caption b { color: var(--accent); font-weight: 700; }
+
+  .screen {
+    width: var(--screen-w);
+    height: var(--screen-h);
+    background: var(--bg);
+    border-radius: 26px;
+    overflow: hidden;
+    position: relative;
+    color: var(--ink);
+    box-shadow: 0 10px 34px rgba(0,0,0,0.42);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .bar {
+    flex: 0 0 auto;
+    height: 42px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 14px;
+    border-bottom: 1px solid rgba(26,22,17,0.07);
+    background: rgba(255,255,255,0.55);
+  }
+  .duck-chip {
+    width: 24px; height: 24px; border-radius: 7px;
+    background: var(--card);
+    border: 1px solid rgba(168,132,44,0.5);
+    display: grid; place-items: center; font-size: 13px;
+  }
+  .wordmark { font-size: 13px; letter-spacing: 0.05em; }
+  .wordmark .thin { font-weight: 300; }
+  .wordmark .bold { font-weight: 700; color: var(--accent); }
+
+  .body { flex: 1 1 auto; padding: 20px 18px; overflow: hidden; position: relative; }
+
+  .serif {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-weight: 400;
+    line-height: 1.12;
+    letter-spacing: -0.005em;
+  }
+  .h-lg { font-size: 30px; margin: 0 0 8px; }
+  .h-md { font-size: 22px; margin: 0 0 6px; }
+  .say  { font-size: 14px; color: var(--muted); margin: 0 0 18px; line-height: 1.5; }
+
+  .mono-label {
+    font-family: 'Space Mono', ui-monospace, monospace;
+    font-size: 10px; letter-spacing: 0.13em; text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .btn {
+    display: block; width: 100%;
+    padding: 13px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--bg);
+    font-family: 'Raleway', sans-serif;
+    font-size: 14px; font-weight: 600;
+    text-align: center;
+    letter-spacing: 0.01em;
+  }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  /* Boxes, not pills. A 52px rectangle is an easier thumb target than a
+     capsule of the same height, and it reads as more deliberate. */
+  .btn.box { border-radius: 13px; padding: 15px 16px; }
+
+  .search {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--card);
+    border: 1px solid rgba(26,22,17,0.12);
+    border-radius: 12px;
+    padding: 10px 13px;
+    font-size: 13.5px; color: var(--muted);
+    margin-bottom: 12px;
+  }
+  .search span:first-child { opacity: 0.5; }
+  .caret { width: 1px; height: 15px; background: var(--accent); animation: caret 1.1s steps(1) infinite; }
+  @keyframes caret { 50% { opacity: 0; } }
+  .btn.quiet { background: transparent; border-color: rgba(26,22,17,0.18); color: var(--muted); font-weight: 500; }
+  .btn + .btn { margin-top: 9px; }
+
+  /* ── Flags: objects, not glyphs ───────────────────────────────────── */
+
+  .flags { display: flex; flex-direction: column; gap: 10px; margin: 4px 0 16px; }
+  .flag-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 11px 14px;
+    background: var(--card);
+    border: 1px solid rgba(26,22,17,0.09);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(26,22,17,0.07);
+  }
+  .flag-row.on { border-color: var(--accent); box-shadow: 0 2px 10px rgba(168,132,44,0.22); }
+  .flag {
+    flex: 0 0 auto;
+    width: 44px; height: 30px;
+    border-radius: 4px;
+    overflow: hidden;
+    display: grid; place-items: center;
+    font-size: 27px; line-height: 1;
+    background: #DDD6C8;
+    box-shadow: inset 0 0 0 1px rgba(26,22,17,0.12), 0 1px 2px rgba(26,22,17,0.2);
+  }
+  .flag span { transform: translateY(1px); }
+  .flag-name { font-size: 15px; font-weight: 500; }
+  .flag-sub { font-size: 12px; color: var(--muted); }
+  .flag-grow { flex: 1 1 auto; }
+  .tick { color: var(--accent); font-size: 16px; }
+
+  .elsewhere {
+    font-size: 13px; color: var(--muted);
+    text-align: center; text-decoration: underline;
+    text-underline-offset: 3px; margin-top: 2px;
+  }
+
+  /* ── The sheet that slides up ─────────────────────────────────────── */
+
+  .dim { position: absolute; inset: 0; background: rgba(26,22,17,0.34); }
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    background: var(--bg);
+    border-radius: 22px 22px 0 0;
+    padding: 10px 18px 22px;
+    box-shadow: 0 -8px 30px rgba(26,22,17,0.22);
+  }
+  .grabber {
+    width: 38px; height: 4px; border-radius: 2px;
+    background: rgba(26,22,17,0.16);
+    margin: 0 auto 14px;
+  }
+
+  /* ── Photo grid ───────────────────────────────────────────────────── */
+
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .grid i {
+    display: block; aspect-ratio: 1;
+    border-radius: 5px;
+    background: linear-gradient(150deg, #9DC3DC, #6E9DBD);
+  }
+  .grid i:nth-child(3n+2) { background: linear-gradient(150deg, #C8AE86, #A88A5C); }
+  .grid i:nth-child(3n+3) { background: linear-gradient(150deg, #A8BF9E, #7E9C74); }
+  .grid i:nth-child(5)    { background: linear-gradient(150deg, #C9A0A0, #A97676); }
+
+  /* ── The pond behind the Plan tab ─────────────────────────────────── */
+
+  .pond {
+    position: absolute;
+    left: 50%; bottom: -170px;
+    width: 440px; height: 440px;
+    transform: translateX(-50%);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .pond circle, .pond ellipse, .pond path {
+    fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0.34;
+  }
+
+  /* ── The ideas that scroll ────────────────────────────────────────── */
+
+  .ideas-clip { position: relative; margin: 0 -18px; overflow: hidden; }
+  .ideas-clip::before, .ideas-clip::after {
+    content: ''; position: absolute; top: 0; bottom: 0; width: 26px; z-index: 2; pointer-events: none;
+  }
+  .ideas-clip::before { left: 0;  background: linear-gradient(90deg, var(--bg), transparent); }
+  .ideas-clip::after  { right: 0; background: linear-gradient(270deg, var(--bg), transparent); }
+
+  .ideas { display: flex; gap: 11px; padding: 4px 18px; width: max-content; animation: drift 34s linear infinite; }
+  .ideas-clip:hover .ideas { animation-play-state: paused; }
+  @keyframes drift { to { transform: translateX(calc(-50% - 5.5px)); } }
+
+  .idea {
+    flex: 0 0 auto;
+    width: 132px;
+    background: var(--card);
+    border: 1px solid rgba(26,22,17,0.08);
+    border-radius: 14px;
+    padding: 12px 12px 13px;
+    box-shadow: 0 2px 8px rgba(26,22,17,0.06);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .idea svg { width: 100%; height: 54px; display: block; }
+  .idea svg * { fill: none; stroke: var(--accent); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  .idea-t { font-size: 13.5px; font-weight: 500; line-height: 1.25; }
+  .idea-s { font-size: 11px; color: var(--muted); }
+
+  .seasonal {
+    margin-top: 14px;
+    font-size: 12.5px;
+    color: var(--accent);
+    display: flex; align-items: center; gap: 7px;
+  }
+  .seasonal::before { content: ''; width: 14px; height: 1px; background: var(--accent); opacity: 0.6; flex: none; }
+
+  .add-hole {
+    margin-top: 12px;
+    border: 1.4px dashed rgba(168,132,44,0.55);
+    border-radius: 14px;
+    padding: 15px;
+    text-align: center;
+    color: var(--accent);
+    font-size: 13.5px; font-weight: 500;
+    background: rgba(168,132,44,0.04);
+  }
+
+  .signin-strip {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    background: rgba(26,22,17,0.05);
+    border-radius: 14px;
+    padding: 11px 12px 11px 15px;
+    font-size: 13px; color: var(--muted);
+  }
+  .signin-strip b { color: var(--ink); font-weight: 500; }
+  .mini-btn {
+    background: var(--ink); color: var(--bg);
+    border-radius: 999px; padding: 7px 15px;
+    font-size: 12.5px; font-weight: 600; flex: none;
+  }
+  .signin-foot { margin-top: auto; padding-top: 14px; }
+
+  .plan-card {
+    background: var(--card);
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    padding: 12px 13px;
+    box-shadow: 0 2px 8px rgba(26,22,17,0.06);
+    position: relative; overflow: hidden;
+  }
+  .stamp {
+    position: absolute; top: 9px; right: -26px;
+    transform: rotate(38deg);
+    background: var(--accent); color: var(--bg);
+    font-family: 'Space Mono', monospace;
+    font-size: 8px; letter-spacing: 0.12em;
+    padding: 3px 28px;
+  }
+
+  /* ── Thailand: the story building ─────────────────────────────────── */
+
+  .progress { display: flex; gap: 3px; margin: 9px 0 4px; }
+  .progress i { height: 4px; flex: 1; border-radius: 2px; background: rgba(26,22,17,0.12); }
+  .progress i.done { background: var(--accent); }
+  .progress i.now  { background: var(--accent); opacity: 0.45; }
+
+  .day {
+    border-left: 2px solid rgba(168,132,44,0.35);
+    padding: 0 0 15px 13px;
+    position: relative;
+  }
+  .day::before {
+    content: ''; position: absolute; left: -5px; top: 5px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+  }
+  .day.live::before { box-shadow: 0 0 0 4px rgba(168,132,44,0.2); animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(168,132,44,0.05); } }
+  .day-when { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); font-family: 'Space Mono', monospace; }
+  .day-line { font-size: 13.5px; line-height: 1.45; margin: 3px 0 0; }
+  .day.dim-day .day-line { color: var(--muted); }
+
+  .writing { display: inline-flex; gap: 3px; align-items: center; vertical-align: middle; margin-left: 3px; }
+  .writing i { width: 3px; height: 3px; border-radius: 50%; background: var(--accent); animation: blink 1.3s infinite; }
+  .writing i:nth-child(2) { animation-delay: 0.18s; }
+  .writing i:nth-child(3) { animation-delay: 0.36s; }
+  @keyframes blink { 0%, 60%, 100% { opacity: 0.25; } 30% { opacity: 1; } }
+
+  /* ── Decisions ────────────────────────────────────────────────────── */
+
+  .asks { display: grid; gap: 12px; margin-top: 8px; }
+  @media (min-width: 760px) { .asks { grid-template-columns: 1fr 1fr; } }
+  .ask {
+    background: var(--wall-up);
+    border: 1px solid var(--rule);
+    border-left: 2px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .ask h4 { margin: 0 0 5px; font-size: 15px; font-weight: 600; color: var(--chalk); }
+  .ask p { margin: 0; font-size: 14px; color: var(--chalk-2); }
+
+  .foot {
+    margin-top: 70px; border-top: 1px solid var(--rule); padding-top: 18px;
+    font-size: 13.5px; color: var(--chalk-2);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ideas { animation: none; }
+    .day.live::before, .writing i { animation: none; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <span class="label">Pond Hopping · before building</span>
+    <h1>Where's <em>home</em>, and what fills the pond</h1>
+    <p class="standfirst">
+      Three things to look at and one decision on each. Nothing here is built yet —
+      the screens are mock-ups at phone size, using the app's own type and colour so
+      what you're judging is the real thing.
+    </p>
+  </header>
+
+  <!-- ═══ WHAT IS ACTUALLY BUILT ════════════════════════════════════ -->
+
+  <section style="margin-top:34px">
+    <div class="sec-head">
+      <span class="label">Since you approved it</span>
+      <h2>What&apos;s built</h2>
+      <p>
+        Eight commits on PR&nbsp;#152, all CI-green. This page is still the design;
+        the column on the right is what the app now actually does.
+      </p>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:14.5px;min-width:520px">
+        <thead>
+          <tr style="text-align:left;color:var(--chalk-2)">
+            <th style="padding:8px 12px 8px 0;font-weight:500;font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase">On this page</th>
+            <th style="padding:8px 0;font-weight:500;font-family:'Space Mono',monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase">In the app</th>
+          </tr>
+        </thead>
+        <tbody style="color:var(--chalk-2)">
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:10px 12px 10px 0">Where&apos;s home, the three flags, the pre-tick</td><td style="padding:10px 0;color:#D6AF52">Built — real flags, all 271 countries searchable</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:10px 12px 10px 0">&ldquo;Your pond is —&rdquo;, and the fork after it</td><td style="padding:10px 0;color:#D6AF52">Built, both doors wired</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:10px 12px 10px 0">Somewhere else, with search</td><td style="padding:10px 0;color:#D6AF52">Built, and in Settings as &ldquo;Your pond&rdquo;</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:10px 12px 10px 0">The pond, the ideas, the seasonal line</td><td style="padding:10px 0;color:#D6AF52">Built — ideas from your own history</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:10px 12px 10px 0">Sign-in moved to the foot</td><td style="padding:10px 0;color:#D6AF52">Built</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:10px 12px 10px 0">The card in the hero slot</td><td style="padding:10px 0;color:#D6AF52">Built — paper, boxes, full width</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:10px 12px 10px 0">Day&nbsp;4 of&nbsp;10, and the bar</td><td style="padding:10px 0;color:#D6AF52">Built</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:10px 12px 10px 0">The trip-so-far line</td><td style="padding:10px 0;color:#D6AF52">Built from counts — <em>&ldquo;Six days in. 59 photos.&rdquo;</em></td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:10px 12px 10px 0">Location, and the nine o&apos;clock look-back</td><td style="padding:10px 0;color:#D6AF52">Built as one ask, per your correction</td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:10px 12px 10px 0">The written day stories</td><td style="padding:10px 0">Waiting on you — Thailand demo → <strong>Days from photos</strong></td></tr>
+          <tr style="border-top:1px solid var(--rule)"><td style="padding:10px 12px 10px 0">&ldquo;No, keep them loose&rdquo;</td><td style="padding:10px 0">Blocked — needs the app to <em>offer</em> a trip, which it never has</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ 1. WHERE'S HOME ═══════════════════════════════════════════ -->
+
+  <section>
+    <div class="sec-head">
+      <span class="label">One</span>
+      <h2>Asking where home is</h2>
+      <p>
+        Your instinct was right on both counts: offer rather than declare, and lead
+        with it rather than ambushing the first photo. Here are both routes so you can
+        see the difference — and a resolution to the wording, which is that
+        <strong>the question should be plain and the answer can have the character</strong>.
+      </p>
+    </div>
+
+    <!-- Route A -->
+    <div class="route">
+      <div class="screens">
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body">
+              <p class="mono-label">Adding photos</p>
+              <h3 class="serif h-md">42 photos</h3>
+              <p class="say">From your camera roll</p>
+              <div class="grid">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+            </div>
+          </div>
+          <p class="caption"><b>A1</b> · They upload first. No questions yet.</p>
+        </div>
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body">
+              <div class="grid" style="opacity:0.35">
+                <i></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+            </div>
+            <div class="dim"></div>
+            <div class="sheet">
+              <div class="grabber"></div>
+              <p class="mono-label">Five days, one country</p>
+              <h3 class="serif h-md">This looks like a trip to Canada</h3>
+              <p class="say">Banff, Lake Louise and Calgary, since Tuesday.</p>
+              <button class="btn">Yes, make it a trip</button>
+              <button class="btn quiet">No, just photos</button>
+            </div>
+          </div>
+          <p class="caption"><b>A2</b> · Offered, not declared. One tap either way.</p>
+        </div>
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body"><div class="grid" style="opacity:0.35"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+            <div class="dim"></div>
+            <div class="sheet">
+              <div class="grabber"></div>
+              <p class="mono-label">One more thing</p>
+              <h3 class="serif h-md">Where's home?</h3>
+              <p class="say">So we know when you're away.</p>
+              <div class="flags">
+                <div class="flag-row"><span class="flag"><span>🇬🇧</span></span><span class="flag-grow"><span class="flag-name">United Kingdom</span></span></div>
+                <div class="flag-row"><span class="flag"><span>🇦🇺</span></span><span class="flag-grow"><span class="flag-name">Australia</span></span></div>
+                <div class="flag-row"><span class="flag"><span>🇺🇸</span></span><span class="flag-grow"><span class="flag-name">United States</span></span></div>
+              </div>
+              <p class="elsewhere">Somewhere else</p>
+            </div>
+          </div>
+          <p class="caption"><b>A3</b> · The question arrives third, mid-task.</p>
+        </div>
+
+      </div>
+
+      <div class="aside">
+        <span class="verdict no">Route A · not this one</span>
+        <h3>Ask at the first photo</h3>
+        <p>What I proposed first. It works, and it has one flaw you spotted before I did.</p>
+        <p>
+          By screen A3 they are <strong>three questions deep into a task they came to
+          finish</strong>. "Where's home?" is the least urgent of the three and it lands
+          last, when they most want to be done.
+        </p>
+        <p>It also can't help the empty state — the globe has nothing on it until they upload.</p>
+      </div>
+    </div>
+
+    <!-- Route B -->
+    <div class="route">
+      <div class="screens">
+
+        <div class="phone">
+          <div class="screen" style="align-items:center;justify-content:center">
+            <div class="body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+              <svg viewBox="0 0 200 200" style="width:150px;height:150px;margin-bottom:18px" aria-hidden="true">
+                <g fill="none" stroke="#A8842C" stroke-width="1" opacity="0.55">
+                  <circle cx="100" cy="100" r="66"/>
+                  <ellipse cx="100" cy="100" rx="26" ry="66"/>
+                  <ellipse cx="100" cy="100" rx="50" ry="66"/>
+                  <path d="M38 78 H162"/><path d="M34 100 H166"/><path d="M38 122 H162"/>
+                </g>
+              </svg>
+              <p style="font-size:20px;font-weight:600;margin:0">Pond Hopping</p>
+            </div>
+          </div>
+          <p class="caption"><b>B1</b> · The opening ends. Globe still empty.</p>
+        </div>
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body" style="display:flex;flex-direction:column;justify-content:center">
+              <p class="mono-label">First things first</p>
+              <h3 class="serif h-lg">Where's home?</h3>
+              <p class="say">Every trip is measured from somewhere. Pick your pond.</p>
+              <div class="flags">
+                <div class="flag-row on">
+                  <span class="flag"><span>🇬🇧</span></span>
+                  <span class="flag-grow">
+                    <span class="flag-name">United Kingdom</span><br>
+                    <span class="flag-sub">Your pond</span>
+                  </span>
+                  <span class="tick">✓</span>
+                </div>
+                <div class="flag-row"><span class="flag"><span>🇦🇺</span></span><span class="flag-grow"><span class="flag-name">Australia</span></span></div>
+                <div class="flag-row"><span class="flag"><span>🇺🇸</span></span><span class="flag-grow"><span class="flag-name">United States</span></span></div>
+              </div>
+              <p class="elsewhere">Somewhere else</p>
+            </div>
+          </div>
+          <p class="caption"><b>B2</b> · One question, whole screen, no sign-in.</p>
+        </div>
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body" style="display:flex;flex-direction:column;justify-content:center;text-align:center">
+              <svg viewBox="0 0 200 200" style="width:170px;height:170px;margin:0 auto 14px" aria-hidden="true">
+                <g fill="none" stroke="#A8842C" stroke-width="1" opacity="0.5">
+                  <circle cx="100" cy="100" r="70"/>
+                  <ellipse cx="100" cy="100" rx="28" ry="70"/>
+                  <path d="M34 76 H166"/><path d="M30 100 H170"/><path d="M34 124 H166"/>
+                </g>
+                <circle cx="104" cy="76" r="5" fill="#A8842C" stroke="none"/>
+                <text x="100" y="150" text-anchor="middle" font-size="26">🇬🇧</text>
+              </svg>
+              <h3 class="serif h-md">Your pond is the UK</h3>
+              <p class="say">Now — anything you've already done?</p>
+              <button class="btn">Add photos from a trip</button>
+              <button class="btn ghost">I'm on one right now</button>
+              <p class="elsewhere" style="margin-top:12px">Skip for now</p>
+            </div>
+          </div>
+          <p class="caption"><b>B3</b> · The pond language <b>rewards</b> the answer.</p>
+        </div>
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body"><div class="grid" style="opacity:0.35"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+            <div class="dim"></div>
+            <div class="sheet">
+              <div class="grabber"></div>
+              <p class="mono-label">Five days away from the pond</p>
+              <h3 class="serif h-md">You're in Canada</h3>
+              <p class="say">Banff, Lake Louise and Calgary, since Tuesday. Shall I make it a trip?</p>
+              <button class="btn">Yes, and keep it building</button>
+              <button class="btn quiet">Not a trip</button>
+            </div>
+          </div>
+          <p class="caption"><b>B4</b> · Later. Now it can say <b>away from the pond</b>.</p>
+        </div>
+
+      </div>
+
+      <div class="aside">
+        <span class="verdict yes">Route B · my recommendation</span>
+        <h3>Lead with it</h3>
+        <p>Your better idea, and it is better for a reason worth naming.</p>
+        <p>
+          <strong>It's the only question the app can't work out on its own.</strong>
+          Dates, places and durations all come from the photos. Home doesn't — and
+          without it "away" has no meaning, so B4's sentence is impossible in Route A.
+        </p>
+        <p>
+          It also gives the empty globe something to hold on day one, which is the
+          screen you were looking at when you asked where the demos went.
+        </p>
+        <p>
+          <strong>On the wording:</strong> "Is your pond the UK?" is charming and slightly
+          unclear. Lead with the plain question and spend the charm on the answer —
+          B2 asks <strong>Where's home?</strong>, B3 replies <strong>Your pond is the UK</strong>.
+          Clear going in, characterful coming out.
+        </p>
+      </div>
+    </div>
+
+    <div class="aside" style="border-left:2px solid var(--accent)">
+      <h3>What the phone can tell us without asking</h3>
+      <p>
+        <code style="font-family:'Space Mono',monospace;font-size:12.5px;color:var(--chalk)">Intl.DateTimeFormat().resolvedOptions().timeZone</code>
+        returns <strong>Europe/London</strong> with no permission prompt, no dialog, no GPS.
+        So the three flags aren't a guess — <strong>we put the right one at the top and
+        pre-tick it</strong>, and the question becomes a confirmation. That's the frictionless
+        version of asking, and it's why B2 shows one already ticked.
+      </p>
+    </div>
+  </section>
+
+  <!-- ═══ 2. THE PLAN TAB ═══════════════════════════════════════════ -->
+
+  <section>
+    <div class="sec-head">
+      <span class="label">Two</span>
+      <h2>Filling the pond</h2>
+      <p>
+        The globe watermark, the ideas that scroll, and the seasonal line — kept quiet
+        enough not to fight each other. Hover the ideas to stop them.
+      </p>
+    </div>
+
+    <div class="route">
+      <div class="screens">
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body" style="display:flex;flex-direction:column">
+              <svg class="pond" viewBox="0 0 400 400" aria-hidden="true">
+                <circle cx="200" cy="200" r="150"/>
+                <ellipse cx="200" cy="200" rx="58" ry="150"/>
+                <ellipse cx="200" cy="200" rx="110" ry="150"/>
+                <path d="M62 152 H338"/><path d="M50 200 H350"/><path d="M62 248 H338"/>
+              </svg>
+
+              <div style="position:relative;z-index:1;display:flex;flex-direction:column;height:100%">
+                <h3 class="serif h-md">What's next</h3>
+
+                <div class="plan-card" style="margin-top:10px">
+                  <span class="stamp">EXAMPLE</span>
+                  <p class="mono-label">In 4 days</p>
+                  <p style="font-size:15px;font-weight:500;margin:2px 0 5px">Lisbon &amp; Porto 🇵🇹</p>
+                  <p style="font-size:11.5px;color:var(--muted);margin:0">3 nights with nowhere to sleep</p>
+                </div>
+
+                <p class="mono-label" style="margin:18px 0 7px">Ideas</p>
+                <div class="ideas-clip">
+                  <div class="ideas">
+                    <!-- doubled for a seamless loop -->
+                    <div class="idea">
+                      <svg viewBox="0 0 60 40" aria-hidden="true"><path d="M8 34 V16 a22 12 0 0 1 44 0 V34 Z"/><path d="M8 25 H52"/><path d="M17 34 V25"/><path d="M30 34 V25"/><path d="M43 34 V25"/><path d="M17 25 V17"/><path d="M30 25 V15"/><path d="M43 25 V17"/></svg>
+                      <span class="idea-t">How about Rome?</span>
+                      <span class="idea-s">3 nights · February</span>
+                    </div>
+                    <div class="idea">
+                      <svg viewBox="0 0 60 40" aria-hidden="true"><path d="M6 30 q24 -16 48 0"/><path d="M6 30 q24 8 48 0"/><path d="M14 24 V10"/><path d="M46 24 V10"/><path d="M30 20 V6"/></svg>
+                      <span class="idea-t">Pond hop to Venice</span>
+                      <span class="idea-s">Two hours from Rome</span>
+                    </div>
+                    <div class="idea">
+                      <svg viewBox="0 0 60 40" aria-hidden="true"><path d="M8 12 H52"/><path d="M12 18 H48"/><path d="M18 12 V34"/><path d="M42 12 V34"/><path d="M6 12 q24 -6 48 0"/></svg>
+                      <span class="idea-t">Japan in the spring</span>
+                      <span class="idea-s">Blossom, late March</span>
+                    </div>
+                    <div class="idea">
+                      <svg viewBox="0 0 60 40" aria-hidden="true"><rect x="12" y="12" width="36" height="18" rx="3"/><path d="M12 21 H48"/><circle cx="20" cy="33" r="3"/><circle cx="40" cy="33" r="3"/><path d="M30 12 V5"/></svg>
+                      <span class="idea-t">Lisbon, by tram</span>
+                      <span class="idea-s">You're nearly there</span>
+                    </div>
+                    <div class="idea">
+                      <svg viewBox="0 0 60 40" aria-hidden="true"><path d="M8 34 V16 a22 12 0 0 1 44 0 V34 Z"/><path d="M8 25 H52"/><path d="M17 34 V25"/><path d="M30 34 V25"/><path d="M43 34 V25"/><path d="M17 25 V17"/><path d="M30 25 V15"/><path d="M43 25 V17"/></svg>
+                      <span class="idea-t">How about Rome?</span>
+                      <span class="idea-s">3 nights · February</span>
+                    </div>
+                    <div class="idea">
+                      <svg viewBox="0 0 60 40" aria-hidden="true"><path d="M6 30 q24 -16 48 0"/><path d="M6 30 q24 8 48 0"/><path d="M14 24 V10"/><path d="M46 24 V10"/><path d="M30 20 V6"/></svg>
+                      <span class="idea-t">Pond hop to Venice</span>
+                      <span class="idea-s">Two hours from Rome</span>
+                    </div>
+                    <div class="idea">
+                      <svg viewBox="0 0 60 40" aria-hidden="true"><path d="M8 12 H52"/><path d="M12 18 H48"/><path d="M18 12 V34"/><path d="M42 12 V34"/><path d="M6 12 q24 -6 48 0"/></svg>
+                      <span class="idea-t">Japan in the spring</span>
+                      <span class="idea-s">Blossom, late March</span>
+                    </div>
+                    <div class="idea">
+                      <svg viewBox="0 0 60 40" aria-hidden="true"><rect x="12" y="12" width="36" height="18" rx="3"/><path d="M12 21 H48"/><circle cx="20" cy="33" r="3"/><circle cx="40" cy="33" r="3"/><path d="M30 12 V5"/></svg>
+                      <span class="idea-t">Lisbon, by tram</span>
+                      <span class="idea-s">You're nearly there</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="add-hole">+ Add an idea</div>
+                <p class="seasonal">October is cheap for Japan</p>
+
+                <div class="signin-foot">
+                  <div class="signin-strip">
+                    <span><b>Sign in</b> to start your own</span>
+                    <span class="mini-btn">Sign in</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p class="caption"><b>P1</b> · Pond behind, ideas drifting, sign-in at the foot.</p>
+        </div>
+
+      </div>
+
+      <div class="aside">
+        <h3>"Make the sign-in bar earn its space"</h3>
+        <p>
+          You asked what I meant, and looking at your screenshot again the phrasing was
+          the problem, not the idea. <strong>In your build the sign-in bar is the second
+          thing on the page</strong> — a grey slab directly under "What's next", above
+          everything real.
+        </p>
+        <p>
+          It's the least interesting thing on the screen and it has the best seat. Moving
+          it to the <strong>bottom</strong>, as above, lets Lisbon start higher and closes
+          most of the gap you were pointing at — before any of the pond, ideas or
+          seasonal line get involved.
+        </p>
+        <h3 style="margin-top:16px">On not overdoing it</h3>
+        <p>
+          Noted. The globe here is at <strong>17% opacity</strong> and bleeds off the
+          bottom so it never reads as a picture, only as depth. The ideas drift at about
+          <strong>4px a second</strong> — closer to a clock hand than a carousel — and
+          stop when touched. The seasonal line is one sentence with no card around it.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 3. THAILAND ═══════════════════════════════════════════════ -->
+
+  <section>
+    <div class="sec-head">
+      <span class="label">Three</span>
+      <h2>Thailand, mid-trip</h2>
+      <p>
+        Days 1–3 written, day 4 building as it happens, and a trip-so-far line above
+        the lot. The first two exist and have simply never been run on this trip; the
+        summary is new.
+      </p>
+    </div>
+
+    <div class="route">
+      <div class="screens">
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body">
+              <p class="mono-label">There now · Day 4 of 10</p>
+              <h3 class="serif h-md" style="margin-top:3px">Thailand 🇹🇭</h3>
+              <div class="progress">
+                <i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i>
+                <i></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+              <p style="font-size:12.5px;color:var(--muted);margin:8px 0 18px;line-height:1.5">
+                Three days in: Bangkok, then the train north. 14 photos a day, one temple
+                too many, and nowhere booked past Friday.
+              </p>
+
+              <div class="day live">
+                <p class="day-when">Today · Ayutthaya</p>
+                <p class="day-line">
+                  You've been out since seven. Six photos so far, all of them ruins
+                  <span class="writing"><i></i><i></i><i></i></span>
+                </p>
+              </div>
+              <div class="day">
+                <p class="day-when">Yesterday · Bangkok → Ayutthaya</p>
+                <p class="day-line">The 8:20 train north, and a long afternoon walking the old capital.</p>
+              </div>
+              <div class="day dim-day">
+                <p class="day-when">Day 2 · Bangkok</p>
+                <p class="day-line">Chatuchak in the morning, and the boat back down the river.</p>
+              </div>
+              <div class="day dim-day">
+                <p class="day-when">Day 1 · Bangkok</p>
+                <p class="day-line">Landed at six, and were eating on the street by eight.</p>
+              </div>
+            </div>
+          </div>
+          <p class="caption"><b>T1</b> · Today writes itself. Yesterday is finished.</p>
+        </div>
+
+      </div>
+
+      <div class="aside">
+        <h3>Why it's blank today</h3>
+        <p>
+          I checked: the Thailand demo has <strong>59 photos, no flights, and the story
+          engine has never once been run on it</strong> — zero rows in
+          <code style="font-family:'Space Mono',monospace;font-size:12px">story_runs</code>.
+          So this isn't missing machinery, it's an unseeded demo.
+        </p>
+        <p>
+          The <strong>day building in real time</strong> is the good bit and it's the
+          one genuinely new thing here — a day that is still being written, with the
+          dots ticking, says what the app does better than a finished page does.
+        </p>
+        <p>
+          <strong>Days 1–3 of 10</strong> needs the progress bar and the summary line,
+          neither of which exists yet.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 4. THE SIGNED-OUT HERO ════════════════════════════════════ -->
+
+  <section>
+    <div class="sec-head">
+      <span class="label">Four</span>
+      <h2>The signed-out hero</h2>
+      <p>
+        You preferred the card you saw while the demos were missing. I agree, and the
+        reason is worth naming: the card is the only one of the two that says
+        <strong>whose globe this is</strong>.
+      </p>
+    </div>
+
+    <div class="route">
+      <div class="screens">
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body" style="padding:0;display:flex;flex-direction:column;justify-content:flex-end;
+                 background:linear-gradient(#BFD4E6,#8FB3D0 46%,#D8E4EE)">
+              <div style="margin:0 12px;background:linear-gradient(#EDEAE2,#C9C3B6);border-radius:14px;
+                   padding:16px 14px 14px;position:relative;overflow:hidden;height:96px">
+                <svg viewBox="0 0 260 70" style="position:absolute;inset:0;width:100%;height:100%;opacity:0.85" aria-hidden="true">
+                  <g fill="none" stroke="#A8842C" stroke-width="1.6" opacity="0.75">
+                    <path d="M40 56 Q120 6 214 30" stroke-dasharray="7 6" stroke-width="2.4"/>
+                    <ellipse cx="130" cy="52" rx="62" ry="30"/>
+                    <path d="M68 52 H192"/><path d="M96 26 Q130 82 164 26"/><path d="M112 24 Q130 80 148 24"/>
+                    <circle cx="214" cy="30" r="15" stroke-width="2.4"/>
+                    <path d="M214 22 V38 M206 30 H222" stroke-width="2.4"/>
+                    <circle cx="40" cy="56" r="4" fill="#A8842C" stroke="none"/>
+                  </g>
+                </svg>
+                <div style="position:relative">
+                  <p class="mono-label" style="color:#F5F2EB;font-size:9px">Start here</p>
+                  <p style="font-size:19px;margin:2px 0 0;color:#2A241B">Tip it in</p>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;padding:14px 12px 16px">
+                <div style="flex:1;background:var(--card);border-radius:12px;height:104px"></div>
+                <div style="flex:1;background:var(--card);border-radius:12px;height:104px"></div>
+              </div>
+            </div>
+          </div>
+          <p class="caption">Now · the tile, over the drawing</p>
+        </div>
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body" style="padding:0;display:flex;flex-direction:column;justify-content:flex-end;
+                 background:linear-gradient(#BFD4E6,#8FB3D0 46%,#D8E4EE)">
+              <div style="margin:0 12px;background:linear-gradient(rgba(245,242,235,0.97),rgba(237,233,223,0.97));
+                   -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+                   border:1px solid rgba(255,255,255,0.5);
+                   border-radius:16px;padding:16px 16px 15px;
+                   box-shadow:0 4px 18px rgba(26,22,17,0.18)">
+                <h3 class="serif" style="font-size:19px;margin:0 0 5px">Nothing on the globe yet</h3>
+                <p style="font-size:11.5px;color:var(--muted);margin:0 0 12px;line-height:1.5">
+                  The three below are ours, so you can see how it works. Yours will land here.
+                </p>
+                <button class="btn box" style="padding:12px;font-size:12.5px">Add a trip you've taken</button>
+                <button class="btn quiet box" style="padding:12px;font-size:12.5px">Plan a new one</button>
+              </div>
+              <div style="display:flex;gap:8px;padding:14px 12px 16px">
+                <div style="flex:1;background:var(--card);border-radius:12px;height:104px"></div>
+                <div style="flex:1;background:var(--card);border-radius:12px;height:104px"></div>
+              </div>
+            </div>
+          </div>
+          <p class="caption"><b>Proposed</b> · the card, and the examples stay</p>
+        </div>
+
+      </div>
+
+      <div class="aside">
+        <span class="verdict yes">Small change</span>
+        <h3>Card in the hero slot</h3>
+        <p>
+          Today the card and the examples are mutually exclusive — the card only appears
+          when <strong>nothing at all</strong> loads, which is why you saw it during the
+          outage and not since. The change is to show it <strong>whenever nothing on the
+          globe is yours</strong>, with the example strip still beneath it.
+        </p>
+        <p>
+          That also kills the drawing you don't like, and lets the card do the job the
+          tour tooltips were invented for — <strong>one line explaining whose trips
+          those are</strong>, without an overlay pointing at them.
+        </p>
+        <p><strong>One line of condition in WorldTab.</strong> Smallest thing on this page.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 5. THE LOOSE ENDS ═════════════════════════════════════════ -->
+
+  <section>
+    <div class="sec-head">
+      <span class="label">Five</span>
+      <h2>Every door you asked about</h2>
+      <p>
+        You found the eight places the flow stopped short. Here is what's behind each
+        one — and one principle underneath the lot: <strong>every screen asks for at
+        most one thing, and each ask is paid for by the thing before it</strong>.
+      </p>
+    </div>
+
+    <!-- Where's home, finished -->
+    <div class="route">
+      <div class="screens">
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body">
+              <p class="mono-label">Where's home?</p>
+              <h3 class="serif h-md" style="margin-bottom:12px">Find your pond</h3>
+              <div class="search"><span>🔍</span><span style="color:var(--ink)">port</span><span class="caret"></span></div>
+              <div class="flags">
+                <div class="flag-row"><span class="flag"><span>🇵🇹</span></span><span class="flag-grow"><span class="flag-name">Portugal</span></span></div>
+                <div class="flag-row"><span class="flag"><span>🇸🇬</span></span><span class="flag-grow"><span class="flag-name">Singapore</span></span></div>
+                <div class="flag-row"><span class="flag"><span>🇵🇷</span></span><span class="flag-grow"><span class="flag-name">Puerto Rico</span></span></div>
+              </div>
+              <p style="font-size:11px;color:var(--muted);margin:2px 0 0">
+                Matches the name and what people call it — <em>UK</em>, <em>Great Britain</em>
+                and <em>England</em> all find the same flag.
+              </p>
+            </div>
+          </div>
+          <p class="caption"><b>Somewhere else</b> · same cards, same flags</p>
+        </div>
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body" style="display:flex;flex-direction:column;justify-content:center;text-align:center">
+              <svg viewBox="0 0 200 200" style="width:170px;height:170px;margin:0 auto 14px" aria-hidden="true">
+                <g fill="none" stroke="#A8842C" stroke-width="1" opacity="0.5">
+                  <circle cx="100" cy="100" r="70"/>
+                  <ellipse cx="100" cy="100" rx="28" ry="70"/>
+                  <path d="M34 76 H166"/><path d="M30 100 H170"/><path d="M34 124 H166"/>
+                </g>
+                <circle cx="128" cy="136" r="5" fill="#A8842C" stroke="none"/>
+                <text x="100" y="176" text-anchor="middle" font-size="26">🇦🇺</text>
+              </svg>
+              <h3 class="serif h-md">Your pond is Australia</h3>
+              <p class="say">Now — anything you've already done?</p>
+            </div>
+          </div>
+          <p class="caption"><b>Australia</b> · the globe turns to find it</p>
+        </div>
+
+      </div>
+
+      <div class="aside">
+        <h3>The turn is the definition</h3>
+        <p>
+          You said seeing the UK version <strong>clarified what we mean by "pond"</strong>.
+          That's the globe doing the explaining, so it has to be a real turn of the
+          real globe — <strong>Australia's dot low and right, not a flag pasted on a
+          drawing</strong>. Same component Home already uses, rotated to the country
+          they picked.
+        </p>
+        <p>
+          The picker is logged separately since you'll want it in Settings too — it's
+          the same component in both places, which is the reason to build it properly
+          rather than bury it in onboarding.
+        </p>
+      </div>
+    </div>
+
+    <!-- The three branches -->
+    <div class="route">
+      <div class="screens">
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body" style="display:flex;flex-direction:column;justify-content:center">
+              <p class="mono-label">You're on one right now</p>
+              <h3 class="serif h-lg">Show me today</h3>
+              <p class="say">
+                Pick anything from the last few days and the trip builds itself around
+                them — where you've been, and when you got there.
+              </p>
+              <button class="btn box">Choose recent photos</button>
+              <button class="btn quiet box">Let it watch instead</button>
+            </div>
+          </div>
+          <p class="caption"><b>"I'm on one right now"</b> · straight to today</p>
+        </div>
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body" style="padding:0;display:flex;flex-direction:column;justify-content:flex-end;
+                 background:linear-gradient(#BFD4E6,#8FB3D0 46%,#D8E4EE)">
+              <div style="margin:0 12px;background:linear-gradient(rgba(245,242,235,0.97),rgba(237,233,223,0.97));
+                   border:1px solid rgba(255,255,255,0.5);border-radius:16px;padding:16px;
+                   box-shadow:0 4px 18px rgba(26,22,17,0.18)">
+                <h3 class="serif" style="font-size:19px;margin:0 0 5px">Nothing on the globe yet</h3>
+                <p style="font-size:11.5px;color:var(--muted);margin:0 0 12px;line-height:1.5">
+                  The three below are ours, so you can see how it works. Yours will land here.
+                </p>
+                <button class="btn box" style="padding:12px;font-size:12.5px">Add a trip you've taken</button>
+              </div>
+              <div style="display:flex;gap:8px;padding:14px 12px 16px">
+                <div style="flex:1;background:var(--card);border-radius:12px;height:100px"></div>
+                <div style="flex:1;background:var(--card);border-radius:12px;height:100px"></div>
+              </div>
+            </div>
+          </div>
+          <p class="caption"><b>"Skip for now"</b> · the card, <b>no tooltips</b></p>
+        </div>
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body">
+              <p class="mono-label">Canada · Day 5</p>
+              <h3 class="serif h-md" style="margin-top:3px">It's building</h3>
+              <div class="progress"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="now"></i></div>
+              <p class="say" style="margin-top:10px">Banff, Lake Louise and Calgary so far.</p>
+            </div>
+            <div class="dim"></div>
+            <div class="sheet">
+              <div class="grabber"></div>
+              <p class="mono-label">One thing, and then nothing else</p>
+              <h3 class="serif h-md">Let it keep building on its own</h3>
+              <p class="say">
+                With location on, tomorrow writes itself — where you went, how far,
+                what time you got in. Without it, you'll add days by hand.
+              </p>
+              <button class="btn box">Turn location on</button>
+              <button class="btn quiet box">I'll add days myself</button>
+            </div>
+          </div>
+          <p class="caption"><b>"Keep it building"</b> · the <b>last</b> ask</p>
+        </div>
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body">
+              <p class="mono-label">Not on a trip</p>
+              <h3 class="serif h-md" style="margin-top:3px">42 photos, kept loose</h3>
+              <p class="say">
+                They're in Photos whenever you want them. If a few more Canada days
+                turn up, I'll ask once more — and then leave it.
+              </p>
+              <div class="grid" style="opacity:0.9">
+                <i></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+              <p style="margin-top:14px"><span class="mono-label">Make them a trip →</span></p>
+            </div>
+          </div>
+          <p class="caption"><b>"No, just photos"</b> · kept, not binned</p>
+        </div>
+
+      </div>
+
+      <div class="aside">
+        <h3>"No, just photos" — what actually happens</h3>
+        <p>
+          <strong>We keep them.</strong> Binning a person's photos because they declined
+          a suggestion would be indefensible, and it teaches them never to tap No again.
+          They go into Photos as loose photos with a permanent one-tap route into a trip.
+        </p>
+        <p>
+          <strong>And we ask once more, at most.</strong> If the Canada cluster grows by
+          another three days it's worth a second offer. After that it stays quiet
+          forever. Two offers is helpful, three is nagging.
+        </p>
+        <p>
+          I'd also relabel it — <strong>"No, keep them loose"</strong> says what happens.
+          "Just photos" sounds like they're being thrown away.
+        </p>
+        <h3 style="margin-top:16px">Skip for now → no tooltips</h3>
+        <p>
+          You asked whether Skip lands on tooltips. <strong>It shouldn't.</strong> The
+          card from Four already says whose trips those are, in one line, with nothing
+          to dismiss — which is the entire job the tour was invented for. That makes the
+          coach-mark rebuild a nice-to-have rather than a blocker.
+        </p>
+        <h3 style="margin-top:16px">The order of asking</h3>
+        <p>
+          Home → photos → is this a trip → location. <strong>Email and sign-in are not in
+          this list.</strong> They buy nothing on day one; they matter the day someone
+          gets a second device, and that is when to ask.
+        </p>
+      </div>
+    </div>
+
+    <!-- Plan tab answers -->
+    <div class="route">
+      <div class="screens">
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body">
+              <svg viewBox="0 0 60 40" style="width:80px;height:56px;margin-bottom:6px" aria-hidden="true">
+                <g fill="none" stroke="#A8842C" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M8 34 V16 a22 12 0 0 1 44 0 V34 Z"/><path d="M8 25 H52"/>
+                  <path d="M17 34 V25"/><path d="M30 34 V25"/><path d="M43 34 V25"/>
+                  <path d="M17 25 V17"/><path d="M30 25 V15"/><path d="M43 25 V17"/>
+                </g>
+              </svg>
+              <h3 class="serif h-md">Rome</h3>
+              <p class="say" style="margin-bottom:14px">Three nights is the usual. You've never been.</p>
+              <p style="font-size:12.5px;line-height:2;margin:0 0 16px">
+                <span class="mono-label">From London</span><br>
+                4h 20m door to door · from £78 return<br>
+                <span class="mono-label">Best months</span><br>
+                April, or late October
+              </p>
+              <button class="btn box">Start planning it</button>
+              <button class="btn quiet box">Not for me</button>
+            </div>
+          </div>
+          <p class="caption"><b>Tapping an idea</b> · answer first, commit second</p>
+        </div>
+
+        <div class="phone">
+          <div class="screen">
+            <div class="bar">
+              <span class="duck-chip">🦆</span>
+              <span class="wordmark"><span class="thin">POND</span> <span class="bold">HOPPING</span></span>
+            </div>
+            <div class="body" style="display:flex;flex-direction:column">
+              <svg class="pond" viewBox="0 0 400 400" aria-hidden="true">
+                <circle cx="200" cy="200" r="150"/>
+                <ellipse cx="200" cy="200" rx="58" ry="150"/>
+                <path d="M62 152 H338"/><path d="M50 200 H350"/><path d="M62 248 H338"/>
+              </svg>
+              <div style="position:relative;z-index:1">
+                <h3 class="serif h-md">What's next</h3>
+
+                <div style="margin-top:12px;background:var(--card);border:1px solid rgba(168,132,44,0.4);
+                     border-radius:14px;padding:13px">
+                  <p class="mono-label">Got something booked?</p>
+                  <p style="font-size:13.5px;margin:4px 0 10px;line-height:1.45">
+                    Forward the confirmation to <strong>trips@pond.eend.app</strong> and it
+                    lands here, flights and all.
+                  </p>
+                  <button class="btn box" style="padding:11px;font-size:12.5px">Paste one instead</button>
+                </div>
+
+                <p class="mono-label" style="margin:18px 0 7px">Ideas</p>
+                <div class="ideas-clip">
+                  <div class="ideas" style="animation-duration:26s">
+                    <div class="idea" style="width:118px">
+                      <span class="idea-t">You've never been to South America</span>
+                      <span class="idea-s">Patagonia, Rio</span>
+                    </div>
+                    <div class="idea" style="width:118px">
+                      <span class="idea-t">Japan in the spring</span>
+                      <span class="idea-s">Blossom, late March</span>
+                    </div>
+                    <div class="idea" style="width:118px">
+                      <span class="idea-t">You've never been to South America</span>
+                      <span class="idea-s">Patagonia, Rio</span>
+                    </div>
+                    <div class="idea" style="width:118px">
+                      <span class="idea-t">Japan in the spring</span>
+                      <span class="idea-s">Blossom, late March</span>
+                    </div>
+                  </div>
+                </div>
+                <p class="seasonal">October is cheap for Japan</p>
+              </div>
+            </div>
+          </div>
+          <p class="caption"><b>Signed in</b> · the way in sits <b>above</b> the ideas</p>
+        </div>
+
+      </div>
+
+      <div class="aside">
+        <h3>Tapping an idea</h3>
+        <p>
+          Not "here's an empty trip called Rome". Tapping <em>How about Rome?</em> is a
+          question, so the screen <strong>answers it</strong> — how far, how much, when
+          to go, and the fact they've never been. Committing is the second tap, not the
+          first.
+        </p>
+        <p>
+          Everything on it is already in the app: flights from home, their own country
+          history, the season.
+        </p>
+        <h3 style="margin-top:16px">Signed in, and the booked trip</h3>
+        <p>
+          Same ideas, but now <strong>drawn from their own history</strong> — "you've
+          never been to South America" only works if we know where they've been.
+        </p>
+        <p>
+          For the trip they've already booked, the way in goes <strong>above</strong> the
+          ideas, not below. Someone with something booked isn't browsing, and forwarding
+          a confirmation is the single highest-value thing they can do. It's also
+          machinery you already have.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ DECISIONS ═════════════════════════════════════════════════ -->
+
+  <section>
+    <div class="sec-head">
+      <span class="label">Over to you</span>
+      <h2>What I need before building</h2>
+    </div>
+
+    <div class="asks">
+      <div class="ask">
+        <h4>"Let it watch instead"</h4>
+        <p>On the <em>I'm on one right now</em> screen — that skips the photo picker and goes straight to location. Keep it, or make photos the only way in?</p>
+      </div>
+      <div class="ask">
+        <h4>Do the ideas need to be real?</h4>
+        <p>Rome and Venice are hard-coded. Real ones need a source: cheap flights from home, somewhere you've never been, or the season. I'd start with the last two — no new data needed.</p>
+      </div>
+      <div class="ask">
+        <h4>Is Rome still earning its place?</h4>
+        <p>China &amp; Japan is live now, so there are three examples. Happy to drop Rome — it's the one with the least to show.</p>
+      </div>
+      <div class="ask">
+        <h4>Order of work</h4>
+        <p>Thailand's seeding is independent and I can start now. B, the Plan tab and the hero all touch Home, so they want to be one PR.</p>
+      </div>
+    </div>
+
+    <p class="foot">
+      Nothing on this page is in the app. The two shipped things waiting on you are
+      PR&nbsp;#152 (the opening, still a draft) and China&nbsp;&amp;&nbsp;Japan, which is
+      already public in production.
+    </p>
+  </section>
+
+</div>
+</body>
+</html>

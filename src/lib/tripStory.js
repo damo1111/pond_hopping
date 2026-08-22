@@ -39,7 +39,7 @@ export const stopKey = (dayDate, i) => `${dayDate}#${i}`
  * own timezone — safer than re-deriving it from a UTC instant, which is how
  * a photograph taken at 1am in Tokyo ends up filed under the day before.
  */
-export function daysFrom(photos = [], trip = {}, { runs = [], flights = [] } = {}) {
+export function daysFrom(photos = [], trip = {}, { runs = [], flights = [], weather = [] } = {}) {
   const byDay = new Map()
   for (const p of photos) {
     if (!p?.taken_on) continue
@@ -69,7 +69,7 @@ export function daysFrom(photos = [], trip = {}, { runs = [], flights = [] } = {
         : null,
       photos: shots,
       segments,
-      known: knownOn(date, { runs, flights }),
+      known: knownOn(date, { runs, flights, weather }),
       lat: located.length ? located.reduce((s, p) => s + p.lat, 0) / located.length : null,
       lon: located.length ? located.reduce((s, p) => s + p.lon, 0) / located.length : null,
       from: segments[0]?.from ?? null,

@@ -597,7 +597,7 @@ function ExamplesCard() {
   useEffect(() => {
     supabase
       .from('trips')
-      .select('id,title,is_demo,status,start_date')
+      .select('id,title,is_demo,is_public,status,start_date')
       .order('start_date', { ascending: true })
       .then(({ data }) =>
         setRows(
@@ -605,6 +605,7 @@ function ExamplesCard() {
             id: t.id,
             title: t.title,
             is_demo: !!t.is_demo,
+            is_public: !!t.is_public,
             status: t.status,
             when: t.start_date ? String(t.start_date).slice(0, 4) : 'no dates',
           }))
@@ -614,20 +615,51 @@ function ExamplesCard() {
 
   if (!admin) return null
 
+  /**
+   * Being an example takes two flags, and this switch only ever set one.
+   *
+   * `is_demo` says a trip is an example. `is_public` is what the row policy
+   * actually reads — `is_public or owner_id = auth.uid() or is_trip_member`.
+   * So an example with is_demo on and is_public off is on the globe for the
+   * one person who owns it and invisible to every visitor it was switched on
+   * for, which is the worst of the four states and the one it lands in by
+   * default, because is_public defaults to false.
+   *
+   * That is what happened to Rome: switched off by is_public, still showing
+   * as on here. David, reasonably: "I thought I had the option as an admin to
+   * select which demos I can surface." He did. It was lying to him.
+   *
+   * On sets both. Off clears is_demo and deliberately leaves is_public
+   * alone — a trip can be published as a shopfront link without being an
+   * example, and quietly unpublishing somebody's link because they stopped
+   * using it as a demo would break a URL that is already out in the world.
+   */
   async function toggle(row) {
     setBusy(row.id)
-    const next = !row.is_demo
-    const { error } = await supabase.from('trips').update({ is_demo: next }).eq('id', row.id)
+    const next = !(row.is_demo && row.is_public)
+    const patch = next ? { is_demo: true, is_public: true } : { is_demo: false }
+    const { error } = await supabase.from('trips').update(patch).eq('id', row.id)
     setBusy(null)
     if (error) return alert(`Couldn't change it: ${error.message}`)
     // Read back rather than assume: the trigger silently declines the change
     // for anybody who is not an admin, and a switch that lies about what
     // happened is worse than one that does nothing.
-    const { data } = await supabase.from('trips').select('is_demo').eq('id', row.id).single()
-    setRows((rs) => rs.map((r) => (r.id === row.id ? { ...r, is_demo: !!data?.is_demo } : r)))
+    const { data } = await supabase
+      .from('trips')
+      .select('is_demo,is_public')
+      .eq('id', row.id)
+      .single()
+    setRows((rs) =>
+      rs.map((r) =>
+        r.id === row.id ? { ...r, is_demo: !!data?.is_demo, is_public: !!data?.is_public } : r
+      )
+    )
   }
 
-  const on = rows.filter((r) => r.is_demo).length
+  // Shown, meaning actually shown — to somebody who is not signed in as its
+  // owner. Counting is_demo alone is how "four examples are on" and "a new
+  // arrival meets an empty globe" managed to be true at the same time.
+  const on = rows.filter((r) => r.is_demo && r.is_public).length
 
   return (
     <div className="account-card">
@@ -640,7 +672,7 @@ function ExamplesCard() {
         {rows.map((r) => (
           <button
             key={r.id}
-            className={`admin-example${r.is_demo ? ' on' : ''}`}
+            className={`admin-example${r.is_demo && r.is_public ? ' on' : ''}`}
             disabled={busy === r.id}
             onClick={() => toggle(r)}
           >
@@ -653,6 +685,10 @@ function ExamplesCard() {
             <span className="admin-example-when">
               {r.when}
               {r.status === 'draft' ? ' · planning' : ''}
+              {/* The half-on state, named. Left over from before this switch
+                  wrote both flags, and the only way to tell it from plain
+                  off without reading the database. */}
+              {r.is_demo && !r.is_public ? ' · nobody can see it' : ''}
             </span>
           </button>
         ))}

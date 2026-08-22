@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!--
+  Nine In The Evening
+
+  Published as a Claude artifact on 2026-08-12:
+  https://claude.ai/code/artifact/6260a3d0-7831-4a67-8cd6-3b3c6e7372e3
+
+  Saved here as it was written. The hosted version is wrapped in the
+  artifact viewer's own shell; this is the page itself, so it opens in a
+  browser on its own. Web fonts still come from Google, so it wants a
+  connection to look exactly right.
+-->
+</head>
+<body>
+<title>Nine In The Evening</title>
+<style>
+  /* ── One visual world, on purpose ─────────────────────────────────
+     This screen only ever exists at night. It arrives at nine, on a
+     phone, with your shoes off. So it commits to night rather than
+     following the reader's theme — the palette is the pond after dark
+     and a lamp left on. Every colour is painted explicitly so the page
+     holds whichever ground the host puts behind it. */
+  :root {
+    --ink:      #0B131B;   /* the water at night */
+    --ink-2:    #121E29;   /* the card off the ground */
+    --ink-3:    #1B2B39;   /* raised, hairlines */
+    --lamp:     #E9A544;   /* a window lit from inside */
+    --duckegg:  #82B4A8;   /* the second voice, for data */
+    --rose:     #C97B7B;   /* the ask */
+    --text:     #E8EEF3;
+    --muted:    #8AA0B2;
+    --faint:    #5A7183;
+
+    --display: ui-serif, Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+    --body: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --data: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+
+    --gap: clamp(1.5rem, 4vw, 3rem);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: var(--gap) clamp(1rem, 4vw, 2rem) 6rem; }
+
+  /* ── Type scale ─────────────────────────────────────────────────── */
+  h1, h2, h3 { font-family: var(--display); font-weight: 400; text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(2.4rem, 6vw, 4rem); line-height: 1.05; letter-spacing: -0.02em; }
+  h2 { font-size: clamp(1.5rem, 3.2vw, 2.1rem); line-height: 1.15; }
+  h3 { font-size: 1.15rem; }
+  p { margin: 0; max-width: 62ch; }
+
+  .eyebrow {
+    font-family: var(--data);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+
+  header { display: flex; flex-direction: column; gap: 1rem; padding-bottom: 1rem; }
+  header p { color: var(--muted); font-size: 1.05rem; }
+
+  section { display: flex; flex-direction: column; gap: 1.25rem; padding: 3.5rem 0; border-top: 1px solid var(--ink-3); }
+  section:first-of-type { border-top: 0; }
+  .lede { color: var(--muted); }
+
+  /* ── Phones ─────────────────────────────────────────────────────── */
+  .phones { display: flex; flex-wrap: wrap; gap: 1.75rem; align-items: flex-start; }
+  .phone {
+    width: 260px; flex: 0 0 auto;
+    border: 1px solid var(--ink-3);
+    border-radius: 30px;
+    background: linear-gradient(180deg, #0d1822, #0a1119);
+    padding: 0.7rem;
+    box-shadow: 0 20px 50px -20px rgba(0,0,0,0.9);
+  }
+  .screen { border-radius: 22px; overflow: hidden; background: var(--ink-2); min-height: 440px; display: flex; flex-direction: column; }
+  .phone figcaption { font-family: var(--data); font-size: 0.68rem; color: var(--faint); padding-top: 0.7rem; text-align: center; letter-spacing: 0.06em; }
+
+  /* Lock screen */
+  .lock { padding: 1.2rem 1rem; display: flex; flex-direction: column; gap: 0.8rem; justify-content: flex-start; }
+  .lock-time { font-family: var(--display); font-size: 3.2rem; line-height: 1; text-align: center; padding: 1.4rem 0 0.2rem; letter-spacing: -0.02em; }
+  .lock-date { text-align: center; color: var(--muted); font-size: 0.8rem; margin-bottom: 1rem; }
+  .notif {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 0.7rem 0.8rem;
+    display: grid; grid-template-columns: 22px 1fr; gap: 0.6rem; align-items: start;
+  }
+  .notif .duck { width: 22px; height: 22px; border-radius: 6px; background: var(--lamp); display: grid; place-items: center; font-size: 12px; }
+  .notif b { font-size: 0.74rem; font-weight: 600; letter-spacing: 0.01em; display: block; }
+  .notif span { font-size: 0.8rem; color: var(--text); }
+
+  /* ── Direction A: the reel ──────────────────────────────────────── */
+  .reel { position: relative; flex: 1; display: grid; }
+  .reel .frame {
+    grid-area: 1/1; opacity: 0;
+    animation: cycle 12s infinite;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    padding: 1.1rem;
+  }
+  .reel .frame:nth-child(1) { animation-delay: 0s; background: linear-gradient(160deg,#2b4a5e,#16313f); }
+  .reel .frame:nth-child(2) { animation-delay: 3s; background: linear-gradient(160deg,#5e4630,#3a2a1c); }
+  .reel .frame:nth-child(3) { animation-delay: 6s; background: linear-gradient(160deg,#2f4f45,#1b332c); }
+  .reel .frame:nth-child(4) { animation-delay: 9s; background: linear-gradient(160deg,#4a3350,#291c30); }
+  @keyframes cycle { 0%,2% { opacity:0; transform: scale(1.06); } 6%,24% { opacity:1; transform: scale(1); } 30%,100% { opacity:0; } }
+
+  .stat { font-family: var(--display); font-size: 2.6rem; line-height: 1; }
+  .stat small { display: block; font-family: var(--body); font-size: 0.78rem; color: rgba(255,255,255,0.75); letter-spacing: 0.02em; margin-top: 0.35rem; }
+
+  /* ── Direction B: the postcard ──────────────────────────────────── */
+  .postcard { flex: 1; padding: 1.2rem; display: flex; flex-direction: column; gap: 0.9rem; background: radial-gradient(120% 80% at 20% 0%, #1c2c3a, #101a24); }
+  .pc-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .pc-title { font-family: var(--display); font-size: 1.6rem; }
+  .pc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .pc-grid i { aspect-ratio: 1; border-radius: 4px; display: block; }
+  .pc-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; margin-top: auto; }
+  .pc-num { border-top: 1px solid var(--ink-3); padding-top: 0.45rem; }
+  .pc-num b { font-family: var(--data); font-size: 1.25rem; display: block; font-variant-numeric: tabular-nums; color: var(--duckegg); }
+  .pc-num span { font-size: 0.68rem; color: var(--muted); }
+
+  /* ── Direction C: the page ──────────────────────────────────────── */
+  .pagey { flex: 1; padding: 1.4rem 1.2rem; display: flex; flex-direction: column; gap: 0.9rem; }
+  .pagey .date { font-family: var(--data); font-size: 0.66rem; letter-spacing: 0.12em; color: var(--faint); text-transform: uppercase; }
+  .pagey p { font-family: var(--display); font-size: 1rem; line-height: 1.55; color: var(--text); }
+  .pagey .rule { height: 1px; background: var(--ink-3); }
+  .pagey .counts { font-family: var(--data); font-size: 0.72rem; color: var(--muted); line-height: 2; font-variant-numeric: tabular-nums; }
+  .pagey .counts b { color: var(--duckegg); font-weight: 400; }
+
+  /* ── The ask ────────────────────────────────────────────────────── */
+  .ask { margin-top: auto; border-top: 1px solid var(--ink-3); padding-top: 0.8rem; display: flex; flex-direction: column; gap: 0.6rem; }
+  .ask q { font-family: var(--display); font-size: 0.98rem; font-style: normal; color: var(--text); }
+  .ask q::before, .ask q::after { content: ''; }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .chip { font-size: 0.72rem; border: 1px solid var(--ink-3); background: rgba(201,123,123,0.09); color: var(--rose); border-radius: 999px; padding: 0.22rem 0.6rem; }
+  .chip.plain { background: transparent; color: var(--muted); }
+
+  /* ── Cards, lists ───────────────────────────────────────────────── */
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+  .card { background: var(--ink-2); border: 1px solid var(--ink-3); border-radius: 12px; padding: 1.1rem; display: flex; flex-direction: column; gap: 0.55rem; }
+  .card h3 { color: var(--lamp); }
+  .card p { font-size: 0.9rem; color: var(--muted); }
+  .verdict { font-family: var(--data); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+
+  .nights { font-family: var(--data); font-size: 0.82rem; line-height: 2.1; border-left: 2px solid var(--ink-3); padding-left: 1rem; overflow-x: auto; }
+  .nights span { color: var(--faint); display: inline-block; width: 2.2rem; }
+  .nights em { font-style: normal; color: var(--text); }
+
+  ul.plain { margin: 0; padding-left: 1.1rem; color: var(--muted); display: flex; flex-direction: column; gap: 0.4rem; }
+  ul.plain b { color: var(--text); font-weight: 600; }
+  ul.plain strong { color: var(--lamp); font-weight: 600; }
+
+  .decide { border-left: 3px solid var(--lamp); padding: 0.2rem 0 0.2rem 1rem; display: flex; flex-direction: column; gap: 0.3rem; }
+  .decide b { color: var(--lamp); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reel .frame { animation: none; opacity: 1; }
+    .reel .frame:nth-child(n+2) { display: none; }
+  }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Pond Hopping · the daily look-back</div>
+  <h1>Nine in the evening</h1>
+  <p>Three directions for the screen, and the question it ends on. Everything shown here is
+  computed from a real day — Rome, 23 January: 117 photographs between 06:06 and 20:14,
+  53 of them buildings, 15 of them animals, one piece of art.</p>
+</header>
+
+<section>
+  <div class="eyebrow">First, the part that is already built</div>
+  <h2>Fourteen nights, fourteen different notifications</h2>
+  <p class="lede">The variety isn't a phrase bank behind a random number — randomness repeats
+  itself about a third of the time. It comes from <em>angles</em>: several genuinely different
+  things that are all true of the same day. Which one leads is free.</p>
+
+  <div class="nights">
+    <span>1</span><em>Rome, for the first time.</em><br>
+    <span>2</span><em>31 buildings. And 1 piece of art.</em><br>
+    <span>3</span><em>32 buildings in one day.</em><br>
+    <span>4</span><em>8 km, and every one of them walked.</em><br>
+    <span>5</span><em>Mostly buildings today. Some street scenes.</em><br>
+    <span>6</span><em>6 km on your feet.</em><br>
+    <span>7</span><em>46 photographs today.</em><br>
+    <span>8</span><em>37 buildings. And 1 piece of art.</em><br>
+    <span>9</span><em>38 buildings in one day.</em><br>
+    <span>10</span><em>Mostly buildings today. Some street scenes.</em><br>
+    <span>11</span><em>7 km on your feet.</em><br>
+    <span>12</span><em>8 km, and every one of them walked.</em><br>
+    <span>13</span><em>52 photographs today.</em><br>
+    <span>14</span><em>FCO to LHR, and 53 photographs after it.</em>
+  </div>
+
+  <p class="lede">Quirk comes from arithmetic and juxtaposition, never invention. <em>“53 buildings.
+  And 1 piece of art.”</em> is funny because it’s true. <em>“Rome has opinions about cats”</em> is
+  funnier, and is a thing this app does not know — the night it says one of those is the night
+  nobody believes the numbers either.</p>
+</section>
+
+<section>
+  <div class="eyebrow">The three directions</div>
+  <h2>What opens when you tap it</h2>
+  <p class="lede">Same data, same question at the end. Entirely different feeling. The lock
+  screen is identical in all three, so it’s only the tap that changes.</p>
+
+  <div class="phones">
+
+    <figure class="phone" style="margin:0">
+      <div class="screen lock">
+        <div class="lock-time">21:00</div>
+        <div class="lock-date">Tuesday 23 January</div>
+        <div class="notif">
+          <span class="duck">🦆</span>
+          <span><b>Pond Hopping</b><span>53 buildings. And 1 piece of art.</span></span>
+        </div>
+      </div>
+      <figcaption>The lock screen — all three</figcaption>
+    </figure>
+
+    <figure class="phone" style="margin:0">
+      <div class="screen">
+        <div class="reel">
+          <div class="frame"><div class="stat">117<small>photographs, 06:06 to 20:14</small></div></div>
+          <div class="frame"><div class="stat">6.2 km<small>every one of them walked</small></div></div>
+          <div class="frame"><div class="stat">53<small>buildings. You have a type.</small></div></div>
+          <div class="frame"><div class="stat">15<small>animals. Rome is full of cats.</small></div></div>
+        </div>
+        <div class="ask">
+          <q>Who was with you today?</q>
+          <div class="chips"><span class="chip">Just me</span><span class="chip">Ben</span><span class="chip plain">Someone else</span></div>
+        </div>
+      </div>
+      <figcaption>A — The Reel</figcaption>
+    </figure>
+
+    <figure class="phone" style="margin:0">
+      <div class="screen">
+        <div class="postcard">
+          <div class="pc-head"><span class="pc-title">Rome</span><span class="eyebrow">Day 2</span></div>
+          <div class="pc-grid">
+            <i style="background:#2b4a5e"></i><i style="background:#5e4630"></i><i style="background:#2f4f45"></i>
+            <i style="background:#4a3350"></i><i style="background:#37536a"></i><i style="background:#63503a"></i>
+          </div>
+          <div class="pc-nums">
+            <div class="pc-num"><b>117</b><span>photographs</span></div>
+            <div class="pc-num"><b>6.2</b><span>km on foot</span></div>
+            <div class="pc-num"><b>06:06</b><span>first light</span></div>
+            <div class="pc-num"><b>20:14</b><span>last one</span></div>
+          </div>
+          <div class="ask">
+            <q>Who was with you today?</q>
+            <div class="chips"><span class="chip">Just me</span><span class="chip">Ben</span></div>
+          </div>
+        </div>
+      </div>
+      <figcaption>B — The Postcard</figcaption>
+    </figure>
+
+    <figure class="phone" style="margin:0">
+      <div class="screen">
+        <div class="pagey">
+          <div class="date">Tuesday 23 January · Rome</div>
+          <p>You were out before six and still going at eight. Fifty-three
+          buildings, which is a lot of buildings, and fifteen animals, which
+          in Rome means cats.</p>
+          <div class="rule"></div>
+          <div class="counts">
+            <b>53</b> buildings<br>
+            <b>18</b> street scenes<br>
+            <b>15</b> animals<br>
+            <b>13</b> views<br>
+            <b>1</b> piece of art
+          </div>
+          <div class="ask">
+            <q>Who was with you today?</q>
+            <div class="chips"><span class="chip">Just me</span><span class="chip">Ben</span></div>
+          </div>
+        </div>
+      </div>
+      <figcaption>C — The Page</figcaption>
+    </figure>
+
+  </div>
+
+  <div class="cols">
+    <div class="card">
+      <h3>A — The Reel</h3>
+      <p>Your own photographs, full bleed, one every three seconds, numbers counting up over
+      them. Eight seconds and it’s done.</p>
+      <p class="verdict">Biggest wow · needs photographs · least re-watchable</p>
+    </div>
+    <div class="card">
+      <h3>B — The Postcard</h3>
+      <p>One still composition that holds together as an image. The only one of the three you
+      would screenshot and send to someone.</p>
+      <p class="verdict">Shareable · quieter · works with six photographs or none</p>
+    </div>
+    <div class="card">
+      <h3>C — The Page</h3>
+      <p>A page of the diary that wrote itself. Closest to what the app already is, and the only
+      one where the writing does the work.</p>
+      <p class="verdict">Truest to the app · lowest wow · ages best over fourteen nights</p>
+    </div>
+  </div>
+
+  <div class="decide">
+    <b>My read:</b>
+    <p>A on the first night, C on the fourteenth. The reel is the wow and it wears out; the page
+    is the one you’d still open on day twelve. That points at <strong>B as the shape</strong>,
+    with A’s motion spent only on a day that earns it — a first visit, a flight, a personal best.
+    The rest of the time it settles.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">The question at the bottom</div>
+  <h2>This is the part that pays for the feature</h2>
+  <p class="lede">The story pipeline asks its questions days or weeks later — <em>who were you
+  with at the Trevi?</em> — by which point the honest answer is that nobody remembers. Asked the
+  same evening, the answer is real. And a real answer is <b>testimony</b>, the top rung of the
+  evidence ladder, which the reconstruction is otherwise forced to guess at.</p>
+
+  <div class="cols">
+    <div class="card">
+      <h3>Who was with you?</h3>
+      <p>Two taps. Feeds every future sentence about that day, and the app currently infers it
+      from faces or not at all.</p>
+      <p class="verdict">Asked once per trip, not nightly</p>
+    </div>
+    <div class="card">
+      <h3>Was this the day you…?</h3>
+      <p>Confirms a deduced leg. <em>“Heathrow to Fiumicino, the 16:15?”</em> — turning a
+      <code>likely</code> into a <code>confirmed</code>.</p>
+      <p class="verdict">Only when deduction is unsure between two</p>
+    </div>
+    <div class="card">
+      <h3>What was that place?</h3>
+      <p>One photograph the seeing pass couldn’t name, at a coordinate. You’ll know. In a fortnight
+      you won’t.</p>
+      <p class="verdict">Max one a night, skippable, never twice</p>
+    </div>
+  </div>
+
+  <ul class="plain">
+    <li><b>One question a night. Never two.</b> The recap is a gift; the question is the price,
+    and it has to stay small enough not to feel like one.</li>
+    <li><b>Skipping is a valid answer</b> and must never be asked again that trip.</li>
+    <li><b>No question on a quiet day.</b> If there’s nothing to celebrate there’s nothing to
+    trade for.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="eyebrow">Open</div>
+  <h2>What I need from you</h2>
+  <ul class="plain">
+    <li><b>Direction</b> — A, B, C, or the hybrid I’ve argued for.</li>
+    <li><b>Confirmation before sending</b> — you asked. My answer: <strong>no confirmation.</strong>
+    The OS already asks once for push permission; asking again nightly makes a gift feel like a
+    subscription. But one switch in Settings that turns it off, and it must genuinely stay off.</li>
+    <li><b>The 14-day worry</b> — handled for the notification. Not yet for the screen: fourteen
+    identical postcards is the same problem one layer in.</li>
+  </ul>
+</section>
+
+</div>
+</body>
+</html>

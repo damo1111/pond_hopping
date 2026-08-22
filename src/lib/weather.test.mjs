@@ -74,8 +74,22 @@ test('a day nobody photographed anywhere is not asked about', () => {
 
 test('only the gaps are asked for — a past date does not change', () => {
   const wanted = [{ on_date: '2024-01-22' }, { on_date: '2024-01-23' }]
-  assert.deepEqual(stillToAsk(wanted, [{ on_date: '2024-01-22' }]), [{ on_date: '2024-01-23' }])
-  assert.deepEqual(stillToAsk(wanted, wanted), [])
+  const done = (d) => ({ on_date: d, wind_kmh: 14, rain_mm: 0 })
+  assert.deepEqual(stillToAsk(wanted, [done('2024-01-22')]), [{ on_date: '2024-01-23' }])
+  assert.deepEqual(stillToAsk(wanted, wanted.map((w) => done(w.on_date))), [])
+})
+
+test('but a row cached before wind was asked for is only half an answer', () => {
+  // The weather on a past date still does not change; what we record of it
+  // has. Those days go back on the list once, and then never again.
+  const wanted = [{ on_date: '2024-01-22' }, { on_date: '2024-01-23' }]
+  const old = [{ on_date: '2024-01-22', high_c: 11.2, code: 0 }] // no wind_kmh
+  assert.deepEqual(stillToAsk(wanted, old), wanted)
+  // A genuinely still day reads 0, not null, and must not be asked twice.
+  assert.deepEqual(
+    stillToAsk(wanted, [{ on_date: '2024-01-22', wind_kmh: 0, rain_mm: 0 }]),
+    [{ on_date: '2024-01-23' }]
+  )
 })
 
 test('a run of days at one place is one request, not four', async () => {
@@ -90,6 +104,8 @@ test('a run of days at one place is one request, not four', async () => {
           temperature_2m_max: [11.2, 13.4, 12.0],
           temperature_2m_min: [4.1, 5.0, 4.4],
           weather_code: [0, 3, 61],
+          wind_speed_10m_max: [12.6, 31.0, 118.8],
+          precipitation_sum: [0, 1.2, 64.0],
         },
       }),
     }
@@ -104,8 +120,16 @@ test('a run of days at one place is one request, not four', async () => {
   )
   assert.equal(asked.length, 1)
   assert.match(asked[0], /start_date=2024-01-22&end_date=2024-01-24/)
+  // Wind and rain are what turn a symbol into a sentence — see
+  // weatherStory.js. They were always in the response and never asked for.
+  assert.match(asked[0], /wind_speed_10m_max/)
+  assert.match(asked[0], /precipitation_sum/)
   assert.equal(rows.length, 3)
-  assert.deepEqual(rows[0], { on_date: '2024-01-22', lat: 41.9, lon: 12.5, high_c: 11.2, low_c: 4.1, code: 0 })
+  assert.deepEqual(rows[0], {
+    on_date: '2024-01-22', lat: 41.9, lon: 12.5,
+    high_c: 11.2, low_c: 4.1, code: 0, wind_kmh: 12.6, rain_mm: 0,
+  })
+  assert.equal(rows[2].wind_kmh, 118.8)
 })
 
 test('two cities are two requests', async () => {

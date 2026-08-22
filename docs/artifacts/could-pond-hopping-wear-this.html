@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!--
+  Could Pond Hopping wear this?
+
+  Published as a Claude artifact on 2026-08-03:
+  https://claude.ai/code/artifact/fef52ee8-c289-4887-ae2d-0215a87622c5
+
+  Saved here as it was written. The hosted version is wrapped in the
+  artifact viewer's own shell; this is the page itself, so it opens in a
+  browser on its own. Web fonts still come from Google, so it wants a
+  connection to look exactly right.
+-->
+</head>
+<body>
+<title>Could Pond Hopping wear this?</title>
+
+<style>
+  :root {
+    /* Pond Hopping's own tokens, unchanged — these are lifted verbatim
+       from src/styles/globals.css. */
+    --paper:      #F5F2EB;
+    --ink:        #1A1611;
+    --muted:      #8B8375;
+    --border:     #E4DED1;
+    --gold:       #A8842C;
+
+    /* The three the reference style would add. */
+    --field:      #EAE4D6;
+    --olive:      #767E5C;
+    --olive-ink:  #F1EFE6;
+
+    --serif: ui-serif, 'Iowan Old Style', 'Hoefler Text', Palatino, 'Palatino Linotype', Georgia, serif;
+    --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+    --measure: 66ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:     #16130E;
+      --ink:       #EDE8DC;
+      --muted:     #948B7C;
+      --border:    #2E2920;
+      --gold:      #C9A44E;
+      --field:     #1F1B14;
+      --olive:     #6B7355;
+      --olive-ink: #EDE8DC;
+    }
+  }
+
+  :root[data-theme='dark'] {
+    --paper:     #16130E;
+    --ink:       #EDE8DC;
+    --muted:     #948B7C;
+    --border:    #2E2920;
+    --gold:      #C9A44E;
+    --field:     #1F1B14;
+    --olive:     #6B7355;
+    --olive-ink: #EDE8DC;
+  }
+
+  :root[data-theme='light'] {
+    --paper:     #F5F2EB;
+    --ink:       #1A1611;
+    --muted:     #8B8375;
+    --border:    #E4DED1;
+    --gold:      #A8842C;
+    --field:     #EAE4D6;
+    --olive:     #767E5C;
+    --olive-ink: #F1EFE6;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 22px 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+  }
+
+  /* The app's own micro-label: 8–9px mono, uppercase, wide tracking. It is
+     already the exact device the reference uses under its wordmark. */
+  .tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  h1, h2, h3 { font-family: var(--serif); font-weight: 400; text-wrap: balance; }
+  h1 { font-size: clamp(34px, 6vw, 54px); line-height: 1.05; letter-spacing: -0.01em; }
+  h2 { font-size: clamp(24px, 3.4vw, 31px); line-height: 1.15; }
+  h3 { font-size: 19px; line-height: 1.25; }
+  p { max-width: var(--measure); }
+  strong { font-weight: 600; }
+
+  header.intro { padding-top: 56px; display: flex; flex-direction: column; gap: 18px; }
+  header.intro p { color: var(--muted); font-size: 17px; }
+
+  section { display: flex; flex-direction: column; gap: 20px; }
+  section > p { color: color-mix(in srgb, var(--ink) 82%, var(--paper)); }
+
+  .rule {
+    display: flex; align-items: baseline; gap: 12px;
+    border-bottom: 1px solid var(--border); padding-bottom: 10px;
+  }
+  .rule h2 { flex: 1; }
+
+  /* ---- The specimen: the reference's three-band composition ---- */
+  .spec {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 380px;
+    box-shadow: 0 24px 60px -34px rgba(26, 22, 17, 0.45);
+  }
+  .spec-top {
+    background: var(--field);
+    padding: 34px 26px 30px;
+  }
+  .spec-top .place {
+    font-family: var(--serif);
+    font-size: 46px;
+    line-height: 1;
+    letter-spacing: -0.015em;
+  }
+  .spec-canvas { display: block; width: 100%; height: 268px; }
+  .spec-foot {
+    background: var(--olive);
+    color: var(--olive-ink);
+    padding: 22px 26px 26px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .spec-foot .mark {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+  .spec-foot .sub { font-family: var(--serif); font-size: 15px; opacity: 0.85; }
+
+  .specrow { display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-start; }
+  .specrow > .notes { flex: 1 1 260px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* ---- Token comparison ---- */
+  .tokens { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); }
+  .tokens > div { background: var(--paper); padding: 13px 15px; display: flex; align-items: center; gap: 12px; }
+  .tokens .th { background: var(--field); }
+  .swatch { width: 26px; height: 26px; border-radius: 3px; flex: none; border: 1px solid rgba(26,22,17,0.12); }
+  .tok-name { font-family: var(--mono); font-size: 12px; flex: 1; }
+  .tok-note { font-size: 13px; color: var(--muted); text-align: right; }
+  .verdict-yes { color: var(--olive); font-weight: 600; }
+  @media (prefers-color-scheme: dark) { .verdict-yes { color: #9AA37E; } }
+  :root[data-theme='dark'] .verdict-yes { color: #9AA37E; }
+
+  /* ---- Before / after pairs ---- */
+  .ba { display: grid; gap: 16px; }
+  @media (min-width: 720px) { .ba { grid-template-columns: 1fr 1fr; } }
+  .ba-col { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+  .ba-frame {
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 16px;
+    background: var(--paper);
+    min-height: 132px;
+    display: flex; flex-direction: column; justify-content: center; gap: 7px;
+  }
+  .ba-frame.after { background: var(--field); }
+
+  /* Current app idiom */
+  .now-title { font-family: var(--sans); font-weight: 300; font-size: 19px; }
+  .now-meta { font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .now-stat { font-family: var(--mono); font-size: 21px; font-weight: 300; color: var(--gold); }
+
+  /* Proposed idiom */
+  .new-title { font-family: var(--serif); font-size: 27px; line-height: 1.1; }
+  .new-stat { font-family: var(--serif); font-size: 32px; line-height: 1; }
+
+  .row {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 9px 0; border-bottom: 1px solid var(--border);
+  }
+  .row:last-child { border-bottom: none; }
+  .row .code { font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em; }
+  .row .dash { flex: 1; border-bottom: 1px dotted var(--border); transform: translateY(-4px); }
+  .row .num { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* ---- Honest verdict blocks ---- */
+  .call { border-left: 2px solid var(--olive); padding: 4px 0 4px 18px; display: flex; flex-direction: column; gap: 10px; }
+  .call.warn { border-left-color: var(--gold); }
+  .call h3 { font-size: 17px; }
+
+  ul.plain { list-style: none; display: flex; flex-direction: column; gap: 11px; max-width: var(--measure); }
+  ul.plain li { display: flex; gap: 11px; align-items: baseline; }
+  ul.plain li::before {
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--olive); flex: none; transform: translateY(-3px);
+  }
+
+  footer { color: var(--muted); font-size: 14px; border-top: 1px solid var(--border); padding-top: 22px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .spec { transition: transform 240ms ease; }
+    .spec:hover { transform: translateY(-3px); }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="intro">
+    <div class="tag">Pond Hopping · style probe · not shipped</div>
+    <h1>You already own most of this.</h1>
+    <p>
+      The guide you liked is built from a warm paper ground, a serif display face, a muted
+      colour field, and a tiny letterspaced caption. Pond Hopping already has three of those
+      four. Here is the proof, and the part that would actually hurt.
+    </p>
+  </header>
+
+  <section>
+    <div class="rule">
+      <h2>The specimen</h2>
+      <span class="tag">Real trip · demo data</span>
+    </div>
+    <p>
+      Your Lisbon demo, set in the reference's three-band composition. Nothing here is invented
+      about the trip — those are its real dates and its real itinerary count.
+    </p>
+    <div class="specrow">
+      <div class="spec">
+        <div class="spec-top">
+          <div class="place">Lisbon</div>
+        </div>
+        <canvas class="spec-canvas" id="dusk" width="760" height="536" aria-label="Abstract rendering of Lisbon rooftops at dusk"></canvas>
+        <div class="spec-foot">
+          <div class="mark">Pond Hopping</div>
+          <div class="sub">Trip 04 · 9 – 17 October 2026</div>
+        </div>
+      </div>
+      <div class="notes">
+        <p class="tag">What changed</p>
+        <ul class="plain">
+          <li>Display face: Raleway&nbsp;300 → a serif</li>
+          <li>One new colour: the olive field</li>
+          <li>Photo runs full-bleed between two bands</li>
+        </ul>
+        <p style="font-size:14px;color:var(--muted)">
+          The caption device under the wordmark — 10px mono, uppercase, wide tracking — is not a
+          new idea. It is the class you already call <span style="font-family:var(--mono)">.fsh-meta</span>,
+          used on every section header in the app.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="rule">
+      <h2>Token diff</h2>
+      <span class="tag">globals.css · :root</span>
+    </div>
+    <p>
+      This is the honest measure of how far the app is from that look. Five of your existing tokens
+      carry over untouched. Two are added. One is replaced.
+    </p>
+    <div class="tokens">
+      <div class="th">
+        <span class="tok-name" style="color:var(--muted)">token</span>
+        <span class="tok-note">status</span>
+      </div>
+      <div><span class="swatch" style="background:#F5F2EB"></span><span class="tok-name">--bg  #F5F2EB</span><span class="tok-note verdict-yes">keeps — already the cream</span></div>
+      <div><span class="swatch" style="background:#1A1611"></span><span class="tok-name">--text  #1A1611</span><span class="tok-note verdict-yes">keeps</span></div>
+      <div><span class="swatch" style="background:#8B8375"></span><span class="tok-name">--text-muted  #8B8375</span><span class="tok-note verdict-yes">keeps</span></div>
+      <div><span class="swatch" style="background:#E4DED1"></span><span class="tok-name">--border  #E4DED1</span><span class="tok-note verdict-yes">keeps</span></div>
+      <div><span class="swatch" style="background:#A8842C"></span><span class="tok-name">--accent  #A8842C</span><span class="tok-note verdict-yes">keeps — still the brand</span></div>
+      <div><span class="swatch" style="background:#767E5C"></span><span class="tok-name">--field  #767E5C</span><span class="tok-note">new — the olive</span></div>
+      <div><span class="swatch" style="background:#EAE4D6"></span><span class="tok-name">--field-soft  #EAE4D6</span><span class="tok-note">new — deeper cream</span></div>
+      <div><span class="swatch" style="background:linear-gradient(90deg,#F5F2EB 50%,#1A1611 50%)"></span><span class="tok-name">--font-display</span><span class="tok-note">replaced — sans → serif</span></div>
+    </div>
+    <p style="font-size:14px;color:var(--muted)">
+      Every surface in the app already reads its type through
+      <span style="font-family:var(--mono)">var(--font-display)</span>. One line changes the voice
+      of every heading at once. That is not luck — it is the reason the variable exists.
+    </p>
+  </section>
+
+  <section>
+    <div class="rule">
+      <h2>Three real surfaces</h2>
+      <span class="tag">left: today · right: restyled</span>
+    </div>
+
+    <div class="ba">
+      <div class="ba-col">
+        <span class="tag">Trip card — today</span>
+        <div class="ba-frame">
+          <div class="now-meta">🇵🇹 · 9 – 17 Oct 2026</div>
+          <div class="now-title">Lisbon &amp; Porto 🇵🇹 (demo)</div>
+          <div class="now-meta">22 items · 4 nights unbooked</div>
+        </div>
+      </div>
+      <div class="ba-col">
+        <span class="tag">Trip card — restyled</span>
+        <div class="ba-frame after">
+          <div class="tag">Portugal</div>
+          <div class="new-title">Lisbon &amp; Porto</div>
+          <div class="tag">Nine days · four nights open</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ba">
+      <div class="ba-col">
+        <span class="tag">Lifetime figures — today</span>
+        <div class="ba-frame">
+          <div class="now-stat">1,775,618</div>
+          <div class="now-meta">kilometres</div>
+          <div class="now-stat">44.3×</div>
+          <div class="now-meta">round the earth</div>
+        </div>
+      </div>
+      <div class="ba-col">
+        <span class="tag">Lifetime figures — restyled</span>
+        <div class="ba-frame after">
+          <div class="new-stat">1,775,618</div>
+          <div class="tag">Kilometres flown since 2009</div>
+          <div class="new-stat">44.3</div>
+          <div class="tag">Times around the earth</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ba">
+      <div class="ba-col">
+        <span class="tag">Flight list — today</span>
+        <div class="ba-frame">
+          <div class="row"><span class="code">TP1363</span><span class="dash"></span><span class="num">LHR → LIS</span></div>
+          <div class="row"><span class="code">CP 124</span><span class="dash"></span><span class="num">LIS → OPO</span></div>
+          <div class="row"><span class="code">TP1360</span><span class="dash"></span><span class="num">OPO → LHR</span></div>
+        </div>
+      </div>
+      <div class="ba-col">
+        <span class="tag">Flight list — restyled</span>
+        <div class="ba-frame after">
+          <div class="row"><span class="code">TP1363</span><span class="dash"></span><span class="num">LHR → LIS</span></div>
+          <div class="row"><span class="code">CP 124</span><span class="dash"></span><span class="num">LIS → OPO</span></div>
+          <div class="row"><span class="code">TP1360</span><span class="dash"></span><span class="num">OPO → LHR</span></div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:14px;color:var(--muted)">
+      The third pair is the interesting one. It is identical, deliberately — a departures board is
+      already mono, already tabular, already the right idiom. The style has nothing to add to it,
+      which is a good sign rather than a bad one.
+    </p>
+  </section>
+
+  <section>
+    <div class="rule">
+      <h2>Where it breaks</h2>
+      <span class="tag">the honest part</span>
+    </div>
+
+    <div class="call warn">
+      <h3>That guide has twenty pages. You have six hundred and forty-six flights.</h3>
+      <p>
+        Softer Volumes is a publication: curated, finite, and edited down until every page can
+        afford to be mostly empty. Pond Hopping is an instrument. On one screen this afternoon it
+        was holding a lifetime total, a conflict queue, a nine-day strip, a concierge counting
+        nine unsorted nights, and twenty-two itinerary rows. Set that in 27px serif with the
+        reference's air around it and a single trip becomes four screens of scrolling.
+      </p>
+      <p>
+        Editorial whitespace is not a style you apply. It is a consequence of having less to say.
+      </p>
+    </div>
+
+    <div class="call warn">
+      <h3>Two of the app's best ideas depend on density.</h3>
+      <ul class="plain">
+        <li>The review screen works because the contradiction, the flight and five answers fit
+          above the fold together. Break that across a scroll and the reasoning stops being
+          visible at the moment of the decision.</li>
+        <li>The globe is dark, saturated and full-bleed. An olive field either fights it or has to
+          stop at its edge — which is exactly the hard rectangle we spent this morning removing.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="rule">
+      <h2>What I'd actually do</h2>
+      <span class="tag">if you ever said go</span>
+    </div>
+    <p>
+      Not a reskin. The app has two kinds of surface, and only one of them wants this.
+    </p>
+    <ul class="plain">
+      <li><strong>Narrative surfaces take the style:</strong> trip covers, the chapter cards on
+        Home, the share page, the journal, the public site. These are already editorial in
+        function — they are read, not operated.</li>
+      <li><strong>Working surfaces keep what they have:</strong> the review queue, the flights
+        list, the concierge, the planner's day strip. Dense, mono, scannable. They are correct.</li>
+      <li><strong>The serif is the whole move.</strong> One token, applied to headings only, gets
+        you most of the way. Do that first and live with it for a week before touching anything
+        else.</li>
+    </ul>
+    <p>
+      The version of this I'd argue against is the one where the olive shows up on every card. The
+      reference uses one colour field per composition, holding one idea. Repeat it fifteen times
+      down a scroll and it stops being editorial and starts being a theme.
+    </p>
+  </section>
+
+  <footer>
+    Nothing in the app was changed to make this. It is a standalone page using Pond Hopping's real
+    tokens, real trip and real figures. The serif here is the system serif — the real thing would
+    inline a chosen face, since the app can't reach a font CDN either.
+  </footer>
+</div>
+
+<script>
+  // A stand-in for the photograph — the reference puts a full-bleed image
+  // between its two bands, and a broken image slot would prove nothing.
+  // Drawn rather than linked so the page stays self-contained.
+  (function () {
+    var c = document.getElementById('dusk')
+    if (!c || !c.getContext) return
+    var x = c.getContext('2d')
+    var w = c.width
+    var h = c.height
+
+    var dark = matchMedia('(prefers-color-scheme: dark)').matches
+    var root = document.documentElement.getAttribute('data-theme')
+    if (root === 'dark') dark = true
+    if (root === 'light') dark = false
+
+    var sky = x.createLinearGradient(0, 0, 0, h)
+    if (dark) {
+      sky.addColorStop(0, '#241E2E')
+      sky.addColorStop(0.5, '#3E3040')
+      sky.addColorStop(0.82, '#6B4436')
+      sky.addColorStop(1, '#14100E')
+    } else {
+      sky.addColorStop(0, '#3E4A72')
+      sky.addColorStop(0.46, '#8A6E86')
+      sky.addColorStop(0.78, '#D39A6C')
+      sky.addColorStop(1, '#8A5C44')
+    }
+    x.fillStyle = sky
+    x.fillRect(0, 0, w, h)
+
+    // Sun low over the Tejo.
+    var glow = x.createRadialGradient(w * 0.72, h * 0.74, 4, w * 0.72, h * 0.74, w * 0.34)
+    glow.addColorStop(0, dark ? 'rgba(255,190,130,0.42)' : 'rgba(255,214,150,0.85)')
+    glow.addColorStop(1, 'rgba(255,200,150,0)')
+    x.fillStyle = glow
+    x.fillRect(0, 0, w, h)
+
+    // Rooftops: three receding ranks, palest at the back.
+    var ranks = [
+      { y: h * 0.62, tone: dark ? 'rgba(30,26,34,0.45)' : 'rgba(74,58,64,0.34)', min: 14, max: 40, step: 46 },
+      { y: h * 0.74, tone: dark ? 'rgba(20,17,22,0.72)' : 'rgba(56,42,46,0.6)', min: 20, max: 62, step: 38 },
+      { y: h * 0.86, tone: dark ? '#0E0C10' : '#2B2028', min: 26, max: 74, step: 30 }
+    ]
+    var seed = 7
+    function rnd() {
+      seed = (seed * 1103515245 + 12345) % 2147483648
+      return seed / 2147483648
+    }
+    ranks.forEach(function (r) {
+      x.fillStyle = r.tone
+      for (var px = -20; px < w + 20; px += r.step) {
+        var bw = r.step * (0.6 + rnd() * 0.5)
+        var bh = r.min + rnd() * (r.max - r.min)
+        x.fillRect(px, r.y - bh, bw, h - r.y + bh)
+        // The odd chimney stack, which is most of what a Lisbon roofline is.
+        if (rnd() > 0.62) x.fillRect(px + bw * 0.3, r.y - bh - 10, 5, 10)
+      }
+    })
+  })()
+</script>
+</body>
+</html>

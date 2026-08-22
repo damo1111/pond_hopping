@@ -51,6 +51,9 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   // The things the app already knows happened. A day that began with a
   // 21.4 km run should say so before it says anything about photographs.
   const [runs, setRuns] = useState([])
+  // What the sky was doing. Only ever surfaces on the days it was the day —
+  // see weatherStory.js, which says no to almost all of them.
+  const [weather, setWeather] = useState([])
   // The day, written rather than templated. Three versions of this were
   // assembled from string templates and every one read like a database
   // describing itself; the facts are gathered by code and the writing is
@@ -58,7 +61,7 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
   const [prose, setProse] = useState({})
   const [writing, setWriting] = useState(false)
 
-  const days = daysFrom(photos, trip, { runs, flights })
+  const days = daysFrom(photos, trip, { runs, flights, weather })
   const zone = zoneOf(days, flights)
 
   useEffect(() => {
@@ -79,6 +82,11 @@ export default function DaysFromPhotos({ trip, photos = [], onDone }) {
       .select('run_date,distance_km,pace,elevation_m,coords,color')
       .eq('trip_id', trip.id)
       .then(({ data }) => alive && setRuns(data ?? []))
+    supabase
+      .from('day_weather')
+      .select('on_date,lat,lon,high_c,low_c,code,wind_kmh,rain_mm')
+      .eq('trip_id', trip.id)
+      .then(({ data }) => alive && setWeather(data ?? []))
     return () => {
       alive = false
     }

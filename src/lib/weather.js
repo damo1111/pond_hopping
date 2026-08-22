@@ -137,7 +137,12 @@ export function placesByDay(photos = []) {
  * done for ever. Only the gaps are worth a request.
  */
 export function stillToAsk(wanted = [], cached = []) {
-  const have = new Set(cached.map((c) => c.on_date))
+  // A row cached before wind and rain were asked for is only half an answer.
+  // The weather on a past date still does not change — but what we recorded
+  // of it has, so those days go back on the list once and then never again.
+  const have = new Set(
+    cached.filter((c) => c?.wind_kmh != null).map((c) => c.on_date)
+  )
   return wanted.filter((d) => !have.has(d.on_date))
 }
 
@@ -165,7 +170,8 @@ export async function askArchive(days = [], fetcher = globalThis.fetch) {
     const url =
       `${ARCHIVE}?latitude=${lat}&longitude=${lon}` +
       `&start_date=${dates[0]}&end_date=${dates[dates.length - 1]}` +
-      `&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=UTC`
+      `&daily=temperature_2m_max,temperature_2m_min,weather_code,` +
+      `wind_speed_10m_max,precipitation_sum&timezone=UTC`
 
     let answer = null
     try {
@@ -185,6 +191,11 @@ export async function askArchive(days = [], fetcher = globalThis.fetch) {
       const high = answer.daily.temperature_2m_max?.[i]
       const low = answer.daily.temperature_2m_min?.[i]
       const code = answer.daily.weather_code?.[i]
+      // The two that turn a symbol into a sentence. See weatherStory.js: the
+      // code scale puts a rumble of thunder and the edge of a hurricane in
+      // the same bucket, and wind is what tells them apart.
+      const wind = answer.daily.wind_speed_10m_max?.[i]
+      const rain = answer.daily.precipitation_sum?.[i]
       if (high == null && low == null && code == null) continue
       out.push({
         on_date: time[i],
@@ -193,6 +204,8 @@ export async function askArchive(days = [], fetcher = globalThis.fetch) {
         high_c: high ?? null,
         low_c: low ?? null,
         code: code ?? null,
+        wind_kmh: wind ?? null,
+        rain_mm: rain ?? null,
       })
     }
   }

@@ -18,7 +18,7 @@ import { chapterRange, chapterCountries } from '../lib/tripGroups.js'
 import { sectionTrips } from '../lib/tripPhase.js'
 import { overviewOf, homeCoords } from '../lib/homePov.js'
 import { shouldBadge, ownTrips } from '../lib/demoTour.js'
-import { ONCE, forcing } from '../lib/firstRun.js'
+import { ONCE, forcing, nextUp } from '../lib/firstRun.js'
 import { pickVariant } from '../lib/variants.js'
 import { oops, track, whoAmI } from '../lib/analytics.js'
 import GetTripsIn from '../components/GetTripsIn.jsx'
@@ -697,6 +697,49 @@ export default function WorldTab() {
   // state was unreachable — a network that drops rather than refuses left the
   // request pending forever, so "loading the world…" was the whole experience
   // and there was nothing to retry and nothing written down.
+  // Lining the signed-out hero up with the cards under it.
+  //
+  // David: "it doesn't align with the left edge of the first card and right
+  // edge of second card below." It could not: the hero was pinned to the
+  // viewport and the strip is built out of card widths, so the two were only
+  // ever going to agree by coincidence.
+  //
+  // Arithmetic gets close and not closer — the strip groups cards into
+  // sections, each with a vertical label and a divider, and how many of those
+  // fall before the second card depends entirely on which trips exist. So the
+  // real cards are measured and the answer handed to CSS. The fallbacks in
+  // globals.css cover the first paint and the case with fewer than two cards.
+  const bottomRef = useRef(null)
+  const stripRef = useRef(null)
+  useEffect(() => {
+    const measure = () => {
+      const strip = stripRef.current
+      const host = bottomRef.current
+      if (!strip || !host) return
+      const cards = strip.querySelectorAll('.wt-card')
+      if (cards.length < 2) {
+        host.style.removeProperty('--wt-hero-l')
+        host.style.removeProperty('--wt-hero-w')
+        return
+      }
+      const box = strip.getBoundingClientRect()
+      const first = cards[0].getBoundingClientRect()
+      const second = cards[1].getBoundingClientRect()
+      // Relative to the strip, not the page, so the scroll-hint animation
+      // sliding the whole row cannot poison the measurement.
+      host.style.setProperty('--wt-hero-l', `${Math.round(first.left - box.left)}px`)
+      host.style.setProperty('--wt-hero-w', `${Math.round(second.right - first.left)}px`)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    if (stripRef.current) ro.observe(stripRef.current)
+    window.addEventListener('resize', measure)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  })
+
   if (worldFailed) {
     return (
       <div className="tab-loading">
@@ -987,8 +1030,15 @@ export default function WorldTab() {
             setRoutesOpen(false)
             setRoutesAt(null)
             await refreshTrips()
-            if (route === 'photos' && trip?.slug) {
-              setSelectedTrip(trip.slug)
+            if (route === 'photos') {
+              // A trip was made: open it.
+              // Nothing was made — the photographs were kept loose, because
+              // somebody said "no, these aren't a trip" — so open Photos with
+              // no trip selected, which is where they are. Landing back on
+              // the globe instead would read as the upload having done
+              // nothing, and "we'll keep them" has to be visibly true or it
+              // is worse than not having offered.
+              setSelectedTrip(trip?.slug ?? null)
               goToTab('photos')
             }
             // A pasted confirmation is an itinerary, and the itinerary is
@@ -1008,12 +1058,32 @@ export default function WorldTab() {
       {tripsLoaded && !tripMeta.length ? (
         <EmptyHome onPlan={() => goToTab('plan')} onGetIn={() => setRoutesOpen(true)} />
       ) : (
-        <div className="world-bottom">
+        <div className="world-bottom" ref={bottomRef}>
           {/* Normally only while there is nothing of yours to point at
               instead. `?first=tour` overrides that, because the case worth
               checking is what a stranger sees, and the person checking it
-              always has trips. See firstRun.js. */}
-          <DemoTour active={(nothingReal || forcedTour) && !booting} />
+              always has trips. See firstRun.js.
+
+              Never while a first-run question is still owed. `!booting` was
+              written for the opening and stops being true the moment the
+              opening ends — which is the moment "Where's home?" arrives, so
+              the tour started measuring rings and drawing tooltips straight
+              over it. David: "the tooltips overlaid the new cards (where is
+              home)." The queue is the thing to ask, not one member of it:
+              anything added to IN_ORDER after this is covered without
+              remembering to come back here.
+
+              Nor under a sheet. Answering "Where's home?" with "Add photos
+              from a trip" opens the routes sheet on the very next frame, and
+              the question the tour was waiting on has just been answered — so
+              it would come up behind the sheet and start measuring rings
+              around cards nobody can see. Same for a trip's story card. One
+              thing at a time, and the tour is the last of the things. */}
+          <DemoTour
+            active={
+              (nothingReal || forcedTour) && !booting && !nextUp() && !routesOpen && !recapTrip
+            }
+          />
           {/* The present, at the size of the present.
               Above the strip rather than in it, because the strip is a
               horizontal list and a list has no way to say that one of its
@@ -1085,7 +1155,7 @@ export default function WorldTab() {
             />
           ) : null}
 
-          <div className="world-trips">
+          <div className="world-trips" ref={stripRef}>
           {memory && <MemoryCard memory={memory} onOpen={() => jumpToJournal(memory.slug, memory.entry_date)} />}
 
           {!nothingReal && addTile}
