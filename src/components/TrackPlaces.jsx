@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useAuth } from '../lib/AuthContext.jsx'
+import { registerPush } from '../lib/push.js'
 import {
   enableVisits,
   openLocationSettings,
@@ -35,6 +37,8 @@ export function offersTracking() {
 }
 
 export default function TrackPlaces({ compact = false, onDone }) {
+  const { user } = useAuth()
+  const email = user?.email
   const [status, setStatus] = useState(undefined)
   const [busy, setBusy] = useState(false)
   const [asked, setAsked] = useState(false)
@@ -92,6 +96,20 @@ export default function TrackPlaces({ compact = false, onDone }) {
     setAsked(true)
     try {
       await enableVisits()
+      // The other half of the same offer.
+      //
+      // These were two separate asks and that was wrong in a way David caught
+      // and I had not: the day builds itself from location, and the *only*
+      // way anybody finds out it did is the nine o'clock look-back, which is
+      // a push notification. Asking for push later means asking at nine — by
+      // push — which cannot work. So the first evening, the best one anybody
+      // ever gets, was silently lost to a chicken and egg.
+      //
+      // Deliberately after location and never instead of it: notifications
+      // with nothing to notify about are the ask people refuse. Failure here
+      // is quiet on purpose — it costs the look-back, not the tracking, and
+      // there is a switch in Account either way.
+      if (email) await registerPush(email)
     } finally {
       const fresh = await visitStatus()
       if (fresh) setStatus(fresh)
@@ -104,8 +122,9 @@ export default function TrackPlaces({ compact = false, onDone }) {
     <div className={`track-card${compact ? ' compact' : ''}`}>
       <div className="track-title">Let the trip log itself</div>
       <div className="track-body">
-        If you'd like, the app can note the places you stop while you're away, so each day gets its
-        own map without you logging anything.
+        If you&apos;d like, the app can note the places you stop while you&apos;re away, so each day
+        gets its own map without you logging anything — and tell you what it made of it at nine
+        each evening.
       </div>
 
       <ul className="track-points">
@@ -122,7 +141,11 @@ export default function TrackPlaces({ compact = false, onDone }) {
           a handful of times a day and that's the lot.
         </li>
         <li>
-          <b>Off whenever.</b> One tap in Account, and it stops.
+          <b>One thing at nine.</b> A look back at the day it put together, and nothing else. Not a
+          notification every time you stop somewhere.
+        </li>
+        <li>
+          <b>Off whenever.</b> One tap in Account, and both stop.
         </li>
       </ul>
 
@@ -130,13 +153,15 @@ export default function TrackPlaces({ compact = false, onDone }) {
         {android ? (
           <>
             Android will ask next, and it asks twice: location first, then <b>Allow all the time</b>{' '}
-            on your app's settings page. The first one alone is enough to start — it records while
-            the app is open, and you can come back for the second.
+            on your app&apos;s settings page. The first one alone is enough to start — it records
+            while the app is open, and you can come back for the second. Notifications are a third
+            tap, and they are how the nine o&apos;clock look-back reaches you.
           </>
         ) : (
           <>
             iOS will ask next. <b>While Using the App</b> is enough to start — it offers to extend
-            that later, once it's seen the app actually use it.
+            that later, once it&apos;s seen the app actually use it. It will ask about
+            notifications too, which is how the nine o&apos;clock look-back reaches you.
           </>
         )}
       </div>
