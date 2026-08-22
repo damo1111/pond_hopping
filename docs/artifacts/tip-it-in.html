@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!--
+  Tip It In
+
+  Published as a Claude artifact on 2026-08-12:
+  https://claude.ai/code/artifact/da890ecb-851a-42c6-93d6-de5a5fdf7582
+
+  Saved here as it was written. The hosted version is wrapped in the
+  artifact viewer's own shell; this is the page itself, so it opens in a
+  browser on its own. Web fonts still come from Google, so it wants a
+  connection to look exactly right.
+-->
+</head>
+<body>
+<title>Tip It In</title>
+<style>
+  :root {
+    --paper:#EAEFF1; --paper-2:#FFFFFF; --line:#CFD9DE;
+    --ink:#10191E; --ink-2:#3D4F58; --muted:#6B808B;
+    --pond:#2F6B5C; --pond-in:#FFFFFF; --flag:#B5451B; --gold:#8A6A1F;
+    --display: ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --read: ui-serif,Georgia,'Iowan Old Style','Times New Roman',serif;
+    --data: ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace;
+  }
+  :root:not([data-theme="light"]) { @media (prefers-color-scheme: dark) {
+    --paper:#0E1417; --paper-2:#151E23; --line:#263238;
+    --ink:#E6EDF0; --ink-2:#B0C2CB; --muted:#7E939E;
+    --pond:#6FBFA6; --pond-in:#0E1417; --flag:#E58055; --gold:#D8B364;
+  } }
+  :root[data-theme="dark"] {
+    --paper:#0E1417; --paper-2:#151E23; --line:#263238;
+    --ink:#E6EDF0; --ink-2:#B0C2CB; --muted:#7E939E;
+    --pond:#6FBFA6; --pond-in:#0E1417; --flag:#E58055; --gold:#D8B364;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:var(--display); font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1000px; margin:0 auto; padding:clamp(2rem,5vw,4rem) clamp(1rem,4vw,2rem) 6rem; }
+  h1,h2,h3 { margin:0; text-wrap:balance; }
+  h1 { font-size:clamp(2.4rem,7vw,4.2rem); line-height:0.98; letter-spacing:-0.035em; font-weight:700; }
+  h2 { font-size:clamp(1.35rem,3vw,1.9rem); letter-spacing:-0.02em; font-weight:650; }
+  p { margin:0; max-width:64ch; }
+  .eyebrow { font-family:var(--data); font-size:0.68rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); }
+  .read { font-family:var(--read); font-size:1.06rem; line-height:1.65; color:var(--ink-2); }
+  .read b { color:var(--ink); }
+  header { display:flex; flex-direction:column; gap:1.1rem; padding-bottom:2rem; }
+  section { display:flex; flex-direction:column; gap:1.2rem; padding:3rem 0; border-top:1px solid var(--line); }
+
+  .phones { display:flex; flex-wrap:wrap; gap:1.75rem; align-items:flex-start; }
+  .phone { width:290px; flex:0 0 auto; }
+  .screen { border:1px solid var(--line); border-radius:22px; background:var(--paper-2); padding:0.9rem; display:flex; flex-direction:column; gap:0.5rem; box-shadow:0 18px 40px -22px rgba(0,0,0,0.35); }
+  .phone figcaption { font-family:var(--data); font-size:0.66rem; color:var(--muted); text-align:center; padding-top:0.6rem; letter-spacing:0.06em; }
+
+  /* today */
+  .route { border:1px solid var(--line); border-radius:10px; padding:0.6rem 0.7rem; display:grid; grid-template-columns:1.3rem 1fr; gap:0.5rem; }
+  .route .t { font-size:0.84rem; font-weight:600; }
+  .route .b { font-size:0.72rem; color:var(--muted); line-height:1.45; }
+  .bigbtn { background:var(--gold); color:#fff; border-radius:10px; padding:0.7rem; text-align:center; font-family:var(--data); font-size:0.72rem; letter-spacing:0.12em; }
+  .ghostbtn { border:1px solid var(--gold); color:var(--gold); border-radius:999px; padding:0.5rem; text-align:center; font-size:0.8rem; }
+  .panel { background:var(--paper); border-radius:10px; padding:0.7rem; display:flex; flex-direction:column; gap:0.5rem; }
+  .panel .t { font-size:0.84rem; font-weight:600; }
+  .panel .b { font-size:0.72rem; color:var(--muted); }
+
+  /* proposed */
+  .hero { border:1px solid var(--pond); border-radius:14px; padding:0.9rem; display:flex; flex-direction:column; gap:0.7rem; background:color-mix(in srgb, var(--pond) 7%, transparent); }
+  .hero .t { font-size:0.95rem; font-weight:650; text-align:center; }
+  /* The transformation, not a feature list: a scatter of photographs
+     becoming one finished trip. It is what the app does, so it is drawn
+     rather than described. */
+  .morph { display:grid; grid-template-columns:1fr auto 1fr; gap:0.6rem; align-items:center; }
+  .pile { display:grid; grid-template-columns:repeat(3,1fr); gap:3px; }
+  .pile i { aspect-ratio:1; border-radius:3px; display:block; }
+  .morph .to { color:var(--pond); font-size:1rem; }
+  .made { border:1px solid var(--line); border-radius:7px; background:var(--paper-2); padding:0.4rem 0.45rem; display:flex; flex-direction:column; gap:0.25rem; }
+  .made .r { height:3px; border-radius:2px; background:var(--pond); width:80%; }
+  .made b { font-size:0.7rem; }
+  .made span { font-size:0.58rem; color:var(--muted); font-family:var(--data); }
+
+  .now { display:grid; grid-template-columns:1.3rem 1fr auto; gap:0.6rem; align-items:center; border:1px solid var(--line); border-radius:10px; padding:0.6rem 0.7rem; }
+  .now b { font-size:0.86rem; font-weight:600; }
+  .now .h { font-size:0.7rem; color:var(--muted); display:block; }
+
+  .oneline { display:grid; grid-template-columns:1.2rem 1fr auto; gap:0.6rem; align-items:center; padding:0.5rem 0.2rem; border-bottom:1px solid var(--line); font-size:0.84rem; }
+  .oneline:last-child { border-bottom:0; }
+  .oneline .h { font-size:0.7rem; color:var(--muted); display:block; }
+  .grouplab { font-family:var(--data); font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); padding:0.5rem 0.2rem 0.1rem; }
+  .sheet-title { font-size:0.95rem; font-weight:650; padding:0.1rem 0.2rem 0.3rem; }
+
+  .cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:1rem; }
+  .card { background:var(--paper-2); border:1px solid var(--line); border-radius:10px; padding:1.05rem; display:flex; flex-direction:column; gap:0.45rem; }
+  .card h3 { font-size:0.95rem; }
+  .card p { font-size:0.87rem; color:var(--ink-2); }
+  .count { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .count div { background:var(--paper-2); padding:0.9rem 1rem; }
+  .count b { display:block; font-family:var(--data); font-size:1.6rem; line-height:1; letter-spacing:-0.03em; }
+  .count span { font-size:0.73rem; color:var(--muted); }
+  ul.plain { margin:0; padding-left:1.15rem; display:flex; flex-direction:column; gap:0.5rem; color:var(--ink-2); max-width:64ch; }
+  ul.plain b { color:var(--ink); }
+  .pick { background:var(--pond); color:var(--pond-in); border-radius:10px; padding:1.3rem; display:flex; flex-direction:column; gap:0.55rem; }
+  .pick p { color:var(--pond-in); opacity:0.93; font-size:0.94rem; }
+  .pick .eyebrow { color:var(--pond-in); opacity:0.72; }
+  .alts { display:flex; flex-wrap:wrap; gap:1rem; }
+  .alt { margin:0; width:200px; flex:0 0 auto; }
+  .alt figcaption { font-family:var(--data); font-size:0.62rem; color:var(--muted); text-align:center; padding-top:0.5rem; letter-spacing:0.05em; }
+  .tile { background:#FFFFFF; border:1px dashed #A8842C; border-radius:14px; overflow:hidden; box-shadow:0 10px 26px -18px rgba(0,0,0,0.4); }
+  .tile-art { background:#F5F2EB; height:78px; position:relative; display:flex; align-items:center; justify-content:center; }
+  .tile-art .duck { font-size:20px; position:relative; z-index:1; margin-right:44px; }
+  .tile-art .orb { position:absolute; width:74px; height:74px; border-radius:50%; border:1px dashed #C6AC63; right:34px; top:14px; }
+  .tile-body { padding:12px 13px 13px; display:flex; flex-direction:column; gap:4px; background:#FFFFFF; }
+  .tile-body b { font-size:15px; color:#1A1611; letter-spacing:-0.01em; }
+  .tile-body span { font-size:11.5px; color:#8B8375; line-height:1.4; }
+  .tile-body em { font-family:var(--data); font-size:8.5px; letter-spacing:0.1em; color:#A8842C; font-style:normal; padding-top:4px; }
+  .gone { text-decoration:line-through; color:var(--muted); }
+
+  /* ── Inside the phone: Pond Hopping's real tokens, not this page's ──
+     Warm paper as the ground and white for the cards, which is the app's own
+     arrangement. The first mockup used white for both, and that is why the
+     padding looked wrong: with no tonal separation, whitespace is the only
+     thing left to build structure from, so it has to do all the work and you
+     can see it straining. */
+  .app {
+    --bg:#F5F2EB; --surface:#FFFFFF; --border:#E4DED1;
+    --accent:#A8842C; --tx:#1A1611; --tx-mute:#8B8375;
+    background:var(--bg); color:var(--tx);
+    border-radius:22px; padding:18px; display:flex; flex-direction:column; gap:14px;
+    border:1px solid var(--border); box-shadow:0 18px 40px -22px rgba(0,0,0,0.35);
+  }
+  .app .head { font-size:17px; font-weight:650; letter-spacing:-0.01em; }
+  .app .sub { font-size:12.5px; color:var(--tx-mute); margin-top:3px; }
+  .app .hero2 { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:12px; }
+  .app .morph2 { display:grid; grid-template-columns:1fr auto 1fr; gap:12px; align-items:center; }
+  .app .pile2 { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; }
+  .app .pile2 i { aspect-ratio:1; border-radius:4px; display:block; }
+  .app .arrow { color:var(--accent); font-size:15px; }
+  .app .made2 { border:1px solid var(--border); border-radius:9px; padding:8px 9px; display:flex; flex-direction:column; gap:4px; background:var(--bg); }
+  .app .made2 .rt { height:3px; border-radius:2px; background:var(--accent); width:78%; }
+  .app .made2 b { font-size:12px; }
+  .app .made2 span { font-size:9.5px; color:var(--tx-mute); font-family:var(--data); letter-spacing:0.03em; }
+  .app .lab { font-size:15px; font-weight:650; text-align:center; }
+  .app .why { font-size:12px; color:var(--tx-mute); text-align:center; line-height:1.45; }
+  .app .row { position:relative; overflow:hidden; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:13px 14px; display:grid; grid-template-columns:20px 1fr 10px; gap:12px; align-items:center; }
+  .app .row b { font-size:13.5px; font-weight:600; display:block; }
+  .app .row .h { font-size:11.5px; color:var(--tx-mute); display:block; margin-top:2px; line-height:1.4; }
+  .app .row .ch { color:var(--tx-mute); font-size:12px; }
+  .app .or { font-family:var(--data); font-size:10px; letter-spacing:0.14em; color:var(--tx-mute); padding:2px 2px 0; }
+  .app .quiet { display:flex; flex-direction:column; gap:8px; }
+
+  /* Entrance, and the sweep, built so that a fault in either cannot hide the
+     sheet: every element is visible in its resting state, both effects only
+     run where motion is welcome, and neither is what makes anything appear.
+     If the keyframes never fire, the rows are simply there. */
+  @media (prefers-reduced-motion: no-preference) {
+    .app .stagger > * { animation: rise 320ms cubic-bezier(.2,.7,.3,1) backwards; }
+    .app .stagger > *:nth-child(1) { animation-delay: 40ms; }
+    .app .stagger > *:nth-child(2) { animation-delay: 110ms; }
+    .app .stagger > *:nth-child(3) { animation-delay: 180ms; }
+    .app .stagger > *:nth-child(4) { animation-delay: 250ms; }
+    .app .stagger > *:nth-child(5) { animation-delay: 320ms; }
+    .app .row::after {
+      content:''; position:absolute; inset:0; pointer-events:none;
+      background:linear-gradient(105deg, transparent 35%, rgba(168,132,44,0.20) 50%, transparent 65%);
+      transform:translateX(-120%);
+      animation: sweep 900ms ease-out 1 both;
+    }
+    .app .quiet .row:nth-child(1)::after { animation-delay: 460ms; }
+    .app .quiet .row:nth-child(2)::after { animation-delay: 560ms; }
+    .app .quiet .row:nth-child(3)::after { animation-delay: 660ms; }
+  }
+  @keyframes rise { from { opacity:0; transform: translateY(7px); } to { opacity:1; transform:none; } }
+  @keyframes sweep { to { transform: translateX(120%); } }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Pond Hopping · what “Add a trip” opens</div>
+  <h1>Tip it in</h1>
+  <p class="read">Six routes, each with a paragraph, then two buttons. About <b>150 words before
+  anybody can do anything</b> — on the screen whose entire job is “give me something and I’ll
+  work it out”.</p>
+</header>
+
+<section>
+  <div class="eyebrow">The contradiction</div>
+  <h2>The pitch is “whatever you already have”. The sheet makes you file it first.</h2>
+  <p class="read">Card one says <em>“Whatever you already have — it works the trip out from
+  there.”</em> Then this opens and asks you to sort what you have into six categories and read
+  a paragraph about each to know which one you are. That is a filing decision, made by the
+  person, before the app has done anything for them.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Before and after</div>
+  <h2>One target, and the rest out of the way</h2>
+
+  <div class="phones">
+    <figure class="phone" style="margin:0">
+      <div class="screen">
+        <div class="route"><span>🖼</span><span><span class="t">Start from photos</span><span class="b">A trip you’ve taken, or one you’re on. I read the dates out of the photos and build the trip around them. Shrunk on your phone first, so it’s quick.</span></span></div>
+        <div class="route"><span>🗺</span><span><span class="t">Bring your Google Timeline in</span><span class="b">If Google has been keeping your timeline, every trip you’ve taken is already in it. Export it, drop the file here, and pick the ones worth keeping…</span></span></div>
+        <div class="route"><span>📧</span><span><span class="t">Forward a booking</span><span class="b">Send any confirmation — flight, hotel, restaurant — to this address and it turns into an itinerary…</span></span></div>
+        <div class="route"><span>📋</span><span><span class="t">Paste a confirmation</span><span class="b">Copy a booking email into Plan and it pulls out the flights, stays and bookings. Nothing to set up.</span></span></div>
+        <div class="panel"><span class="t">Any of these need somewhere to put it.</span><span class="b">An email address and a six-digit code.</span><div class="bigbtn">CREATE AN ACCOUNT</div></div>
+        <div class="ghostbtn">Have a look round first</div>
+      </div>
+      <figcaption>Today · 6 routes · ~150 words · 2 buttons</figcaption>
+    </figure>
+
+    <figure class="phone" style="margin:0">
+      <div class="app stagger">
+        <div>
+          <div class="head">Tip it in</div>
+          <div class="sub">Chuck in everything. I&rsquo;ll sort it into trips.</div>
+        </div>
+
+        <div class="hero2">
+          <div class="morph2">
+            <div class="pile2">
+              <i style="background:#2b4a5e"></i><i style="background:#7a5c33"></i><i style="background:#2f4f45"></i>
+              <i style="background:#4a3350"></i><i style="background:#37536a"></i><i style="background:#63503a"></i>
+            </div>
+            <span class="arrow">&rarr;</span>
+            <div class="made2"><div class="rt"></div><b>Rome</b><span>22&ndash;25 JAN &middot; 4 flights</span></div>
+          </div>
+          <div class="lab">Start from photos</div>
+          <div class="why">Years of them at once if you like &mdash; four days apart and I&rsquo;ll call it a different trip.</div>
+        </div>
+
+        <div class="row">
+          <span>&#128205;</span>
+          <span><b>I&rsquo;m on one right now</b><span class="h">starts now, ends when it ends</span></span>
+          <span class="ch">&rsaquo;</span>
+        </div>
+
+        <div class="or">OR</div>
+
+        <div class="quiet">
+          <div class="row"><span>&#128231;</span><span><b>Forward a booking</b><span class="h">bookings@eend.app</span></span><span class="ch">&rsaquo;</span></div>
+          <div class="row"><span>&#128506;</span><span><b>Google Timeline</b><span class="h">the map Google has been keeping. Years of trips, at once.</span></span><span class="ch">&rsaquo;</span></div>
+          <div class="row"><span>&#128203;</span><span><b>Paste a confirmation</b></span><span class="ch">&rsaquo;</span></div>
+        </div>
+      </div>
+      <figcaption>Proposed &middot; the app&rsquo;s paper and gold &middot; staggered in</figcaption>
+    </figure>
+  </div>
+
+  <div class="count">
+    <div><b>150 → 20</b><span>words before acting</span></div>
+    <div><b>6 → 1</b><span>things asking to be read</span></div>
+    <div><b>2 → 0</b><span>buttons</span></div>
+    <div><b>0</b><span>routes removed</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">What the research says, and what changed because of it</div>
+  <h2>Show the transformation, not the feature list</h2>
+  <p class="read">The 2026 consensus on visual-first onboarding is narrower than “use more
+  pictures”: <b>dynamic visuals beat static tutorials</b>, and the pattern that works is a
+  <b>before and after</b> — fitness apps show the transformation rather than listing features,
+  because one image carries what a paragraph cannot.</p>
+  <p class="read">Pond Hopping's transformation is exact and easy to draw: <b>a pile of
+  photographs becomes a finished trip.</b> That is literally what happens when somebody taps the
+  hero, so the hero shows it instead of describing it — six thumbnails, an arrow, a trip card
+  with a route on it. It is also, word for word, what the retired card two was trying to say.</p>
+
+  <div class="cols">
+    <div class="card">
+      <h3>Still too wordy? Yes — and now it is twenty</h3>
+      <p>The hero drops its sentence entirely; the drawing says it. Three of the four rows keep a
+      short hint only where the label alone would not land — “years of trips, all at once” earns
+      its five words, “Paste a confirmation” does not need any.</p>
+    </div>
+    <div class="card">
+      <h3>The order was wrong, and so was the axis</h3>
+      <p>It was sorted by <b>what format your data is in</b>, which takes thought. It should be
+      sorted by <b>when</b>, which you know without thinking: on one now, one you have taken, one
+      coming up, all of them at once.</p>
+    </div>
+    <div class="card">
+      <h3>“On a trip right now” is back</h3>
+      <p>It was the sheet's first option and this page had dropped it. It is also the state the
+      app is best at — live flights, the evening look-back — so it sits directly under the hero
+      rather than in the quiet list.</p>
+    </div>
+    <div class="card">
+      <h3>Two buttons gone</h3>
+      <p><span class="gone">Create an account</span> is a second path to somewhere every route
+      already leads. <span class="gone">Have a look round first</span> only existed to escape it.
+      Remove the first and the second is an exit from a room with no walls.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">The one that is still open</div>
+  <h2>Where Google Timeline sits</h2>
+  <p class="read">It has moved <b>below “forward a booking”</b> in the ordering above, because
+  “years of trips at once” is not a <em>when</em> — it is a different scale of thing entirely.
+  It is niche in <b>awareness</b> and enormous in <b>value</b>, which is an awkward combination
+  to place: bury it and nobody finds the best trick in the app; lead with it and most people
+  read five words about a file format they have never exported.</p>
+  <p class="read">The version drawn here keeps it in the quiet list and lets its five words do
+  the work. <b>Worth arguing about</b> — it may deserve to sit beside the hero rather than under
+  the fold.</p>
+</section>
+
+<section>
+  <div class="eyebrow">The question underneath the others</div>
+  <h2>No — this should not be the end of onboarding</h2>
+  <div class="pick">
+    <div class="eyebrow">On “should this close the first launch?”</div>
+    <p>Making it the last step puts a six-option filing decision in front of somebody who arrived
+    forty seconds ago. Even trimmed to one target, it is a <b>destination, not a step</b>.</p>
+    <p>First launch is the cold open, the example trip, and your three cards. <b>Tip it in</b>
+    sits there permanently and opens this whenever they are ready — which for a lot of people is
+    the second session, after they have read somebody else’s trip to Rome and thought <em>I
+    want that for mine</em>.</p>
+  </div>
+  <p class="read">Which is the same shape as the recap and the same shape as the tour fix: the
+  thing that earns the action goes first, and the ask comes second.</p>
+</section>
+
+<section>
+  <div class="eyebrow">The entry point</div>
+  <h2>&ldquo;Add a trip&rdquo; is a filing verb</h2>
+  <p class="read">It describes bookkeeping, sitting next to a card showing somebody&rsquo;s actual
+  holiday. It is also the only thing a new hopper can do, so it ought to be the most inviting
+  thing on the screen. The strap underneath is already doing better work than the title.</p>
+
+  <div class="alts">
+    <figure class="alt">
+      <div class="tile">
+        <div class="tile-art"><span class="duck">&#128038;</span><span class="orb"></span></div>
+        <div class="tile-body">
+          <b>Add a trip</b>
+          <span>One you&rsquo;ve taken, or one you&rsquo;re on</span>
+          <em>PHOTOS &middot; EMAIL &middot; AI</em>
+        </div>
+      </div>
+      <figcaption>Today &mdash; names the action</figcaption>
+    </figure>
+
+    <figure class="alt">
+      <div class="tile">
+        <div class="tile-art"><span class="duck">&#128038;</span><span class="orb"></span></div>
+        <div class="tile-body">
+          <b>Where have you been?</b>
+          <span>Chuck in some photos and I&rsquo;ll work it out</span>
+          <em>PHOTOS &middot; EMAIL &middot; AI</em>
+        </div>
+      </div>
+      <figcaption>A &mdash; asks the actual question</figcaption>
+    </figure>
+
+    <figure class="alt">
+      <div class="tile">
+        <div class="tile-art"><span class="duck">&#128038;</span><span class="orb"></span></div>
+        <div class="tile-body">
+          <b>Get your trips back</b>
+          <span>Years of them, out of photos you already have</span>
+          <em>PHOTOS &middot; EMAIL &middot; AI</em>
+        </div>
+      </div>
+      <figcaption>B &mdash; promises the outcome</figcaption>
+    </figure>
+
+    <figure class="alt">
+      <div class="tile">
+        <div class="tile-art"><span class="duck">&#128038;</span><span class="orb"></span></div>
+        <div class="tile-body">
+          <b>Tip it in</b>
+          <span>Photos, a booking, whatever you&rsquo;ve got</span>
+          <em>PHOTOS &middot; EMAIL &middot; AI</em>
+        </div>
+      </div>
+      <figcaption>C &mdash; the app&rsquo;s own best line</figcaption>
+    </figure>
+
+    <figure class="alt">
+      <div class="tile">
+        <div class="tile-art"><span class="duck">&#128038;</span><span class="orb"></span></div>
+        <div class="tile-body">
+          <b>Yours goes here</b>
+          <span>Photos in, trip out</span>
+          <em>PHOTOS &middot; EMAIL &middot; AI</em>
+        </div>
+      </div>
+      <figcaption>D &mdash; spatial, next to the example</figcaption>
+    </figure>
+  </div>
+
+  <div class="cols">
+    <div class="card">
+      <h3>A &mdash; Where have you been?</h3>
+      <p>The most human of the five, and the only one that is a question, which is hard to walk
+      past. It also happens to be exactly what the app is asking. Risk: a question on a tile can
+      read as a prompt rather than a button.</p>
+    </div>
+    <div class="card">
+      <h3>B &mdash; Get your trips back</h3>
+      <p>The strongest promise, and it speaks to the retro case, which is the wow. <b>&ldquo;Back&rdquo;
+      is the word doing the work</b> &mdash; it says these already exist and you are missing them.
+      Risk: means least to somebody with no history yet.</p>
+    </div>
+    <div class="card">
+      <h3>C &mdash; Tip it in</h3>
+      <p>Already the best line in the product, and it makes the tile and the sheet it opens one
+      thought instead of two. Risk: it is a phrase, not a description &mdash; charming to somebody
+      who has read the card, opaque to somebody who has not.</p>
+    </div>
+    <div class="card">
+      <h3>D &mdash; Yours goes here</h3>
+      <p>Uses the one thing this layout has that no copy can buy: it sits directly beside a
+      finished example, under a rail already labelled <em>YOURS</em>. Says the whole thing in
+      three words by pointing.</p>
+    </div>
+  </div>
+
+  <div class="pick">
+    <div class="eyebrow">If it were mine</div>
+    <p><b>B, and C for the sheet it opens.</b> &ldquo;Get your trips back&rdquo; is the only one that
+    promises something a person did not know they could have, and &ldquo;back&rdquo; does more work
+    than any other word on the screen. Then <em>Tip it in</em> is what the sheet is called, so the
+    phrase still lands &mdash; one beat later, where it is an instruction rather than a riddle.</p>
+    <p>D is the one I would test against it. It is weaker on its own and much stronger in place,
+    which is a hard thing to judge from a mockup and an easy thing to judge on a phone.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Decided this round</div>
+  <h2>Where the proposal stands</h2>
+  <ul class="plain">
+    <li><b>The cards come down to one</b>, and the other two are <b>parked, not deleted</b> —
+    their copy kept somewhere findable for later.</li>
+    <li><b>Cold open: first launch only.</b> Not every time.</li>
+    <li><b>The tour goes.</b> Its one irreplaceable line — “someone else’s pond” — moves onto the
+    example trip itself.</li>
+    <li><b>The sheet is rebuilt</b> as above: one target, four one-liners, no buttons.</li>
+    <li><b>Partner email: gone.</b> Never seen in the wild. It comes back when somebody uploads
+    or plans a trip — which is a better moment anyway, because that is when there is a second
+    person to name and a reason to bring them in.</li>
+  </ul>
+</section>
+
+</div>
+</body>
+</html>

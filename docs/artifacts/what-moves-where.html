@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!--
+  What Moves Where
+
+  Published as a Claude artifact on 2026-08-12:
+  https://claude.ai/code/artifact/457dd4a4-b7be-4217-9c96-6d422846e733
+
+  Saved here as it was written. The hosted version is wrapped in the
+  artifact viewer's own shell; this is the page itself, so it opens in a
+  browser on its own. Web fonts still come from Google, so it wants a
+  connection to look exactly right.
+-->
+</head>
+<body>
+<title>What Moves Where</title>
+<style>
+  /* A sibling of First Light — same morning-water palette, because it is the
+     same conversation one step on. Where that page argued, this one accounts. */
+  :root {
+    --paper:#EAEFF1; --paper-2:#FFFFFF; --line:#CFD9DE;
+    --ink:#10191E; --ink-2:#3D4F58; --muted:#6B808B;
+    --pond:#2F6B5C; --pond-in:#FFFFFF; --flag:#B5451B; --keep:#8A6A1F;
+    --display: ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --read: ui-serif,Georgia,'Iowan Old Style','Times New Roman',serif;
+    --data: ui-monospace,SFMono-Regular,'SF Mono',Menlo,monospace;
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --paper:#0E1417; --paper-2:#151E23; --line:#263238;
+      --ink:#E6EDF0; --ink-2:#B0C2CB; --muted:#7E939E;
+      --pond:#6FBFA6; --pond-in:#0E1417; --flag:#E58055; --keep:#D8B364;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#0E1417; --paper-2:#151E23; --line:#263238;
+    --ink:#E6EDF0; --ink-2:#B0C2CB; --muted:#7E939E;
+    --pond:#6FBFA6; --pond-in:#0E1417; --flag:#E58055; --keep:#D8B364;
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font-family:var(--display); font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:960px; margin:0 auto; padding:clamp(2rem,5vw,4rem) clamp(1rem,4vw,2rem) 6rem; }
+
+  h1,h2,h3 { margin:0; text-wrap:balance; }
+  h1 { font-size:clamp(2.4rem,7vw,4.2rem); line-height:0.98; letter-spacing:-0.035em; font-weight:700; }
+  h2 { font-size:clamp(1.35rem,3vw,1.95rem); letter-spacing:-0.02em; font-weight:650; line-height:1.15; }
+  h3 { font-size:1rem; font-weight:650; }
+  p { margin:0; max-width:64ch; }
+  .eyebrow { font-family:var(--data); font-size:0.68rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--muted); }
+  .read { font-family:var(--read); font-size:1.06rem; line-height:1.65; color:var(--ink-2); }
+  .read b { color:var(--ink); }
+
+  header { display:flex; flex-direction:column; gap:1.1rem; padding-bottom:2rem; }
+  section { display:flex; flex-direction:column; gap:1.2rem; padding:3rem 0; border-top:1px solid var(--line); }
+
+  /* ── The ledger ─────────────────────────────────────────────────── */
+  .item { background:var(--paper-2); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .item + .item { margin-top:0.85rem; }
+  .item-head { display:flex; flex-wrap:wrap; gap:0.5rem 0.8rem; align-items:baseline; padding:0.8rem 1rem; border-bottom:1px solid var(--line); }
+  .item-head b { font-size:0.95rem; }
+  .item-head code { font-family:var(--data); font-size:0.74rem; color:var(--muted); }
+  .verdict { margin-left:auto; font-family:var(--data); font-size:0.64rem; letter-spacing:0.09em; text-transform:uppercase; padding:0.14rem 0.5rem; border-radius:999px; border:1px solid currentColor; }
+  .v-move { color:var(--pond); }
+  .v-keep { color:var(--keep); }
+  .v-gone { color:var(--flag); }
+
+  .swap { display:grid; grid-template-columns:1fr; }
+  @media (min-width:720px) { .swap { grid-template-columns:1fr 1fr; } }
+  .swap > div { padding:0.9rem 1rem; }
+  .swap > div:first-child { border-bottom:1px solid var(--line); }
+  @media (min-width:720px) { .swap > div:first-child { border-bottom:0; border-right:1px solid var(--line); } }
+  .lab { font-family:var(--data); font-size:0.62rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:0.35rem; }
+  .copy { font-family:var(--read); font-size:0.95rem; color:var(--ink-2); }
+  .copy strong { color:var(--ink); font-weight:600; display:block; }
+  .dest { font-size:0.9rem; color:var(--ink-2); }
+  .dest b { color:var(--pond); }
+
+  .lost { border-left:3px solid var(--flag); padding:0.15rem 0 0.15rem 1rem; display:flex; flex-direction:column; gap:0.5rem; }
+  .lost b { color:var(--flag); }
+
+  .pick { background:var(--pond); color:var(--pond-in); border-radius:10px; padding:1.4rem; display:flex; flex-direction:column; gap:0.6rem; }
+  .pick p { color:var(--pond-in); opacity:0.93; font-size:0.95rem; }
+  .pick .eyebrow { color:var(--pond-in); opacity:0.7; }
+
+  ul.plain { margin:0; padding-left:1.15rem; display:flex; flex-direction:column; gap:0.5rem; color:var(--ink-2); max-width:64ch; }
+  ul.plain b { color:var(--ink); }
+
+  .count { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .count div { background:var(--paper-2); padding:0.9rem 1rem; }
+  .count b { display:block; font-family:var(--data); font-size:1.7rem; line-height:1; letter-spacing:-0.03em; }
+  .count span { font-size:0.74rem; color:var(--muted); }
+  a { color:var(--pond); }
+  a:focus-visible { outline:2px solid var(--pond); outline-offset:2px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Pond Hopping · onboarding · the proposal, itemised</div>
+  <h1>What moves where</h1>
+  <p class="read">“Feel like we are losing a lot.” Fair — so here is every piece of it, with the
+  real copy, and where the job it does actually lands. <b>Seven pieces. Five move, one stays,
+  one goes.</b></p>
+</header>
+
+<section>
+  <div class="eyebrow">The ledger</div>
+  <h2>Nothing here is deleted. Six of the seven are relocated to the moment they become true.</h2>
+
+  <!-- IntroCards -->
+  <div class="item">
+    <div class="item-head"><b>Tip it in</b><code>IntroCards, card 1</code><span class="verdict v-move">moves</span></div>
+    <div class="swap">
+      <div><span class="lab">Today — a card before anything</span><div class="copy">Photos from a trip you took. A Google Timeline export going back years. A booking you forward without reading. Whatever you already have — it works the trip out from there.</div></div>
+      <div><span class="lab">Proposed</span><div class="dest">Becomes the copy on <b>the always-present control</b> and its empty state. Same words, read at the moment somebody wants to do it rather than before they know what it is.</div></div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><b>Watch it fill</b><code>IntroCards, card 2</code><span class="verdict v-move">moves</span></div>
+    <div class="swap">
+      <div><span class="lab">Today</span><div class="copy">Every flight becomes a line on the globe, and every day a map of where you actually went. Seventeen years of it, if you’ve got them.</div></div>
+      <div><span class="lab">Proposed</span><div class="dest">Shown rather than promised: <b>the first flight drawing itself onto the globe</b>. This is a description of an animation that already exists and that nobody watching the card gets to see.</div></div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><b>Or don’t</b><code>IntroCards, card 3 — privacy</code><span class="verdict v-move">moves</span></div>
+    <div class="swap">
+      <div><span class="lab">Today</span><div class="copy">Everything is private until you decide otherwise. Then it’s one link — to a trip, or to the lot — that you can take back whenever you like.</div></div>
+      <div><span class="lab">Proposed</span><div class="dest">To <b>the Share tab, first visit</b>. It is an answer, and on first open nobody has asked the question yet. At the moment they reach for a link it is the most reassuring sentence in the app.</div></div>
+    </div>
+  </div>
+
+  <!-- DemoTour -->
+  <div class="item">
+    <div class="item-head"><b>Someone else’s pond</b><code>DemoTour, step 1</code><span class="verdict v-keep">stays</span></div>
+    <div class="swap">
+      <div><span class="lab">Today — a tooltip pointing at a trip card</span><div class="copy">A real trip, parked here so the place isn’t empty when you turn up. Have a paddle round — it’s properly finished, photos and all. Then it clears off.</div></div>
+      <div><span class="lab">Proposed</span><div class="dest"><b>Kept, and promoted.</b> This one has no other home — it is the only thing that explains why a stranger’s holiday is on your globe. But it becomes <b>one line on the trip itself</b>, not step one of three with an overlay.</div></div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><b>Every hop, drawn</b><code>DemoTour, step 2</code><span class="verdict v-move">moves</span></div>
+    <div class="swap">
+      <div><span class="lab">Today</span><div class="copy">One line per flight you’ve taken. Four so far, and all of them borrowed. Yours will look better.</div></div>
+      <div><span class="lab">Proposed</span><div class="dest">Folds into the same moment as <em>Watch it fill</em> — it is the same promise told twice, once in a card and once in a tooltip, ten seconds apart. <b>“Yours will look better” is the good half</b> and it survives.</div></div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="item-head"><b>Where to next?</b><code>DemoTour, step 3</code><span class="verdict v-move">moves</span></div>
+    <div class="swap">
+      <div><span class="lab">Today</span><div class="copy">Plan is where a trip starts — a date, a rough idea, a flight if you’ve booked one. Add one and the borrowed trip paddles off.</div></div>
+      <div><span class="lab">Proposed</span><div class="dest">To <b>the Plan tab’s own empty state</b>, which is where somebody is standing when this sentence is useful, and where they can act on it in the same breath.</div></div>
+    </div>
+  </div>
+
+  <!-- Onboarding -->
+  <div class="item">
+    <div class="item-head"><b>Who do you travel with?</b><code>Onboarding — partner email</code><span class="verdict v-gone">goes, or moves</span></div>
+    <div class="swap">
+      <div><span class="lab">Today — a form before the app</span><div class="copy"><strong>Who do you travel with?</strong>An email address, collected before anybody has made a trip, written to <code>profiles.partner_email</code> and a <code>connections</code> row.</div></div>
+      <div><span class="lab">Proposed</span><div class="dest">The one genuine question in the whole sequence, asked at the worst possible moment. <b>Moves to the first trip with two people on it</b> — where it is obvious, useful, and answerable. <b>Your call whether it survives at all.</b></div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Being straight about it</div>
+  <h2>Two things genuinely are lost</h2>
+
+  <div class="lost">
+    <p><b>The guarantee.</b> A carousel is the only pattern that promises every single person sees
+    the pitch, in order, before anything else. Contextual copy is read by more of the people who
+    reach it and by <em>none</em> of the people who never do.</p>
+    <p><b>The twenty-second visitor.</b> Somebody who opens the app, looks, and leaves without
+    tapping anything currently learns what it does. Under the proposal they learn nothing at all
+    — they just see a stranger’s trip to Rome and go.</p>
+  </div>
+
+  <p class="read">That second one is the real argument against, and it is not small. It is also
+  the argument the carousel was invented to win, which is why every app has one and why the
+  research keeps saying they do not work: the twenty-second visitor was probably never going to
+  stay, and the cost is charged to everybody else.</p>
+
+  <div class="count">
+    <div><b>7</b><span>pieces of copy</span></div>
+    <div><b>5</b><span>relocated</span></div>
+    <div><b>1</b><span>kept and promoted</span></div>
+    <div><b>1</b><span>your call</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Revised, because of the above</div>
+  <h2>Keep one card, not none</h2>
+
+  <div class="pick">
+    <div class="eyebrow">The change to my own proposal</div>
+    <p>Deleting all three cards loses the twenty-second visitor for nothing. Deleting <em>two</em>
+    loses almost none of it. <b>Keep card one — “Tip it in” — as a single panel over the example
+    trip</b>, dismissible, once ever. It is the only card that says what the app is <em>for</em>;
+    the other two say what it will look like and how privacy works, and both of those are
+    answers to questions nobody has yet.</p>
+    <p>So: <b>one card, not a carousel of three. No tour.</b> The tour’s only irreplaceable line
+    moves onto the trip it is about. And the form goes.</p>
+  </div>
+
+  <ul class="plain">
+    <li><b>Still deleted:</b> the three-step tour overlay with its anchor-resolving and
+    re-measuring, cards two and three, and the onboarding form as a gate. Around <b>900 lines</b>
+    rather than 1,200.</li>
+    <li><b>Still one arbiter</b> instead of four uncoordinated “seen it” memories. That part was
+    never about copy and is the fix that actually prevents the bad first run.</li>
+    <li><b>Still the celebration moves</b> to the first story coming back, which no card can do
+    and which is the only moment that proves the promise instead of making it.</li>
+  </ul>
+</section>
+
+<section>
+  <div class="eyebrow">Open</div>
+  <h2>Two questions, unchanged</h2>
+  <ul class="plain">
+    <li><b>The cold open</b> — <code>BootScreen</code>, the globe flying in. Once ever, or every
+    launch?</li>
+    <li><b>The partner email</b> — moved to the first two-person trip, or dropped?</li>
+  </ul>
+</section>
+
+</div>
+</body>
+</html>

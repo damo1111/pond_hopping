@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<!--
+  First Light
+
+  Published as a Claude artifact on 2026-08-12:
+  https://claude.ai/code/artifact/f46ab6cf-4048-4b70-b0a4-6bc7076ad6ef
+
+  Saved here as it was written. The hosted version is wrapped in the
+  artifact viewer's own shell; this is the page itself, so it opens in a
+  browser on its own. Web fonts still come from Google, so it wants a
+  connection to look exactly right.
+-->
+</head>
+<body>
+<title>First Light</title>
+<style>
+  /* Morning water: a cool pale ground, deep ink, one pond green.
+     Deliberately the opposite of the recap pitch — that one is nine at
+     night and commits to the dark; this is the first sixty seconds and
+     commits to daylight. Both themes are painted from tokens so the page
+     holds whichever ground the reader's host puts behind it. */
+  :root {
+    --paper:   #EAEFF1;
+    --paper-2: #FFFFFF;
+    --line:    #CFD9DE;
+    --ink:     #10191E;
+    --ink-2:   #3D4F58;
+    --muted:   #6B808B;
+    --pond:    #2F6B5C;
+    --pond-in: #FFFFFF;
+    --flag:    #B5451B;
+
+    --display: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --read: ui-serif, Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+    --data: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --paper:   #0E1417;
+      --paper-2: #151E23;
+      --line:    #263238;
+      --ink:     #E6EDF0;
+      --ink-2:   #B0C2CB;
+      --muted:   #7E939E;
+      --pond:    #6FBFA6;
+      --pond-in: #0E1417;
+      --flag:    #E58055;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:   #0E1417;
+    --paper-2: #151E23;
+    --line:    #263238;
+    --ink:     #E6EDF0;
+    --ink-2:   #B0C2CB;
+    --muted:   #7E939E;
+    --pond:    #6FBFA6;
+    --pond-in: #0E1417;
+    --flag:    #E58055;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--display); font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: clamp(2rem,5vw,4rem) clamp(1rem,4vw,2rem) 6rem; }
+
+  h1, h2, h3 { margin: 0; text-wrap: balance; }
+  h1 { font-size: clamp(2.5rem,7vw,4.5rem); line-height: 0.98; letter-spacing: -0.035em; font-weight: 700; }
+  h2 { font-size: clamp(1.4rem,3vw,2rem); letter-spacing: -0.02em; font-weight: 650; line-height: 1.15; }
+  h3 { font-size: 1rem; font-weight: 650; letter-spacing: -0.01em; }
+  p { margin: 0; max-width: 64ch; }
+
+  .eyebrow { font-family: var(--data); font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .read { font-family: var(--read); font-size: 1.06rem; line-height: 1.65; color: var(--ink-2); }
+  .read b, .read strong { color: var(--ink); }
+
+  header { display: flex; flex-direction: column; gap: 1.1rem; padding-bottom: 2rem; }
+  section { display: flex; flex-direction: column; gap: 1.2rem; padding: 3rem 0; border-top: 1px solid var(--line); }
+
+  /* ── The count ──────────────────────────────────────────────────── */
+  .tally { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .tally div { background: var(--paper-2); padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.15rem; }
+  .tally b { font-family: var(--data); font-size: 1.9rem; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+  .tally span { font-size: 0.76rem; color: var(--muted); }
+
+  /* ── The gates ──────────────────────────────────────────────────── */
+  .gates { display: flex; flex-direction: column; gap: 0.4rem; }
+  .gate {
+    display: grid; grid-template-columns: 2rem 1fr auto; gap: 0.9rem; align-items: center;
+    background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.6rem 0.9rem;
+  }
+  .gate .n { font-family: var(--data); font-size: 0.72rem; color: var(--muted); }
+  .gate .what { font-size: 0.9rem; }
+  .gate .what em { font-style: normal; font-family: var(--data); font-size: 0.78rem; color: var(--muted); display: block; }
+  .gate .tag { font-family: var(--data); font-size: 0.64rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--flag); }
+  .gate.keep { border-color: var(--pond); }
+  .gate.keep .tag { color: var(--pond); }
+
+  .arrowdown { text-align: center; color: var(--muted); font-size: 1.2rem; line-height: 1; }
+
+  /* ── Cards ──────────────────────────────────────────────────────── */
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 1rem; }
+  .card { background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px; padding: 1.1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .card p { font-size: 0.88rem; color: var(--ink-2); }
+  .card .verdict { font-family: var(--data); font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-top: auto; padding-top: 0.4rem; }
+
+  .pick { background: var(--pond); color: var(--pond-in); border-radius: 10px; padding: 1.4rem; display: flex; flex-direction: column; gap: 0.6rem; }
+  .pick h3 { font-size: 1.1rem; }
+  .pick p { color: var(--pond-in); opacity: 0.92; font-size: 0.95rem; }
+  .pick .eyebrow { color: var(--pond-in); opacity: 0.7; }
+
+  ul.plain { margin: 0; padding-left: 1.15rem; display: flex; flex-direction: column; gap: 0.5rem; color: var(--ink-2); max-width: 64ch; }
+  ul.plain b { color: var(--ink); }
+
+  .quote { border-left: 3px solid var(--pond); padding-left: 1rem; font-family: var(--read); font-size: 1.02rem; color: var(--ink-2); }
+  .quote cite { display: block; font-family: var(--data); font-size: 0.68rem; font-style: normal; color: var(--muted); letter-spacing: 0.06em; margin-top: 0.4rem; }
+
+  .correction { border-left: 3px solid var(--flag); padding: 0.1rem 0 0.1rem 1rem; font-family: var(--read); font-size: 1.02rem; color: var(--ink-2); }
+  .correction b { color: var(--flag); }
+  .demo { overflow-x: auto; }
+  .demo table { border-collapse: collapse; width: 100%; min-width: 380px; background: var(--paper-2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .demo th, .demo td { text-align: left; padding: 0.6rem 0.9rem; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
+  .demo th { font-family: var(--data); font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .demo tbody tr:last-child td { border-bottom: 0; }
+  .demo td:nth-child(2), .demo td:nth-child(3) { font-family: var(--data); font-variant-numeric: tabular-nums; }
+  .demo .bad { color: var(--flag); }
+  .demo td em { font-style: normal; color: var(--muted); font-size: 0.8rem; }
+
+  a { color: var(--pond); }
+  a:focus-visible, .gate:focus-visible { outline: 2px solid var(--pond); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Pond Hopping · onboarding · research, not a build</div>
+  <h1>First light</h1>
+  <p class="read">Before anybody writes a line of this: what is there now, what the good ones
+  actually do in 2026, and three ways it could go. <b>Nothing here is built.</b></p>
+</header>
+
+<section>
+  <div class="eyebrow">Where we are</div>
+  <h2>Nine components stand between a new hopper and using the app</h2>
+
+  <div class="tally">
+    <div><b>9</b><span>first-run components</span></div>
+    <div><b>1,627</b><span>lines of them</span></div>
+    <div><b>4</b><span>separate “seen it” memories</span></div>
+    <div><b>0</b><span>that know about each other</span></div>
+  </div>
+
+  <p class="read">That last number is the actual problem. <code>pond:intro</code>,
+  <code>pond:tourdone</code>, <code>ph_recap_hint_seen</code> and <code>profiles.onboarded_at</code>
+  are four independent gates, each deciding on its own whether to fire. Nothing arbitrates, so
+  the worst case is not one of them being wrong — it is several being right at once.</p>
+
+  <div class="gates">
+    <div class="gate"><span class="n">1</span><span class="what">BootScreen<em>the cold open, globe flying in</em></span><span class="tag">before anything</span></div>
+    <div class="gate"><span class="n">2</span><span class="what">IntroCards<em>pond:intro</em></span><span class="tag">cards on first load</span></div>
+    <div class="gate"><span class="n">3</span><span class="what">DemoTour<em>pond:tourdone</em></span><span class="tag">points at things</span></div>
+    <div class="gate"><span class="n">4</span><span class="what">GetTripsIn → StartNow<em>a choice of four ways in</em></span><span class="tag">a decision</span></div>
+    <div class="gate"><span class="n">5</span><span class="what">StartFromPhotos / StartFromTimeline<em>616 lines between them</em></span><span class="tag">work</span></div>
+    <div class="gate"><span class="n">6</span><span class="what">Onboarding<em>profiles.onboarded_at, partner email</em></span><span class="tag">a form</span></div>
+  </div>
+
+  <p class="read">Six things before a person has done the thing they came to do. And the tour and
+  the cards <b>both point at a globe that is already full of somebody else's journeys</b>, which
+  is where this gets interesting.</p>
+</section>
+
+<section>
+  <div class="eyebrow">The asset — corrected</div>
+  <h2>Not an empty room. But a smaller one than this page first claimed.</h2>
+
+  <div class="correction">
+    <b>This section said “seventeen years of journeys, arcs and all”. That was wrong.</b>
+    Seventeen years is the author's own archive — 486 flights across 20 trips — and a new
+    hopper never sees a row of it. What they see is whatever is marked <code>is_demo</code>,
+    and that is three trips.
+  </div>
+
+  <div class="demo">
+    <table>
+      <thead><tr><th>What a new hopper sees</th><th>Flights</th><th>Photographs</th><th>State</th></tr></thead>
+      <tbody>
+        <tr><td>Rome</td><td>4</td><td>103</td><td>confirmed</td></tr>
+        <tr><td>China &amp; Japan <em>— being dropped</em></td><td>5</td><td class="bad">0</td><td>confirmed</td></tr>
+        <tr><td>Lisbon &amp; Porto <em>— undecided</em></td><td class="bad">0</td><td class="bad">0</td><td>draft</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="read">Nine arcs — and the plan is to cut that to one trip. <b>Rome only.</b> China
+  &amp; Japan is a second retro example that adds nothing: five flights and no photographs, so
+  tapping it opens a trip with nothing in it, which is worse than it not being there.</p>
+
+  <p class="read"><b>Which undoes the argument this page was built on.</b> With Rome alone a new
+  hopper's globe carries four arcs — Edinburgh to Heathrow, Heathrow to Fiumicino, and back —
+  all of them clustered over western Europe. A globe is a spectacular hero for an account with
+  486 flights across seventeen years. It is a weak one for somebody on day one looking at four
+  short-haul arcs.</p>
+
+  <div class="pick">
+    <div class="eyebrow">The revision</div>
+    <h3>The globe is the wrong first screen. Rome is.</h3>
+    <p>Not a tour <em>about</em> the app — the app having already finished, on real content, that
+    you can scroll: 103 photographs, a written story, four flights, a day-by-day trace.
+    <em>“This is what a trip looks like once this app has been at it.”</em> That is the whole
+    pitch and it needs no cards, no tooltips and no carousel.</p>
+    <p>The globe is the container. Rome is the demonstration. Direction A survives with its
+    subject swapped.</p>
+  </div>
+
+  <p class="read">And it promotes something already on the backlog. <b>“Make demo should
+  duplicate, not convert”</b> is why there are so few: the switch turns a real trip <em>into</em>
+  the example rather than copying it, so each one is built by hand, which is exactly why Rome
+  was. That stops being housekeeping and becomes the thing the door stands on.</p>
+
+  <p class="read"><b>Still open:</b> Lisbon &amp; Porto has China &amp; Japan's defect — no
+  flights, no photographs, an empty draft. It exists to show a trip that has not happened yet,
+  which is a genuinely different state and worth demonstrating. So either fill it properly or
+  drop it and demonstrate the retro case alone. As it stands it demonstrates nothing.</p>
+
+  <p class="read">The rest of the case below is untouched by any of this: four mechanisms are
+  still three abandoned patterns and a form, and four uncoordinated memories are still four.</p>
+</section>
+
+<section>
+  <div class="eyebrow">What the field settled on</div>
+  <h2>The 2026 consensus is narrower than it used to be</h2>
+
+  <div class="quote">
+    Users pick up their phones during fragmented attention windows and have a much lower
+    tolerance for being walked through anything. The top performers share a small set of
+    patterns: a meaningful first action, progressive disclosure, and an empty state that feels
+    filled.
+    <cite>Userpilot · Plotline · Appcues, 2026</cite>
+  </div>
+
+  <ul class="plain">
+    <li><b>Do-first beats tell-first.</b> One activation moment, not a product tour. The small
+    investment of doing a thing creates ownership; watching a carousel creates nothing.</li>
+    <li><b>Contextual, at the moment of need.</b> A hint where the action is possible reads and
+    retains far better than the same hint on a wall at launch.</li>
+    <li><b>The empty state <em>is</em> the tutorial</b> — Slack teaches Threads in the space
+    where threads will be.</li>
+    <li><b>Ask for context later.</b> Value first, then the form. Every field before the value
+    is a chance to leave.</li>
+  </ul>
+
+  <p class="read">Read against what we have: <b>IntroCards is the carousel</b>, <b>DemoTour is
+  the product tour</b>, and <b>Onboarding is the form-before-value</b>. Three of the four
+  mechanisms are the patterns the field has spent five years abandoning.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Three ways it could go</div>
+  <h2>Directions</h2>
+
+  <div class="cols">
+    <div class="card">
+      <h3>A — Open on Rome</h3>
+      <p>First open is the example trip itself, already written, already full of photographs. No
+      cards, no tour. One persistent control: <em>Tip it in</em>. The globe is behind it, not in
+      front of it.</p>
+      <p>Teaching happens only where an action is possible, once, and never again.</p>
+      <p class="verdict">Boldest · deletes ~1,200 lines · needs the demo trips to be good first</p>
+    </div>
+    <div class="card">
+      <h3>B — One question, then work</h3>
+      <p>A single screen: <em>What have you got?</em> — photographs, a Google Timeline export,
+      an email to forward, or nothing yet. Then straight into that path.</p>
+      <p>Keeps a deliberate front door but reduces it from six steps to one choice.</p>
+      <p class="verdict">Safest · keeps the four ways in · still a gate before the room</p>
+    </div>
+    <div class="card">
+      <h3>C — Earn it</h3>
+      <p>Nothing at first open. The app teaches itself as things arrive: the first story
+      finishing, the first flight enriching, the first trip built. Each moment gets one
+      celebration and one next step.</p>
+      <p>The animation budget goes on outcomes, never on instructions.</p>
+      <p class="verdict">Best long tail · slowest to land the first “oh” · most to build</p>
+    </div>
+  </div>
+
+  <div class="pick">
+    <div class="eyebrow">Where I would go</div>
+    <h3>A for the door, C for everything after it</h3>
+    <p>Open on the globe with nothing in the way, and spend the entire wow budget on the moment
+    the first real story comes back — because that is the app's actual promise, and no card at
+    launch can make that promise as well as the thing itself keeping it.</p>
+    <p>B's question survives, but moved: it belongs on the empty state of <em>Tip it in</em>,
+    not in front of the globe. Which is the same instinct as the recap — the gift first, the
+    ask second.</p>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Before anything gets built</div>
+  <h2>Five things I would want decided</h2>
+  <ul class="plain">
+    <li><b>Does the demo trip stay explorable signed out?</b> Direction A depends on it entirely.
+    Today a signed-out tap gets <em>“this trip isn't yours to edit”</em> — a door in the face at
+    exactly the moment we want a door open. That's backlog item 5 and it becomes load-bearing.</li>
+    <li><b>Is the cold open kept?</b> The globe flying in is genuinely good and it is also a
+    thing between the person and the app. Keep it once, ever — or keep it every launch?</li>
+    <li><b>What happens to the partner email?</b> It's the only real question in the current
+    form. Moved to the moment it matters — the first trip with two people on it — or dropped?</li>
+    <li><b>How much can be deleted?</b> A is ~1,200 lines removed. That is the good kind of
+    change and it is still a deletion of working code with no way back but git.</li>
+    <li><b>What is the one activation moment?</b> My answer: <b>a story coming back</b>. Not a
+    trip created, not photographs uploaded — the moment it hands you writing about your own life
+    that you didn't write. Everything else is setup for that.</li>
+  </ul>
+</section>
+
+</div>
+</body>
+</html>
