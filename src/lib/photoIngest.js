@@ -69,7 +69,27 @@ export async function store(prepared, { tripId, traveler = null, isHighlight = f
   const { exif, display, thumb, fingerprint } = prepared
   const ext = extFor(display.type)
   const id = crypto.randomUUID()
-  const base = `${tripId}/${id}`
+
+  // A photograph with no trip goes under whoever took it instead.
+  //
+  // The path is not decoration. Storage's policies read the first segment as
+  // a trip id and ask whether you may edit that trip — which is why a loose
+  // photograph could not be stored at all before this: with no trip there is
+  // no segment to check, and `null/…` is not a uuid, so the upload was
+  // refused before the row was ever attempted. `loose/<your uid>/` asks the
+  // same question a different way, and the three storage policies now know
+  // about it.
+  let base = `${tripId}/${id}`
+  if (!tripId) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    // No session, no owner, nowhere it could legally go — and the row would
+    // be ownerless too. Better to say so than to write something nobody can
+    // ever read back.
+    if (!user) throw new Error('Sign in first and these will be kept for you.')
+    base = `loose/${user.id}/${id}`
+  }
 
   const opts = { contentType: display.type, cacheControl: '31536000', upsert: false }
   const up = await supabase.storage.from(BUCKET).upload(`${base}.${ext}`, display.blob, opts)

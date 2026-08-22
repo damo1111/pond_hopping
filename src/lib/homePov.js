@@ -92,6 +92,20 @@ const REGIONS = {
 // won't say where it is at all.
 const NOWHERE = [25.0, -35.0]
 
+/**
+ * The coordinates of one named zone, exactly — or null.
+ *
+ * Separate from homeCoords because the two questions are different. Pointing
+ * a globe can settle for a continent; asking "were these photographs taken
+ * far from home" cannot, and a region fallback would put home in the middle
+ * of the Atlantic and call every holiday snap a trip. This says nothing
+ * rather than something vague. See homeIs.js, which is the caller.
+ */
+export function zonePoint(zone) {
+  const at = ZONES[zone]
+  return at ? { lat: at[0], lng: at[1] } : null
+}
+
 export function homeCoords(timeZone) {
   const zone =
     timeZone ??

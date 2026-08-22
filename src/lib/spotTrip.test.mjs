@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { AWAY_KM, apart, spanDays, spotTrip } from './spotTrip.js'
+import { AWAY_KM, apart, farAway, spanDays, spotDays, spotTrip } from './spotTrip.js'
 
 const LONDON = { lat: 51.5, lng: -0.13, known: true }
 const BANFF = { lat: 51.18, lon: -115.57 }
@@ -94,4 +94,25 @@ test('nothing in, nothing out', () => {
   assert.equal(spotTrip({ clusters: [], home: LONDON }), null)
   assert.equal(spotTrip({}), null)
   assert.equal(spotTrip(), null)
+})
+
+test('the sentence counts days in words, and never says "1 days"', () => {
+  assert.equal(spotDays({ days: 1 }), 'One day')
+  assert.equal(spotDays({ days: 5 }), 'Five days')
+  assert.equal(spotDays({ days: 10 }), 'Ten days')
+  assert.equal(spotDays({ days: 14 }), '14 days')
+  assert.equal(spotDays(null), '0 days')
+})
+
+test('distance is rounded to something a person would say', () => {
+  // Never the raw number: it came out of the middle of a cloud of
+  // photographs and its last two digits are fiction.
+  assert.equal(farAway(6873), '6,900 km')
+  assert.equal(farAway(712), '710 km')
+  assert.equal(farAway(251), '250 km')
+  assert.equal(farAway(1000), '1,000 km')
+  // Never "0 km", which would read as a bug rather than a short hop.
+  assert.equal(farAway(3), '10 km')
+  assert.equal(farAway(null), 'a long way')
+  assert.equal(farAway(NaN), 'a long way')
 })

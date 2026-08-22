@@ -24,6 +24,20 @@
 // in Toronto that was not a trip — teaches somebody that the app guesses
 // badly, and they stop reading what it says. Silence costs one tap on "add a
 // trip". So every uncertainty resolves to saying nothing.
+//
+// ── What it can still get wrong ───────────────────────────────────────────
+//
+// Home is a country, sharpened to a city by the timezone — see homeIs.js.
+// Great Britain has one timezone, so everybody who says "the UK" is measured
+// from London. Somebody who lives in Glasgow and photographs two days of
+// Glasgow is five hundred and fifty kilometres from "home" by that reckoning
+// and will be asked whether it was a trip. It wasn't.
+//
+// Left as it is, knowingly. The wrong question here costs one tap on "No,
+// keep them loose" and the photographs are kept either way — nothing is
+// deleted, published or moved by getting this wrong. The real fix is to
+// learn home from where somebody's own photographs actually cluster, which
+// needs a history this is specifically for the people who have none of.
 
 /** How far from home stops being your own city. */
 export const AWAY_KM = 250
@@ -59,7 +73,7 @@ export function spanDays(cluster) {
  * The cluster worth offering as a trip, or null.
  *
  * @param clusters  from clusterPhotos()
- * @param home      from homeCoords() — { lat, lng, known }
+ * @param home      from homeIs() — { lat, lng, known }
  * @param already   trips that already exist, so we never offer one twice
  *
  * Returns the *most recent* qualifying cluster rather than the largest. The
@@ -94,4 +108,33 @@ export function spotTrip({ clusters = [], home, already = [], minDays = MIN_DAYS
   worth.sort((a, b) => (a.cluster.end < b.cluster.end ? 1 : a.cluster.end > b.cluster.end ? -1 : 0))
   const best = worth[0]
   return { ...best.cluster, days: best.days, km: best.km }
+}
+
+// ── Saying it ─────────────────────────────────────────────────────────────
+//
+// Here rather than in the sheet because they are statements about a spotted
+// run, and because a sentence shown to somebody the first time they use the
+// app is worth a test.
+
+const WORDS = ['', 'One day', 'Two days', 'Three days', 'Four days', 'Five days',
+               'Six days', 'Seven days', 'Eight days', 'Nine days', 'Ten days']
+
+/** "Five days", from a spotted run. Never "1 days". */
+export function spotDays(spot) {
+  const n = spot?.days ?? 0
+  return WORDS[n] || `${n} days`
+}
+
+/**
+ * How far away, said the way a person would.
+ *
+ * Rounded hard on purpose. "6,873 km" is a measurement; the number came out
+ * of the middle of a cloud of photographs and the last two digits of it are
+ * fiction. Rounding to a hundred says the same true thing without claiming a
+ * precision nobody has.
+ */
+export function farAway(km) {
+  if (!Number.isFinite(km) || km < 0) return 'a long way'
+  if (km < 1000) return `${Math.max(10, Math.round(km / 10) * 10)} km`
+  return `${(Math.round(km / 100) * 100).toLocaleString('en-GB')} km`
 }

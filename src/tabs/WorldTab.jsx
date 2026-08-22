@@ -987,8 +987,15 @@ export default function WorldTab() {
             setRoutesOpen(false)
             setRoutesAt(null)
             await refreshTrips()
-            if (route === 'photos' && trip?.slug) {
-              setSelectedTrip(trip.slug)
+            if (route === 'photos') {
+              // A trip was made: open it.
+              // Nothing was made — the photographs were kept loose, because
+              // somebody said "no, these aren't a trip" — so open Photos with
+              // no trip selected, which is where they are. Landing back on
+              // the globe instead would read as the upload having done
+              // nothing, and "we'll keep them" has to be visibly true or it
+              // is worse than not having offered.
+              setSelectedTrip(trip?.slug ?? null)
               goToTab('photos')
             }
             // A pasted confirmation is an itinerary, and the itinerary is
